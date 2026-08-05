@@ -25,7 +25,7 @@
 
 - Git Flow를 사용합니다. 작업 브랜치는 `develop`에 병합하고, 릴리스는 `develop`에서 `main`으로 병합합니다.
 - `develop`은 개발 서버 브랜치이고, `main`은 운영 서버 브랜치입니다.
-- 작업 브랜치는 GitHub 닉네임과 스프린트 작업 ID를 포함해 `<github-nickname>/tsk-<number>` 형식으로 만듭니다.
+- 작업 브랜치는 GitHub 닉네임을 접두사로 사용합니다. 태스크가 있으면 `<github-nickname>/tsk-<number>`, 없으면 `<github-nickname>/<short-description>` 형식으로 만듭니다.
 - AngularJS 커밋 컨벤션과 Airbnb JavaScript 스타일 가이드를 따릅니다.
 - `.github/pull_request_template.md` 템플릿으로 PR을 작성하고, 병합 전에 리뷰를 요청합니다.
 
