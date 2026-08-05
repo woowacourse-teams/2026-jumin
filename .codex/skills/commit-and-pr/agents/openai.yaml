@@ -1,4 +1,0 @@
-interface:
-  display_name: "커밋 및 PR"
-  short_description: "Review, commit, and submit a team-compliant PR"
-  default_prompt: "Use $commit-and-pr to prepare a reviewed commit and pull request."
