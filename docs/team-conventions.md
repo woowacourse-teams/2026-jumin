@@ -58,9 +58,9 @@ fix(residence): 중복 주소 검증
 docs: 팀 브랜치 컨벤션 추가
 ```
 
-## JavaScript
+## JavaScript와 TypeScript
 
-Airbnb JavaScript 스타일 가이드를 적용합니다. 클라이언트 프로젝트를 초기화할 때 Airbnb 프리셋으로 ESLint를 설정하고, PR을 열기 전에 린트를 실행합니다.
+ESLint의 JavaScript·TypeScript 권장 규칙과 React Hooks 규칙을 적용하고, 코드 스타일은 Prettier로 통일합니다. PR을 열기 전에 타입 검사, 린트, 포맷 검사를 실행합니다.
 
 ## 풀 리퀘스트
 

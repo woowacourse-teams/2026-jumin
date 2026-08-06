@@ -2,11 +2,12 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  mode: 'development',
   entry: './main.tsx',
   output: {
-    filename: 'bundle.js',
+    filename: 'assets/[name].[contenthash].js',
+    assetModuleFilename: 'assets/[name].[contenthash][ext]',
     path: path.resolve(__dirname, 'dist'),
+    clean: true,
   },
   module: {
     rules: [
@@ -16,15 +17,26 @@ module.exports = {
           {
             loader: 'babel-loader',
             options: {
-              presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'],
+              presets: [
+                [
+                  '@babel/preset-env',
+                  {
+                    targets: 'defaults',
+                  },
+                ],
+                [
+                  '@babel/preset-react',
+                  {
+                    runtime: 'automatic',
+                    importSource: '@emotion/react',
+                  },
+                ],
+                '@babel/preset-typescript',
+              ],
             },
           },
         ],
         exclude: /node_modules/,
-      },
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.(png|svg|jpg|jpeg|gif)$/i,
@@ -33,9 +45,6 @@ module.exports = {
       {
         test: /\.(woff|woff2|eot|ttf|otf)$/i,
         type: 'asset/resource',
-        generator: {
-          filename: 'assets/[name][ext]',
-        },
       },
     ],
   },
@@ -50,9 +59,7 @@ module.exports = {
     }),
   ],
   devServer: {
-    static: {
-      directory: path.join(__dirname, 'dist'),
-    },
+    static: false,
     port: 3000,
     open: true,
     hot: true,

@@ -1,18 +1,24 @@
 {
   "compilerOptions": {
-    "allowJs": false,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
+    "target": "ES2022",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "noEmit": true,
+    "moduleDetection": "force",
+
     "resolveJsonModule": true,
-    "skipLibCheck": true,
+
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react",
+
     "strict": true,
-    "target": "ES2022"
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["dist", "node_modules"]
