@@ -9,7 +9,6 @@
     "resolveJsonModule": true,
 
     "jsx": "react-jsx",
-    "jsxImportSource": "@emotion/react",
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
