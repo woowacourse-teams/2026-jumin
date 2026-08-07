@@ -14,7 +14,20 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      'arrow-body-style': ['error', 'always'],
+      // Airbnb 스타일 가이드를 참고해 선별한 팀 규칙
+      'arrow-body-style': ['error', 'as-needed'],
+      curly: ['error', 'multi-line'],
+      eqeqeq: ['error', 'always'],
+      'no-duplicate-imports': 'error',
+      'no-else-return': 'error',
+      'no-param-reassign': 'error',
+      'no-var': 'error',
+      'object-shorthand': 'error',
+      'prefer-arrow-callback': 'error',
+      'prefer-const': 'error',
+      'prefer-template': 'error',
+
+      // TypeScript 전용 규칙으로 대체
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',

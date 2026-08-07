@@ -7,8 +7,8 @@
 ```bash
 pnpm install
 pnpm start
-pnpm check
+pnpm typecheck
 pnpm build
 ```
 
-`pnpm check`은 타입 검사, ESLint 검사, Prettier 포맷 검사를 순서대로 실행합니다.
+`pnpm build`는 타입 검사를 통과한 뒤 프로덕션 번들을 생성합니다.
