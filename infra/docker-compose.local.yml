@@ -1,0 +1,22 @@
+name: jumin-local
+
+services:
+  postgres:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-jumin}
+      POSTGRES_USER: ${DB_USERNAME:-jumin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-jumin}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
