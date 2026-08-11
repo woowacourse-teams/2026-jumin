@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import styled from '@emotion/styled';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { Coordinate, ParkingLotSummary } from './domain';
 
 type Listener = object;
@@ -55,6 +56,12 @@ let mapLoader: Promise<NaverMaps> | null = null;
 let mapAuthenticationFailed = false;
 const EMPTY_PARKING_LOTS: ParkingLotSummary[] = [];
 const EMPTY_IDS: string[] = [];
+const isNativeIOS = Capacitor.getPlatform() === 'ios';
+const NativeNaverMap = registerPlugin<{
+  show(options: Record<string, unknown>): Promise<void>;
+  hide(options: { id: string }): Promise<void>;
+  addListener(event: 'markerClick', listener: (data: { parkingLotId: string }) => void): Promise<{ remove(): void }>;
+}>('NativeNaverMap');
 
 const loadNaverMaps = () => {
   if (mapAuthenticationFailed) return Promise.reject(new Error('NAVER_MAP_AUTH_FAILED'));
@@ -117,15 +124,18 @@ const markerIcon = (maps: NaverMaps, label: string, selected: boolean, recommend
   };
 };
 
-const MapFrame = styled.div<{ height: string }>`
+const MapFrame = styled.div<{ height: string; native: boolean }>`
   position: relative;
   width: 100%;
   height: ${({ height }) => height};
   overflow: hidden;
-  background-color: #eef1f8;
-  background-image:
-    linear-gradient(36deg, transparent 45%, rgba(255, 255, 255, 0.9) 46% 52%, transparent 53%),
-    linear-gradient(110deg, transparent 44%, rgba(203, 210, 225, 0.65) 45% 49%, transparent 50%);
+  ${({ native }) =>
+    native
+      ? 'background: transparent;'
+      : `background-color: #eef1f8;
+         background-image:
+           linear-gradient(36deg, transparent 45%, rgba(255, 255, 255, 0.9) 46% 52%, transparent 53%),
+           linear-gradient(110deg, transparent 44%, rgba(203, 210, 225, 0.65) 45% 49%, transparent 50%);`}
 `;
 
 const Canvas = styled.div`
@@ -175,6 +185,7 @@ export const MapView = ({
   height = '100%',
   onSelect,
 }: MapViewProps) => {
+  const nativeMapId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMap | null>(null);
   const mapsRef = useRef<NaverMaps | null>(null);
@@ -192,6 +203,44 @@ export const MapView = ({
     const overlays: Overlay[] = [];
     const listeners: Listener[] = [];
     const markerMap = markerRefs.current;
+    if (isNativeIOS && container) {
+      document.documentElement.classList.add('native-map-visible');
+      const ancestors: Array<{ element: HTMLElement; background: string }> = [];
+      for (let element: HTMLElement | null = container; element; element = element.parentElement) {
+        ancestors.push({ element, background: element.style.background });
+        element.style.setProperty('background', 'transparent', 'important');
+      }
+      const show = () => {
+        const frame = container.getBoundingClientRect();
+        void NativeNaverMap.show({
+          id: nativeMapId,
+          frame: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
+          center,
+          destination,
+          currentLocation,
+          parkingLots,
+          recommendedIds,
+          selectedId,
+          radius,
+        }).catch((caught) => {
+          console.error('NATIVE_NAVER_MAP_ERROR', caught);
+          setError(true);
+        });
+      };
+      show();
+      window.addEventListener('resize', show);
+      window.addEventListener('scroll', show, true);
+      return () => {
+        document.documentElement.classList.remove('native-map-visible');
+        ancestors.forEach(({ element, background }) => {
+          if (background) element.style.background = background;
+          else element.style.removeProperty('background');
+        });
+        window.removeEventListener('resize', show);
+        window.removeEventListener('scroll', show, true);
+        void NativeNaverMap.hide({ id: nativeMapId });
+      };
+    }
     void loadNaverMaps()
       .then((maps) => {
         if (cancelled || !container) return;
@@ -277,13 +326,27 @@ export const MapView = ({
     // overlays are rebuilt only when the response set changes, not when selection changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    nativeMapId,
     destination?.latitude,
     destination?.longitude,
     currentLocation?.latitude,
     currentLocation?.longitude,
     parkingLots,
+    recommendedIds,
+    selectedId,
     radius,
   ]);
+
+  useEffect(() => {
+    if (!isNativeIOS) return;
+    let handle: { remove(): void } | undefined;
+    void NativeNaverMap.addListener('markerClick', ({ parkingLotId }) => onSelectRef.current?.(parkingLotId)).then(
+      (listener) => {
+        handle = listener;
+      },
+    );
+    return () => handle?.remove();
+  }, []);
 
   useEffect(() => {
     const maps = mapsRef.current;
@@ -325,7 +388,7 @@ export const MapView = ({
   }, []);
 
   return (
-    <MapFrame height={height} aria-label="지도 영역">
+    <MapFrame height={height} native={isNativeIOS} aria-label="지도 영역">
       <Canvas ref={containerRef} />
       {error && <ErrorBanner>지도를 불러오지 못했어요. 아래 정보로 계속 이용할 수 있어요.</ErrorBanner>}
     </MapFrame>

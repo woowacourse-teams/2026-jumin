@@ -45,6 +45,13 @@ export const GlobalStyles = () => (
         -webkit-font-smoothing: antialiased;
         overscroll-behavior: none;
       }
+      html.native-map-visible,
+      html.native-map-visible body,
+      html.native-map-visible #root,
+      html.native-map-visible main,
+      html.native-map-visible section {
+        background: transparent;
+      }
       button,
       input,
       select {

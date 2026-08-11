@@ -1,5 +1,5 @@
 {
-  "originHash" : "cec69337000d47874fcc6fd060b83df188430f1c4c540f1d97398e768cd68541",
+  "originHash" : "3ebaa2a0e203c455a8fb4c857bb4bb1230d0ee16ad547167ec4a2aeeab6de476",
   "pins" : [
     {
       "identity" : "capacitor-swift-pm",
@@ -17,6 +17,24 @@
       "state" : {
         "revision" : "db363927d3a954e3ea24d2e72b6e9814769a84be",
         "version" : "2.1.1"
+      }
+    },
+    {
+      "identity" : "spm-nmapsgeometry",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/navermaps/SPM-NMapsGeometry.git",
+      "state" : {
+        "revision" : "436d5e2e684f557faf5ef5862fd6633a42d7af11",
+        "version" : "1.0.2"
+      }
+    },
+    {
+      "identity" : "spm-nmapsmap",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/navermaps/SPM-NMapsMap.git",
+      "state" : {
+        "revision" : "14e1cfa1e270458fc58b0cd8827c87b3cee905ab",
+        "version" : "3.23.3"
       }
     }
   ],
