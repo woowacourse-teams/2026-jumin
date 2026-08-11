@@ -587,6 +587,21 @@ const RecentButton = styled.button`
   text-align: left;
 `;
 
+const LocatingToast = styled.div`
+  position: fixed;
+  z-index: 9;
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(20, 33, 61, 0.88);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
 const ErrorPico = styled.img`
   display: block;
   width: 128px;
@@ -1880,6 +1895,7 @@ const App = () => {
     <>
       <GlobalStyles />
       <AppShell>{page}</AppShell>
+      {locating && <LocatingToast role="status">현재 위치를 찾고 있어요…</LocatingToast>}
       {route.overlay === 'VISIT_TIME_PICKER' && picker && (
         <TimePicker picker={picker} onChange={setPicker} onConfirm={confirmPicker} onClose={closeOverlay} />
       )}

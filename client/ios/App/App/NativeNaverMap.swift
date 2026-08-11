@@ -83,11 +83,18 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         nativeMapView = map
     }
 
+    private var didPrepareTransparentWebView = false
+
     func makeWebViewTransparent() {
         guard let webView = bridgeController.webView else { return }
-        webView.isOpaque = false
-        webView.underPageBackgroundColor = .clear
-        clearBackgrounds(webView)
+        // 뷰 계층 전체 순회는 show()마다 할 필요가 없다. 최초 1회만 수행한다.
+        if !didPrepareTransparentWebView {
+            didPrepareTransparentWebView = true
+            webView.isOpaque = false
+            webView.underPageBackgroundColor = .clear
+            clearBackgrounds(webView)
+        }
+        // 스크립트 주입은 멱등이며 webView 재로드 후 복구가 필요하므로 매번 호출한다.
         installTouchRegionObserver()
     }
 

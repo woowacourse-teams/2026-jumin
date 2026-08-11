@@ -192,6 +192,12 @@ export const MapView = ({
   const markerRefs = useRef(new Map<string, Overlay>());
   const onSelectRef = useRef(onSelect);
   const [error, setError] = useState(false);
+  // 호출부가 매 렌더 새 배열을 만들어도 내용이 같으면 지도를 다시 만들지 않는다.
+  // (docs/specs/04-recommendations-more.md §5)
+  const parkingLotsKey = parkingLots
+    .map((lot) => `${lot.parkingLotId}@${lot.location.latitude},${lot.location.longitude}`)
+    .join('|');
+  const recommendedKey = recommendedIds.join('|');
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -229,7 +235,10 @@ export const MapView = ({
       };
       show();
       window.addEventListener('resize', show);
-      window.addEventListener('scroll', show, true);
+      // 문서 전역 scroll(capture)은 캐러셀 스와이프 한 번에 브릿지를 수십 번 호출해
+      // 네이티브 마커를 통째로 재생성시킨다. 컨테이너 크기 변화만 추적한다.
+      const frameObserver = new ResizeObserver(show);
+      frameObserver.observe(container);
       return () => {
         document.documentElement.classList.remove('native-map-visible');
         ancestors.forEach(({ element, background }) => {
@@ -237,7 +246,7 @@ export const MapView = ({
           else element.style.removeProperty('background');
         });
         window.removeEventListener('resize', show);
-        window.removeEventListener('scroll', show, true);
+        frameObserver.disconnect();
         void NativeNaverMap.hide({ id: nativeMapId });
       };
     }
@@ -331,8 +340,8 @@ export const MapView = ({
     destination?.longitude,
     currentLocation?.latitude,
     currentLocation?.longitude,
-    parkingLots,
-    recommendedIds,
+    parkingLotsKey,
+    recommendedKey,
     selectedId,
     radius,
   ]);
@@ -365,7 +374,9 @@ export const MapView = ({
           ),
         );
     });
-  }, [parkingLots, recommendedIds, selectedId]);
+    // 값 기반 키로 비교한다. parkingLots/recommendedIds 참조는 매 렌더 바뀔 수 있다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parkingLotsKey, recommendedKey, selectedId]);
 
   useEffect(() => {
     const maps = mapsRef.current;

@@ -21,6 +21,19 @@ const validCoordinate = ({ latitude, longitude }: Coordinate) =>
   longitude >= -180 &&
   longitude <= 180;
 
+// Capacitor iOS는 웹의 maximumAge를 무시하고 호출마다 새 fix를 요청한다.
+// 같은 역할을 앱에서 직접 수행해 재측위 대기를 없앤다.
+const LOCATION_MAX_AGE_MS = 60_000;
+let lastKnownLocation: { location: Coordinate; at: number } | null = null;
+
+const rememberLocation = (location: Coordinate) => {
+  lastKnownLocation = { location, at: Date.now() };
+  return location;
+};
+
+const freshEnoughLocation = () =>
+  lastKnownLocation && Date.now() - lastKnownLocation.at < LOCATION_MAX_AGE_MS ? lastKnownLocation.location : null;
+
 const getWebLocation = () =>
   new Promise<LocationResult>((resolve) => {
     if (!navigator.geolocation) {
@@ -30,7 +43,11 @@ const getWebLocation = () =>
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const location = { latitude: coords.latitude, longitude: coords.longitude };
-        resolve(validCoordinate(location) ? { status: 'GRANTED', location } : { status: 'UNAVAILABLE' });
+        resolve(
+          validCoordinate(location)
+            ? { status: 'GRANTED', location: rememberLocation(location) }
+            : { status: 'UNAVAILABLE' },
+        );
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) resolve({ status: 'DENIED' });
@@ -40,6 +57,15 @@ const getWebLocation = () =>
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
   });
+
+const readNativePosition = async (enableHighAccuracy: boolean, timeout: number): Promise<Coordinate> => {
+  const result = await Geolocation.getCurrentPosition({
+    enableHighAccuracy,
+    timeout,
+    maximumAge: LOCATION_MAX_AGE_MS,
+  });
+  return { latitude: result.coords.latitude, longitude: result.coords.longitude };
+};
 
 const getNativeLocation = async (): Promise<LocationResult> => {
   const checked = await Geolocation.checkPermissions();
@@ -51,14 +77,20 @@ const getNativeLocation = async (): Promise<LocationResult> => {
     deniedOnce = true;
     return { status };
   }
+  const cached = freshEnoughLocation();
+  if (cached) return { status: 'GRANTED', location: cached };
   try {
-    const result = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: 10_000,
-      maximumAge: 60_000,
-    });
-    const location = { latitude: result.coords.latitude, longitude: result.coords.longitude };
-    return validCoordinate(location) ? { status: 'GRANTED', location } : { status: 'UNAVAILABLE' };
+    // 600m 반경 추천에는 대략적 위치로 충분하다. 저정확도 요청은 대개 즉시 반환된다.
+    const coarse = await readNativePosition(false, 5_000);
+    if (validCoordinate(coarse)) return { status: 'GRANTED', location: rememberLocation(coarse) };
+  } catch {
+    // 저정확도 실패는 무시하고 고정확도로 한 번 더 시도한다.
+  }
+  try {
+    const precise = await readNativePosition(true, 10_000);
+    return validCoordinate(precise)
+      ? { status: 'GRANTED', location: rememberLocation(precise) }
+      : { status: 'UNAVAILABLE' };
   } catch (error) {
     return error instanceof Error && /timeout/i.test(error.message)
       ? { status: 'PROMPT', reason: 'TIMEOUT' }
