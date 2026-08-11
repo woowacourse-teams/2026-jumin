@@ -24,12 +24,12 @@ import {
   syncVisitFromResponse,
   todayInSeoul,
   validateVisit,
-  type SearchSession,
   type VisitDraft,
 } from '../../domain';
 import { MapView } from '../../map';
-import { navigate } from '../../router';
+import { closeOverlay, navigate } from '../../router';
 import { AssetIcon, BottomSheet, SheetHandle, Title, apiMessage } from '../shared';
+import { useOverlay, useSearchSession } from '../../contexts';
 
 export const VisitRow = styled.div<{ error?: boolean }>`
   display: grid;
@@ -89,23 +89,10 @@ export const TimeSelect = styled.select`
   text-align: center;
 `;
 
-export interface PickerState {
-  kind: 'ENTRY' | 'EXIT';
-  hour: string;
-  minute: string;
-}
-
-export const VisitScreen = ({
-  session,
-  setSession,
-  onBack,
-  onOpenPicker,
-}: {
-  session: SearchSession;
-  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
-  onBack: () => void;
-  onOpenPicker: (kind: PickerState['kind'], initial: string | null) => void;
-}) => {
+export const VisitScreen = () => {
+  const { session, setSession } = useSearchSession();
+  const { openTimePicker: onOpenPicker } = useOverlay();
+  const onBack = () => navigate(session.visitDraft?.source === 'SEARCH' ? '/destination' : '/');
   const draft = session.visitDraft!;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<{ field?: string; message: string } | null>(null);
@@ -253,46 +240,42 @@ export const VisitScreen = ({
   );
 };
 
-export const TimePicker = ({
-  picker,
-  onChange,
-  onConfirm,
-  onClose,
-}: {
-  picker: PickerState;
-  onChange: (picker: PickerState) => void;
-  onConfirm: () => void;
-  onClose: () => void;
-}) => (
-  <DialogSheet title={picker.kind === 'ENTRY' ? '입차 시간' : '출차 시간'} onClose={onClose}>
-    <TimeSelects>
-      <TimeSelect
-        aria-label="시"
-        value={picker.hour}
-        onChange={(event) => onChange({ ...picker, hour: event.target.value })}
-      >
-        {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map((hour) => (
-          <option key={hour}>{hour}</option>
-        ))}
-      </TimeSelect>
-      <strong>:</strong>
-      <TimeSelect
-        aria-label="분"
-        value={picker.minute}
-        onChange={(event) => onChange({ ...picker, minute: event.target.value })}
-      >
-        {['00', '10', '20', '30', '40', '50'].map((minute) => (
-          <option key={minute}>{minute}</option>
-        ))}
-      </TimeSelect>
-    </TimeSelects>
-    <div css={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-      <SecondaryButton type="button" onClick={onClose}>
-        취소
-      </SecondaryButton>
-      <PrimaryButton type="button" onClick={onConfirm}>
-        확인
-      </PrimaryButton>
-    </div>
-  </DialogSheet>
-);
+export const TimePicker = () => {
+  const { picker: pickerValue, setPicker: onChange, confirmPicker: onConfirm } = useOverlay();
+  const picker = pickerValue!;
+  const onClose = closeOverlay;
+
+  return (
+    <DialogSheet title={picker.kind === 'ENTRY' ? '입차 시간' : '출차 시간'} onClose={onClose}>
+      <TimeSelects>
+        <TimeSelect
+          aria-label="시"
+          value={picker.hour}
+          onChange={(event) => onChange({ ...picker, hour: event.target.value })}
+        >
+          {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map((hour) => (
+            <option key={hour}>{hour}</option>
+          ))}
+        </TimeSelect>
+        <strong>:</strong>
+        <TimeSelect
+          aria-label="분"
+          value={picker.minute}
+          onChange={(event) => onChange({ ...picker, minute: event.target.value })}
+        >
+          {['00', '10', '20', '30', '40', '50'].map((minute) => (
+            <option key={minute}>{minute}</option>
+          ))}
+        </TimeSelect>
+      </TimeSelects>
+      <div css={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <SecondaryButton type="button" onClick={onClose}>
+          취소
+        </SecondaryButton>
+        <PrimaryButton type="button" onClick={onConfirm}>
+          확인
+        </PrimaryButton>
+      </div>
+    </DialogSheet>
+  );
+};

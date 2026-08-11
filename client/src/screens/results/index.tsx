@@ -13,12 +13,13 @@ import {
   formatVisit,
   isSortableBy,
   sortParkingLots,
-  type SearchSession,
   type SortCategory,
 } from '../../domain';
 import { MapView } from '../../map';
-import { navigate } from '../../router';
+import { navigate, openDetail } from '../../router';
 import { AssetIcon, CandidateName, CenterState, ErrorPico, SmallButton, Title } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
+import { useSearchSession } from '../../contexts';
 
 export const TOP_CARD_COUNT = 3;
 
@@ -169,23 +170,11 @@ export const CategoryTabs = ({
   </Tabs>
 );
 
-export const ResultsScreen = ({
-  session,
-  setSession,
-  onDetail,
-  onMore,
-  onNearby,
-  onHome,
-  onRecent,
-}: {
-  session: SearchSession;
-  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
-  onDetail: (id: string) => void;
-  onMore: () => void;
-  onNearby: () => void;
-  onHome: () => void;
-  onRecent: () => void;
-}) => {
+export const ResultsScreen = () => {
+  const { session, setSession } = useSearchSession();
+  const { goHome: onHome, goNearby: onNearby, goRecent: onRecent } = useGlobalNav();
+  const onDetail = (id: string) => openDetail(id, 'RESULTS');
+  const onMore = () => navigate('/parking-lots');
   const response = session.response!;
   const carouselRef = useRef<HTMLDivElement>(null);
   // 카드는 선택한 정렬 기준의 1~3위다. 추천 유형별 대표가 아니라 해당 정렬의 상위 N개를 노출한다.

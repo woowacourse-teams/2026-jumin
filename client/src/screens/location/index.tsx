@@ -1,20 +1,21 @@
 /** 위치 권한 안내 시트. */
 
 import { DialogSheet, Muted, PrimaryButton } from '../../components';
-import { type LocationResult } from '../../platform';
-import { initializeHistory } from '../../router';
+import { initializeHistory, navigate } from '../../router';
+import { useLocation } from '../../contexts';
 
-export const LocationSheet = ({
-  result,
-  onRetry,
-  onSearch,
-  onClose,
-}: {
-  result: LocationResult;
-  onRetry: () => void;
-  onSearch: () => void;
-  onClose: () => void;
-}) => {
+export const LocationSheet = () => {
+  const { locationError, locate, dismissLocationError } = useLocation();
+  const { result, nearby } = locationError!;
+  const onClose = dismissLocationError;
+  const onRetry = () => {
+    dismissLocationError();
+    void locate(nearby);
+  };
+  const onSearch = () => {
+    dismissLocationError();
+    navigate('/search');
+  };
   const message =
     'reason' in result && result.reason === 'TIMEOUT'
       ? '현재 위치를 확인하는 데 시간이 오래 걸리고 있어요.'

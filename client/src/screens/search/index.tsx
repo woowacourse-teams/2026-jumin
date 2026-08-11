@@ -6,8 +6,11 @@ import styled from '@emotion/styled';
 import { api } from '../../api';
 import { close, picoError, pin, search } from '../../assets';
 import { BottomNav, colors, IconButton, LoadingBlock, Muted, Screen, SecondaryButton } from '../../components';
-import { formatDistance, type Coordinate, type DestinationCandidate } from '../../domain';
+import { formatDistance, type DestinationCandidate } from '../../domain';
 import { AssetIcon, CandidateAddress, CandidateName, CenterState, ErrorPico, apiMessage } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
+import { useLocation, useSearchSession } from '../../contexts';
+import { navigate } from '../../router';
 
 export const SearchHeader = styled.div`
   position: sticky;
@@ -96,21 +99,11 @@ export const PlaceIcon = styled.span`
   }
 `;
 
-export const SearchScreen = ({
-  currentLocation,
-  onSelect,
-  onBack,
-  onNearby,
-  onHome,
-  onRecent,
-}: {
-  currentLocation: Coordinate | null;
-  onSelect: (candidate: DestinationCandidate) => void;
-  onBack: () => void;
-  onNearby: () => void;
-  onHome: () => void;
-  onRecent: () => void;
-}) => {
+export const SearchScreen = () => {
+  const { currentLocation } = useLocation();
+  const { selectDestination: onSelect } = useSearchSession();
+  const { goHome: onHome, goNearby: onNearby, goRecent: onRecent } = useGlobalNav();
+  const onBack = () => navigate('/');
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR'>('IDLE');

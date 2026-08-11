@@ -61,3 +61,7 @@ export const useRoute = () => {
   }, []);
   return state;
 };
+
+/** 주차장 상세로 이동한다. 어디서 왔는지 남겨 뒤로가기 동작을 구분한다. */
+export const openDetail = (parkingLotId: string, origin: DetailOrigin) =>
+  navigate(`/parking-lots/${encodeURIComponent(parkingLotId)}`, { detailOrigin: origin });

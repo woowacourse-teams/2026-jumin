@@ -4,9 +4,11 @@ import styled from '@emotion/styled';
 
 import { location, search } from '../../assets';
 import { BottomNav, colors, IconButton, Screen } from '../../components';
-import { type Coordinate } from '../../domain';
 import { MapView } from '../../map';
 import { AssetIcon } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
+import { useLocation } from '../../contexts';
+import { navigate } from '../../router';
 
 export const GANGNAM_STATION = { latitude: 37.4981, longitude: 127.0279 };
 /** 추천 결과 화면 carousel에 노출하는 상위 카드 수 */
@@ -50,39 +52,28 @@ export const LocationButton = styled(IconButton)`
   box-shadow: 0 5px 18px rgba(31, 42, 78, 0.18);
 `;
 
-export const HomeScreen = ({
-  currentLocation,
-  locating,
-  mapFocusToken,
-  onSearch,
-  onLocate,
-  onNearby,
-  onHome,
-  onRecent,
-}: {
-  currentLocation: Coordinate | null;
-  locating: boolean;
-  mapFocusToken: number;
-  onSearch: () => void;
-  onLocate: () => void;
-  onNearby: () => void;
-  onHome: () => void;
-  onRecent: () => void;
-}) => (
-  <Screen bottomNav css={{ position: 'relative', height: '100dvh', paddingBottom: 0, overflow: 'hidden' }}>
-    <MapView
-      center={currentLocation ?? GANGNAM_STATION}
-      currentLocation={currentLocation}
-      focusToken={mapFocusToken}
-      height="100dvh"
-    />
-    <SearchButton type="button" onClick={onSearch}>
-      <AssetIcon src={search} alt="" />
-      어디에 방문하세요?
-    </SearchButton>
-    <LocationButton type="button" aria-label="현재 위치로 이동" disabled={locating} onClick={onLocate}>
-      <AssetIcon src={location} alt="" css={{ opacity: locating ? 0.4 : 1 }} />
-    </LocationButton>
-    <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
-  </Screen>
-);
+export const HomeScreen = () => {
+  const { currentLocation, locating, mapFocusToken, locate } = useLocation();
+  const { goHome: onHome, goNearby: onNearby, goRecent: onRecent } = useGlobalNav();
+  const onSearch = () => navigate('/search');
+  const onLocate = () => void locate(false);
+
+  return (
+    <Screen bottomNav css={{ position: 'relative', height: '100dvh', paddingBottom: 0, overflow: 'hidden' }}>
+      <MapView
+        center={currentLocation ?? GANGNAM_STATION}
+        currentLocation={currentLocation}
+        focusToken={mapFocusToken}
+        height="100dvh"
+      />
+      <SearchButton type="button" onClick={onSearch}>
+        <AssetIcon src={search} alt="" />
+        어디에 방문하세요?
+      </SearchButton>
+      <LocationButton type="button" aria-label="현재 위치로 이동" disabled={locating} onClick={onLocate}>
+        <AssetIcon src={location} alt="" css={{ opacity: locating ? 0.4 : 1 }} />
+      </LocationButton>
+      <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
+    </Screen>
+  );
+};

@@ -24,12 +24,11 @@ import {
   operationLabel,
   recommendationLabel,
   type ParkingLotDetailResponse,
-  type ParkingTarget,
-  type RecentUse,
-  type SearchSession,
 } from '../../domain';
 import { MapView } from '../../map';
 import { AssetIcon, CenterState, ErrorPico, Title, apiMessage, toTarget } from '../shared';
+import { useOverlay, useRecentUses, useSearchSession } from '../../contexts';
+import { navigate, useRoute } from '../../router';
 
 export const SectionTitle = styled.h2`
   margin: 0 0 14px;
@@ -93,19 +92,15 @@ export const DetailRows = styled.dl`
   }
 `;
 
-export const DetailScreen = ({
-  parkingLotId,
-  session,
-  recent,
-  onBack,
-  onDirections,
-}: {
-  parkingLotId: string;
-  session: SearchSession;
-  recent: RecentUse[];
-  onBack: () => void;
-  onDirections: (target: ParkingTarget) => void;
-}) => {
+export const DetailScreen = ({ parkingLotId }: { parkingLotId: string }) => {
+  const route = useRoute();
+  const { session } = useSearchSession();
+  const { recent } = useRecentUses();
+  const { showDirections: onDirections } = useOverlay();
+  const onBack = () => {
+    if (route.detailOrigin) history.back();
+    else navigate('/', { replace: true });
+  };
   const inSearch = Boolean(
     session.response?.parkingLots.some((lot) => lot.parkingLotId === parkingLotId) &&
     session.confirmedVisit &&

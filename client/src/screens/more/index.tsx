@@ -10,14 +10,13 @@ import {
   operationLabel,
   recommendationLabel,
   sortParkingLots,
-  type ParkingTarget,
-  type SearchSession,
   type SortCategory,
 } from '../../domain';
 import { MapView } from '../../map';
-import { navigate } from '../../router';
+import { navigate, openDetail } from '../../router';
 import { CategoryTabs } from '../results';
 import { CandidateName, SmallButton, toTarget } from '../shared';
+import { useOverlay, useSearchSession } from '../../contexts';
 
 export const MoreLayout = styled.div`
   min-height: 100dvh;
@@ -63,17 +62,10 @@ export const RowActions = styled.div`
   gap: 8px;
 `;
 
-export const MoreScreen = ({
-  session,
-  setSession,
-  onDetail,
-  onDirections,
-}: {
-  session: SearchSession;
-  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
-  onDetail: (id: string) => void;
-  onDirections: (target: ParkingTarget) => void;
-}) => {
+export const MoreScreen = () => {
+  const { session, setSession } = useSearchSession();
+  const { showDirections: onDirections } = useOverlay();
+  const onDetail = (id: string) => openDetail(id, 'PARKING_LOTS');
   const response = session.response!;
   const sorted = useMemo(
     () => sortParkingLots(response.parkingLots, session.selectedCategory),

@@ -3,7 +3,10 @@
 import styled from '@emotion/styled';
 
 import { colors, DialogSheet, ErrorText, Muted, SecondaryButton } from '../../components';
-import { type DirectionsProvider, type ParkingTarget } from '../../domain';
+import { type DirectionsProvider } from '../../domain';
+import { useOverlay } from '../../contexts';
+import { closeOverlay } from '../../router';
+import { openNaverWebFallback } from '../../platform';
 
 export const DirectionButton = styled.button`
   display: grid;
@@ -30,44 +33,43 @@ export const ProviderLogo = styled.span<{ provider: DirectionsProvider }>`
   font-weight: 900;
 `;
 
-export const DirectionsSheet = ({
-  target,
-  error,
-  onOpen,
-  onFallback,
-  onClose,
-}: {
-  target: ParkingTarget;
-  error: string;
-  onOpen: (provider: DirectionsProvider) => void;
-  onFallback: () => void;
-  onClose: () => void;
-}) => (
-  <DialogSheet title="어떤 앱으로 갈까요?" onClose={onClose}>
-    <Muted css={{ marginBottom: 10 }}>{target.name}까지 길찾기를 시작합니다.</Muted>
-    {(
-      [
-        ['NAVER', '네이버 지도', 'N'],
-        ['KAKAO', '카카오맵', 'K'],
-        ['TMAP', 'TMAP', 'T'],
-      ] as const
-    ).map(([provider, label, mark]) => (
-      <DirectionButton key={provider} type="button" onClick={() => onOpen(provider)}>
-        <ProviderLogo provider={provider}>{mark}</ProviderLogo>
-        <span>
-          <strong>{label}</strong>
-          <Muted>목적지만 전달</Muted>
-        </span>
-        <span aria-hidden>›</span>
-      </DirectionButton>
-    ))}
-    {error && (
-      <div>
-        <ErrorText>{error}</ErrorText>
-        <SecondaryButton type="button" css={{ width: '100%', marginTop: 10 }} onClick={onFallback}>
-          네이버 지도 웹으로 열기
-        </SecondaryButton>
-      </div>
-    )}
-  </DialogSheet>
-);
+export const DirectionsSheet = () => {
+  const { directionsTarget, directionsError: error, dispatchDirections } = useOverlay();
+  const target = directionsTarget!;
+  const onOpen = (provider: DirectionsProvider) => void dispatchDirections(provider);
+  const onClose = closeOverlay;
+  const onFallback = () => {
+    const result = openNaverWebFallback();
+    if (result.status === 'FALLBACK_OPENED') closeOverlay();
+  };
+
+  return (
+    <DialogSheet title="어떤 앱으로 갈까요?" onClose={onClose}>
+      <Muted css={{ marginBottom: 10 }}>{target.name}까지 길찾기를 시작합니다.</Muted>
+      {(
+        [
+          ['NAVER', '네이버 지도', 'N'],
+          ['KAKAO', '카카오맵', 'K'],
+          ['TMAP', 'TMAP', 'T'],
+        ] as const
+      ).map(([provider, label, mark]) => (
+        <DirectionButton key={provider} type="button" onClick={() => onOpen(provider)}>
+          <ProviderLogo provider={provider}>{mark}</ProviderLogo>
+          <span>
+            <strong>{label}</strong>
+            <Muted>목적지만 전달</Muted>
+          </span>
+          <span aria-hidden>›</span>
+        </DirectionButton>
+      ))}
+      {error && (
+        <div>
+          <ErrorText>{error}</ErrorText>
+          <SecondaryButton type="button" css={{ width: '100%', marginTop: 10 }} onClick={onFallback}>
+            네이버 지도 웹으로 열기
+          </SecondaryButton>
+        </div>
+      )}
+    </DialogSheet>
+  );
+};

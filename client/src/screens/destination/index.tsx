@@ -1,19 +1,14 @@
 /** 목적지 확정 화면. */
 
 import { Header, Muted, PrimaryButton, Screen } from '../../components';
-import { type SearchSession } from '../../domain';
 import { MapView } from '../../map';
 import { BottomSheet, SheetHandle, Title } from '../shared';
+import { useSearchSession } from '../../contexts';
+import { navigate } from '../../router';
 
-export const DestinationScreen = ({
-  session,
-  onBack,
-  onNext,
-}: {
-  session: SearchSession;
-  onBack: () => void;
-  onNext: () => void;
-}) => {
+export const DestinationScreen = () => {
+  const { session, startSearchVisit: onNext } = useSearchSession();
+  const onBack = () => navigate('/search');
   const destination = session.destination!;
   return (
     <Screen css={{ position: 'relative', paddingBottom: 0 }}>

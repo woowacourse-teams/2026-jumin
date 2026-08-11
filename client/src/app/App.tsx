@@ -1,45 +1,24 @@
-/** 앱 셸. 라우팅과 전역 상태를 화면에 연결한다. */
+/** 앱 셸. 라우팅과 오버레이 노출만 담당한다. 화면별 상태는 각 화면이 context 에서 직접 가져온다. */
 
 import { useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 
 import { picoLogo } from '../assets';
 import { AppShell, colors, GlobalStyles, LoadingBlock } from '../components';
-import {
-  EMPTY_SESSION,
-  addVisitMinutes,
-  initialNearbyVisit,
-  loadRecentUses,
-  nextTenMinuteSlot,
-  runDomainSelfCheck,
-  saveRecentUse,
-  todayInSeoul,
-  type Coordinate,
-  type DestinationCandidate,
-  type DirectionsProvider,
-  type ParkingTarget,
-  type RecentUse,
-  type SearchSession,
-} from '../domain';
-import {
-  exitNativeApp,
-  openDirections,
-  openNaverWebFallback,
-  registerNativeBack,
-  requestCurrentLocation,
-  type LocationResult,
-} from '../platform';
-import { closeOverlay, navigate, openOverlay, useRoute } from '../router';
-import { HomeScreen } from '../screens/home';
-import { SearchScreen } from '../screens/search';
+import { AppProviders, useLocation, useOverlay, useSearchSession } from '../contexts';
+import { runDomainSelfCheck } from '../domain';
+import { exitNativeApp, registerNativeBack } from '../platform';
+import { navigate, useRoute } from '../router';
 import { DestinationScreen } from '../screens/destination';
-import { PickerState, TimePicker, VisitScreen } from '../screens/visit';
-import { ResultsScreen } from '../screens/results';
-import { MoreScreen } from '../screens/more';
 import { DetailScreen } from '../screens/detail';
-import { RecentScreen } from '../screens/recent';
 import { DirectionsSheet } from '../screens/directions';
+import { HomeScreen } from '../screens/home';
 import { LocationSheet } from '../screens/location';
+import { MoreScreen } from '../screens/more';
+import { RecentScreen } from '../screens/recent';
+import { ResultsScreen } from '../screens/results';
+import { SearchScreen } from '../screens/search';
+import { TimePicker, VisitScreen } from '../screens/visit';
 
 export const Splash = styled.div`
   display: grid;
@@ -72,24 +51,10 @@ export const LocatingToast = styled.div`
   white-space: nowrap;
 `;
 
-export const App = () => {
+/** 현재 라우트에 맞는 화면 하나를 고른다. 진입 조건을 만족하지 못하면 안전한 화면으로 돌려보낸다. */
+const useCurrentPage = (ready: boolean) => {
   const route = useRoute();
-  const [ready, setReady] = useState(false);
-  const [session, setSession] = useState<SearchSession>(EMPTY_SESSION);
-  const [currentLocation, setCurrentLocation] = useState<Coordinate | null>(null);
-  const [locating, setLocating] = useState(false);
-  // 같은 좌표를 다시 받아도 지도를 현재 위치로 되돌리기 위한 신호
-  const [mapFocusToken, setMapFocusToken] = useState(0);
-  const [locationError, setLocationError] = useState<{ result: LocationResult; nearby: boolean } | null>(null);
-  const [picker, setPicker] = useState<PickerState | null>(null);
-  const [directionsTarget, setDirectionsTarget] = useState<ParkingTarget | null>(null);
-  const [directionsError, setDirectionsError] = useState('');
-  const [recent, setRecent] = useState<RecentUse[]>(loadRecentUses);
-
-  useEffect(() => {
-    if (!__APP_CONFIG__.isProduction) runDomainSelfCheck();
-    queueMicrotask(() => setReady(true));
-  }, []);
+  const { session } = useSearchSession();
 
   useEffect(() => {
     const path = route.route;
@@ -106,6 +71,29 @@ export const App = () => {
       navigate('/', { replace: true });
   }, [route.route, session.destination, session.response, session.visitDraft]);
 
+  if (!ready)
+    return (
+      <Splash>
+        <SplashLogo src={picoLogo} alt="주차의 민족" />
+      </Splash>
+    );
+  if (route.route === '/') return <HomeScreen />;
+  if (route.route === '/search') return <SearchScreen />;
+  if (route.route === '/destination' && session.destination) return <DestinationScreen />;
+  if (route.route === '/visit' && session.destination && session.visitDraft) return <VisitScreen />;
+  if (route.route === '/results' && session.response) return <ResultsScreen />;
+  if (route.route === '/parking-lots' && session.response?.parkingLots.length) return <MoreScreen />;
+  if (route.route === '/recent') return <RecentScreen />;
+  if (route.route.startsWith('/parking-lots/')) {
+    const id = decodeURIComponent(route.route.slice('/parking-lots/'.length));
+    if (id) return <DetailScreen parkingLotId={id} />;
+  }
+  return null;
+};
+
+/** 안드로이드 하드웨어 뒤로가기를 앱 히스토리에 연결한다. */
+const useNativeBackButton = () => {
+  const route = useRoute();
   useEffect(() => {
     let remove = () => undefined;
     void registerNativeBack(() => {
@@ -117,252 +105,38 @@ export const App = () => {
     });
     return () => remove();
   }, [route.appHistoryIndex, route.overlay, route.route]);
+};
 
-  const goHome = () => {
-    setSession(EMPTY_SESSION);
-    if (route.route !== '/') navigate('/');
-  };
-  const goRecent = () => {
-    setRecent(loadRecentUses());
-    if (route.route !== '/recent') navigate('/recent');
-  };
+const AppRoutes = () => {
+  const route = useRoute();
+  const [ready, setReady] = useState(false);
+  const { locating, locationError } = useLocation();
+  const { picker, directionsTarget } = useOverlay();
 
-  const locate = async (nearby: boolean) => {
-    setLocating(true);
-    setLocationError(null);
-    const result = await requestCurrentLocation();
-    setLocating(false);
-    if (result.status !== 'GRANTED') {
-      setLocationError({ result, nearby });
-      return;
-    }
-    setCurrentLocation(result.location);
-    setMapFocusToken((token) => token + 1);
-    if (nearby) {
-      setSession({
-        ...EMPTY_SESSION,
-        destination: { kind: 'NEARBY', name: '현재 위치', address: '현재 위치 주변', location: result.location },
-        visitDraft: initialNearbyVisit(),
-      });
-      navigate('/visit');
-    }
-  };
+  useEffect(() => {
+    if (!__APP_CONFIG__.isProduction) runDomainSelfCheck();
+    queueMicrotask(() => setReady(true));
+  }, []);
 
-  const selectDestination = (candidate: DestinationCandidate) => {
-    setSession({
-      ...EMPTY_SESSION,
-      destination: {
-        kind: 'SEARCH',
-        destinationId: candidate.destinationId,
-        name: candidate.name,
-        address: candidate.roadAddress ?? candidate.address,
-        roadAddress: candidate.roadAddress,
-        location: { latitude: candidate.latitude, longitude: candidate.longitude },
-      },
-    });
-    navigate('/destination');
-  };
-
-  const startSearchVisit = () => {
-    setSession((value) => ({
-      ...value,
-      visitDraft: {
-        source: 'SEARCH',
-        visitDate: todayInSeoul(),
-        entryTime: null,
-        exitTime: null,
-        nearbyExitWasEdited: false,
-      },
-      confirmedVisit: null,
-      response: null,
-      selectedParkingLotId: null,
-    }));
-    navigate('/visit');
-  };
-
-  const showTimePicker = (kind: PickerState['kind'], initial: string | null) => {
-    const draft = session.visitDraft;
-    const fallback =
-      initial ??
-      (kind === 'EXIT' && draft?.entryTime ? addVisitMinutes({ ...draft, exitTime: null }, 60)?.exitTime : null) ??
-      nextTenMinuteSlot().time;
-    const [hour = '00', minute = '00'] = fallback.split(':');
-    setPicker({ kind, hour, minute: String(Math.floor(Number(minute) / 10) * 10).padStart(2, '0') });
-    openOverlay('VISIT_TIME_PICKER');
-  };
-
-  const confirmPicker = () => {
-    if (!picker) return;
-    setSession((value) => {
-      if (!value.visitDraft) return value;
-      const time = `${picker.hour}:${picker.minute}`;
-      return {
-        ...value,
-        visitDraft: {
-          ...value.visitDraft,
-          ...(picker.kind === 'ENTRY' ? { entryTime: time } : { exitTime: time }),
-          nearbyExitWasEdited:
-            value.visitDraft.nearbyExitWasEdited || (value.visitDraft.source === 'NEARBY' && picker.kind === 'EXIT'),
-        },
-      };
-    });
-    closeOverlay();
-  };
-
-  const showDirections = (target: ParkingTarget) => {
-    setDirectionsTarget(target);
-    setDirectionsError('');
-    openOverlay('DIRECTIONS');
-  };
-
-  const dispatchDirections = async (provider: DirectionsProvider) => {
-    if (!directionsTarget) return;
-    const result = await openDirections(provider, directionsTarget);
-    if (result.status === 'DISPATCHED') {
-      saveRecentUse(directionsTarget);
-      setRecent(loadRecentUses());
-      setDirectionsTarget(null);
-      closeOverlay();
-    } else if (result.status === 'FALLBACK_OPENED') {
-      setDirectionsTarget(null);
-      closeOverlay();
-    } else setDirectionsError('지도 앱을 열지 못했어요. 다른 앱을 선택해주세요.');
-  };
-
-  const openDetail = (id: string, origin: 'RESULTS' | 'PARKING_LOTS' | 'RECENT') =>
-    navigate(`/parking-lots/${encodeURIComponent(id)}`, { detailOrigin: origin });
-
-  const detailBack = () => {
-    if (route.detailOrigin) history.back();
-    else navigate('/', { replace: true });
-  };
-
-  let page: React.ReactNode = null;
-  if (!ready)
-    page = (
-      <Splash>
-        <SplashLogo src={picoLogo} alt="주차의 민족" />
-      </Splash>
-    );
-  else if (route.route === '/')
-    page = (
-      <HomeScreen
-        currentLocation={currentLocation}
-        locating={locating}
-        mapFocusToken={mapFocusToken}
-        onSearch={() => navigate('/search')}
-        onLocate={() => void locate(false)}
-        onNearby={() => void locate(true)}
-        onHome={goHome}
-        onRecent={goRecent}
-      />
-    );
-  else if (route.route === '/search')
-    page = (
-      <SearchScreen
-        currentLocation={currentLocation}
-        onSelect={selectDestination}
-        onBack={() => navigate('/')}
-        onNearby={() => void locate(true)}
-        onHome={goHome}
-        onRecent={goRecent}
-      />
-    );
-  else if (route.route === '/destination' && session.destination)
-    page = <DestinationScreen session={session} onBack={() => navigate('/search')} onNext={startSearchVisit} />;
-  else if (route.route === '/visit' && session.destination && session.visitDraft)
-    page = (
-      <VisitScreen
-        session={session}
-        setSession={setSession}
-        onBack={() => navigate(session.visitDraft?.source === 'SEARCH' ? '/destination' : '/')}
-        onOpenPicker={showTimePicker}
-      />
-    );
-  else if (route.route === '/results' && session.response)
-    page = (
-      <ResultsScreen
-        session={session}
-        setSession={setSession}
-        onDetail={(id) => openDetail(id, 'RESULTS')}
-        onMore={() => navigate('/parking-lots')}
-        onNearby={() => void locate(true)}
-        onHome={goHome}
-        onRecent={goRecent}
-      />
-    );
-  else if (route.route === '/parking-lots' && session.response?.parkingLots.length)
-    page = (
-      <MoreScreen
-        session={session}
-        setSession={setSession}
-        onDetail={(id) => openDetail(id, 'PARKING_LOTS')}
-        onDirections={showDirections}
-      />
-    );
-  else if (route.route === '/recent')
-    page = (
-      <RecentScreen
-        items={recent}
-        onSelect={(id) => openDetail(id, 'RECENT')}
-        onNearby={() => void locate(true)}
-        onHome={goHome}
-        onRecent={goRecent}
-      />
-    );
-  else if (route.route.startsWith('/parking-lots/')) {
-    const id = decodeURIComponent(route.route.slice('/parking-lots/'.length));
-    if (id)
-      page = (
-        <DetailScreen
-          parkingLotId={id}
-          session={session}
-          recent={recent}
-          onBack={detailBack}
-          onDirections={showDirections}
-        />
-      );
-  }
-
-  if (!page) page = <LoadingBlock css={{ minHeight: '100dvh' }}>화면을 준비하고 있어요…</LoadingBlock>;
+  useNativeBackButton();
+  const page = useCurrentPage(ready);
 
   return (
     <>
       <GlobalStyles />
-      <AppShell>{page}</AppShell>
+      <AppShell>{page ?? <LoadingBlock css={{ minHeight: '100dvh' }}>화면을 준비하고 있어요…</LoadingBlock>}</AppShell>
       {locating && <LocatingToast role="status">현재 위치를 찾고 있어요…</LocatingToast>}
-      {route.overlay === 'VISIT_TIME_PICKER' && picker && (
-        <TimePicker picker={picker} onChange={setPicker} onConfirm={confirmPicker} onClose={closeOverlay} />
-      )}
-      {route.overlay === 'DIRECTIONS' && directionsTarget && (
-        <DirectionsSheet
-          target={directionsTarget}
-          error={directionsError}
-          onOpen={(provider) => void dispatchDirections(provider)}
-          onFallback={() => {
-            const result = openNaverWebFallback();
-            if (result.status === 'FALLBACK_OPENED') closeOverlay();
-          }}
-          onClose={closeOverlay}
-        />
-      )}
-      {locationError && (
-        <LocationSheet
-          result={locationError.result}
-          onRetry={() => {
-            const nearby = locationError.nearby;
-            setLocationError(null);
-            void locate(nearby);
-          }}
-          onSearch={() => {
-            setLocationError(null);
-            navigate('/search');
-          }}
-          onClose={() => setLocationError(null)}
-        />
-      )}
+      {route.overlay === 'VISIT_TIME_PICKER' && picker && <TimePicker />}
+      {route.overlay === 'DIRECTIONS' && directionsTarget && <DirectionsSheet />}
+      {locationError && <LocationSheet />}
     </>
   );
 };
+
+export const App = () => (
+  <AppProviders>
+    <AppRoutes />
+  </AppProviders>
+);
 
 export default App;
