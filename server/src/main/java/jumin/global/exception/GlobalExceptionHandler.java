@@ -3,7 +3,7 @@ package jumin.global.exception;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import jumin.global.response.ApiErrorResponse;
-import jumin.global.response.ValidationError;
+import jumin.global.response.ValidationErrorField;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -21,147 +21,146 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-	@ExceptionHandler(BusinessException.class)
-	public ResponseEntity<Object> handleBusinessException(
-			BusinessException exception) {
-		return createResponse(exception.getErrorCode());
-	}
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Object> handleBusinessException(BusinessException exception) {
+        return createResponse(exception.getErrorCode());
+    }
 
-	@ExceptionHandler(ConstraintViolationException.class)
-	public ResponseEntity<Object> handleConstraintViolationException(
-			ConstraintViolationException exception) {
-		return createResponse(ErrorCode.INVALID_INPUT);
-	}
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Object> handleConstraintViolationException() {
+        return createResponse(ErrorCode.INVALID_INPUT);
+    }
 
-	@Override
-	protected ResponseEntity<Object> handleMethodArgumentNotValid(
-			MethodArgumentNotValidException exception,
-			HttpHeaders headers,
-			HttpStatusCode status,
-			WebRequest request) {
-		List<ValidationError> errors = exception.getBindingResult()
-				.getFieldErrors()
-				.stream()
-				.map(fieldError -> ValidationError.of(
-						fieldError.getField(),
-						fieldError.getDefaultMessage()))
-				.toList();
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleUnexpectedException(Exception exception) {
+        log.error("예상하지 못한 예외가 발생했습니다.", exception);
+        return createResponse(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
 
-		ApiErrorResponse response = ApiErrorResponse.of(
-				ErrorCode.INVALID_INPUT.getMessage(),
-				errors);
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        List<ValidationErrorField> errors =
+                exception.getBindingResult().getFieldErrors().stream()
+                        .map(fieldError -> ValidationErrorField.of(
+                                fieldError.getField(),
+                                fieldError.getDefaultMessage()))
+                        .toList();
 
-		return handleSpringMvcException(
-				exception,
-				response,
-				headers,
-				status,
-				request);
-	}
+        ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INVALID_INPUT.getMessage(), errors);
 
-	@Override
-	protected ResponseEntity<Object> handleHandlerMethodValidationException(
-			HandlerMethodValidationException exception,
-			HttpHeaders headers,
-			HttpStatusCode status,
-			WebRequest request) {
-		if (exception.isForReturnValue()) {
-			log.error("Controller 반환값 검증에 실패했습니다.", exception);
+        return handleSpringMvcException(exception, response, headers, status, request);
+    }
 
-			return handleSpringMvcException(
-					exception,
-					ApiErrorResponse.of(
-							ErrorCode.INTERNAL_SERVER_ERROR.getMessage()),
-					headers,
-					HttpStatus.INTERNAL_SERVER_ERROR,
-					request);
-		}
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        if (exception.isForReturnValue()) {
+            log.error("반환값 검증에 실패했습니다.", exception);
 
-		return handleSpringMvcException(
-				exception,
-				ApiErrorResponse.of(
-						ErrorCode.INVALID_INPUT.getMessage()),
-				headers,
-				status,
-				request);
-	}
+            ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
 
-	@Override
-	protected ResponseEntity<Object> handleHttpMessageNotReadable(
-			HttpMessageNotReadableException exception,
-			HttpHeaders headers,
-			HttpStatusCode status,
-			WebRequest request) {
-		return handleSpringMvcException(
-				exception,
-				ApiErrorResponse.of(
-						ErrorCode.INVALID_REQUEST_BODY.getMessage()),
-				headers,
-				status,
-				request);
-	}
+            return handleSpringMvcException(
+                    exception,
+                    response,
+                    headers,
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    request
+            );
+        }
 
-	@Override
-	protected ResponseEntity<Object> handleExceptionInternal(
-			Exception exception,
-			Object body,
-			HttpHeaders headers,
-			HttpStatusCode status,
-			WebRequest request) {
-		if (status != null && status.is5xxServerError()) {
-			log.error("Spring MVC 처리 중 서버 예외가 발생했습니다.", exception);
-		}
+        ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INVALID_INPUT.getMessage());
 
-		ApiErrorResponse response = ApiErrorResponse.of(
-				resolveMessage(status));
+        return handleSpringMvcException(
+                exception,
+                response,
+                headers,
+                status,
+                request
+        );
+    }
 
-		return super.handleExceptionInternal(
-				exception,
-				response,
-				headers,
-				status,
-				request);
-	}
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INVALID_REQUEST_BODY.getMessage());
 
-	@ExceptionHandler(Exception.class)
-	public ResponseEntity<Object> handleUnexpectedException(
-			Exception exception) {
-		log.error("예상하지 못한 예외가 발생했습니다.", exception);
+        return handleSpringMvcException(
+                exception,
+                response,
+                headers,
+                status,
+                request
+        );
+    }
 
-		return createResponse(ErrorCode.INTERNAL_SERVER_ERROR);
-	}
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception exception,
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        if (status != null && status.is5xxServerError()) {
+            log.error("Spring MVC 처리 중 서버 예외가 발생했습니다.", exception);
+        }
 
-	private ResponseEntity<Object> handleSpringMvcException(
-			Exception exception,
-			ApiErrorResponse response,
-			HttpHeaders headers,
-			HttpStatusCode status,
-			WebRequest request) {
-		return super.handleExceptionInternal(
-				exception,
-				response,
-				headers,
-				status,
-				request);
-	}
+        ApiErrorResponse response = ApiErrorResponse.of(resolveMessage(status));
 
-	private ResponseEntity<Object> createResponse(ErrorCode errorCode) {
-		return ResponseEntity
-				.status(errorCode.getHttpStatus())
-				.body(ApiErrorResponse.of(errorCode.getMessage()));
-	}
+        return super.handleExceptionInternal(
+                exception,
+                response,
+                headers,
+                status,
+                request
+        );
+    }
 
-	private String resolveMessage(HttpStatusCode status) {
-		if (status == null || status.is5xxServerError()) {
-			return ErrorCode.INTERNAL_SERVER_ERROR.getMessage();
-		}
+    private ResponseEntity<Object> handleSpringMvcException(
+            Exception exception,
+            ApiErrorResponse response,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        return super.handleExceptionInternal(
+                exception,
+                response,
+                headers,
+                status,
+                request
+        );
+    }
 
-		return switch (status.value()) {
-			case 400 -> ErrorCode.INVALID_INPUT.getMessage();
-			case 404 -> ErrorCode.RESOURCE_NOT_FOUND.getMessage();
-			case 405 -> ErrorCode.METHOD_NOT_ALLOWED.getMessage();
-			case 415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE.getMessage();
-			default -> "요청을 처리할 수 없습니다.";
-		};
-	}
+    private ResponseEntity<Object> createResponse(ErrorCode errorCode) {
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(ApiErrorResponse.of(errorCode.getMessage()));
+    }
+
+    private String resolveMessage(HttpStatusCode status) {
+        if (status == null || status.is5xxServerError()) {
+            return ErrorCode.INTERNAL_SERVER_ERROR.getMessage();
+        }
+
+        return switch (status.value()) {
+            case 400 -> ErrorCode.INVALID_INPUT.getMessage();
+            case 404 -> ErrorCode.RESOURCE_NOT_FOUND.getMessage();
+            case 405 -> ErrorCode.METHOD_NOT_ALLOWED.getMessage();
+            case 415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE.getMessage();
+            default -> "요청을 처리할 수 없습니다.";
+        };
+    }
 }

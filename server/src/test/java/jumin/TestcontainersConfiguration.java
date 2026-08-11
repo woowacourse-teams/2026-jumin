@@ -8,13 +8,13 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @TestConfiguration(proxyBeanMethods = false)
 class TestcontainersConfiguration {
 
-	@Bean(destroyMethod = "stop")
-	@ServiceConnection
-	@SuppressWarnings("resource")
-	PostgreSQLContainer postgresContainer() {
-		return new PostgreSQLContainer("postgres:18.4-alpine")
-				.withDatabaseName("jumin")
-				.withUsername("jumin")
-				.withPassword("jumin");
-	}
+    @Bean(destroyMethod = "stop")
+    @ServiceConnection
+    @SuppressWarnings("resource")
+    PostgreSQLContainer postgresContainer() {
+        return new PostgreSQLContainer("postgres:18.4-alpine")
+                .withDatabaseName("jumin")
+                .withUsername("jumin")
+                .withPassword("jumin");
+    }
 }
