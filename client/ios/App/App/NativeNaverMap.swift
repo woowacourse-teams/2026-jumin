@@ -299,7 +299,10 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
             }
             self.lastRenderSignature = signature
             map.minZoomLevel = 12
-            map.moveCamera(NMFCameraUpdate(scrollTo: NMGLatLng(lat: latitude, lng: longitude), zoomTo: 16))
+            // 현재 위치 버튼처럼 같은 좌표로 다시 이동할 때도 움직임이 보이도록 부드럽게 전환한다.
+            let cameraUpdate = NMFCameraUpdate(scrollTo: NMGLatLng(lat: latitude, lng: longitude), zoomTo: 16)
+            cameraUpdate.animation = .easeIn
+            map.moveCamera(cameraUpdate)
 
             self.overlays.forEach { $0.mapView = nil }
             self.overlays.removeAll()
@@ -329,18 +332,13 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
                 map.locationOverlay.hidden = true
             }
 
-            let recommended = Set(call.getArray("recommendedIds", String.self) ?? [])
             let selected = call.getString("selectedId")
-            for (index, lot) in (call.getArray("parkingLots", JSObject.self) ?? []).enumerated() {
+            for lot in call.getArray("parkingLots", JSObject.self) ?? [] {
                 guard let id = lot["parkingLotId"] as? String,
                       let location = lot["location"] as? JSObject,
                       let lat = location["latitude"] as? Double,
                       let lng = location["longitude"] as? Double else { continue }
-                let rank = (call.getArray("recommendedIds", String.self) ?? []).firstIndex(of: id).map { $0 + 1 } ?? index + 1
-                let color = id == selected || recommended.contains(id)
-                    ? UIColor(red: 0.26, green: 0.34, blue: 0.85, alpha: 1)
-                    : UIColor(red: 0.41, green: 0.44, blue: 0.51, alpha: 1)
-                let marker = self.addMarker(NMGLatLng(lat: lat, lng: lng), label: String(rank), color: color, map: map)
+                let marker = self.addPicoPin(NMGLatLng(lat: lat, lng: lng), selected: id == selected, map: map)
                 marker.touchHandler = { [weak self] _ in
                     self?.notifyListeners("markerClick", data: ["parkingLotId": id])
                     return true
@@ -348,6 +346,20 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
             }
             call.resolve()
         }
+    }
+
+    /// 주차장 마커. 순번을 적지 않고 색과 크기로 선택 여부를 표시한다.
+    @discardableResult
+    private func addPicoPin(_ position: NMGLatLng, selected: Bool, map: NMFMapView) -> NMFMarker {
+        let marker = NMFMarker(position: position)
+        if let image = UIImage(named: selected ? "MapPinSelected" : "MapPin") {
+            marker.iconImage = NMFOverlayImage(image: image)
+            marker.anchor = CGPoint(x: 0.5, y: 1.0)
+        }
+        marker.zIndex = selected ? 100 : 0
+        marker.mapView = map
+        overlays.append(marker)
+        return marker
     }
 
     @discardableResult

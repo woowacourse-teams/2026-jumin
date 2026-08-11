@@ -107,20 +107,37 @@ const loadNaverMaps = () => {
   return mapLoader;
 };
 
-const pinHtml = (label: string, selected: boolean, recommended: boolean) => {
-  const background = selected ? '#4356d8' : recommended ? '#ffffff' : '#687083';
-  const color = selected ? '#ffffff' : recommended ? '#4356d8' : '#ffffff';
-  const border = selected ? '#ffffff' : recommended ? '#4356d8' : '#ffffff';
-  const size = selected ? 42 : 34;
-  return `<button type="button" aria-label="${label}" style="width:${size}px;height:${size}px;border:3px solid ${border};border-radius:50% 50% 50% 12%;background:${background};color:${color};font:700 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 12px rgba(30,42,90,.28);transform:rotate(-45deg)"><span style="display:block;transform:rotate(45deg)">${label}</span></button>`;
-};
+// 목적지·현재 위치처럼 글자로 구분하는 마커
+const labelPinHtml = (label: string) =>
+  `<button type="button" aria-label="${label}" style="width:34px;height:34px;border:3px solid #4356d8;border-radius:50% 50% 50% 12%;background:#ffffff;color:#4356d8;font:700 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 12px rgba(30,42,90,.28);transform:rotate(-45deg)"><span style="display:block;transform:rotate(45deg)">${label}</span></button>`;
 
-const markerIcon = (maps: NaverMaps, label: string, selected: boolean, recommended: boolean): NaverMarkerIcon => {
-  const size = selected ? 42 : 34;
+const labelMarkerIcon = (maps: NaverMaps, label: string): NaverMarkerIcon => ({
+  content: labelPinHtml(label),
+  size: new maps.Size(34, 34),
+  anchor: new maps.Point(17, 34),
+});
+
+// 주차장 마커는 피코 핀으로 통일한다. 순번을 적지 않고 색과 크기로 선택을 표시한다.
+const PIN_TEARDROP = 'M16 0C7.163 0 0 7.163 0 16c0 10.5 16 24 16 24s16-13.5 16-24C32 7.163 24.837 0 16 0Z';
+const PIN_MARK = '<circle cx="16" cy="16" r="5.5" fill="#fff"/>';
+const PIN_WIDTH = 32;
+const PIN_HEIGHT = 40;
+const PIN_SELECTED_SCALE = 1.3;
+
+const lotMarkerIcon = (maps: NaverMaps, label: string, selected: boolean): NaverMarkerIcon => {
+  const scale = selected ? PIN_SELECTED_SCALE : 1;
+  const width = Math.round(PIN_WIDTH * scale);
+  const height = Math.round(PIN_HEIGHT * scale);
+  const outline = selected
+    ? `<path d="${PIN_TEARDROP}" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>`
+    : '';
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 32 40" style="display:block">` +
+    `<path d="${PIN_TEARDROP}" fill="${selected ? '#1249c4' : '#4356d8'}"/>${outline}${PIN_MARK}</svg>`;
   return {
-    content: pinHtml(label, selected, recommended),
-    size: new maps.Size(size, size),
-    anchor: new maps.Point(size / 2, size),
+    content: `<button type="button" aria-label="${label}" aria-pressed="${selected}" style="display:block;width:${width}px;height:${height}px;padding:0;border:0;background:transparent;filter:drop-shadow(0 3px 6px rgba(20,33,61,.32))">${svg}</button>`,
+    size: new maps.Size(width, height),
+    anchor: new maps.Point(width / 2, height),
   };
 };
 
@@ -171,6 +188,12 @@ interface MapViewProps {
   selectedId?: string | null;
   radius?: boolean;
   height?: string;
+  /**
+   * 값이 바뀔 때마다 center로 카메라를 다시 옮긴다.
+   * center 좌표가 직전과 같아도 동작해야 하므로(예: '현재 위치로 이동'을 연속으로 누를 때)
+   * 좌표가 아니라 별도의 신호로 받는다.
+   */
+  focusToken?: number;
   onSelect?: (parkingLotId: string) => void;
 }
 
@@ -183,6 +206,7 @@ export const MapView = ({
   selectedId = null,
   radius = false,
   height = '100%',
+  focusToken = 0,
   onSelect,
 }: MapViewProps) => {
   const nativeMapId = useId();
@@ -191,6 +215,9 @@ export const MapView = ({
   const mapsRef = useRef<NaverMaps | null>(null);
   const markerRefs = useRef(new Map<string, Overlay>());
   const onSelectRef = useRef(onSelect);
+  // 좌표가 같아도 카메라를 되돌리기 위해, 최신 show와 focusToken을 effect 밖에서 참조한다.
+  const showRef = useRef<(() => void) | null>(null);
+  const focusTokenRef = useRef(focusToken);
   const [error, setError] = useState(false);
   // 호출부가 매 렌더 새 배열을 만들어도 내용이 같으면 지도를 다시 만들지 않는다.
   // (docs/specs/04-recommendations-more.md §5)
@@ -228,11 +255,13 @@ export const MapView = ({
           recommendedIds,
           selectedId,
           radius,
+          focusToken: focusTokenRef.current,
         }).catch((caught) => {
           console.error('NATIVE_NAVER_MAP_ERROR', caught);
           setError(true);
         });
       };
+      showRef.current = show;
       show();
       window.addEventListener('resize', show);
       // 문서 전역 scroll(capture)은 캐러셀 스와이프 한 번에 브릿지를 수십 번 호출해
@@ -245,6 +274,7 @@ export const MapView = ({
           if (background) element.style.background = background;
           else element.style.removeProperty('background');
         });
+        showRef.current = null;
         window.removeEventListener('resize', show);
         frameObserver.disconnect();
         void NativeNaverMap.hide({ id: nativeMapId });
@@ -271,7 +301,7 @@ export const MapView = ({
               map,
               position,
               title: '목적지',
-              icon: markerIcon(maps, '도착', false, true),
+              icon: labelMarkerIcon(maps, '도착'),
             }),
           );
           if (radius)
@@ -294,23 +324,16 @@ export const MapView = ({
               map,
               position: new maps.LatLng(currentLocation.latitude, currentLocation.longitude),
               title: '현재 위치',
-              icon: markerIcon(maps, '나', false, true),
+              icon: labelMarkerIcon(maps, '나'),
             }),
           );
         }
-        const recommended = new Set(recommendedIds);
-        parkingLots.forEach((lot, index) => {
-          const recommendationIndex = recommendedIds.indexOf(lot.parkingLotId);
+        parkingLots.forEach((lot) => {
           const marker = new maps.Marker({
             map,
             position: new maps.LatLng(lot.location.latitude, lot.location.longitude),
             title: lot.name,
-            icon: markerIcon(
-              maps,
-              recommendationIndex >= 0 ? String(recommendationIndex + 1) : String(index + 1),
-              lot.parkingLotId === selectedId,
-              recommended.has(lot.parkingLotId),
-            ),
+            icon: lotMarkerIcon(maps, lot.name, lot.parkingLotId === selectedId),
           });
           overlays.push(marker);
           markerMap.set(lot.parkingLotId, marker);
@@ -360,19 +383,10 @@ export const MapView = ({
   useEffect(() => {
     const maps = mapsRef.current;
     if (!maps) return;
-    const recommended = new Set(recommendedIds);
-    parkingLots.forEach((lot, index) => {
-      const recommendationIndex = recommendedIds.indexOf(lot.parkingLotId);
+    parkingLots.forEach((lot) => {
       markerRefs.current
         .get(lot.parkingLotId)
-        ?.setIcon?.(
-          markerIcon(
-            maps,
-            recommendationIndex >= 0 ? String(recommendationIndex + 1) : String(index + 1),
-            lot.parkingLotId === selectedId,
-            recommended.has(lot.parkingLotId),
-          ),
-        );
+        ?.setIcon?.(lotMarkerIcon(maps, lot.name, lot.parkingLotId === selectedId));
     });
     // 값 기반 키로 비교한다. parkingLots/recommendedIds 참조는 매 렌더 바뀔 수 있다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,6 +396,21 @@ export const MapView = ({
     const maps = mapsRef.current;
     if (maps && mapRef.current) mapRef.current.panTo(new maps.LatLng(center.latitude, center.longitude));
   }, [center.latitude, center.longitude]);
+
+  // '현재 위치로 이동'처럼 같은 좌표를 다시 받는 경우에도 카메라를 center로 되돌린다.
+  // 지도와 마커를 다시 만들지 않기 위해 메인 effect와 분리한다.
+  useEffect(() => {
+    if (!focusToken) return;
+    focusTokenRef.current = focusToken;
+    if (isNativeIOS) {
+      showRef.current?.();
+      return;
+    }
+    const maps = mapsRef.current;
+    if (maps && mapRef.current) mapRef.current.panTo(new maps.LatLng(center.latitude, center.longitude));
+    // center는 focusToken이 갱신되는 시점의 최신 값을 사용한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusToken]);
 
   useEffect(() => {
     const resize = () => {

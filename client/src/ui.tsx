@@ -19,6 +19,25 @@ export const colors = {
 export const GlobalStyles = () => (
   <Global
     styles={css`
+      /*
+       * 시안 기준: MOBILE 390 x 844.
+       * 폭은 기기에 따라 늘어나되(SE 375 ~ Pro Max 430) 여백·높이는 토큰으로 고정한다.
+       */
+      :root {
+        --app-max-width: 440px;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --header-height: calc(56px + var(--safe-top));
+        --nav-height: calc(84px + var(--safe-bottom));
+        --gutter: clamp(16px, 5.1vw, 20px);
+        --radius-sheet: 24px;
+        --radius-card: 16px;
+        --radius-control: 12px;
+        --font-title: clamp(19px, 5.6vw, 22px);
+        --font-section: clamp(15px, 4.3vw, 17px);
+        --font-body: 15px;
+        --font-caption: 13px;
+      }
       * {
         box-sizing: border-box;
       }
@@ -93,36 +112,37 @@ export const GlobalStyles = () => (
 
 export const AppShell = styled.main`
   position: relative;
-  width: min(100%, 390px);
+  width: min(100%, var(--app-max-width));
   min-height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
   background: ${colors.surface};
   box-shadow: 0 0 32px rgba(20, 33, 61, 0.1);
 
-  @media (max-width: 390px) {
+  /* 기기에서는 화면을 꽉 채우므로 그림자를 지운다. 데스크톱 웹에서만 보인다. */
+  @media (max-width: 440px) {
     box-shadow: none;
   }
 `;
 
 export const Screen = styled.section<{ bottomNav?: boolean }>`
   min-height: 100dvh;
-  padding-bottom: ${({ bottomNav }) => (bottomNav ? 'calc(82px + env(safe-area-inset-bottom))' : 'env(safe-area-inset-bottom)')};
+  padding-bottom: ${({ bottomNav }) => (bottomNav ? 'var(--nav-height)' : 'var(--safe-bottom)')};
   background: ${colors.surface};
 `;
 
 export const Content = styled.div`
-  padding: 20px;
+  padding: var(--gutter);
 `;
 
 export const HeaderBar = styled.header`
   position: relative;
   z-index: 4;
   display: flex;
-  min-height: calc(56px + env(safe-area-inset-top));
+  min-height: var(--header-height);
   align-items: flex-end;
   gap: 4px;
-  padding: env(safe-area-inset-top) 12px 0;
+  padding: var(--safe-top) 12px 0;
   background: rgba(255, 255, 255, 0.96);
 `;
 
@@ -206,9 +226,12 @@ export const SecondaryButton = styled.button`
 export const BottomDock = styled.div`
   position: fixed;
   z-index: 8;
+  right: 0;
   bottom: 0;
-  width: min(100%, 390px);
-  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  left: 0;
+  width: min(100%, var(--app-max-width));
+  margin: 0 auto;
+  padding: var(--gutter) var(--gutter) calc(var(--gutter) + var(--safe-bottom));
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 -8px 24px rgba(20, 33, 61, 0.06);
 `;
@@ -216,12 +239,15 @@ export const BottomDock = styled.div`
 const Nav = styled.nav`
   position: fixed;
   z-index: 7;
+  right: 0;
   bottom: 0;
+  left: 0;
   display: grid;
-  width: min(100%, 390px);
-  height: calc(84px + env(safe-area-inset-bottom));
+  width: min(100%, var(--app-max-width));
+  height: var(--nav-height);
+  margin: 0 auto;
   grid-template-columns: repeat(3, 1fr);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--safe-bottom);
   border-top: 1px solid ${colors.line};
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 -4px 9px rgba(20, 33, 61, 0.06);
@@ -303,9 +329,9 @@ const Scrim = styled.div`
 `;
 
 const Sheet = styled.div`
-  width: min(100%, 390px);
+  width: min(100%, var(--app-max-width));
   max-height: min(82dvh, 720px);
-  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+  padding: 10px var(--gutter) calc(24px + var(--safe-bottom));
   overflow: auto;
   border-radius: 24px 24px 0 0;
   background: ${colors.surface};

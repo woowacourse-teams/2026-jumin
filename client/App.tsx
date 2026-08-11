@@ -243,8 +243,8 @@ const BottomSheet = styled.div`
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
-  border-radius: 24px 24px 0 0;
+  padding: 12px var(--gutter) calc(var(--gutter) + var(--safe-bottom));
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   background: #fff;
   box-shadow: 0 -10px 28px rgba(20, 33, 61, 0.1);
 `;
@@ -259,7 +259,7 @@ const SheetHandle = styled.div`
 
 const Title = styled.h1`
   margin: 0;
-  font-size: 22px;
+  font-size: var(--font-title);
   font-weight: 850;
   line-height: 30px;
 `;
@@ -328,12 +328,12 @@ const TimeSelect = styled.select`
   text-align: center;
 `;
 
-const Tabs = styled.div`
+const Tabs = styled.div<{ flush?: boolean }>`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  padding: 10px 16px 6px;
-  background: #fff;
+  padding: ${({ flush }) => (flush ? '0' : '10px 16px 6px')};
+  background: ${({ flush }) => (flush ? 'transparent' : '#fff')};
 `;
 
 const TabButton = styled.button<{ active: boolean }>`
@@ -349,18 +349,23 @@ const TabButton = styled.button<{ active: boolean }>`
 const ResultTop = styled.div`
   position: absolute;
   z-index: 4;
-  top: calc(10px + env(safe-area-inset-top));
+  top: calc(10px + var(--safe-top));
   right: 17px;
   left: 17px;
   display: grid;
-  min-height: 65px;
+  gap: 10px;
+  padding: 8px 12px 10px;
+  border-radius: var(--radius-card);
+  background: #fff;
+  box-shadow: 0 6px 9px rgba(20, 33, 61, 0.1);
+`;
+
+const ResultTopSummary = styled.div`
+  display: grid;
+  min-height: 49px;
   grid-template-columns: 34px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 6px 9px rgba(20, 33, 61, 0.1);
 `;
 
 const ResultTopButton = styled.button`
@@ -378,7 +383,7 @@ const ResultsPanel = styled.div`
   position: absolute;
   z-index: 4;
   right: 0;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  bottom: var(--nav-height);
   left: 0;
 `;
 
@@ -442,7 +447,7 @@ const MoreCard = styled.button`
 
 const MoreLayout = styled.div`
   min-height: 100dvh;
-  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  padding-bottom: calc(104px + var(--safe-bottom));
 `;
 
 const MoreContent = styled.div`
@@ -493,7 +498,7 @@ const SmallButton = styled(SecondaryButton)`
 const DetailBody = styled.div`
   position: relative;
   z-index: 1;
-  min-height: calc(100dvh - 205px);
+  min-height: calc(100dvh - 205px - var(--safe-top));
   margin-top: -16px;
   padding: 40px 20px 126px;
   border-radius: 24px 24px 0 0;
@@ -590,9 +595,11 @@ const RecentButton = styled.button`
 const LocatingToast = styled.div`
   position: fixed;
   z-index: 9;
-  bottom: calc(104px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  bottom: calc(104px + var(--safe-bottom));
+  left: 0;
+  width: fit-content;
+  margin: 0 auto;
   padding: 10px 16px;
   border-radius: 999px;
   background: rgba(20, 33, 61, 0.88);
@@ -627,6 +634,7 @@ const toTarget = (lot: ParkingTarget): ParkingTarget => ({
 const HomeScreen = ({
   currentLocation,
   locating,
+  mapFocusToken,
   onSearch,
   onLocate,
   onNearby,
@@ -635,6 +643,7 @@ const HomeScreen = ({
 }: {
   currentLocation: Coordinate | null;
   locating: boolean;
+  mapFocusToken: number;
   onSearch: () => void;
   onLocate: () => void;
   onNearby: () => void;
@@ -642,7 +651,12 @@ const HomeScreen = ({
   onRecent: () => void;
 }) => (
   <Screen bottomNav css={{ position: 'relative', height: '100dvh', paddingBottom: 0, overflow: 'hidden' }}>
-    <MapView center={currentLocation ?? GANGNAM_STATION} currentLocation={currentLocation} height="100dvh" />
+    <MapView
+      center={currentLocation ?? GANGNAM_STATION}
+      currentLocation={currentLocation}
+      focusToken={mapFocusToken}
+      height="100dvh"
+    />
     <SearchButton type="button" onClick={onSearch}>
       <AssetIcon src={search} alt="" />
       어디에 방문하세요?
@@ -824,7 +838,11 @@ const DestinationScreen = ({
   return (
     <Screen css={{ position: 'relative', paddingBottom: 0 }}>
       <Header title="목적지 확인" onBack={onBack} />
-      <MapView center={destination.location} destination={destination.location} height="calc(100dvh - 56px)" />
+      <MapView
+        center={destination.location}
+        destination={destination.location}
+        height="calc(100dvh - var(--header-height))"
+      />
       <BottomSheet>
         <SheetHandle />
         <Title>{destination.name}</Title>
@@ -939,7 +957,7 @@ const VisitScreen = ({
       <MapView
         center={session.destination!.location}
         destination={session.destination!.location}
-        height="calc(100dvh - 56px)"
+        height="calc(100dvh - var(--header-height))"
       />
       <BottomSheet>
         <SheetHandle />
@@ -1006,11 +1024,13 @@ const VisitScreen = ({
 const CategoryTabs = ({
   category,
   onChange,
+  flush,
 }: {
   category: SortCategory;
   onChange: (category: SortCategory) => void;
+  flush?: boolean;
 }) => (
-  <Tabs aria-label="주차장 정렬">
+  <Tabs aria-label="주차장 정렬" flush={flush}>
     {(
       [
         ['DISTANCE', '거리순'],
@@ -1089,7 +1109,7 @@ const ResultsScreen = ({
     return (
       <Screen>
         <Header title="추천 결과" onBack={() => navigate('/visit')} />
-        <CenterState css={{ minHeight: 'calc(100dvh - 56px)' }}>
+        <CenterState css={{ minHeight: 'calc(100dvh - var(--header-height))' }}>
           <div>
             <ErrorPico src={picoError} alt="" />
             <Title>주차장을 찾지 못했어요</Title>
@@ -1121,17 +1141,19 @@ const ResultsScreen = ({
         onSelect={select}
       />
       <ResultTop>
-        <ResultTopButton type="button" aria-label="방문 시간으로 돌아가기" onClick={() => navigate('/visit')}>
-          ‹
-        </ResultTopButton>
-        <span css={{ minWidth: 0 }}>
-          <CandidateName>{session.destination!.name}</CandidateName>
-          <Muted>{formatVisit(session.confirmedVisit!)}</Muted>
-        </span>
-        <AssetIcon src={search} alt="" />
+        <ResultTopSummary>
+          <ResultTopButton type="button" aria-label="방문 시간으로 돌아가기" onClick={() => navigate('/visit')}>
+            ‹
+          </ResultTopButton>
+          <span css={{ minWidth: 0 }}>
+            <CandidateName>{session.destination!.name}</CandidateName>
+            <Muted>{formatVisit(session.confirmedVisit!)}</Muted>
+          </span>
+          <AssetIcon src={search} alt="" />
+        </ResultTopSummary>
+        <CategoryTabs flush category={session.selectedCategory} onChange={changeCategory} />
       </ResultTop>
       <ResultsPanel>
-        <CategoryTabs category={session.selectedCategory} onChange={changeCategory} />
         <Carousel
           ref={carouselRef}
           onScroll={(event) => {
@@ -1350,7 +1372,7 @@ const DetailScreen = ({
     return (
       <Screen>
         <Header title={summary?.name ?? recentItem?.name ?? '주차장 상세'} onBack={onBack} />
-        <CenterState css={{ minHeight: 'calc(100dvh - 56px)' }}>
+        <CenterState css={{ minHeight: 'calc(100dvh - var(--header-height))' }}>
           <div>
             <ErrorPico src={picoError} alt="" />
             <Title>{notFound ? '주차장 정보를 찾을 수 없어요.' : '다시 시도해주세요'}</Title>
@@ -1647,6 +1669,8 @@ const App = () => {
   const [session, setSession] = useState<SearchSession>(EMPTY_SESSION);
   const [currentLocation, setCurrentLocation] = useState<Coordinate | null>(null);
   const [locating, setLocating] = useState(false);
+  // 같은 좌표를 다시 받아도 지도를 현재 위치로 되돌리기 위한 신호
+  const [mapFocusToken, setMapFocusToken] = useState(0);
   const [locationError, setLocationError] = useState<{ result: LocationResult; nearby: boolean } | null>(null);
   const [picker, setPicker] = useState<PickerState | null>(null);
   const [directionsTarget, setDirectionsTarget] = useState<ParkingTarget | null>(null);
@@ -1704,6 +1728,7 @@ const App = () => {
       return;
     }
     setCurrentLocation(result.location);
+    setMapFocusToken((token) => token + 1);
     if (nearby) {
       setSession({
         ...EMPTY_SESSION,
@@ -1815,6 +1840,7 @@ const App = () => {
       <HomeScreen
         currentLocation={currentLocation}
         locating={locating}
+        mapFocusToken={mapFocusToken}
         onSearch={() => navigate('/search')}
         onLocate={() => void locate(false)}
         onNearby={() => void locate(true)}
