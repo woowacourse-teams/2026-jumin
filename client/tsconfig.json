@@ -5,11 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "moduleDetection": "force",
-
     "resolveJsonModule": true,
-
     "jsx": "react-jsx",
-
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
