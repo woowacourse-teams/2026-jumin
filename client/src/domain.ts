@@ -270,6 +270,12 @@ const rankFor = (lot: ParkingLotSummary, category: SortCategory) =>
       ? lot.sortRanks.price
       : lot.sortRanks.balanced;
 
+/**
+ * 해당 정렬 기준의 rank가 있는지. 백엔드는 요금 계산 불가면 `price`를,
+ * 요금 계산 불가이거나 운영 불가면 `balanced`를 null로 준다.
+ */
+export const isSortableBy = (lot: ParkingLotSummary, category: SortCategory) => rankFor(lot, category) !== null;
+
 export const sortParkingLots = (lots: ParkingLotSummary[], category: SortCategory) =>
   [...lots].sort((a, b) => {
     const left = rankFor(a, category);

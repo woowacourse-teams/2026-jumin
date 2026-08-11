@@ -13,6 +13,7 @@ import {
   formatRecentAt,
   formatVisit,
   initialNearbyVisit,
+  isSortableBy,
   loadRecentUses,
   nextTenMinuteSlot,
   operationLabel,
@@ -63,6 +64,8 @@ import {
 } from './src/ui';
 
 const GANGNAM_STATION = { latitude: 37.4981, longitude: 127.0279 };
+/** 추천 결과 화면 carousel에 노출하는 상위 카드 수 */
+const TOP_CARD_COUNT = 3;
 
 const AssetIcon = styled.img`
   display: block;
@@ -402,7 +405,7 @@ const Carousel = styled.div`
 
 const ResultCard = styled.article<{ selected: boolean }>`
   min-width: 211px;
-  min-height: 144px;
+  min-height: 124px;
   padding: 14px 16px;
   scroll-snap-align: center;
   border: 2px solid ${({ selected }) => (selected ? colors.primary : '#fff')};
@@ -411,15 +414,15 @@ const ResultCard = styled.article<{ selected: boolean }>`
   box-shadow: 0 8px 26px rgba(31, 42, 82, 0.18);
 `;
 
-const CardHead = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+const EmptySortNotice = styled.p`
+  margin: 0;
+  padding: 28px 4px;
+  color: ${colors.muted};
+  font-size: 14px;
 `;
 
 const CardName = styled.h3`
-  margin: 8px 0 4px;
+  margin: 0 0 4px;
   font-size: 17px;
   line-height: 24px;
 `;
@@ -911,9 +914,8 @@ const VisitScreen = ({
         },
         controllerRef.current.signal,
       );
-      const balanced = response.recommendedParkingLots.find(
-        ({ recommendationType }) => recommendationType === 'BALANCED',
-      );
+      // 최초 노출은 균형순 1위다.
+      const [balancedTop] = sortParkingLots(response.parkingLots, 'BALANCED');
       const confirmed = response.searchCondition;
       setSession((value) => ({
         ...value,
@@ -925,7 +927,7 @@ const VisitScreen = ({
         },
         response,
         selectedCategory: 'BALANCED',
-        selectedParkingLotId: balanced?.parkingLotId ?? response.recommendedParkingLots[0]?.parkingLotId ?? null,
+        selectedParkingLotId: balancedTop?.parkingLotId ?? null,
       }));
       navigate('/results');
     } catch (caught) {
@@ -1070,18 +1072,17 @@ const ResultsScreen = ({
 }) => {
   const response = session.response!;
   const carouselRef = useRef<HTMLDivElement>(null);
-  const recommendationById = useMemo(
-    () => new Map(response.recommendedParkingLots.map((item) => [item.parkingLotId, item.recommendationType])),
-    [response],
-  );
-  const recommendedLots = useMemo(
+  // 카드는 선택한 정렬 기준의 1~3위다. 추천 유형별 대표가 아니라 해당 정렬의 상위 N개를 노출한다.
+  // rank가 null인 주차장(요금 계산 불가·운영 불가)은 그 기준의 순위가 없으므로 채워 넣지 않는다.
+  const topLots = useMemo(
     () =>
       sortParkingLots(
-        response.parkingLots.filter((lot) => recommendationById.has(lot.parkingLotId)),
+        response.parkingLots.filter((lot) => isSortableBy(lot, session.selectedCategory)),
         session.selectedCategory,
-      ),
-    [recommendationById, response.parkingLots, session.selectedCategory],
+      ).slice(0, TOP_CARD_COUNT),
+    [response.parkingLots, session.selectedCategory],
   );
+  const topIds = useMemo(() => topLots.map(({ parkingLotId }) => parkingLotId), [topLots]);
 
   const select = useCallback(
     (parkingLotId: string) => {
@@ -1094,18 +1095,20 @@ const ResultsScreen = ({
   );
 
   const changeCategory = (category: SortCategory) => {
-    const sorted = sortParkingLots(response.parkingLots, category);
-    const preferred = response.recommendedParkingLots.find(
-      ({ recommendationType }) => recommendationType === category,
-    )?.parkingLotId;
+    const [first] = sortParkingLots(
+      response.parkingLots.filter((lot) => isSortableBy(lot, category)),
+      category,
+    );
     setSession((value) => ({
       ...value,
       selectedCategory: category,
-      selectedParkingLotId: preferred ?? sorted[0]?.parkingLotId ?? null,
+      selectedParkingLotId: first?.parkingLotId ?? null,
     }));
   };
 
-  if (!response.recommendedParkingLots.length)
+  // 추천 0건이어도 반경 안에 주차장이 있으면 정렬해서 보여준다.
+  // (계약: 추천 후보가 부족하면 해당 유형을 생략하며 recommendedParkingLots는 빈 배열이 될 수 있다)
+  if (!response.parkingLots.length)
     return (
       <Screen>
         <Header title="추천 결과" onBack={() => navigate('/visit')} />
@@ -1133,8 +1136,8 @@ const ResultsScreen = ({
       <MapView
         center={session.destination!.location}
         destination={session.destination!.location}
-        parkingLots={recommendedLots}
-        recommendedIds={recommendedLots.map(({ parkingLotId }) => parkingLotId)}
+        parkingLots={topLots}
+        recommendedIds={topIds}
         selectedId={session.selectedParkingLotId}
         radius
         height="100dvh"
@@ -1169,17 +1172,14 @@ const ResultsScreen = ({
               setSession((value) => ({ ...value, selectedParkingLotId: nearest.id }));
           }}
         >
-          {recommendedLots.map((lot) => (
+          {!topLots.length && <EmptySortNotice>이 기준으로 정렬할 수 있는 주차장이 없어요.</EmptySortNotice>}
+          {topLots.map((lot) => (
             <ResultCard
               key={lot.parkingLotId}
               data-parking-id={lot.parkingLotId}
               selected={session.selectedParkingLotId === lot.parkingLotId}
               onClick={() => select(lot.parkingLotId)}
             >
-              <CardHead>
-                <Badge>{recommendationLabel(recommendationById.get(lot.parkingLotId)!)}</Badge>
-                <Muted>{operationLabel(lot.operation.status)}</Muted>
-              </CardHead>
               <CardName>{lot.name}</CardName>
               <Price>{formatFee(lot.estimatedFee, lot.feeCalculationStatus)}</Price>
               <Muted>
@@ -1688,7 +1688,7 @@ const App = () => {
     else if (path === '/visit' && (!session.destination || !session.visitDraft)) navigate('/', { replace: true });
     else if (path === '/results' && !session.response) navigate('/', { replace: true });
     else if (path === '/parking-lots' && !session.response) navigate('/', { replace: true });
-    else if (path === '/parking-lots' && session.response && !session.response.recommendedParkingLots.length)
+    else if (path === '/parking-lots' && session.response && !session.response.parkingLots.length)
       navigate('/results', { replace: true });
     else if (
       !['/', '/search', '/destination', '/visit', '/results', '/parking-lots', '/recent'].includes(path) &&
@@ -1882,7 +1882,7 @@ const App = () => {
         onRecent={goRecent}
       />
     );
-  else if (route.route === '/parking-lots' && session.response?.recommendedParkingLots.length)
+  else if (route.route === '/parking-lots' && session.response?.parkingLots.length)
     page = (
       <MoreScreen
         session={session}
