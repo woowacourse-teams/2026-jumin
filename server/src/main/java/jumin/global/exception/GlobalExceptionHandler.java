@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @Slf4j
@@ -114,7 +113,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		}
 
 		ApiErrorResponse response = ApiErrorResponse.of(
-				resolveMessage(exception, status));
+				resolveMessage(status));
 
 		return super.handleExceptionInternal(
 				exception,
@@ -152,16 +151,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				.body(ApiErrorResponse.of(errorCode.getMessage()));
 	}
 
-	private String resolveMessage(Exception exception, HttpStatusCode status) {
+	private String resolveMessage(HttpStatusCode status) {
 		if (status == null || status.is5xxServerError()) {
 			return ErrorCode.INTERNAL_SERVER_ERROR.getMessage();
-		}
-
-		if (exception instanceof ResponseStatusException responseStatusException) {
-			String reason = responseStatusException.getReason();
-			if (reason != null && !reason.isBlank()) {
-				return reason;
-			}
 		}
 
 		return switch (status.value()) {

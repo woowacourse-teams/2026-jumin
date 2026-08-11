@@ -111,12 +111,12 @@ class GlobalExceptionHandlerTest {
 		mockMvc.perform(get("/test/header"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").doesNotExist())
-				.andExpect(jsonPath("$.message").isNotEmpty())
+				.andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."))
 				.andExpect(jsonPath("$.errors").isEmpty());
 	}
 
 	@Test
-	@DisplayName("ResponseStatusException이 정의한 HTTP 상태를 유지한다")
+	@DisplayName("ResponseStatusException도 공통 오류 메시지로 응답한다")
 	void responseStatusExceptionPreservesDefinedStatus() throws Exception {
 		given(exceptionTestService.responseStatus())
 				.willThrow(new ResponseStatusException(HttpStatus.CONFLICT, "요청이 현재 상태와 충돌합니다."));
@@ -124,7 +124,7 @@ class GlobalExceptionHandlerTest {
 		mockMvc.perform(get("/test/response-status"))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").doesNotExist())
-				.andExpect(jsonPath("$.message").value("요청이 현재 상태와 충돌합니다."))
+				.andExpect(jsonPath("$.message").value("요청을 처리할 수 없습니다."))
 				.andExpect(jsonPath("$.errors").isEmpty());
 	}
 
