@@ -47,3 +47,16 @@ declare module '*.otf' {
   const source: string;
   export default source;
 }
+
+declare const __APP_CONFIG__: {
+  apiBaseUrl: string;
+  useMockApi: boolean;
+  naverMapClientId: string;
+  naverMapAppName: string;
+  tmapAppKey: string;
+  isProduction: boolean;
+};
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
