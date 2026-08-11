@@ -33,11 +33,12 @@ export const BottomDock = styled.div`
   position: fixed;
   z-index: 8;
   right: 0;
-  bottom: 0;
+  /* 하단 내비게이션은 모든 화면에 있으므로 그 위에 놓는다. */
+  bottom: var(--nav-height);
   left: 0;
   width: min(100%, var(--app-max-width));
   margin: 0 auto;
-  padding: var(--gutter) var(--gutter) calc(var(--gutter) + var(--safe-bottom));
+  padding: var(--gutter);
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 -8px 24px rgba(20, 33, 61, 0.06);
 `;

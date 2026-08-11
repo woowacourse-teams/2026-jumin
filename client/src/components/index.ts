@@ -7,4 +7,6 @@ export * from './Header';
 export * from './Button';
 export * from './BottomNav';
 export * from './DialogSheet';
+export * from './DraggableSheet';
+export * from './useSheetDrag';
 export * from './feedback';

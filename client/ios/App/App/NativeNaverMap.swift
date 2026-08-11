@@ -54,7 +54,7 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         view.addSubview(bridgeController.view)
         bridgeController.didMove(toParent: self)
         sheetGrabber.isHidden = true
-        sheetGrabber.addGestureRecognizer(sheetPan)
+        // 시트 드래그는 React(DraggableSheet)가 처리한다. 네이티브 제스처는 붙이지 않는다.
         view.addSubview(sheetGrabber)
         bridgeController.webView?.isOpaque = false
         bridgeController.webView?.backgroundColor = .clear
@@ -188,6 +188,9 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       };
       const findSheet = () => {
+        // 웹이 직접 표시해 준 시트를 최우선으로 쓴다. 아래 추측은 표시가 없을 때의 대비책이다.
+        const marked = document.querySelector('[data-native-sheet]');
+        if (marked && visible(marked)) return marked;
         const dialog = document.querySelector('[role="dialog"]');
         if (dialog && visible(dialog)) return dialog;
         return Array.from(document.querySelectorAll('div')).filter((element) => {
@@ -249,7 +252,12 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
 }
 
 @objc(NativeNaverMapPlugin)
-final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
+final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin, NMFMapViewTouchDelegate {
+    /// 지도의 빈 곳을 누르면 웹에 알린다. 화면이 바텀시트를 접는 데 쓴다.
+    func mapView(_ mapView: NMFMapView, didTapMap latlng: NMGLatLng, point: CGPoint) {
+        notifyListeners("mapTap", data: [:])
+    }
+
     let identifier = "NativeNaverMapPlugin"
     let jsName = "NativeNaverMap"
     let pluginMethods: [CAPPluginMethod] = [
@@ -286,6 +294,7 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
                 return
             }
             if map.superview == nil { root.mapHost.addSubview(map) }
+            map.touchDelegate = self
             root.mapHost.isHidden = false
             map.frame = mapFrame
             root.nativeMapFrame = mapFrame

@@ -43,9 +43,9 @@ export const BottomSheet = styled.div`
   position: absolute;
   z-index: 4;
   right: 0;
-  bottom: 0;
+  bottom: var(--nav-height);
   left: 0;
-  padding: 12px var(--gutter) calc(var(--gutter) + var(--safe-bottom));
+  padding: 12px var(--gutter) var(--gutter);
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   background: #fff;
   box-shadow: 0 -10px 28px rgba(20, 33, 61, 0.1);

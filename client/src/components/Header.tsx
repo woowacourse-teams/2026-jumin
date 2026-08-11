@@ -9,7 +9,7 @@ export const HeaderBar = styled.header`
   z-index: 4;
   display: flex;
   min-height: var(--header-height);
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
   padding: var(--safe-top) 12px 0;
   background: rgba(255, 255, 255, 0.96);
@@ -18,7 +18,6 @@ export const HeaderBar = styled.header`
 export const HeaderTitle = styled.h1`
   min-width: 0;
   margin: 0;
-  padding: 16px 0;
   overflow: hidden;
   font-size: 15px;
   font-weight: 800;
@@ -37,6 +36,7 @@ export const IconButton = styled.button`
   border-radius: 12px;
   background: transparent;
   font-size: 25px;
+  line-height: 1;
 
   &:active {
     background: ${colors.background};

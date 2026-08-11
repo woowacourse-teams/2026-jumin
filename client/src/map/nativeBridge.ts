@@ -8,4 +8,5 @@ export const NativeNaverMap = registerPlugin<{
   show(options: Record<string, unknown>): Promise<void>;
   hide(options: { id: string }): Promise<void>;
   addListener(event: 'markerClick', listener: (data: { parkingLotId: string }) => void): Promise<{ remove(): void }>;
+  addListener(event: 'mapTap', listener: () => void): Promise<{ remove(): void }>;
 }>('NativeNaverMap');

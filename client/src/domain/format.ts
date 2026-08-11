@@ -41,3 +41,6 @@ export const formatRecentAt = (value: string) =>
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+
+/** '2026-08-11' → '8월 11일' */
+export const formatVisitDate = (date: string) => `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일`;

@@ -8,7 +8,9 @@ import { picoError, retry as retryIcon } from '../../assets';
 import {
   Badge,
   BottomDock,
+  BottomNav,
   colors,
+  DraggableSheet,
   Header,
   LoadingBlock,
   Muted,
@@ -27,6 +29,7 @@ import {
 } from '../../domain';
 import { MapView } from '../../map';
 import { AssetIcon, CenterState, ErrorPico, Title, apiMessage, toTarget } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
 import { useOverlay, useRecentUses, useSearchSession } from '../../contexts';
 import { navigate, useRoute } from '../../router';
 
@@ -36,14 +39,13 @@ export const SectionTitle = styled.h2`
   line-height: 24px;
 `;
 
+/** 펼친 상태에서 지도가 보이는 높이. 시안의 상세 시트 비율을 따른다. */
+const DETAIL_SHEET_TOP = 232;
+/** 접었을 때 남길 높이. 하단 `길찾기 시작` 도크에 가리지 않고 주차장 이름까지 보이게 한다. */
+const DETAIL_SHEET_PEEK = 208;
+
 export const DetailBody = styled.div`
-  position: relative;
-  z-index: 1;
-  min-height: calc(100dvh - 205px - var(--safe-top));
-  margin-top: -16px;
-  padding: 40px 20px 126px;
-  border-radius: 24px 24px 0 0;
-  background: #fff;
+  padding: 4px var(--gutter) 106px;
 `;
 
 export const FeeBox = styled.dl`
@@ -97,6 +99,8 @@ export const DetailScreen = ({ parkingLotId }: { parkingLotId: string }) => {
   const { session } = useSearchSession();
   const { recent } = useRecentUses();
   const { showDirections: onDirections } = useOverlay();
+  const { goHome, goNearby, goRecent } = useGlobalNav();
+  const [collapseSignal, setCollapseSignal] = useState(0);
   const onBack = () => {
     if (route.detailOrigin) history.back();
     else navigate('/', { replace: true });
@@ -203,7 +207,7 @@ export const DetailScreen = ({ parkingLotId }: { parkingLotId: string }) => {
 
   const value = detail!;
   return (
-    <Screen>
+    <Screen css={{ position: 'relative', paddingBottom: 0, overflow: 'hidden' }}>
       <Header title={value.name} onBack={onBack} />
       <MapView
         center={value.location}
@@ -223,77 +227,91 @@ export const DetailScreen = ({ parkingLotId }: { parkingLotId: string }) => {
           },
         ]}
         selectedId={value.parkingLotId}
-        height="165px"
+        height="calc(100dvh - var(--header-height))"
+        onMapTap={() => setCollapseSignal((token) => token + 1)}
       />
-      <DetailBody>
-        {recommendation && <Badge>{recommendationLabel(recommendation)}</Badge>}
-        <Title css={{ marginTop: recommendation ? 10 : 0 }}>{value.name}</Title>
-        <Muted>{value.address}</Muted>
-        {value.feeRule && (
-          <>
-            <SectionTitle css={{ marginTop: 24 }}>요금 정보</SectionTitle>
-            <FeeBox>
-              <div>
-                <dt>기본 {value.feeRule.baseMinutes}분</dt>
-                <dd>{formatFee(value.feeRule.baseFee, 'CALCULATED')}</dd>
-              </div>
-              {value.feeRule.additionalMinutes !== null && value.feeRule.additionalFee !== null && (
+      <DraggableSheet
+        expandedTop={DETAIL_SHEET_TOP}
+        peek={DETAIL_SHEET_PEEK}
+        collapseSignal={collapseSignal}
+        label="주차장 정보"
+      >
+        <DetailBody>
+          {recommendation && <Badge>{recommendationLabel(recommendation)}</Badge>}
+          <Title css={{ marginTop: recommendation ? 10 : 0 }}>{value.name}</Title>
+          <Muted>{value.address}</Muted>
+          {value.feeRule && (
+            <>
+              <SectionTitle css={{ marginTop: 24 }}>요금 정보</SectionTitle>
+              <FeeBox>
                 <div>
-                  <dt>추가 {value.feeRule.additionalMinutes}분당</dt>
-                  <dd>{formatFee(value.feeRule.additionalFee, 'CALCULATED')}</dd>
+                  <dt>기본 {value.feeRule.baseMinutes}분</dt>
+                  <dd>{formatFee(value.feeRule.baseFee, 'CALCULATED')}</dd>
                 </div>
-              )}
-              {value.feeRule.dailyMaxFee !== null && (
-                <div>
-                  <dt>일 최대요금</dt>
-                  <dd>{formatFee(value.feeRule.dailyMaxFee, 'CALCULATED')}</dd>
-                </div>
-              )}
-              {value.feeCalculationStatus !== 'NOT_REQUESTED' && (
-                <div>
-                  <dt>
-                    {session.confirmedVisit
-                      ? `${formatDuration(session.confirmedVisit.durationMinutes)} 총액`
-                      : '예상 총액'}
-                  </dt>
-                  <dd>{formatFee(value.estimatedFee, value.feeCalculationStatus)}</dd>
-                </div>
-              )}
-            </FeeBox>
-          </>
-        )}
-        <DetailRows>
-          {value.distanceMeters !== null && (
-            <div>
-              <dt>거리</dt>
-              <dd>직선거리 {formatDistance(value.distanceMeters)}</dd>
-            </div>
+                {value.feeRule.additionalMinutes !== null && value.feeRule.additionalFee !== null && (
+                  <div>
+                    <dt>추가 {value.feeRule.additionalMinutes}분당</dt>
+                    <dd>{formatFee(value.feeRule.additionalFee, 'CALCULATED')}</dd>
+                  </div>
+                )}
+                {value.feeRule.dailyMaxFee !== null && (
+                  <div>
+                    <dt>일 최대요금</dt>
+                    <dd>{formatFee(value.feeRule.dailyMaxFee, 'CALCULATED')}</dd>
+                  </div>
+                )}
+                {value.feeCalculationStatus !== 'NOT_REQUESTED' && (
+                  <div>
+                    <dt>
+                      {session.confirmedVisit
+                        ? `${formatDuration(session.confirmedVisit.durationMinutes)} 총액`
+                        : '예상 총액'}
+                    </dt>
+                    <dd>{formatFee(value.estimatedFee, value.feeCalculationStatus)}</dd>
+                  </div>
+                )}
+              </FeeBox>
+            </>
           )}
-          <div>
-            <dt>운영 상태</dt>
-            <dd>{operationLabel(value.operation.status)}</dd>
-          </div>
-          <div>
-            <dt>운영시간</dt>
-            <dd>{value.operation.businessHours ?? '운영시간 확인 필요'}</dd>
-          </div>
-        </DetailRows>
-        <Muted>
-          {value.source.url ? (
-            <a href={value.source.url} target="_blank" rel="noreferrer">
-              {value.source.name}
-            </a>
-          ) : (
-            value.source.name
-          )}{' '}
-          · {formatCheckedAt(value.source.lastCheckedAt)}
-        </Muted>
-      </DetailBody>
+          <DetailRows>
+            {value.distanceMeters !== null && (
+              <div>
+                <dt>거리</dt>
+                <dd>직선거리 {formatDistance(value.distanceMeters)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>운영 상태</dt>
+              <dd>{operationLabel(value.operation.status)}</dd>
+            </div>
+            <div>
+              <dt>운영시간</dt>
+              <dd>{value.operation.businessHours ?? '운영시간 확인 필요'}</dd>
+            </div>
+          </DetailRows>
+          <Muted>
+            {value.source.url ? (
+              <a href={value.source.url} target="_blank" rel="noreferrer">
+                {value.source.name}
+              </a>
+            ) : (
+              value.source.name
+            )}{' '}
+            · {formatCheckedAt(value.source.lastCheckedAt)}
+          </Muted>
+        </DetailBody>
+      </DraggableSheet>
       <BottomDock>
         <PrimaryButton type="button" onClick={() => onDirections(toTarget(value))}>
           길찾기 시작
         </PrimaryButton>
       </BottomDock>
+      <BottomNav
+        active={route.detailOrigin === 'RECENT' ? 'RECENT' : 'HOME'}
+        onNearby={goNearby}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
     </Screen>
   );
 };

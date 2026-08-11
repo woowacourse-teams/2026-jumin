@@ -6,8 +6,10 @@ import styled from '@emotion/styled';
 import { api, ApiClientError } from '../../api';
 import { calendar } from '../../assets';
 import {
+  BottomNav,
   colors,
   DialogSheet,
+  DraggableSheet,
   ErrorText,
   Header,
   Muted,
@@ -22,14 +24,38 @@ import {
   refreshNearbyVisit,
   sortParkingLots,
   syncVisitFromResponse,
-  todayInSeoul,
+  formatVisitDate,
   validateVisit,
   type VisitDraft,
 } from '../../domain';
 import { MapView } from '../../map';
 import { closeOverlay, navigate } from '../../router';
-import { AssetIcon, BottomSheet, SheetHandle, Title, apiMessage } from '../shared';
+import { AssetIcon, Title, apiMessage } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
 import { useOverlay, useSearchSession } from '../../contexts';
+
+/** 펼친 상태에서 시트 위에 남길 지도 높이. */
+const VISIT_SHEET_TOP = 300;
+/** 접었을 때 제목 줄까지는 보이게 한다. */
+const VISIT_SHEET_PEEK = 104;
+
+const VisitSheetBody = styled.div`
+  padding: 4px var(--gutter) var(--gutter);
+`;
+
+export const DateChip = styled.button`
+  display: flex;
+  min-height: 33px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: ${colors.background};
+  color: ${colors.text};
+  font-size: 13px;
+  font-weight: 700;
+`;
 
 export const VisitRow = styled.div<{ error?: boolean }>`
   display: grid;
@@ -91,7 +117,9 @@ export const TimeSelect = styled.select`
 
 export const VisitScreen = () => {
   const { session, setSession } = useSearchSession();
-  const { openTimePicker: onOpenPicker } = useOverlay();
+  const { openTimePicker: onOpenPicker, openDatePicker } = useOverlay();
+  const { goHome, goNearby, goRecent } = useGlobalNav();
+  const [collapseSignal, setCollapseSignal] = useState(0);
   const onBack = () => navigate(session.visitDraft?.source === 'SEARCH' ? '/destination' : '/');
   const draft = session.visitDraft!;
   const [submitting, setSubmitting] = useState(false);
@@ -177,65 +205,54 @@ export const VisitScreen = () => {
         center={session.destination!.location}
         destination={session.destination!.location}
         height="calc(100dvh - var(--header-height))"
+        onMapTap={() => setCollapseSignal((token) => token + 1)}
       />
-      <BottomSheet>
-        <SheetHandle />
-        <div css={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Title>언제 주차하세요?</Title>
-          <label
-            css={{
-              display: 'flex',
-              minHeight: 33,
-              alignItems: 'center',
-              gap: 6,
-              padding: '0 8px',
-              borderRadius: 10,
-              background: colors.background,
-              fontSize: 13,
-            }}
-          >
-            <AssetIcon src={calendar} alt="" css={{ width: 16, height: 16 }} />
-            <input
-              type="date"
-              aria-label="방문 날짜"
-              min={todayInSeoul()}
-              value={draft.visitDate}
-              disabled={draft.source === 'NEARBY'}
-              onChange={(event) => updateDraft({ ...draft, visitDate: event.target.value })}
-              css={{ border: 0, background: 'transparent', fontWeight: 700 }}
-            />
-          </label>
-        </div>
-        <VisitRow error={error?.field === 'entryAt'}>
-          <span>{draft.source === 'NEARBY' ? '도착' : '입차'}</span>
-          <VisitValueButton
-            id="entryAt"
-            type="button"
-            disabled={draft.source === 'NEARBY'}
-            onClick={() => onOpenPicker('ENTRY', draft.entryTime)}
-          >
-            {draft.entryTime ?? '—:—'}
-          </VisitValueButton>
-        </VisitRow>
-        <VisitRow error={error?.field === 'exitAt' || error?.field === 'timeRange'}>
-          <span>출차</span>
-          <VisitValueButton id="exitAt" type="button" onClick={() => onOpenPicker('EXIT', draft.exitTime)}>
-            {draft.exitTime ?? '—:—'}
-          </VisitValueButton>
-        </VisitRow>
-        {error && <ErrorText id="timeRange">{error.message}</ErrorText>}
-        {visit && <Muted>{formatDuration(visit.durationMinutes)} 이용</Muted>}
-        <QuickButtons>
-          {[30, 60, 120].map((minutes) => (
-            <QuickButton key={minutes} type="button" disabled={!canAdd(minutes)} onClick={() => quickAdd(minutes)}>
-              +{minutes < 60 ? `${minutes}분` : `${minutes / 60}시간`}
-            </QuickButton>
-          ))}
-        </QuickButtons>
-        <PrimaryButton type="button" disabled={submitting} onClick={() => void submit()}>
-          {submitting ? '추천을 찾고 있어요…' : '추천 받기'}
-        </PrimaryButton>
-      </BottomSheet>
+      <DraggableSheet
+        expandedTop={VISIT_SHEET_TOP}
+        peek={VISIT_SHEET_PEEK}
+        collapseSignal={collapseSignal}
+        label="방문 시간"
+      >
+        <VisitSheetBody>
+          <div css={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Title>언제 주차하세요?</Title>
+            <DateChip type="button" onClick={openDatePicker}>
+              <AssetIcon src={calendar} alt="" css={{ width: 16, height: 16 }} />
+              {formatVisitDate(draft.visitDate)}
+            </DateChip>
+          </div>
+          <VisitRow error={error?.field === 'entryAt'}>
+            <span>{draft.source === 'NEARBY' ? '도착' : '입차'}</span>
+            <VisitValueButton id="entryAt" type="button" onClick={() => onOpenPicker('ENTRY', draft.entryTime)}>
+              {draft.entryTime ?? '—:—'}
+            </VisitValueButton>
+          </VisitRow>
+          <VisitRow error={error?.field === 'exitAt' || error?.field === 'timeRange'}>
+            <span>출차</span>
+            <VisitValueButton id="exitAt" type="button" onClick={() => onOpenPicker('EXIT', draft.exitTime)}>
+              {draft.exitTime ?? '—:—'}
+            </VisitValueButton>
+          </VisitRow>
+          {error && <ErrorText id="timeRange">{error.message}</ErrorText>}
+          {visit && <Muted>{formatDuration(visit.durationMinutes)} 이용</Muted>}
+          <QuickButtons>
+            {[30, 60, 120].map((minutes) => (
+              <QuickButton key={minutes} type="button" disabled={!canAdd(minutes)} onClick={() => quickAdd(minutes)}>
+                +{minutes < 60 ? `${minutes}분` : `${minutes / 60}시간`}
+              </QuickButton>
+            ))}
+          </QuickButtons>
+          <PrimaryButton type="button" disabled={submitting} onClick={() => void submit()}>
+            {submitting ? '추천을 찾고 있어요…' : '추천 받기'}
+          </PrimaryButton>
+        </VisitSheetBody>
+      </DraggableSheet>
+      <BottomNav
+        active={draft.source === 'NEARBY' ? 'NEARBY' : 'HOME'}
+        onNearby={goNearby}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
     </Screen>
   );
 };
@@ -279,3 +296,5 @@ export const TimePicker = () => {
     </DialogSheet>
   );
 };
+
+export { CalendarSheet } from './CalendarSheet';

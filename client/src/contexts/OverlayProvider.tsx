@@ -31,6 +31,8 @@ export interface PickerState {
 interface OverlayValue {
   picker: PickerState | null;
   setPicker: Dispatch<SetStateAction<PickerState | null>>;
+  openDatePicker: () => void;
+  closeDatePicker: () => void;
   openTimePicker: (kind: PickerState['kind'], initial: string | null) => void;
   confirmPicker: () => void;
   directionsTarget: ParkingTarget | null;
@@ -60,6 +62,8 @@ export const OverlayProvider = ({ children }: { children: ReactNode }) => {
       setPicker,
       directionsTarget,
       directionsError,
+      openDatePicker: () => openOverlay('VISIT_DATE'),
+      closeDatePicker: () => closeOverlay(),
       openTimePicker: (kind, initial) => {
         const draft = session.visitDraft;
         const fallback =

@@ -1,9 +1,19 @@
 /** 600m 내 전체 주차장 목록 화면. */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import styled from '@emotion/styled';
 
-import { Badge, BottomDock, colors, Header, Muted, PrimaryButton, Screen } from '../../components';
+import {
+  Badge,
+  BottomDock,
+  BottomNav,
+  colors,
+  DraggableSheet,
+  Header,
+  Muted,
+  PrimaryButton,
+  Screen,
+} from '../../components';
 import {
   formatDistance,
   formatFee,
@@ -16,20 +26,17 @@ import { MapView } from '../../map';
 import { navigate, openDetail } from '../../router';
 import { CategoryTabs } from '../results';
 import { CandidateName, SmallButton, toTarget } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
 import { useOverlay, useSearchSession } from '../../contexts';
 
-export const MoreLayout = styled.div`
-  min-height: 100dvh;
-  padding-bottom: calc(104px + var(--safe-bottom));
-`;
+/** 펼친 상태에서 시트 상단이 화면 위에서 떨어진 거리. 지도가 충분히 보이게 잡는다. */
+const MORE_SHEET_TOP = 200;
+/** 접었을 때 남길 높이. 하단 도크(106px) 위로 정렬 탭과 첫 항목이 보이도록 한다. */
+const MORE_SHEET_PEEK = 268;
 
+/** 시트 안에서 실제로 스크롤되는 영역. 하단 도크에 가리지 않도록 여백을 둔다. */
 export const MoreContent = styled.div`
-  position: relative;
-  z-index: 1;
-  margin-top: -16px;
-  padding-top: 6px;
-  border-radius: 24px 24px 0 0;
-  background: #fff;
+  padding-bottom: 106px;
 `;
 
 export const ParkingList = styled.ul`
@@ -65,6 +72,8 @@ export const RowActions = styled.div`
 export const MoreScreen = () => {
   const { session, setSession } = useSearchSession();
   const { showDirections: onDirections } = useOverlay();
+  const { goHome, goNearby, goRecent } = useGlobalNav();
+  const [collapseSignal, setCollapseSignal] = useState(0);
   const onDetail = (id: string) => openDetail(id, 'PARKING_LOTS');
   const response = session.response!;
   const sorted = useMemo(
@@ -92,19 +101,25 @@ export const MoreScreen = () => {
   };
 
   return (
-    <Screen>
+    <Screen css={{ position: 'relative', paddingBottom: 0, overflow: 'hidden' }}>
       <Header title={session.destination!.name} onBack={() => navigate('/results')} />
-      <MoreLayout>
-        <MapView
-          center={session.destination!.location}
-          destination={session.destination!.location}
-          parkingLots={sorted}
-          recommendedIds={response.recommendedParkingLots.map(({ parkingLotId }) => parkingLotId)}
-          selectedId={selected.parkingLotId}
-          radius
-          height="165px"
-          onSelect={(parkingLotId) => setSession((value) => ({ ...value, selectedParkingLotId: parkingLotId }))}
-        />
+      <MapView
+        center={session.destination!.location}
+        destination={session.destination!.location}
+        parkingLots={sorted}
+        recommendedIds={response.recommendedParkingLots.map(({ parkingLotId }) => parkingLotId)}
+        selectedId={selected.parkingLotId}
+        radius
+        height="calc(100dvh - var(--header-height))"
+        onSelect={(parkingLotId) => setSession((value) => ({ ...value, selectedParkingLotId: parkingLotId }))}
+        onMapTap={() => setCollapseSignal((token) => token + 1)}
+      />
+      <DraggableSheet
+        expandedTop={MORE_SHEET_TOP}
+        peek={MORE_SHEET_PEEK}
+        collapseSignal={collapseSignal}
+        label="주차장 목록"
+      >
         <MoreContent>
           <CategoryTabs category={session.selectedCategory} onChange={changeCategory} />
           <ParkingList>
@@ -134,12 +149,13 @@ export const MoreScreen = () => {
             ))}
           </ParkingList>
         </MoreContent>
-      </MoreLayout>
+      </DraggableSheet>
       <BottomDock>
         <PrimaryButton type="button" onClick={() => onDirections(toTarget(selected))}>
           길찾기 시작
         </PrimaryButton>
       </BottomDock>
+      <BottomNav active="HOME" onNearby={goNearby} onHome={goHome} onRecent={goRecent} />
     </Screen>
   );
 };

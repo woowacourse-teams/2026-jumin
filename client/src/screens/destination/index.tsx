@@ -1,13 +1,15 @@
 /** 목적지 확정 화면. */
 
-import { Header, Muted, PrimaryButton, Screen } from '../../components';
+import { BottomNav, Header, Muted, PrimaryButton, Screen } from '../../components';
 import { MapView } from '../../map';
 import { BottomSheet, SheetHandle, Title } from '../shared';
+import { useGlobalNav } from '../../app/useGlobalNav';
 import { useSearchSession } from '../../contexts';
 import { navigate } from '../../router';
 
 export const DestinationScreen = () => {
   const { session, startSearchVisit: onNext } = useSearchSession();
+  const { goHome, goNearby, goRecent } = useGlobalNav();
   const onBack = () => navigate('/search');
   const destination = session.destination!;
   return (
@@ -27,6 +29,7 @@ export const DestinationScreen = () => {
           다음
         </PrimaryButton>
       </BottomSheet>
+      <BottomNav active="HOME" onNearby={goNearby} onHome={goHome} onRecent={goRecent} />
     </Screen>
   );
 };

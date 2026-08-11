@@ -1,7 +1,9 @@
 /** 모달 바텀시트. 포커스 트랩과 Escape 닫기를 포함한다. */
 
 import styled from '@emotion/styled';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
+
+import { useSheetDrag } from './useSheetDrag';
 
 import { colors } from './tokens';
 
@@ -15,8 +17,15 @@ const Scrim = styled.div`
   background: rgba(20, 33, 61, 0.42);
 `;
 
-const Sheet = styled.div`
+const Sheet = styled.div<{ dragging: boolean }>`
   width: min(100%, var(--app-max-width));
+  transition: ${({ dragging }) => (dragging ? 'none' : 'transform 220ms ease-out')};
+  will-change: transform;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+
   max-height: min(82dvh, 720px);
   padding: 10px var(--gutter) calc(24px + var(--safe-bottom));
   overflow: auto;
@@ -25,12 +34,24 @@ const Sheet = styled.div`
   box-shadow: 0 -14px 40px rgba(25, 34, 70, 0.2);
 `;
 
-const Handle = styled.div`
-  width: 44px;
-  height: 4px;
-  margin: 0 auto 18px;
-  border-radius: 999px;
-  background: #dce4f0;
+const Handle = styled.button`
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  margin: 0 0 18px;
+  background: transparent;
+  touch-action: none;
+
+  &::before {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin: 6px auto;
+    border-radius: 999px;
+    background: #dce4f0;
+  }
 `;
 
 export const DialogTitle = styled.h2`
@@ -50,6 +71,16 @@ export const DialogSheet = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const trigger = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+
+  // 아래로 시트 높이의 1/3 넘게 끌면 닫는다.
+  const maxOffset = useCallback(() => ref.current?.getBoundingClientRect().height ?? 0, []);
+  const { offset, setOffset, dragging, handlers, consumeDragged } = useSheetDrag({
+    maxOffset,
+    onRelease: (value, limit) => {
+      if (value > limit / 3) onClose();
+      else setOffset(0);
+    },
+  });
 
   useEffect(() => {
     const sheet = ref.current;
@@ -84,9 +115,24 @@ export const DialogSheet = ({
   }, [onClose]);
 
   return (
-    <Scrim role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <Sheet ref={ref} role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-        <Handle />
+    <Scrim role="presentation" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
+      <Sheet
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
+        dragging={dragging}
+        style={{ transform: `translateY(${offset}px)` }}
+      >
+        <Handle
+          type="button"
+          aria-label="닫기"
+          {...handlers}
+          onClick={() => {
+            if (consumeDragged()) return;
+            onClose();
+          }}
+        />
         <DialogTitle id="dialog-title">{title}</DialogTitle>
         {children}
       </Sheet>

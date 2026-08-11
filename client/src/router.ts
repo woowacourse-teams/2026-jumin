@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type AppOverlay = 'NONE' | 'VISIT_TIME_PICKER' | 'DIRECTIONS' | 'LOCATION';
+export type AppOverlay = 'NONE' | 'VISIT_DATE' | 'VISIT_TIME_PICKER' | 'DIRECTIONS' | 'LOCATION';
 export type DetailOrigin = 'RESULTS' | 'PARKING_LOTS' | 'RECENT';
 
 export interface AppHistoryState {

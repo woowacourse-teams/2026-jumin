@@ -18,7 +18,7 @@ import { MoreScreen } from '../screens/more';
 import { RecentScreen } from '../screens/recent';
 import { ResultsScreen } from '../screens/results';
 import { SearchScreen } from '../screens/search';
-import { TimePicker, VisitScreen } from '../screens/visit';
+import { CalendarSheet, TimePicker, VisitScreen } from '../screens/visit';
 
 export const Splash = styled.div`
   display: grid;
@@ -110,6 +110,7 @@ const useNativeBackButton = () => {
 const AppRoutes = () => {
   const route = useRoute();
   const [ready, setReady] = useState(false);
+  const { session } = useSearchSession();
   const { locating, locationError } = useLocation();
   const { picker, directionsTarget } = useOverlay();
 
@@ -126,6 +127,7 @@ const AppRoutes = () => {
       <GlobalStyles />
       <AppShell>{page ?? <LoadingBlock css={{ minHeight: '100dvh' }}>화면을 준비하고 있어요…</LoadingBlock>}</AppShell>
       {locating && <LocatingToast role="status">현재 위치를 찾고 있어요…</LocatingToast>}
+      {route.overlay === 'VISIT_DATE' && session.visitDraft && <CalendarSheet />}
       {route.overlay === 'VISIT_TIME_PICKER' && picker && <TimePicker />}
       {route.overlay === 'DIRECTIONS' && directionsTarget && <DirectionsSheet />}
       {locationError && <LocationSheet />}

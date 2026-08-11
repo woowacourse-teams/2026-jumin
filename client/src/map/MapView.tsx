@@ -28,6 +28,8 @@ interface MapViewProps {
    */
   focusToken?: number;
   onSelect?: (parkingLotId: string) => void;
+  /** 지도의 빈 곳을 눌렀을 때. 마커·오버레이 탭은 여기에 포함되지 않는다. */
+  onMapTap?: () => void;
 }
 
 export const MapView = ({
@@ -41,6 +43,7 @@ export const MapView = ({
   height = '100%',
   focusToken = 0,
   onSelect,
+  onMapTap,
 }: MapViewProps) => {
   const nativeMapId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,6 +51,7 @@ export const MapView = ({
   const mapsRef = useRef<NaverMaps | null>(null);
   const markerRefs = useRef(new Map<string, Overlay>());
   const onSelectRef = useRef(onSelect);
+  const onMapTapRef = useRef(onMapTap);
   // 좌표가 같아도 카메라를 되돌리기 위해, 최신 show와 focusToken을 effect 밖에서 참조한다.
   const showRef = useRef<(() => void) | null>(null);
   const focusTokenRef = useRef(focusToken);
@@ -62,6 +66,10 @@ export const MapView = ({
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    onMapTapRef.current = onMapTap;
+  }, [onMapTap]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +180,7 @@ export const MapView = ({
           markerMap.set(lot.parkingLotId, marker);
           listeners.push(maps.Event.addListener(marker, 'click', () => onSelectRef.current?.(lot.parkingLotId)));
         });
+        listeners.push(maps.Event.addListener(map, 'click', () => onMapTapRef.current?.()));
         window.setTimeout(() => maps.Event.trigger(map, 'resize'), 0);
       })
       .catch((caught) => {
@@ -210,6 +219,15 @@ export const MapView = ({
         handle = listener;
       },
     );
+    return () => handle?.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!isNativeIOS) return;
+    let handle: { remove(): void } | undefined;
+    void NativeNaverMap.addListener('mapTap', () => onMapTapRef.current?.()).then((listener) => {
+      handle = listener;
+    });
     return () => handle?.remove();
   }, []);
 
