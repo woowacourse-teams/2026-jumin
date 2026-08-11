@@ -35,7 +35,7 @@ import {
   type SortCategory,
   type VisitDraft,
 } from './src/domain';
-import { MapView } from './src/MapView';
+import { MapView } from './src/map';
 import {
   exitNativeApp,
   openDirections,
@@ -61,7 +61,7 @@ import {
   PrimaryButton,
   Screen,
   SecondaryButton,
-} from './src/ui';
+} from './src/components';
 
 const GANGNAM_STATION = { latitude: 37.4981, longitude: 127.0279 };
 /** 추천 결과 화면 carousel에 노출하는 상위 카드 수 */
