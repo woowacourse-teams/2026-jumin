@@ -65,8 +65,7 @@ PostgreSQL 컨테이너와 네트워크를 종료하되 데이터 볼륨은 보�
 docker compose -f ../infra/docker-compose.local.yml down
 ```
 
-다음 명령은 `postgres-data` 볼륨과 로컬 PostgreSQL 데이터를 모두 삭제하는
-파괴적인 작업입니다.
+`postgres-data`볼륨과 PostgreSQL 데이터를 모두 삭제하려면 다음 명령을 실행합니다.
 
 ```bash
 docker compose -f ../infra/docker-compose.local.yml down --volumes
