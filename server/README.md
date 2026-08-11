@@ -10,16 +10,15 @@ PostgreSQL만 Docker Compose로 실행합니다.
 
 ## 로컬 실행
 
-레포지토리 루트에서 PostgreSQL을 실행합니다.
+이 문서가 있는 `server/` 디렉터리에서 PostgreSQL을 실행합니다.
 
 ```bash
-docker compose -f infra/docker-compose.local.yml up -d --wait
+docker compose -f ../infra/docker-compose.local.yml up -d --wait
 ```
 
 서버를 실행합니다.
 
 ```bash
-cd server
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -27,13 +26,13 @@ cd server
 
 | 환경변수 | 기본값 |
 | --- | --- |
-| `DB_HOST` | `localhost` |
+| `DB_HOST` | `127.0.0.1` |
 | `DB_PORT` | `5432` |
 | `DB_NAME` | `jumin` |
 | `DB_USERNAME` | `jumin` |
 | `DB_PASSWORD` | `jumin` |
 
-환경변수를 변경하려면 `infra/.env.example`을 `infra/.env`로 복사해 Docker Compose
+환경변수를 변경하려면 `../infra/.env.example`을 `../infra/.env`로 복사해 Docker Compose
 설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설정에도 지정합니다.
 
 `postgres-data` 볼륨이 이미 생성된 상태에서는 `DB_NAME`, `DB_USERNAME`,
@@ -58,17 +57,16 @@ curl http://localhost:8080/actuator/health
 
 ## 종료
 
-레포지토리 루트에서 다음 명령을 실행합니다.
+`server/` 디렉터리에서 다음 명령을 실행합니다.
 
 PostgreSQL 컨테이너와 네트워크를 종료하되 데이터 볼륨은 보존합니다.
 
 ```bash
-docker compose -f infra/docker-compose.local.yml down
+docker compose -f ../infra/docker-compose.local.yml down
 ```
 
-다음 명령은 `postgres-data` 볼륨과 로컬 PostgreSQL 데이터를 모두 삭제하는
-파괴적인 작업입니다.
+`postgres-data`볼륨과 PostgreSQL 데이터를 모두 삭제하려면 다음 명령을 실행합니다.
 
 ```bash
-docker compose -f infra/docker-compose.local.yml down --volumes
+docker compose -f ../infra/docker-compose.local.yml down --volumes
 ```
