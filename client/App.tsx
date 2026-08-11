@@ -1,2 +1,1917 @@
-const App = () => <div>앱</div>;
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import styled from '@emotion/styled';
+import { api, ApiClientError } from './src/api';
+import { calendar, close, location, picoError, picoLogo, pin, retry as retryIcon, search } from './src/assets';
+import {
+  EMPTY_SESSION,
+  addVisitMinutes,
+  deriveVisit,
+  formatCheckedAt,
+  formatDistance,
+  formatDuration,
+  formatFee,
+  formatRecentAt,
+  formatVisit,
+  initialNearbyVisit,
+  loadRecentUses,
+  nextTenMinuteSlot,
+  operationLabel,
+  recommendationLabel,
+  refreshNearbyVisit,
+  runDomainSelfCheck,
+  saveRecentUse,
+  sortParkingLots,
+  syncVisitFromResponse,
+  todayInSeoul,
+  validateVisit,
+  type Coordinate,
+  type DestinationCandidate,
+  type DirectionsProvider,
+  type ParkingLotDetailResponse,
+  type ParkingTarget,
+  type RecentUse,
+  type SearchSession,
+  type SortCategory,
+  type VisitDraft,
+} from './src/domain';
+import { MapView } from './src/MapView';
+import {
+  exitNativeApp,
+  openDirections,
+  openNaverWebFallback,
+  registerNativeBack,
+  requestCurrentLocation,
+  type LocationResult,
+} from './src/platform';
+import { closeOverlay, initializeHistory, navigate, openOverlay, useRoute } from './src/router';
+import {
+  AppShell,
+  Badge,
+  BottomDock,
+  BottomNav,
+  colors,
+  DialogSheet,
+  ErrorText,
+  GlobalStyles,
+  Header,
+  IconButton,
+  LoadingBlock,
+  Muted,
+  PrimaryButton,
+  Screen,
+  SecondaryButton,
+} from './src/ui';
+
+const GANGNAM_STATION = { latitude: 37.4981, longitude: 127.0279 };
+
+const AssetIcon = styled.img`
+  display: block;
+  width: 20px;
+  height: 20px;
+`;
+
+const SearchButton = styled.button`
+  position: absolute;
+  z-index: 5;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 16px;
+  display: flex;
+  width: calc(100% - 32px);
+  min-height: 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border: 1.5px solid transparent;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 9px rgba(20, 33, 61, 0.1);
+  color: ${colors.muted};
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+
+  &:hover,
+  &:focus-visible {
+    border-color: ${colors.primary};
+  }
+`;
+
+const LocationButton = styled(IconButton)`
+  position: absolute;
+  z-index: 5;
+  right: 16px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(31, 42, 78, 0.18);
+`;
+
+const Splash = styled.div`
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+  background: ${colors.primary};
+`;
+
+const SplashLogo = styled.img`
+  display: block;
+  width: 118px;
+  height: 171px;
+`;
+
+const SearchHeader = styled.div`
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  min-height: calc(74px + env(safe-area-inset-top));
+  align-items: flex-end;
+  gap: 6px;
+  padding: env(safe-area-inset-top) 12px 10px 8px;
+  background: #fff;
+`;
+
+const SearchInputWrap = styled.div`
+  display: flex;
+  height: 53px;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1.5px solid ${colors.primary};
+  border-radius: 16px;
+`;
+
+const SearchInput = styled.input`
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 16px;
+
+  &::placeholder {
+    color: #a0a6b5;
+  }
+`;
+
+const ClearButton = styled.button`
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+
+  img {
+    width: 20px;
+    height: 20px;
+    padding: 6px;
+    border-radius: 50%;
+    background: #c4ccd8;
+  }
+`;
+
+const CandidateList = styled.ul`
+  margin: 0;
+  padding: 0;
+  list-style: none;
+`;
+
+const CandidateButton = styled.button<{ active: boolean }>`
+  display: grid;
+  width: 100%;
+  min-height: 68px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 20px;
+  border: 0;
+  border-bottom: 1px solid ${colors.line};
+  background: ${({ active }) => (active ? colors.tint : '#fff')};
+  text-align: left;
+`;
+
+const PlaceIcon = styled.span`
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: ${colors.tint};
+
+  img {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const Ellipsis = styled.span`
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const CandidateName = styled(Ellipsis)`
+  margin-bottom: 3px;
+  color: ${colors.text};
+  font-size: 15px;
+  font-weight: 800;
+`;
+
+const CandidateAddress = styled(Ellipsis)`
+  color: ${colors.muted};
+  font-size: 13px;
+`;
+
+const CenterState = styled.div`
+  display: grid;
+  min-height: 300px;
+  place-items: center;
+  padding: 36px 24px;
+  text-align: center;
+`;
+
+const BottomSheet = styled.div`
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  background: #fff;
+  box-shadow: 0 -10px 28px rgba(20, 33, 61, 0.1);
+`;
+
+const SheetHandle = styled.div`
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: #c4ccd8;
+`;
+
+const Title = styled.h1`
+  margin: 0;
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 30px;
+`;
+
+const SectionTitle = styled.h2`
+  margin: 0 0 14px;
+  font-size: 16px;
+  line-height: 24px;
+`;
+
+const VisitRow = styled.div<{ error?: boolean }>`
+  display: grid;
+  min-height: 73px;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 14px;
+  border: 1.5px solid ${({ error }) => (error ? colors.danger : colors.line)};
+  border-radius: 16px;
+  background: ${colors.background};
+`;
+
+const VisitValueButton = styled.button`
+  min-height: 71px;
+  border: 0;
+  background: transparent;
+  color: ${colors.text};
+  font-size: 32px;
+  font-weight: 850;
+  text-align: right;
+`;
+
+const QuickButtons = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0 18px;
+`;
+
+const QuickButton = styled(SecondaryButton)`
+  min-height: 37px;
+  min-width: 0;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: ${colors.tint};
+`;
+
+const TimeSelects = styled.div`
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 22px;
+`;
+
+const TimeSelect = styled.select`
+  width: 100%;
+  min-height: 58px;
+  padding: 0 14px;
+  border: 1.5px solid ${colors.primary};
+  border-radius: 12px;
+  background: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+`;
+
+const Tabs = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 16px 6px;
+  background: #fff;
+`;
+
+const TabButton = styled.button<{ active: boolean }>`
+  min-height: 37px;
+  border: 0;
+  border-radius: 10px;
+  background: ${({ active }) => (active ? colors.primary : colors.tint)};
+  color: ${({ active }) => (active ? '#fff' : colors.primary)};
+  font-size: 13px;
+  font-weight: 800;
+`;
+
+const ResultTop = styled.div`
+  position: absolute;
+  z-index: 4;
+  top: calc(10px + env(safe-area-inset-top));
+  right: 17px;
+  left: 17px;
+  display: grid;
+  min-height: 65px;
+  grid-template-columns: 34px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 9px rgba(20, 33, 61, 0.1);
+`;
+
+const ResultTopButton = styled.button`
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: ${colors.text};
+  font-size: 28px;
+`;
+
+const ResultsPanel = styled.div`
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  left: 0;
+`;
+
+const Carousel = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 6px 16px 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const ResultCard = styled.article<{ selected: boolean }>`
+  min-width: 211px;
+  min-height: 144px;
+  padding: 14px 16px;
+  scroll-snap-align: center;
+  border: 2px solid ${({ selected }) => (selected ? colors.primary : '#fff')};
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(31, 42, 82, 0.18);
+`;
+
+const CardHead = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+const CardName = styled.h3`
+  margin: 8px 0 4px;
+  font-size: 17px;
+  line-height: 24px;
+`;
+
+const Price = styled.strong`
+  display: block;
+  margin: 6px 0;
+  color: ${colors.primary};
+  font-size: 24px;
+  line-height: 31px;
+`;
+
+const MoreCard = styled.button`
+  min-width: 94px;
+  min-height: 144px;
+  scroll-snap-align: center;
+  border: 0;
+  border-radius: 16px;
+  background: ${colors.primary};
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  box-shadow: 0 8px 26px rgba(31, 42, 82, 0.2);
+`;
+
+const MoreLayout = styled.div`
+  min-height: 100dvh;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+`;
+
+const MoreContent = styled.div`
+  position: relative;
+  z-index: 1;
+  margin-top: -16px;
+  padding-top: 6px;
+  border-radius: 24px 24px 0 0;
+  background: #fff;
+`;
+
+const ParkingList = styled.ul`
+  margin: 0 12px;
+  padding: 0 16px;
+  list-style: none;
+`;
+
+const ParkingRow = styled.li<{ selected: boolean }>`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid ${colors.line};
+  background: ${({ selected }) => (selected ? colors.tint : '#fff')};
+`;
+
+const ParkingRowButton = styled.button`
+  width: 100%;
+  min-height: 67px;
+  padding: 11px 6px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+`;
+
+const RowActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SmallButton = styled(SecondaryButton)`
+  min-height: 40px;
+  padding: 8px 11px;
+  font-size: 13px;
+`;
+
+const DetailBody = styled.div`
+  position: relative;
+  z-index: 1;
+  min-height: calc(100dvh - 205px);
+  margin-top: -16px;
+  padding: 40px 20px 126px;
+  border-radius: 24px 24px 0 0;
+  background: #fff;
+`;
+
+const FeeBox = styled.dl`
+  margin: 12px 0 24px;
+  overflow: hidden;
+  border: 1px solid ${colors.line};
+  border-radius: 16px;
+
+  div {
+    display: flex;
+    min-height: 45px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid ${colors.line};
+  }
+  div:last-child {
+    border-bottom: 0;
+    background: ${colors.tint};
+    color: ${colors.primary};
+    font-weight: 800;
+  }
+  dt,
+  dd {
+    margin: 0;
+  }
+`;
+
+const DetailRows = styled.dl`
+  margin: 24px 0;
+
+  div {
+    display: flex;
+    min-height: 38px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  dt {
+    color: ${colors.muted};
+  }
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+`;
+
+const DirectionButton = styled.button`
+  display: grid;
+  width: 100%;
+  min-height: 75px;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 1px solid ${colors.line};
+  background: #fff;
+  text-align: left;
+`;
+
+const ProviderLogo = styled.span<{ provider: DirectionsProvider }>`
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 10px;
+  background: ${({ provider }) => (provider === 'NAVER' ? '#03c75a' : provider === 'KAKAO' ? '#fee500' : '#eef1f8')};
+  color: ${({ provider }) => (provider === 'NAVER' ? '#fff' : provider === 'KAKAO' ? '#231f20' : '#52606f')};
+  font-weight: 900;
+`;
+
+const RecentList = styled.ul`
+  margin: 0;
+  padding: 0;
+  list-style: none;
+`;
+
+const RecentButton = styled.button`
+  width: 100%;
+  min-height: 86px;
+  padding: 14px 20px;
+  border: 0;
+  border-bottom: 1px solid ${colors.line};
+  background: #fff;
+  text-align: left;
+`;
+
+const ErrorPico = styled.img`
+  display: block;
+  width: 128px;
+  height: 118px;
+  margin: 0 auto 24px;
+`;
+
+const apiMessage = (error: unknown) => {
+  if (!(error instanceof ApiClientError)) return '문제가 생겼어요. 잠시 후 다시 시도해주세요.';
+  if (error.kind === 'RATE_LIMIT') return '검색 요청이 많아요. 잠시 후 다시 시도해주세요.';
+  if (error.kind === 'CONTRACT') return '최신 정보를 확인할 수 없어요. 새로 검색해주세요.';
+  if (error.kind === 'TIMEOUT') return '응답이 늦어지고 있어요. 다시 시도해주세요.';
+  return '네트워크 연결을 확인하고 다시 시도해주세요.';
+};
+
+const toTarget = (lot: ParkingTarget): ParkingTarget => ({
+  parkingLotId: lot.parkingLotId,
+  name: lot.name,
+  address: lot.address,
+  location: lot.location,
+});
+
+const HomeScreen = ({
+  currentLocation,
+  locating,
+  onSearch,
+  onLocate,
+  onNearby,
+  onHome,
+  onRecent,
+}: {
+  currentLocation: Coordinate | null;
+  locating: boolean;
+  onSearch: () => void;
+  onLocate: () => void;
+  onNearby: () => void;
+  onHome: () => void;
+  onRecent: () => void;
+}) => (
+  <Screen bottomNav css={{ position: 'relative', height: '100dvh', paddingBottom: 0, overflow: 'hidden' }}>
+    <MapView center={currentLocation ?? GANGNAM_STATION} currentLocation={currentLocation} height="100dvh" />
+    <SearchButton type="button" onClick={onSearch}>
+      <AssetIcon src={search} alt="" />
+      어디에 방문하세요?
+    </SearchButton>
+    <LocationButton type="button" aria-label="현재 위치로 이동" disabled={locating} onClick={onLocate}>
+      <AssetIcon src={location} alt="" css={{ opacity: locating ? 0.4 : 1 }} />
+    </LocationButton>
+    <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
+  </Screen>
+);
+
+const SearchScreen = ({
+  currentLocation,
+  onSelect,
+  onBack,
+  onNearby,
+  onHome,
+  onRecent,
+}: {
+  currentLocation: Coordinate | null;
+  onSelect: (candidate: DestinationCandidate) => void;
+  onBack: () => void;
+  onNearby: () => void;
+  onHome: () => void;
+  onRecent: () => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR'>('IDLE');
+  const [candidates, setCandidates] = useState<DestinationCandidate[]>([]);
+  const [message, setMessage] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => inputRef.current?.focus(), []);
+  useEffect(() => {
+    const normalized = query.trim();
+    if (normalized.length < 2) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setStatus('LOADING');
+      void api
+        .searchDestinations(normalized, currentLocation ?? undefined, controller.signal)
+        .then((response) => {
+          setCandidates(response.destinations);
+          setActiveIndex(-1);
+          setStatus('SUCCESS');
+          setMessage(
+            response.destinations.length
+              ? `${response.destinations.length}개의 검색 결과가 있어요.`
+              : '검색 결과가 없어요.',
+          );
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          setStatus('ERROR');
+          setMessage(apiMessage(error));
+        });
+    }, 300);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [currentLocation, query, retry]);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!candidates.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((index) => (index + 1) % candidates.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((index) => (index <= 0 ? candidates.length - 1 : index - 1));
+    } else if (event.key === 'Enter' && activeIndex >= 0) {
+      event.preventDefault();
+      onSelect(candidates[activeIndex]!);
+    } else if (event.key === 'Escape') {
+      setCandidates([]);
+      setActiveIndex(-1);
+    }
+  };
+
+  return (
+    <Screen bottomNav>
+      <SearchHeader>
+        <IconButton type="button" aria-label="뒤로 가기" onClick={onBack}>
+          ‹
+        </IconButton>
+        <SearchInputWrap>
+          <AssetIcon src={search} alt="" />
+          <SearchInput
+            ref={inputRef}
+            role="combobox"
+            aria-expanded={candidates.length > 0}
+            aria-controls="destination-list"
+            aria-activedescendant={activeIndex >= 0 ? `destination-option-${activeIndex}` : undefined}
+            autoComplete="off"
+            placeholder="어디에 방문하세요?"
+            value={query}
+            onChange={(event) => {
+              const next = event.target.value;
+              setQuery(next);
+              if (next.trim().length < 2) {
+                setStatus('IDLE');
+                setCandidates([]);
+                setActiveIndex(-1);
+              }
+            }}
+            onKeyDown={onKeyDown}
+          />
+          {query && (
+            <ClearButton type="button" aria-label="검색어 지우기" onClick={() => setQuery('')}>
+              <img src={close} alt="" />
+            </ClearButton>
+          )}
+        </SearchInputWrap>
+      </SearchHeader>
+      <div aria-live="polite" className="sr-only">
+        {status === 'LOADING' ? '검색 중입니다.' : message}
+      </div>
+      {status === 'LOADING' && <LoadingBlock>장소를 찾고 있어요…</LoadingBlock>}
+      {status === 'SUCCESS' && candidates.length === 0 && <CenterState>검색 결과가 없어요.</CenterState>}
+      {status === 'ERROR' && (
+        <CenterState>
+          <div>
+            <ErrorPico src={picoError} alt="" />
+            <p>{message}</p>
+            <SecondaryButton type="button" onClick={() => setRetry((value) => value + 1)}>
+              다시 시도
+            </SecondaryButton>
+          </div>
+        </CenterState>
+      )}
+      {candidates.length > 0 && (
+        <CandidateList id="destination-list" role="listbox">
+          {candidates.map((candidate, index) => (
+            <li
+              key={candidate.destinationId}
+              id={`destination-option-${index}`}
+              role="option"
+              aria-selected={activeIndex === index}
+            >
+              <CandidateButton
+                type="button"
+                active={activeIndex === index}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => onSelect(candidate)}
+              >
+                <PlaceIcon aria-hidden>
+                  <img src={pin} alt="" />
+                </PlaceIcon>
+                <span>
+                  <CandidateName>{candidate.name}</CandidateName>
+                  <CandidateAddress>{candidate.roadAddress ?? candidate.address}</CandidateAddress>
+                </span>
+                {candidate.distanceFromCurrentLocationMeters !== null && (
+                  <Muted>{formatDistance(candidate.distanceFromCurrentLocationMeters)}</Muted>
+                )}
+              </CandidateButton>
+            </li>
+          ))}
+        </CandidateList>
+      )}
+      <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
+    </Screen>
+  );
+};
+
+const DestinationScreen = ({
+  session,
+  onBack,
+  onNext,
+}: {
+  session: SearchSession;
+  onBack: () => void;
+  onNext: () => void;
+}) => {
+  const destination = session.destination!;
+  return (
+    <Screen css={{ position: 'relative', paddingBottom: 0 }}>
+      <Header title="목적지 확인" onBack={onBack} />
+      <MapView center={destination.location} destination={destination.location} height="calc(100dvh - 56px)" />
+      <BottomSheet>
+        <SheetHandle />
+        <Title>{destination.name}</Title>
+        <Muted>{destination.address}</Muted>
+        <div css={{ height: 18 }} />
+        <PrimaryButton type="button" onClick={onNext}>
+          다음
+        </PrimaryButton>
+      </BottomSheet>
+    </Screen>
+  );
+};
+
+interface PickerState {
+  kind: 'ENTRY' | 'EXIT';
+  hour: string;
+  minute: string;
+}
+
+const VisitScreen = ({
+  session,
+  setSession,
+  onBack,
+  onOpenPicker,
+}: {
+  session: SearchSession;
+  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
+  onBack: () => void;
+  onOpenPicker: (kind: PickerState['kind'], initial: string | null) => void;
+}) => {
+  const draft = session.visitDraft!;
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<{ field?: string; message: string } | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
+  const updateDraft = (next: VisitDraft) => setSession((value) => ({ ...value, visitDraft: next }));
+  const quickAdd = (minutes: number) => {
+    const next = addVisitMinutes(draft, minutes);
+    if (next) updateDraft(next);
+  };
+
+  const submit = async () => {
+    const currentDraft = draft.source === 'NEARBY' ? refreshNearbyVisit(draft) : draft;
+    if (currentDraft !== draft) updateDraft(currentDraft);
+    const validation = validateVisit(currentDraft);
+    if (validation) {
+      setError(validation);
+      document.getElementById(validation.field)?.focus();
+      return;
+    }
+    const visit = deriveVisit(currentDraft)!;
+    const destination = session.destination!;
+    setSubmitting(true);
+    setError(null);
+    controllerRef.current?.abort();
+    controllerRef.current = new AbortController();
+    try {
+      const response = await api.searchParkingLots(
+        {
+          destinationName: destination.name,
+          destinationLatitude: destination.location.latitude,
+          destinationLongitude: destination.location.longitude,
+          entryAt: visit.entryAt,
+          exitAt: visit.exitAt,
+        },
+        controllerRef.current.signal,
+      );
+      const balanced = response.recommendedParkingLots.find(
+        ({ recommendationType }) => recommendationType === 'BALANCED',
+      );
+      const confirmed = response.searchCondition;
+      setSession((value) => ({
+        ...value,
+        visitDraft: syncVisitFromResponse(currentDraft, confirmed),
+        confirmedVisit: {
+          entryAt: confirmed.entryAt,
+          exitAt: confirmed.exitAt,
+          durationMinutes: confirmed.durationMinutes,
+        },
+        response,
+        selectedCategory: 'BALANCED',
+        selectedParkingLotId: balanced?.parkingLotId ?? response.recommendedParkingLots[0]?.parkingLotId ?? null,
+      }));
+      navigate('/results');
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === 'AbortError') return;
+      const apiError = caught instanceof ApiClientError ? caught : null;
+      const field =
+        apiError?.code === 'INVALID_ENTRY_AT'
+          ? 'entryAt'
+          : apiError?.code === 'INVALID_EXIT_AT'
+            ? 'exitAt'
+            : apiError?.code === 'INVALID_TIME_RANGE'
+              ? 'timeRange'
+              : undefined;
+      setError({
+        ...(field ? { field } : {}),
+        message: field ? '입차·출차 시간을 다시 확인해주세요.' : apiMessage(caught),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const visit = deriveVisit(draft);
+  const canAdd = (minutes: number) => Boolean(addVisitMinutes(draft, minutes));
+
+  return (
+    <Screen css={{ position: 'relative', paddingBottom: 0 }}>
+      <Header title={session.destination!.name} onBack={onBack} />
+      <MapView
+        center={session.destination!.location}
+        destination={session.destination!.location}
+        height="calc(100dvh - 56px)"
+      />
+      <BottomSheet>
+        <SheetHandle />
+        <div css={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Title>언제 주차하세요?</Title>
+          <label
+            css={{
+              display: 'flex',
+              minHeight: 33,
+              alignItems: 'center',
+              gap: 6,
+              padding: '0 8px',
+              borderRadius: 10,
+              background: colors.background,
+              fontSize: 13,
+            }}
+          >
+            <AssetIcon src={calendar} alt="" css={{ width: 16, height: 16 }} />
+            <input
+              type="date"
+              aria-label="방문 날짜"
+              min={todayInSeoul()}
+              value={draft.visitDate}
+              disabled={draft.source === 'NEARBY'}
+              onChange={(event) => updateDraft({ ...draft, visitDate: event.target.value })}
+              css={{ border: 0, background: 'transparent', fontWeight: 700 }}
+            />
+          </label>
+        </div>
+        <VisitRow error={error?.field === 'entryAt'}>
+          <span>{draft.source === 'NEARBY' ? '도착' : '입차'}</span>
+          <VisitValueButton
+            id="entryAt"
+            type="button"
+            disabled={draft.source === 'NEARBY'}
+            onClick={() => onOpenPicker('ENTRY', draft.entryTime)}
+          >
+            {draft.entryTime ?? '—:—'}
+          </VisitValueButton>
+        </VisitRow>
+        <VisitRow error={error?.field === 'exitAt' || error?.field === 'timeRange'}>
+          <span>출차</span>
+          <VisitValueButton id="exitAt" type="button" onClick={() => onOpenPicker('EXIT', draft.exitTime)}>
+            {draft.exitTime ?? '—:—'}
+          </VisitValueButton>
+        </VisitRow>
+        {error && <ErrorText id="timeRange">{error.message}</ErrorText>}
+        {visit && <Muted>{formatDuration(visit.durationMinutes)} 이용</Muted>}
+        <QuickButtons>
+          {[30, 60, 120].map((minutes) => (
+            <QuickButton key={minutes} type="button" disabled={!canAdd(minutes)} onClick={() => quickAdd(minutes)}>
+              +{minutes < 60 ? `${minutes}분` : `${minutes / 60}시간`}
+            </QuickButton>
+          ))}
+        </QuickButtons>
+        <PrimaryButton type="button" disabled={submitting} onClick={() => void submit()}>
+          {submitting ? '추천을 찾고 있어요…' : '추천 받기'}
+        </PrimaryButton>
+      </BottomSheet>
+    </Screen>
+  );
+};
+
+const CategoryTabs = ({
+  category,
+  onChange,
+}: {
+  category: SortCategory;
+  onChange: (category: SortCategory) => void;
+}) => (
+  <Tabs aria-label="주차장 정렬">
+    {(
+      [
+        ['DISTANCE', '거리순'],
+        ['PRICE', '가격순'],
+        ['BALANCED', '균형순'],
+      ] as const
+    ).map(([value, label]) => (
+      <TabButton
+        key={value}
+        type="button"
+        active={category === value}
+        aria-pressed={category === value}
+        onClick={() => onChange(value)}
+      >
+        {label}
+      </TabButton>
+    ))}
+  </Tabs>
+);
+
+const ResultsScreen = ({
+  session,
+  setSession,
+  onDetail,
+  onMore,
+  onNearby,
+  onHome,
+  onRecent,
+}: {
+  session: SearchSession;
+  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
+  onDetail: (id: string) => void;
+  onMore: () => void;
+  onNearby: () => void;
+  onHome: () => void;
+  onRecent: () => void;
+}) => {
+  const response = session.response!;
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const recommendationById = useMemo(
+    () => new Map(response.recommendedParkingLots.map((item) => [item.parkingLotId, item.recommendationType])),
+    [response],
+  );
+  const recommendedLots = useMemo(
+    () =>
+      sortParkingLots(
+        response.parkingLots.filter((lot) => recommendationById.has(lot.parkingLotId)),
+        session.selectedCategory,
+      ),
+    [recommendationById, response.parkingLots, session.selectedCategory],
+  );
+
+  const select = useCallback(
+    (parkingLotId: string) => {
+      setSession((value) => ({ ...value, selectedParkingLotId: parkingLotId }));
+      carouselRef.current
+        ?.querySelector<HTMLElement>(`[data-parking-id="${CSS.escape(parkingLotId)}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+    },
+    [setSession],
+  );
+
+  const changeCategory = (category: SortCategory) => {
+    const sorted = sortParkingLots(response.parkingLots, category);
+    const preferred = response.recommendedParkingLots.find(
+      ({ recommendationType }) => recommendationType === category,
+    )?.parkingLotId;
+    setSession((value) => ({
+      ...value,
+      selectedCategory: category,
+      selectedParkingLotId: preferred ?? sorted[0]?.parkingLotId ?? null,
+    }));
+  };
+
+  if (!response.recommendedParkingLots.length)
+    return (
+      <Screen>
+        <Header title="추천 결과" onBack={() => navigate('/visit')} />
+        <CenterState css={{ minHeight: 'calc(100dvh - 56px)' }}>
+          <div>
+            <ErrorPico src={picoError} alt="" />
+            <Title>주차장을 찾지 못했어요</Title>
+            <Muted css={{ margin: '12px 0 24px' }}>검색 반경(600m) 안에서 이용 가능한 주차장을 찾지 못했어요.</Muted>
+            <PrimaryButton
+              type="button"
+              onClick={() => {
+                setSession(EMPTY_SESSION);
+                navigate('/search');
+              }}
+            >
+              목적지 다시 검색
+            </PrimaryButton>
+          </div>
+        </CenterState>
+      </Screen>
+    );
+
+  return (
+    <Screen bottomNav css={{ position: 'relative', paddingBottom: 0 }}>
+      <MapView
+        center={session.destination!.location}
+        destination={session.destination!.location}
+        parkingLots={recommendedLots}
+        recommendedIds={recommendedLots.map(({ parkingLotId }) => parkingLotId)}
+        selectedId={session.selectedParkingLotId}
+        radius
+        height="100dvh"
+        onSelect={select}
+      />
+      <ResultTop>
+        <ResultTopButton type="button" aria-label="방문 시간으로 돌아가기" onClick={() => navigate('/visit')}>
+          ‹
+        </ResultTopButton>
+        <span css={{ minWidth: 0 }}>
+          <CandidateName>{session.destination!.name}</CandidateName>
+          <Muted>{formatVisit(session.confirmedVisit!)}</Muted>
+        </span>
+        <AssetIcon src={search} alt="" />
+      </ResultTop>
+      <ResultsPanel>
+        <CategoryTabs category={session.selectedCategory} onChange={changeCategory} />
+        <Carousel
+          ref={carouselRef}
+          onScroll={(event) => {
+            const viewportCenter = event.currentTarget.scrollLeft + event.currentTarget.clientWidth / 2;
+            const cards = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[data-parking-id]'));
+            const nearest = cards.reduce<{ id: string; distance: number } | null>((best, card) => {
+              const id = card.dataset.parkingId;
+              if (!id) return best;
+              const distance = Math.abs(card.offsetLeft + card.offsetWidth / 2 - viewportCenter);
+              return !best || distance < best.distance ? { id, distance } : best;
+            }, null);
+            if (nearest && nearest.id !== session.selectedParkingLotId)
+              setSession((value) => ({ ...value, selectedParkingLotId: nearest.id }));
+          }}
+        >
+          {recommendedLots.map((lot) => (
+            <ResultCard
+              key={lot.parkingLotId}
+              data-parking-id={lot.parkingLotId}
+              selected={session.selectedParkingLotId === lot.parkingLotId}
+              onClick={() => select(lot.parkingLotId)}
+            >
+              <CardHead>
+                <Badge>{recommendationLabel(recommendationById.get(lot.parkingLotId)!)}</Badge>
+                <Muted>{operationLabel(lot.operation.status)}</Muted>
+              </CardHead>
+              <CardName>{lot.name}</CardName>
+              <Price>{formatFee(lot.estimatedFee, lot.feeCalculationStatus)}</Price>
+              <Muted>
+                {formatDuration(response.searchCondition.durationMinutes)} · {formatDistance(lot.distanceMeters)}
+              </Muted>
+              <SmallButton
+                type="button"
+                css={{ marginTop: 12 }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDetail(lot.parkingLotId);
+                }}
+              >
+                상세보기
+              </SmallButton>
+            </ResultCard>
+          ))}
+          <MoreCard type="button" aria-label="600미터 내 주차장 더 보기" onClick={onMore}>
+            +
+          </MoreCard>
+        </Carousel>
+      </ResultsPanel>
+      <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
+    </Screen>
+  );
+};
+
+const MoreScreen = ({
+  session,
+  setSession,
+  onDetail,
+  onDirections,
+}: {
+  session: SearchSession;
+  setSession: React.Dispatch<React.SetStateAction<SearchSession>>;
+  onDetail: (id: string) => void;
+  onDirections: (target: ParkingTarget) => void;
+}) => {
+  const response = session.response!;
+  const sorted = useMemo(
+    () => sortParkingLots(response.parkingLots, session.selectedCategory),
+    [response.parkingLots, session.selectedCategory],
+  );
+  const recommended = useMemo(
+    () => new Map(response.recommendedParkingLots.map((item) => [item.parkingLotId, item.recommendationType])),
+    [response],
+  );
+  const selected = sorted.find(({ parkingLotId }) => parkingLotId === session.selectedParkingLotId) ?? sorted[0]!;
+
+  useEffect(() => {
+    if (selected.parkingLotId !== session.selectedParkingLotId)
+      setSession((value) => ({ ...value, selectedParkingLotId: selected.parkingLotId }));
+  }, [selected.parkingLotId, session.selectedParkingLotId, setSession]);
+
+  const changeCategory = (category: SortCategory) => {
+    const first = sortParkingLots(response.parkingLots, category)[0];
+    setSession((value) => ({
+      ...value,
+      selectedCategory: category,
+      selectedParkingLotId: first?.parkingLotId ?? null,
+    }));
+  };
+
+  return (
+    <Screen>
+      <Header title={session.destination!.name} onBack={() => navigate('/results')} />
+      <MoreLayout>
+        <MapView
+          center={session.destination!.location}
+          destination={session.destination!.location}
+          parkingLots={sorted}
+          recommendedIds={response.recommendedParkingLots.map(({ parkingLotId }) => parkingLotId)}
+          selectedId={selected.parkingLotId}
+          radius
+          height="165px"
+          onSelect={(parkingLotId) => setSession((value) => ({ ...value, selectedParkingLotId: parkingLotId }))}
+        />
+        <MoreContent>
+          <CategoryTabs category={session.selectedCategory} onChange={changeCategory} />
+          <ParkingList>
+            {sorted.map((lot) => (
+              <ParkingRow key={lot.parkingLotId} selected={lot.parkingLotId === selected.parkingLotId}>
+                <ParkingRowButton
+                  type="button"
+                  onClick={() => setSession((value) => ({ ...value, selectedParkingLotId: lot.parkingLotId }))}
+                >
+                  <span>
+                    {recommended.has(lot.parkingLotId) && (
+                      <Badge>{recommendationLabel(recommended.get(lot.parkingLotId)!)}</Badge>
+                    )}
+                    <CandidateName>{lot.name}</CandidateName>
+                    <Muted>
+                      {formatFee(lot.estimatedFee, lot.feeCalculationStatus)} · {formatDistance(lot.distanceMeters)} ·{' '}
+                      {operationLabel(lot.operation.status)}
+                    </Muted>
+                  </span>
+                </ParkingRowButton>
+                <RowActions>
+                  <SmallButton type="button" onClick={() => onDetail(lot.parkingLotId)}>
+                    상세보기
+                  </SmallButton>
+                </RowActions>
+              </ParkingRow>
+            ))}
+          </ParkingList>
+        </MoreContent>
+      </MoreLayout>
+      <BottomDock>
+        <PrimaryButton type="button" onClick={() => onDirections(toTarget(selected))}>
+          길찾기 시작
+        </PrimaryButton>
+      </BottomDock>
+    </Screen>
+  );
+};
+
+const DetailScreen = ({
+  parkingLotId,
+  session,
+  recent,
+  onBack,
+  onDirections,
+}: {
+  parkingLotId: string;
+  session: SearchSession;
+  recent: RecentUse[];
+  onBack: () => void;
+  onDirections: (target: ParkingTarget) => void;
+}) => {
+  const inSearch = Boolean(
+    session.response?.parkingLots.some((lot) => lot.parkingLotId === parkingLotId) &&
+    session.confirmedVisit &&
+    session.destination,
+  );
+  const condition = useMemo(
+    () =>
+      inSearch
+        ? {
+            destinationLatitude: session.destination!.location.latitude,
+            destinationLongitude: session.destination!.location.longitude,
+            entryAt: session.confirmedVisit!.entryAt,
+            exitAt: session.confirmedVisit!.exitAt,
+          }
+        : undefined,
+    [inSearch, session.confirmedVisit, session.destination],
+  );
+  const summary = session.response?.parkingLots.find((lot) => lot.parkingLotId === parkingLotId);
+  const recentItem = recent.find((item) => item.parkingLotId === parkingLotId);
+  const [detail, setDetail] = useState<ParkingLotDetailResponse | null>(null);
+  const [status, setStatus] = useState<'LOADING' | 'SUCCESS' | 'ERROR'>('LOADING');
+  const [error, setError] = useState<unknown>(null);
+  const [withoutCondition, setWithoutCondition] = useState(false);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void api
+      .getParkingLot(parkingLotId, withoutCondition ? undefined : condition, controller.signal)
+      .then((value) => {
+        setDetail(value);
+        setStatus('SUCCESS');
+      })
+      .catch((caught: unknown) => {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+        setError(caught);
+        setStatus('ERROR');
+      });
+    return () => controller.abort();
+  }, [condition, parkingLotId, retry, withoutCondition]);
+
+  const recommendation = session.response?.recommendedParkingLots.find(
+    (item) => item.parkingLotId === parkingLotId,
+  )?.recommendationType;
+  const target = detail ? toTarget(detail) : summary ? toTarget(summary) : recentItem;
+
+  if (status === 'LOADING')
+    return (
+      <Screen>
+        <Header title={summary?.name ?? recentItem?.name ?? '주차장 상세'} onBack={onBack} />
+        {summary && (
+          <MapView center={summary.location} parkingLots={[summary]} selectedId={summary.parkingLotId} height="165px" />
+        )}
+        <LoadingBlock>주차장 정보를 불러오고 있어요…</LoadingBlock>
+      </Screen>
+    );
+
+  if (status === 'ERROR') {
+    const notFound = error instanceof ApiClientError && error.kind === 'NOT_FOUND';
+    const invalidCondition = error instanceof ApiClientError && error.code === 'INVALID_SEARCH_CONDITION';
+    return (
+      <Screen>
+        <Header title={summary?.name ?? recentItem?.name ?? '주차장 상세'} onBack={onBack} />
+        <CenterState css={{ minHeight: 'calc(100dvh - 56px)' }}>
+          <div>
+            <ErrorPico src={picoError} alt="" />
+            <Title>{notFound ? '주차장 정보를 찾을 수 없어요.' : '다시 시도해주세요'}</Title>
+            <Muted css={{ margin: '10px 0 22px' }}>
+              {notFound ? '이전 화면에서 다른 주차장을 선택해주세요.' : apiMessage(error)}
+            </Muted>
+            {!notFound && (
+              <PrimaryButton
+                type="button"
+                onClick={() => {
+                  setStatus('LOADING');
+                  if (invalidCondition) setWithoutCondition(true);
+                  else setRetry((value) => value + 1);
+                }}
+              >
+                <span css={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {!invalidCondition && <AssetIcon src={retryIcon} alt="" />}
+                  {invalidCondition ? '검색 조건 없이 다시 조회' : '다시 시도'}
+                </span>
+              </PrimaryButton>
+            )}
+            {target && !notFound && (
+              <SecondaryButton
+                type="button"
+                css={{ width: '100%', marginTop: 10 }}
+                onClick={() => onDirections(toTarget(target))}
+              >
+                저장된 위치로 길찾기
+              </SecondaryButton>
+            )}
+          </div>
+        </CenterState>
+      </Screen>
+    );
+  }
+
+  const value = detail!;
+  return (
+    <Screen>
+      <Header title={value.name} onBack={onBack} />
+      <MapView
+        center={value.location}
+        parkingLots={[
+          {
+            ...(summary ?? {
+              parkingLotId: value.parkingLotId,
+              name: value.name,
+              address: value.address,
+              location: value.location,
+              distanceMeters: 0,
+              estimatedFee: null,
+              feeCalculationStatus: 'UNAVAILABLE' as const,
+              operation: { status: 'UNKNOWN' as const },
+              sortRanks: { distance: 1, price: null, balanced: null },
+            }),
+          },
+        ]}
+        selectedId={value.parkingLotId}
+        height="165px"
+      />
+      <DetailBody>
+        {recommendation && <Badge>{recommendationLabel(recommendation)}</Badge>}
+        <Title css={{ marginTop: recommendation ? 10 : 0 }}>{value.name}</Title>
+        <Muted>{value.address}</Muted>
+        {value.feeRule && (
+          <>
+            <SectionTitle css={{ marginTop: 24 }}>요금 정보</SectionTitle>
+            <FeeBox>
+              <div>
+                <dt>기본 {value.feeRule.baseMinutes}분</dt>
+                <dd>{formatFee(value.feeRule.baseFee, 'CALCULATED')}</dd>
+              </div>
+              {value.feeRule.additionalMinutes !== null && value.feeRule.additionalFee !== null && (
+                <div>
+                  <dt>추가 {value.feeRule.additionalMinutes}분당</dt>
+                  <dd>{formatFee(value.feeRule.additionalFee, 'CALCULATED')}</dd>
+                </div>
+              )}
+              {value.feeRule.dailyMaxFee !== null && (
+                <div>
+                  <dt>일 최대요금</dt>
+                  <dd>{formatFee(value.feeRule.dailyMaxFee, 'CALCULATED')}</dd>
+                </div>
+              )}
+              {value.feeCalculationStatus !== 'NOT_REQUESTED' && (
+                <div>
+                  <dt>
+                    {session.confirmedVisit
+                      ? `${formatDuration(session.confirmedVisit.durationMinutes)} 총액`
+                      : '예상 총액'}
+                  </dt>
+                  <dd>{formatFee(value.estimatedFee, value.feeCalculationStatus)}</dd>
+                </div>
+              )}
+            </FeeBox>
+          </>
+        )}
+        <DetailRows>
+          {value.distanceMeters !== null && (
+            <div>
+              <dt>거리</dt>
+              <dd>직선거리 {formatDistance(value.distanceMeters)}</dd>
+            </div>
+          )}
+          <div>
+            <dt>운영 상태</dt>
+            <dd>{operationLabel(value.operation.status)}</dd>
+          </div>
+          <div>
+            <dt>운영시간</dt>
+            <dd>{value.operation.businessHours ?? '운영시간 확인 필요'}</dd>
+          </div>
+        </DetailRows>
+        <Muted>
+          {value.source.url ? (
+            <a href={value.source.url} target="_blank" rel="noreferrer">
+              {value.source.name}
+            </a>
+          ) : (
+            value.source.name
+          )}{' '}
+          · {formatCheckedAt(value.source.lastCheckedAt)}
+        </Muted>
+      </DetailBody>
+      <BottomDock>
+        <PrimaryButton type="button" onClick={() => onDirections(toTarget(value))}>
+          길찾기 시작
+        </PrimaryButton>
+      </BottomDock>
+    </Screen>
+  );
+};
+
+const RecentScreen = ({
+  items,
+  onSelect,
+  onNearby,
+  onHome,
+  onRecent,
+}: {
+  items: RecentUse[];
+  onSelect: (id: string) => void;
+  onNearby: () => void;
+  onHome: () => void;
+  onRecent: () => void;
+}) => (
+  <Screen bottomNav>
+    <Header title="최근 이용" onBack={onHome} />
+    {items.length ? (
+      <RecentList>
+        {items.map((item) => (
+          <li key={item.parkingLotId}>
+            <RecentButton type="button" onClick={() => onSelect(item.parkingLotId)}>
+              <CandidateName>{item.name}</CandidateName>
+              <CandidateAddress>{item.address}</CandidateAddress>
+              <Muted css={{ marginTop: 5 }}>마지막 이용 {formatRecentAt(item.usedAt)}</Muted>
+            </RecentButton>
+          </li>
+        ))}
+      </RecentList>
+    ) : (
+      <CenterState>최근 이용한 주차장이 없어요.</CenterState>
+    )}
+    <BottomNav active="RECENT" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
+  </Screen>
+);
+
+const TimePicker = ({
+  picker,
+  onChange,
+  onConfirm,
+  onClose,
+}: {
+  picker: PickerState;
+  onChange: (picker: PickerState) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) => (
+  <DialogSheet title={picker.kind === 'ENTRY' ? '입차 시간' : '출차 시간'} onClose={onClose}>
+    <TimeSelects>
+      <TimeSelect
+        aria-label="시"
+        value={picker.hour}
+        onChange={(event) => onChange({ ...picker, hour: event.target.value })}
+      >
+        {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map((hour) => (
+          <option key={hour}>{hour}</option>
+        ))}
+      </TimeSelect>
+      <strong>:</strong>
+      <TimeSelect
+        aria-label="분"
+        value={picker.minute}
+        onChange={(event) => onChange({ ...picker, minute: event.target.value })}
+      >
+        {['00', '10', '20', '30', '40', '50'].map((minute) => (
+          <option key={minute}>{minute}</option>
+        ))}
+      </TimeSelect>
+    </TimeSelects>
+    <div css={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <SecondaryButton type="button" onClick={onClose}>
+        취소
+      </SecondaryButton>
+      <PrimaryButton type="button" onClick={onConfirm}>
+        확인
+      </PrimaryButton>
+    </div>
+  </DialogSheet>
+);
+
+const DirectionsSheet = ({
+  target,
+  error,
+  onOpen,
+  onFallback,
+  onClose,
+}: {
+  target: ParkingTarget;
+  error: string;
+  onOpen: (provider: DirectionsProvider) => void;
+  onFallback: () => void;
+  onClose: () => void;
+}) => (
+  <DialogSheet title="어떤 앱으로 갈까요?" onClose={onClose}>
+    <Muted css={{ marginBottom: 10 }}>{target.name}까지 길찾기를 시작합니다.</Muted>
+    {(
+      [
+        ['NAVER', '네이버 지도', 'N'],
+        ['KAKAO', '카카오맵', 'K'],
+        ['TMAP', 'TMAP', 'T'],
+      ] as const
+    ).map(([provider, label, mark]) => (
+      <DirectionButton key={provider} type="button" onClick={() => onOpen(provider)}>
+        <ProviderLogo provider={provider}>{mark}</ProviderLogo>
+        <span>
+          <strong>{label}</strong>
+          <Muted>목적지만 전달</Muted>
+        </span>
+        <span aria-hidden>›</span>
+      </DirectionButton>
+    ))}
+    {error && (
+      <div>
+        <ErrorText>{error}</ErrorText>
+        <SecondaryButton type="button" css={{ width: '100%', marginTop: 10 }} onClick={onFallback}>
+          네이버 지도 웹으로 열기
+        </SecondaryButton>
+      </div>
+    )}
+  </DialogSheet>
+);
+
+const LocationSheet = ({
+  result,
+  onRetry,
+  onSearch,
+  onClose,
+}: {
+  result: LocationResult;
+  onRetry: () => void;
+  onSearch: () => void;
+  onClose: () => void;
+}) => {
+  const message =
+    'reason' in result && result.reason === 'TIMEOUT'
+      ? '현재 위치를 확인하는 데 시간이 오래 걸리고 있어요.'
+      : result.status === 'DENIED_PERMANENTLY'
+        ? '설정에서 위치 권한을 허용해주세요.'
+        : result.status === 'DENIED'
+          ? '주변 주차장을 찾으려면 위치 권한이 필요해요.'
+          : '목적지를 검색해서 이용해주세요.';
+  return (
+    <DialogSheet title="현재 위치를 확인할 수 없어요" onClose={onClose}>
+      <Muted css={{ marginBottom: 18 }}>{message}</Muted>
+      {result.status === 'UNAVAILABLE' ? (
+        <PrimaryButton type="button" onClick={onSearch}>
+          목적지 검색
+        </PrimaryButton>
+      ) : (
+        <PrimaryButton type="button" onClick={result.status === 'DENIED_PERMANENTLY' ? onClose : onRetry}>
+          {result.status === 'DENIED_PERMANENTLY' ? '확인' : '다시 시도'}
+        </PrimaryButton>
+      )}
+    </DialogSheet>
+  );
+};
+
+initializeHistory();
+
+const App = () => {
+  const route = useRoute();
+  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<SearchSession>(EMPTY_SESSION);
+  const [currentLocation, setCurrentLocation] = useState<Coordinate | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<{ result: LocationResult; nearby: boolean } | null>(null);
+  const [picker, setPicker] = useState<PickerState | null>(null);
+  const [directionsTarget, setDirectionsTarget] = useState<ParkingTarget | null>(null);
+  const [directionsError, setDirectionsError] = useState('');
+  const [recent, setRecent] = useState<RecentUse[]>(loadRecentUses);
+
+  useEffect(() => {
+    if (!__APP_CONFIG__.isProduction) runDomainSelfCheck();
+    queueMicrotask(() => setReady(true));
+  }, []);
+
+  useEffect(() => {
+    const path = route.route;
+    if (path === '/destination' && !session.destination) navigate('/search', { replace: true });
+    else if (path === '/visit' && (!session.destination || !session.visitDraft)) navigate('/', { replace: true });
+    else if (path === '/results' && !session.response) navigate('/', { replace: true });
+    else if (path === '/parking-lots' && !session.response) navigate('/', { replace: true });
+    else if (path === '/parking-lots' && session.response && !session.response.recommendedParkingLots.length)
+      navigate('/results', { replace: true });
+    else if (
+      !['/', '/search', '/destination', '/visit', '/results', '/parking-lots', '/recent'].includes(path) &&
+      !path.startsWith('/parking-lots/')
+    )
+      navigate('/', { replace: true });
+  }, [route.route, session.destination, session.response, session.visitDraft]);
+
+  useEffect(() => {
+    let remove = () => undefined;
+    void registerNativeBack(() => {
+      if (route.overlay !== 'NONE') history.back();
+      else if (route.route === '/' && route.appHistoryIndex === 0) void exitNativeApp();
+      else history.back();
+    }).then((cleanup) => {
+      remove = cleanup;
+    });
+    return () => remove();
+  }, [route.appHistoryIndex, route.overlay, route.route]);
+
+  const goHome = () => {
+    setSession(EMPTY_SESSION);
+    if (route.route !== '/') navigate('/');
+  };
+  const goRecent = () => {
+    setRecent(loadRecentUses());
+    if (route.route !== '/recent') navigate('/recent');
+  };
+
+  const locate = async (nearby: boolean) => {
+    setLocating(true);
+    setLocationError(null);
+    const result = await requestCurrentLocation();
+    setLocating(false);
+    if (result.status !== 'GRANTED') {
+      setLocationError({ result, nearby });
+      return;
+    }
+    setCurrentLocation(result.location);
+    if (nearby) {
+      setSession({
+        ...EMPTY_SESSION,
+        destination: { kind: 'NEARBY', name: '현재 위치', address: '현재 위치 주변', location: result.location },
+        visitDraft: initialNearbyVisit(),
+      });
+      navigate('/visit');
+    }
+  };
+
+  const selectDestination = (candidate: DestinationCandidate) => {
+    setSession({
+      ...EMPTY_SESSION,
+      destination: {
+        kind: 'SEARCH',
+        destinationId: candidate.destinationId,
+        name: candidate.name,
+        address: candidate.roadAddress ?? candidate.address,
+        roadAddress: candidate.roadAddress,
+        location: { latitude: candidate.latitude, longitude: candidate.longitude },
+      },
+    });
+    navigate('/destination');
+  };
+
+  const startSearchVisit = () => {
+    setSession((value) => ({
+      ...value,
+      visitDraft: {
+        source: 'SEARCH',
+        visitDate: todayInSeoul(),
+        entryTime: null,
+        exitTime: null,
+        nearbyExitWasEdited: false,
+      },
+      confirmedVisit: null,
+      response: null,
+      selectedParkingLotId: null,
+    }));
+    navigate('/visit');
+  };
+
+  const showTimePicker = (kind: PickerState['kind'], initial: string | null) => {
+    const draft = session.visitDraft;
+    const fallback =
+      initial ??
+      (kind === 'EXIT' && draft?.entryTime ? addVisitMinutes({ ...draft, exitTime: null }, 60)?.exitTime : null) ??
+      nextTenMinuteSlot().time;
+    const [hour = '00', minute = '00'] = fallback.split(':');
+    setPicker({ kind, hour, minute: String(Math.floor(Number(minute) / 10) * 10).padStart(2, '0') });
+    openOverlay('VISIT_TIME_PICKER');
+  };
+
+  const confirmPicker = () => {
+    if (!picker) return;
+    setSession((value) => {
+      if (!value.visitDraft) return value;
+      const time = `${picker.hour}:${picker.minute}`;
+      return {
+        ...value,
+        visitDraft: {
+          ...value.visitDraft,
+          ...(picker.kind === 'ENTRY' ? { entryTime: time } : { exitTime: time }),
+          nearbyExitWasEdited:
+            value.visitDraft.nearbyExitWasEdited || (value.visitDraft.source === 'NEARBY' && picker.kind === 'EXIT'),
+        },
+      };
+    });
+    closeOverlay();
+  };
+
+  const showDirections = (target: ParkingTarget) => {
+    setDirectionsTarget(target);
+    setDirectionsError('');
+    openOverlay('DIRECTIONS');
+  };
+
+  const dispatchDirections = async (provider: DirectionsProvider) => {
+    if (!directionsTarget) return;
+    const result = await openDirections(provider, directionsTarget);
+    if (result.status === 'DISPATCHED') {
+      saveRecentUse(directionsTarget);
+      setRecent(loadRecentUses());
+      setDirectionsTarget(null);
+      closeOverlay();
+    } else if (result.status === 'FALLBACK_OPENED') {
+      setDirectionsTarget(null);
+      closeOverlay();
+    } else setDirectionsError('지도 앱을 열지 못했어요. 다른 앱을 선택해주세요.');
+  };
+
+  const openDetail = (id: string, origin: 'RESULTS' | 'PARKING_LOTS' | 'RECENT') =>
+    navigate(`/parking-lots/${encodeURIComponent(id)}`, { detailOrigin: origin });
+
+  const detailBack = () => {
+    if (route.detailOrigin) history.back();
+    else navigate('/', { replace: true });
+  };
+
+  let page: React.ReactNode = null;
+  if (!ready)
+    page = (
+      <Splash>
+        <SplashLogo src={picoLogo} alt="주차의 민족" />
+      </Splash>
+    );
+  else if (route.route === '/')
+    page = (
+      <HomeScreen
+        currentLocation={currentLocation}
+        locating={locating}
+        onSearch={() => navigate('/search')}
+        onLocate={() => void locate(false)}
+        onNearby={() => void locate(true)}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
+    );
+  else if (route.route === '/search')
+    page = (
+      <SearchScreen
+        currentLocation={currentLocation}
+        onSelect={selectDestination}
+        onBack={() => navigate('/')}
+        onNearby={() => void locate(true)}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
+    );
+  else if (route.route === '/destination' && session.destination)
+    page = <DestinationScreen session={session} onBack={() => navigate('/search')} onNext={startSearchVisit} />;
+  else if (route.route === '/visit' && session.destination && session.visitDraft)
+    page = (
+      <VisitScreen
+        session={session}
+        setSession={setSession}
+        onBack={() => navigate(session.visitDraft?.source === 'SEARCH' ? '/destination' : '/')}
+        onOpenPicker={showTimePicker}
+      />
+    );
+  else if (route.route === '/results' && session.response)
+    page = (
+      <ResultsScreen
+        session={session}
+        setSession={setSession}
+        onDetail={(id) => openDetail(id, 'RESULTS')}
+        onMore={() => navigate('/parking-lots')}
+        onNearby={() => void locate(true)}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
+    );
+  else if (route.route === '/parking-lots' && session.response?.recommendedParkingLots.length)
+    page = (
+      <MoreScreen
+        session={session}
+        setSession={setSession}
+        onDetail={(id) => openDetail(id, 'PARKING_LOTS')}
+        onDirections={showDirections}
+      />
+    );
+  else if (route.route === '/recent')
+    page = (
+      <RecentScreen
+        items={recent}
+        onSelect={(id) => openDetail(id, 'RECENT')}
+        onNearby={() => void locate(true)}
+        onHome={goHome}
+        onRecent={goRecent}
+      />
+    );
+  else if (route.route.startsWith('/parking-lots/')) {
+    const id = decodeURIComponent(route.route.slice('/parking-lots/'.length));
+    if (id)
+      page = (
+        <DetailScreen
+          parkingLotId={id}
+          session={session}
+          recent={recent}
+          onBack={detailBack}
+          onDirections={showDirections}
+        />
+      );
+  }
+
+  if (!page) page = <LoadingBlock css={{ minHeight: '100dvh' }}>화면을 준비하고 있어요…</LoadingBlock>;
+
+  return (
+    <>
+      <GlobalStyles />
+      <AppShell>{page}</AppShell>
+      {route.overlay === 'VISIT_TIME_PICKER' && picker && (
+        <TimePicker picker={picker} onChange={setPicker} onConfirm={confirmPicker} onClose={closeOverlay} />
+      )}
+      {route.overlay === 'DIRECTIONS' && directionsTarget && (
+        <DirectionsSheet
+          target={directionsTarget}
+          error={directionsError}
+          onOpen={(provider) => void dispatchDirections(provider)}
+          onFallback={() => {
+            const result = openNaverWebFallback();
+            if (result.status === 'FALLBACK_OPENED') closeOverlay();
+          }}
+          onClose={closeOverlay}
+        />
+      )}
+      {locationError && (
+        <LocationSheet
+          result={locationError.result}
+          onRetry={() => {
+            const nearby = locationError.nearby;
+            setLocationError(null);
+            void locate(nearby);
+          }}
+          onSearch={() => {
+            setLocationError(null);
+            navigate('/search');
+          }}
+          onClose={() => setLocationError(null)}
+        />
+      )}
+    </>
+  );
+};
+
 export default App;
