@@ -38,7 +38,7 @@ https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId={NAVER_MAP_CLIENT_ID}
 
 - 추천·일반·선택 상태는 색상뿐 아니라 모양·번호·접근 가능한 이름으로 구분한다.
 - 선택 변경은 같은 ID overlay의 style만 변경한다.
-- API 거리 `> 600` 또는 잘못된 좌표는 지도·목록에서 제외하고 contract error를 기록한다.
+- API 거리 `> 600` 또는 잘못된 좌표가 발견되면 해당 응답 전체를 contract error로 처리한다. 잘못된 항목만 제거한 부분 목록을 계속 사용하지 않는다.
 - Haversine 거리로 서버 결과를 재판정하지 않는다.
 
 ## 4. 위치 adapter

@@ -485,4 +485,4 @@ interface ParkingLotDetailResponse {
 - [ ] 공통 오류 body에 nullable `traceId`를 포함한다.
 - [ ] 비공영 주차장 상세 ID를 `PARKING_LOT_NOT_FOUND`로 처리한다.
 
-이 문서의 wire contract를 변경할 때는 영향받는 기능 스펙, TypeScript DTO, fixture, contract test를 함께 변경한다.
+이 문서의 wire contract를 변경할 때는 영향받는 기능 스펙, TypeScript DTO와 fixture를 함께 변경한다. 자동 contract test 도입은 이번 프론트엔드 MVP 범위에 포함하지 않는다.

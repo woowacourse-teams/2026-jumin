@@ -2,10 +2,10 @@
 
 | 항목        | 값                                                         |
 | ----------- | ---------------------------------------------------------- |
-| 버전        | 2.1.1                                                      |
+| 버전        | 2.2.0                                                      |
 | 기준일      | 2026-08-10                                                 |
 | 디자인      | [V6 manifest](./design/design-manifest.md), node `89:1382` |
-| 플랫폼      | 모바일 웹, Capacitor iOS·Android                           |
+| 플랫폼      | 모바일 웹, Capacitor iOS 우선·Android 후속                 |
 | 데이터 범위 | 서울시 공영주차장                                          |
 
 이 문서는 전체 시스템의 범위·기능 연결·스펙 위치만 정의한다. 세부 구현은 기능별 스펙, API wire는 백엔드 API 계약서를 따른다.
@@ -74,7 +74,7 @@ flowchart TD
 | 최근 이용    | [최근 이용](./specs/08-recent-use.md)                  | localStorage schema, 정리, 목록                  |
 | API wire     | [백엔드 API 계약서](./backend-api-contract.md)         | endpoint, DTO, 오류코드, 서버 불변조건·계산 규칙 |
 | 디자인       | [디자인 manifest](./design/design-manifest.md)         | Figma·화면 export·상태·스펙 변경점·누락 자료     |
-| AI 개발 절차 | [AI 기능 개발 실행 가이드](./agentic-development.md)   | clarify→plan→tasks→analyze→implement             |
+| AI 개발 절차 | [AI 원데이 출시 개발 가이드](./agentic-development.md) | 단일 작업 구현 순서·mock·최소 검증               |
 
 ## 5. Route 개요
 
@@ -145,14 +145,14 @@ flowchart TD
 
 ## 8. 구현 순서
 
-1. 공통 타입·route·검색 세션·platform adapter 경계
-2. 목적지 검색·확정
-3. 방문 조건과 시간 직렬화
-4. 추천 API 연동·결과·더보기
-5. 상세
-6. 네이버 지도·현재 위치
-7. 외부 길찾기·최근 이용
-8. 오류·접근성·웹/네이티브 smoke 검증
+기능별 승인 게이트로 나누지 않고 하나의 작업에서 사용자 흐름을 수직으로 완성한다.
+
+1. 앱 셸·route·환경 변수·API/mock adapter·Capacitor iOS 기반
+2. 홈 → 목적지 검색·확정 → 방문 조건 → 추천 요청
+3. 결과 → 더보기·상세 → 외부 지도 길찾기
+4. 네이버 지도·현재 위치 → 주변 흐름
+5. 최근 이용·0건·network 오류
+6. 실제 API 전환 → 모바일 golden path → iOS sync·실행
 
 ## 9. 환경 준비물
 
@@ -174,6 +174,6 @@ flowchart TD
 - route·전역 상태·기능 연결 변경 → 이 마스터와 해당 기능 스펙 수정
 - 기능 내부 상태·문구·조건 변경 → 해당 기능 스펙만 수정
 - 색상·간격·asset 변경 → Figma와 디자인 manifest의 버전·상태 수정
-- 자동 테스트는 MVP 범위에서 제외하고 기능별 완료 조건과 smoke 검증으로 확인
+- 자동 테스트는 MVP 범위에서 제외하고 release checklist의 golden path로 확인
 
 구현과 문서가 다르면 코드를 기준으로 문서를 사후 보정하지 않는다. 먼저 합의된 스펙을 변경한 뒤 구현한다.

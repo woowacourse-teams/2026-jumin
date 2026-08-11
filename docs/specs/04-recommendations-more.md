@@ -41,7 +41,16 @@ API와 서버 추천 규칙: [`backend-api-contract.md`](../backend-api-contract
 
 거리·요금·균형 점수로 rank를 다시 계산하지 않는다.
 
-결과 화면에서 category를 바꾸면 같은 `recommendationType` 주차장을 선택한다. 해당 유형이 없으면 새 정렬의 첫 항목을 선택한다. 중복 제거 때문에 유형별 추천이 rank 1이 아닐 수 있으며, 이 경우 정렬을 바꾸지 않고 선택 카드만 이동한다.
+결과 화면에서 category를 바꾸면 다음 순서로 처리한다.
+
+1. `selectedCategory`를 새 category로 변경한다.
+2. 해당 category의 `sortRanks`로 전체 목록을 정렬한다.
+3. 새 `recommendationType`에 해당하는 추천 주차장이 있으면 그 주차장을 선택한다.
+4. 해당 추천 유형이 없으면 정렬된 목록의 첫 항목을 선택한다.
+5. 카드·marker·목록은 같은 `selectedParkingLotId`를 사용한다.
+6. 추천 marker 번호는 현재 category로 정렬된 추천 카드의 표시 순서로 계산한다.
+
+중복 제거 때문에 유형별 추천 주차장의 rank가 1이 아니어도 category 정렬은 적용한다. 선택 주차장을 rank 1로 다시 바꾸거나 category를 되돌리지 않는다.
 
 ## 4. 추천 결과 화면
 

@@ -20,11 +20,13 @@
 | 카카오   | `https://map.kakao.com/link/to/{name},{lat},{lng}`                                                 |
 | TMAP     | `https://apis.openapi.sk.com/tmap/app/routes?appKey={key}&goalname={name}&goalx={lng}&goaly={lat}` |
 
-- 주차장명을 URL encode한다.
+- URL builder를 사용해 모든 동적 query parameter와 path segment를 encode한다. 주차장명, `appName`, TMAP `key`를 직접 문자열 결합하지 않는다.
 - 네이버 `dlat`은 위도, `dlng`은 경도다.
 - TMAP `goalx`는 경도, `goaly`는 위도다.
 - 출발지 parameter를 만들지 않는다.
 - enum 외 provider나 서버가 반환한 임의 URL을 열지 않는다.
+
+문서의 URL은 공개 provider endpoint와 placeholder parameter만 정의한다. 실제 app key, app name, 운영 도메인은 문서나 소스에 기록하지 않고 환경 변수에서 주입한다.
 
 공식 문서: [네이버 URL Scheme](https://guide.ncloud-docs.com/docs/maps-url-scheme), [카카오 길찾기 URL](https://apis.map.kakao.com/web/guide/), [TMAP Invoke](https://tmapapi.tmapmobility.com/webv2/sample/webSample61.html)
 

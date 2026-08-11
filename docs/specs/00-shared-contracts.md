@@ -55,8 +55,10 @@ type AsyncState<T> =
   | { status: "SUCCESS"; data: T }
   | { status: "ERROR"; error: AppError };
 
+type ValidationField = "destination" | "entryAt" | "exitAt" | "timeRange";
+
 type AppError =
-  | { kind: "VALIDATION"; field: "destination" | "entryAt" | "exitAt" }
+  | { kind: "VALIDATION"; field: ValidationField }
   | { kind: "NETWORK" | "TIMEOUT" | "RATE_LIMIT"; retryable: true }
   | { kind: "NOT_FOUND" | "CONTRACT"; retryable: false }
   | { kind: "MAP" | "LOCATION" | "EXTERNAL_NAVIGATION" };
@@ -85,8 +87,10 @@ interface SearchSession {
 
 ## 6. API 처리
 
-- 응답은 화면에 전달하기 전에 API 경계에서 type guard로 검증한다.
-- enum, 필수 문자열, 좌표 범위, 금액·거리·rank 정수 여부, ID 참조 무결성을 확인한다.
+- 응답은 화면에 전달하기 전에 API 경계에서 가벼운 type guard로 검증한다.
+- JSON 여부, 필수 최상위 field·배열, enum, 필수 문자열, 좌표 범위, 금액·거리의 유한한 비음수 값, rank의 허용된 `null` 또는 양의 정수, `searchRadiusMeters === 600`, 추천 ID 참조 무결성을 확인한다.
+- 필수 구조·좌표·ID 참조 무결성이 깨지면 부분 목록을 계속 사용하지 않고 전체 응답을 `CONTRACT` 오류로 거부한다.
+- rank를 프론트에서 재계산하거나 백엔드 응답을 임의 보정하지 않는다. rank의 연속성·추천 계산 규칙은 백엔드 계약의 책임이다.
 - 알 수 없는 구형 field를 호환 처리하지 않는다.
 - 화면 이탈 시 요청을 abort하고 abort 자체는 오류로 표시하지 않는다.
 - 사용자 제출 API는 effect가 아니라 event handler에서 시작한다.
@@ -148,5 +152,5 @@ interface SearchSession {
 - `client/`에서 `pnpm check`와 `pnpm build`가 통과한다.
 - 자동 테스트는 MVP 완료 조건에서 제외하고, 각 기능 스펙의 완료 조건을 수동으로 검증한다.
 - loading·success·empty·error 상태가 분리되어 있다.
-- 웹·iOS·Android의 동일 기능 결과가 일치한다.
+- 모바일 웹과 iOS의 P0 기능 결과가 일치한다. Android 전용 검증은 첫 제출을 막지 않는다.
 - 이 스펙에 없는 최근 검색, 여석, 추천 이유, 예약·결제 기능이 추가되지 않았다.

@@ -34,15 +34,15 @@ API: [`GET /api/parking-lots/{parkingLotId}`](../backend-api-contract.md#6-주�
 
 ## 3. 조건별 표시
 
-| 값                                         | 처리                  |
-| ------------------------------------------ | --------------------- |
-| `estimatedFee === 0`                       | `무료`                |
-| `feeCalculationStatus === 'UNAVAILABLE'`   | `예상 요금 계산 불가` |
-| `feeCalculationStatus === 'NOT_REQUESTED'` | 예상 요금 행 숨김     |
-| `distanceMeters === null`                  | 거리 행 숨김          |
-| `dailyMaxFee === null`                     | 일 최대요금 행 숨김   |
-| `businessHours === null`                   | `운영시간 확인 필요`  |
-| source URL 없음                            | 출처명만 text 표시    |
+| 값                                         | 처리                 |
+| ------------------------------------------ | -------------------- |
+| `estimatedFee === 0`                       | `무료`               |
+| `feeCalculationStatus === 'UNAVAILABLE'`   | `요금 계산 불가`     |
+| `feeCalculationStatus === 'NOT_REQUESTED'` | 예상 요금 행 숨김    |
+| `distanceMeters === null`                  | 거리 행 숨김         |
+| `dailyMaxFee === null`                     | 일 최대요금 행 숨김  |
+| `businessHours === null`                   | `운영시간 확인 필요` |
+| source URL 없음                            | 출처명만 text 표시   |
 
 조건 없는 상세는 저장된 최근 이용 좌표를 최신 상세 정보처럼 표시하지 않는다.
 
