@@ -1,0 +1,109 @@
+name: Deploy frontend development
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "client/**"
+      - ".github/workflows/front-deploy-dev.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.11.0"
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: Check frontend
+        working-directory: client
+        run: pnpm check
+
+      - name: Build frontend
+        working-directory: client
+        env:
+          API_BASE_URL: ""
+          USE_MOCK_API: "false"
+          NAVER_MAP_CLIENT_ID: ${{ vars.DEV_NAVER_MAP_CLIENT_ID }}
+          NAVER_MAP_APP_NAME: ${{ vars.DEV_NAVER_MAP_APP_NAME }}
+          TMAP_APP_KEY: ${{ secrets.DEV_TMAP_APP_KEY }}
+        run: pnpm build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-development
+          path: client/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    if: github.ref == 'refs/heads/develop'
+    needs: build-frontend
+    runs-on: [self-hosted, Linux, ARM64, jumin-dev]
+    timeout-minutes: 10
+
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-development
+          path: ${{ runner.temp }}/jumin-dev-deploy/frontend
+
+      - name: Deploy frontend
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          release_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          frontend_release="/var/www/jumin-dev/releases/${release_id}"
+          previous_frontend="$(readlink -f /var/www/jumin-dev/current 2>/dev/null || true)"
+
+          rollback() {
+            if [[ -n "${previous_frontend}" && -d "${previous_frontend}" ]]; then
+              ln -sfn "${previous_frontend}" /var/www/jumin-dev/current
+            elif [[ -L /var/www/jumin-dev/current ]]; then
+              unlink /var/www/jumin-dev/current
+            fi
+          }
+          trap rollback ERR
+
+          install -d -m 2755 "${frontend_release}"
+          rsync -a --delete "${RUNNER_TEMP}/jumin-dev-deploy/frontend/" "${frontend_release}/"
+          test -s "${frontend_release}/index.html"
+
+          ln -sfn "${frontend_release}" /var/www/jumin-dev/current
+
+          curl --noproxy '*' --fail --silent --show-error \
+            --header 'Host: jumin-dev.internal' \
+            http://127.0.0.1/ >/dev/null
+
+          trap - ERR
