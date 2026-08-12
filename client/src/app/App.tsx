@@ -1,6 +1,7 @@
 /** 앱 셸. 라우팅과 오버레이 노출만 담당한다. 화면별 상태는 각 화면이 context 에서 직접 가져온다. */
 
 import { useEffect, useState } from 'react';
+import { keyframes } from '@emotion/react';
 import styled from '@emotion/styled';
 
 import { picoLogo } from '../assets';
@@ -21,6 +22,7 @@ import { SearchScreen } from '../screens/search';
 import { CalendarSheet, TimePicker, VisitScreen } from '../screens/visit';
 
 export const Splash = styled.div`
+  position: relative;
   display: grid;
   min-height: 100dvh;
   place-items: center;
@@ -28,10 +30,75 @@ export const Splash = styled.div`
   background: ${colors.primary};
 `;
 
+/** 로고와 워드마크를 한 덩어리로 묶어 화면 정중앙에 놓는다. */
+export const SplashBrand = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
 export const SplashLogo = styled.img`
   display: block;
-  width: 118px;
-  height: 171px;
+  width: 86px;
+  height: 96px;
+`;
+
+export const SplashWordmark = styled.strong`
+  margin-top: 34px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+`;
+
+const splashDotBlink = keyframes`
+  0%,
+  70%,
+  100% {
+    opacity: 0.35;
+  }
+  35% {
+    opacity: 1;
+  }
+`;
+
+/** 로딩 중임을 알리는 점 세 개. 순서대로 밝아진다. */
+export const SplashDots = styled.div`
+  position: absolute;
+  right: 0;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0.35;
+    animation: ${splashDotBlink} 1.2s ease-in-out infinite;
+  }
+  span:nth-of-type(2) {
+    animation-delay: 0.16s;
+  }
+  span:nth-of-type(3) {
+    animation-delay: 0.32s;
+  }
+
+  /* 움직임을 줄이는 설정에서는 애니메이션 대신 밝기 차이만 남긴다. */
+  @media (prefers-reduced-motion: reduce) {
+    span {
+      animation: none;
+    }
+    span:nth-of-type(1) {
+      opacity: 1;
+    }
+    span:nth-of-type(2) {
+      opacity: 0.55;
+    }
+  }
 `;
 
 export const LocatingToast = styled.div`
@@ -82,8 +149,17 @@ const useCurrentPage = (ready: boolean) => {
 
   if (!ready)
     return (
-      <Splash>
-        <SplashLogo src={picoLogo} alt="주차의 민족" />
+      <Splash role="status" aria-label="주차의 민족을 준비하고 있어요">
+        <SplashBrand>
+          {/* 바로 아래 워드마크가 이름을 읽어주므로 이미지는 장식으로 둔다. */}
+          <SplashLogo src={picoLogo} alt="" />
+          <SplashWordmark>주차의 민족</SplashWordmark>
+        </SplashBrand>
+        <SplashDots aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </SplashDots>
       </Splash>
     );
   if (route.route === '/') return <HomeScreen />;
@@ -123,6 +199,9 @@ const useNativeBackButton = () => {
   }, [route.appHistoryIndex, route.overlay, route.route]);
 };
 
+/** 앱을 켤 때 스플래시를 보여주는 시간. */
+const SPLASH_DURATION_MS = 3_000;
+
 const AppRoutes = () => {
   const route = useRoute();
   const [ready, setReady] = useState(false);
@@ -132,7 +211,8 @@ const AppRoutes = () => {
 
   useEffect(() => {
     if (!__APP_CONFIG__.isProduction) runDomainSelfCheck();
-    queueMicrotask(() => setReady(true));
+    const timer = window.setTimeout(() => setReady(true), SPLASH_DURATION_MS);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useNativeBackButton();
