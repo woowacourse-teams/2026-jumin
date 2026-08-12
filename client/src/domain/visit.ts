@@ -64,9 +64,9 @@ export const refreshNearbyVisit = (draft: VisitDraft, now = new Date()): VisitDr
   const current = deriveVisit(draft);
   if (!current || Date.parse(current.entryAt) > now.getTime()) return draft;
   const next = nextTenMinuteSlot(now);
-  if (!draft.nearbyExitWasEdited) {
-    const exit = seoulParts(new Date(Date.parse(toIsoAtSeoul(next.date, next.time)) + 60 * 60_000));
-    return { ...draft, visitDate: next.date, entryTime: next.time, exitTime: exit.time };
-  }
-  return { ...draft, visitDate: next.date, entryTime: next.time };
+  // 출차 '시각'을 그대로 두면 새 입차 시각보다 이를 때 다음 날로 해석돼 24시간짜리 조건이 된다.
+  // 사용자가 정한 것은 시각이 아니라 주차 길이이므로 길이를 옮긴다.
+  const entryAt = Date.parse(toIsoAtSeoul(next.date, next.time));
+  const exit = seoulParts(new Date(entryAt + current.durationMinutes * 60_000));
+  return { ...draft, visitDate: next.date, entryTime: next.time, exitTime: exit.time };
 };

@@ -26,7 +26,11 @@ export const getJson = async (path: string, params: URLSearchParams, signal?: Ab
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   signal?.addEventListener('abort', onAbort, { once: true });
-  const timeout = window.setTimeout(() => controller.abort('timeout'), 10_000);
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 10_000);
   try {
     const base = __APP_CONFIG__.apiBaseUrl.replace(/\/$/, '');
     const response = await fetch(`${base}${path}?${params}`, {
@@ -39,10 +43,9 @@ export const getJson = async (path: string, params: URLSearchParams, signal?: Ab
     return (await response.json()) as unknown;
   } catch (error) {
     if (error instanceof ApiClientError || error instanceof ContractError) throw error;
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      if (signal?.aborted) throw error;
-      throw new ApiClientError('TIMEOUT', 'REQUEST_TIMEOUT');
-    }
+    // 타임아웃도 abort 로 끊기므로 예외 타입이 아니라 우리가 세운 플래그로 구분한다.
+    if (timedOut) throw new ApiClientError('TIMEOUT', 'REQUEST_TIMEOUT');
+    if (signal?.aborted) throw error;
     throw new ApiClientError('NETWORK', 'NETWORK_ERROR');
   } finally {
     window.clearTimeout(timeout);

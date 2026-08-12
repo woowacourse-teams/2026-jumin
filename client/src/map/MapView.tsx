@@ -55,6 +55,9 @@ export const MapView = ({
   // 좌표가 같아도 카메라를 되돌리기 위해, 최신 show와 focusToken을 effect 밖에서 참조한다.
   const showRef = useRef<(() => void) | null>(null);
   const focusTokenRef = useRef(focusToken);
+  // 네이티브 브릿지에 넘길 값들. show 클로저가 낡은 값을 보내지 않도록 렌더마다 갱신한다.
+  const centerRef = useRef(center);
+  const selectedIdRef = useRef(selectedId);
   const [error, setError] = useState(false);
   // 호출부가 매 렌더 새 배열을 만들어도 내용이 같으면 지도를 다시 만들지 않는다.
   // (docs/specs/04-recommendations-more.md §5)
@@ -62,6 +65,11 @@ export const MapView = ({
     .map((lot) => `${lot.parkingLotId}@${lot.location.latitude},${lot.location.longitude}`)
     .join('|');
   const recommendedKey = recommendedIds.join('|');
+
+  useEffect(() => {
+    centerRef.current = center;
+    selectedIdRef.current = selectedId;
+  });
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -89,12 +97,12 @@ export const MapView = ({
         void NativeNaverMap.show({
           id: nativeMapId,
           frame: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
-          center,
+          center: centerRef.current,
           destination,
           currentLocation,
           parkingLots,
           recommendedIds,
-          selectedId,
+          selectedId: selectedIdRef.current,
           radius,
           focusToken: focusTokenRef.current,
         }).catch((caught) => {
@@ -197,7 +205,8 @@ export const MapView = ({
       mapRef.current = null;
       container?.replaceChildren();
     };
-    // overlays are rebuilt only when the response set changes, not when selection changes.
+    // 오버레이는 응답 집합이 바뀔 때만 다시 만든다. 선택이 바뀌었다고 지도를 새로 만들면
+    // 사용자가 옮겨둔 화면과 확대 수준이 초기화된다. 선택 표시는 아래 아이콘 갱신 effect 가 맡는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     nativeMapId,
@@ -207,9 +216,13 @@ export const MapView = ({
     currentLocation?.longitude,
     parkingLotsKey,
     recommendedKey,
-    selectedId,
     radius,
   ]);
+
+  // 네이티브 지도는 아이콘만 따로 바꿀 수 없어, 선택이 바뀌면 현재 상태를 다시 보낸다.
+  useEffect(() => {
+    if (isNativeIOS) showRef.current?.();
+  }, [selectedId]);
 
   useEffect(() => {
     if (!isNativeIOS) return;
@@ -244,6 +257,10 @@ export const MapView = ({
   }, [parkingLotsKey, recommendedKey, selectedId]);
 
   useEffect(() => {
+    if (isNativeIOS) {
+      showRef.current?.();
+      return;
+    }
     const maps = mapsRef.current;
     if (maps && mapRef.current) mapRef.current.panTo(new maps.LatLng(center.latitude, center.longitude));
   }, [center.latitude, center.longitude]);

@@ -2,8 +2,25 @@
 
 import type { NaverMaps, NaverMarkerIcon } from './naverTypes';
 
+/** 마커 content 는 지도 SDK 가 그대로 DOM 에 넣는 HTML 문자열이다. 주차장 이름은 서버 값이므로 반드시 이스케이프한다. */
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      default:
+        return '&#39;';
+    }
+  });
+
 const labelPinHtml = (label: string) =>
-  `<button type="button" aria-label="${label}" style="width:34px;height:34px;border:3px solid #4356d8;border-radius:50% 50% 50% 12%;background:#ffffff;color:#4356d8;font:700 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 12px rgba(30,42,90,.28);transform:rotate(-45deg)"><span style="display:block;transform:rotate(45deg)">${label}</span></button>`;
+  `<button type="button" aria-label="${escapeHtml(label)}" style="width:34px;height:34px;border:3px solid #4356d8;border-radius:50% 50% 50% 12%;background:#ffffff;color:#4356d8;font:700 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 12px rgba(30,42,90,.28);transform:rotate(-45deg)"><span style="display:block;transform:rotate(45deg)">${escapeHtml(label)}</span></button>`;
 
 export const labelMarkerIcon = (maps: NaverMaps, label: string): NaverMarkerIcon => ({
   content: labelPinHtml(label),
@@ -29,7 +46,7 @@ export const lotMarkerIcon = (maps: NaverMaps, label: string, selected: boolean)
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 32 40" style="display:block">` +
     `<path d="${PIN_TEARDROP}" fill="${selected ? '#1249c4' : '#4356d8'}"/>${outline}${PIN_MARK}</svg>`;
   return {
-    content: `<button type="button" aria-label="${label}" aria-pressed="${selected}" style="display:block;width:${width}px;height:${height}px;padding:0;border:0;background:transparent;filter:drop-shadow(0 3px 6px rgba(20,33,61,.32))">${svg}</button>`,
+    content: `<button type="button" aria-label="${escapeHtml(label)}" aria-pressed="${selected}" style="display:block;width:${width}px;height:${height}px;padding:0;border:0;background:transparent;filter:drop-shadow(0 3px 6px rgba(20,33,61,.32))">${svg}</button>`,
     size: new maps.Size(width, height),
     anchor: new maps.Point(width / 2, height),
   };

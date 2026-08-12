@@ -51,6 +51,15 @@ export const LocatingToast = styled.div`
   white-space: nowrap;
 `;
 
+/** 잘못 인코딩된 주소(`/parking-lots/%`)로 들어와도 URIError 로 앱이 죽지 않게 한다. */
+const decodeSegment = (segment: string) => {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return '';
+  }
+};
+
 /** 현재 라우트에 맞는 화면 하나를 고른다. 진입 조건을 만족하지 못하면 안전한 화면으로 돌려보낸다. */
 const useCurrentPage = (ready: boolean) => {
   const route = useRoute();
@@ -85,8 +94,9 @@ const useCurrentPage = (ready: boolean) => {
   if (route.route === '/parking-lots' && session.response?.parkingLots.length) return <MoreScreen />;
   if (route.route === '/recent') return <RecentScreen />;
   if (route.route.startsWith('/parking-lots/')) {
-    const id = decodeURIComponent(route.route.slice('/parking-lots/'.length));
-    if (id) return <DetailScreen parkingLotId={id} />;
+    const id = decodeSegment(route.route.slice('/parking-lots/'.length));
+    // key 로 주차장을 바꾸면 화면 상태가 함께 초기화된다. 이전 주차장 정보가 남아 보이지 않게 한다.
+    if (id) return <DetailScreen key={id} parkingLotId={id} />;
   }
   return null;
 };
@@ -95,15 +105,21 @@ const useCurrentPage = (ready: boolean) => {
 const useNativeBackButton = () => {
   const route = useRoute();
   useEffect(() => {
-    let remove = () => undefined;
+    let cancelled = false;
+    let remove: (() => void) | null = null;
     void registerNativeBack(() => {
       if (route.overlay !== 'NONE') history.back();
       else if (route.route === '/' && route.appHistoryIndex === 0) void exitNativeApp();
       else history.back();
     }).then((cleanup) => {
-      remove = cleanup;
+      // 등록이 끝나기 전에 effect 가 정리됐다면 즉시 해제한다. 남겨두면 낡은 route 로 동작하는 핸들러가 쌓인다.
+      if (cancelled) cleanup();
+      else remove = cleanup;
     });
-    return () => remove();
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
   }, [route.appHistoryIndex, route.overlay, route.route]);
 };
 

@@ -135,11 +135,13 @@ export const DetailScreen = ({ parkingLotId }: { parkingLotId: string }) => {
     void api
       .getParkingLot(parkingLotId, withoutCondition ? undefined : condition, controller.signal)
       .then((value) => {
+        if (controller.signal.aborted) return;
         setDetail(value);
         setStatus('SUCCESS');
       })
       .catch((caught: unknown) => {
-        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+        // 이미 지난 요청의 결과가 현재 화면을 덮어쓰지 않게 한다.
+        if (controller.signal.aborted) return;
         setError(caught);
         setStatus('ERROR');
       });
