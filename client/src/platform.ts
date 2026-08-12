@@ -2,7 +2,13 @@ import { App } from '@capacitor/app';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { buildDirectionsUrl, type Coordinate, type DirectionsProvider, type ParkingTarget } from './domain';
+import {
+  buildDirectionsUrl,
+  buildDirectionsWebUrl,
+  type Coordinate,
+  type DirectionsProvider,
+  type ParkingTarget,
+} from './domain';
 
 export type LocationPermissionState = 'PROMPT' | 'GRANTED' | 'DENIED' | 'DENIED_PERMANENTLY' | 'UNAVAILABLE';
 
@@ -109,22 +115,32 @@ export const requestCurrentLocation = () => {
 
 export type ExternalOpenResult = { status: 'DISPATCHED' | 'FALLBACK_OPENED' | 'FAILED' };
 
-const openNative = async (provider: DirectionsProvider, url: string): Promise<ExternalOpenResult> => {
+/**
+ * 앱이 없을 때 대신 열 주소.
+ * `canOpenUrl` 은 https 주소면 브라우저가 열 수 있으므로 늘 true 라, 스킴을 쓰는 제공자만 여기까지 온다.
+ */
+const directionsFallbackUrl = (provider: DirectionsProvider, target: ParkingTarget) => {
+  if (provider === 'NAVER')
+    return Capacitor.getPlatform() === 'ios'
+      ? 'https://apps.apple.com/kr/app/naver-map-navigation/id311867728'
+      : 'market://details?id=com.nhn.android.nmap';
+  return buildDirectionsWebUrl(provider, target);
+};
+
+const openNative = async (
+  provider: DirectionsProvider,
+  url: string,
+  target: ParkingTarget,
+): Promise<ExternalOpenResult> => {
   try {
     const canOpen = await AppLauncher.canOpenUrl({ url });
     if (canOpen.value) {
       const result = await AppLauncher.openUrl({ url });
       return { status: result.completed ? 'DISPATCHED' : 'FAILED' };
     }
-    if (provider === 'NAVER') {
-      const fallback =
-        Capacitor.getPlatform() === 'ios'
-          ? 'https://apps.apple.com/kr/app/naver-map-navigation/id311867728'
-          : 'market://details?id=com.nhn.android.nmap';
-      const result = await AppLauncher.openUrl({ url: fallback });
-      return { status: result.completed ? 'FALLBACK_OPENED' : 'FAILED' };
-    }
-    const result = await AppLauncher.openUrl({ url });
+    const fallback = directionsFallbackUrl(provider, target);
+    if (!fallback) return { status: 'FAILED' };
+    const result = await AppLauncher.openUrl({ url: fallback });
     return { status: result.completed ? 'FALLBACK_OPENED' : 'FAILED' };
   } catch {
     return { status: 'FAILED' };
@@ -140,9 +156,11 @@ export const openDirections = async (
     tmapAppKey: __APP_CONFIG__.tmapAppKey,
   });
   if (!url) return { status: 'FAILED' };
-  if (Capacitor.isNativePlatform()) return openNative(provider, url);
+  if (Capacitor.isNativePlatform()) return openNative(provider, url, target);
+  // 브라우저에서는 앱 스킴을 열 수 없다. 웹 지도 주소가 있으면 그쪽을 쓴다.
+  const webUrl = buildDirectionsWebUrl(provider, target) ?? url;
   try {
-    const handle = window.open(url, '_blank');
+    const handle = window.open(webUrl, '_blank');
     if (!handle) return { status: 'FAILED' };
     try {
       handle.opener = null;

@@ -43,7 +43,7 @@ export const runDomainSelfCheck = () => {
     !naver?.startsWith('nmap://route/car?') ||
     new URL(naver).searchParams.get('dlat') !== '37.5' ||
     new URL(naver).searchParams.get('dlng') !== '127' ||
-    kakao !== 'https://map.kakao.com/link/to/%EA%B0%95%EB%82%A8%20%EC%97%AD,37.5,127' ||
+    kakao !== 'kakaomap://route?ep=37.5,127&by=car' ||
     !tmap ||
     new URL(tmap).searchParams.get('goalx') !== '127' ||
     new URL(tmap).searchParams.get('goaly') !== '37.5'
