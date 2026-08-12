@@ -1,0 +1,105 @@
+name: Discord PR Review Notification
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+
+permissions: {}
+
+jobs:
+  notify-discord:
+    if: ${{ github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create PR thread and mention reviewers
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_REVIEWER_IDS: "342524900378148865,371482203055718401,1271802299119042632"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
+            echo "DISCORD_WEBHOOK_URL secret이 설정되지 않았습니다." >&2
+            exit 1
+          fi
+
+          reviewer_ids="$(
+            jq -cen \
+              --arg ids "${DISCORD_REVIEWER_IDS:-}" \
+              '$ids
+                | split(",")
+                | map(gsub("^\\s+|\\s+$"; ""))
+                | map(select(length > 0))
+                | unique
+                | if length == 0 then
+                    error("DISCORD_REVIEWER_IDS variable에 리뷰어 ID를 설정해 주세요.")
+                  elif any(.[]; test("^[0-9]{17,20}$") | not) then
+                    error("DISCORD_REVIEWER_IDS에는 쉼표로 구분한 Discord 사용자 ID만 사용할 수 있습니다.")
+                  else
+                    .
+                  end'
+          )"
+
+          thread_payload="$(
+            jq -cn \
+              --arg number "$PR_NUMBER" \
+              --arg title "$PR_TITLE" \
+              --arg url "$PR_URL" \
+              --arg author "$PR_AUTHOR" \
+              '{
+                thread_name: (
+                  "PR #" + $number + " " + ($title | gsub("[\\r\\n\\t]"; " "))
+                  | .[0:100]
+                ),
+                content: (
+                  "**PR 리뷰 요청**\n" +
+                  "제목: " + $title + "\n" +
+                  "작성자: " + $author + "\n" +
+                  "링크: " + $url
+                ),
+                allowed_mentions: {
+                  parse: []
+                }
+              }'
+          )"
+
+          webhook_url="${DISCORD_WEBHOOK_URL%/}"
+          thread_response="$(
+            curl --fail-with-body --silent --show-error \
+              -X POST "${webhook_url}?wait=true" \
+              -H "Content-Type: application/json" \
+              --data "$thread_payload"
+          )"
+
+          thread_id="$(
+            jq -er \
+              '.channel_id | select(type == "string" and test("^[0-9]+$"))' \
+              <<< "$thread_response"
+          )"
+
+          mention_payload="$(
+            jq -cn \
+              --argjson users "$reviewer_ids" \
+              '{
+                content: (($users | map("<@" + . + ">") | join(" ")) + " 리뷰 부탁드립니다~"),
+                allowed_mentions: {
+                  parse: [],
+                  users: $users
+                }
+              }'
+          )"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "${webhook_url}?wait=true&thread_id=${thread_id}" \
+            -H "Content-Type: application/json" \
+            --data "$mention_payload" \
+            --output /dev/null
