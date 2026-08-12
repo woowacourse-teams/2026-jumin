@@ -54,7 +54,7 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         view.addSubview(bridgeController.view)
         bridgeController.didMove(toParent: self)
         sheetGrabber.isHidden = true
-        sheetGrabber.addGestureRecognizer(sheetPan)
+        // 시트 드래그는 React(DraggableSheet)가 처리한다. 네이티브 제스처는 붙이지 않는다.
         view.addSubview(sheetGrabber)
         bridgeController.webView?.isOpaque = false
         bridgeController.webView?.backgroundColor = .clear
@@ -83,11 +83,18 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         nativeMapView = map
     }
 
+    private var didPrepareTransparentWebView = false
+
     func makeWebViewTransparent() {
         guard let webView = bridgeController.webView else { return }
-        webView.isOpaque = false
-        webView.underPageBackgroundColor = .clear
-        clearBackgrounds(webView)
+        // 뷰 계층 전체 순회는 show()마다 할 필요가 없다. 최초 1회만 수행한다.
+        if !didPrepareTransparentWebView {
+            didPrepareTransparentWebView = true
+            webView.isOpaque = false
+            webView.underPageBackgroundColor = .clear
+            clearBackgrounds(webView)
+        }
+        // 스크립트 주입은 멱등이며 webView 재로드 후 복구가 필요하므로 매번 호출한다.
         installTouchRegionObserver()
     }
 
@@ -181,6 +188,9 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
         return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       };
       const findSheet = () => {
+        // 웹이 직접 표시해 준 시트를 최우선으로 쓴다. 아래 추측은 표시가 없을 때의 대비책이다.
+        const marked = document.querySelector('[data-native-sheet]');
+        if (marked && visible(marked)) return marked;
         const dialog = document.querySelector('[role="dialog"]');
         if (dialog && visible(dialog)) return dialog;
         return Array.from(document.querySelectorAll('div')).filter((element) => {
@@ -242,7 +252,12 @@ final class AppRootViewController: UIViewController, NMFAuthManagerDelegate, WKS
 }
 
 @objc(NativeNaverMapPlugin)
-final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
+final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin, NMFMapViewTouchDelegate {
+    /// 지도의 빈 곳을 누르면 웹에 알린다. 화면이 바텀시트를 접는 데 쓴다.
+    func mapView(_ mapView: NMFMapView, didTapMap latlng: NMGLatLng, point: CGPoint) {
+        notifyListeners("mapTap", data: [:])
+    }
+
     let identifier = "NativeNaverMapPlugin"
     let jsName = "NativeNaverMap"
     let pluginMethods: [CAPPluginMethod] = [
@@ -279,6 +294,7 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
                 return
             }
             if map.superview == nil { root.mapHost.addSubview(map) }
+            map.touchDelegate = self
             root.mapHost.isHidden = false
             map.frame = mapFrame
             root.nativeMapFrame = mapFrame
@@ -292,7 +308,10 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
             }
             self.lastRenderSignature = signature
             map.minZoomLevel = 12
-            map.moveCamera(NMFCameraUpdate(scrollTo: NMGLatLng(lat: latitude, lng: longitude), zoomTo: 16))
+            // 현재 위치 버튼처럼 같은 좌표로 다시 이동할 때도 움직임이 보이도록 부드럽게 전환한다.
+            let cameraUpdate = NMFCameraUpdate(scrollTo: NMGLatLng(lat: latitude, lng: longitude), zoomTo: 16)
+            cameraUpdate.animation = .easeIn
+            map.moveCamera(cameraUpdate)
 
             self.overlays.forEach { $0.mapView = nil }
             self.overlays.removeAll()
@@ -322,18 +341,13 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
                 map.locationOverlay.hidden = true
             }
 
-            let recommended = Set(call.getArray("recommendedIds", String.self) ?? [])
             let selected = call.getString("selectedId")
-            for (index, lot) in (call.getArray("parkingLots", JSObject.self) ?? []).enumerated() {
+            for lot in call.getArray("parkingLots", JSObject.self) ?? [] {
                 guard let id = lot["parkingLotId"] as? String,
                       let location = lot["location"] as? JSObject,
                       let lat = location["latitude"] as? Double,
                       let lng = location["longitude"] as? Double else { continue }
-                let rank = (call.getArray("recommendedIds", String.self) ?? []).firstIndex(of: id).map { $0 + 1 } ?? index + 1
-                let color = id == selected || recommended.contains(id)
-                    ? UIColor(red: 0.26, green: 0.34, blue: 0.85, alpha: 1)
-                    : UIColor(red: 0.41, green: 0.44, blue: 0.51, alpha: 1)
-                let marker = self.addMarker(NMGLatLng(lat: lat, lng: lng), label: String(rank), color: color, map: map)
+                let marker = self.addPicoPin(NMGLatLng(lat: lat, lng: lng), selected: id == selected, map: map)
                 marker.touchHandler = { [weak self] _ in
                     self?.notifyListeners("markerClick", data: ["parkingLotId": id])
                     return true
@@ -341,6 +355,20 @@ final class NativeNaverMapPlugin: CAPInstancePlugin, CAPBridgedPlugin {
             }
             call.resolve()
         }
+    }
+
+    /// 주차장 마커. 순번을 적지 않고 색과 크기로 선택 여부를 표시한다.
+    @discardableResult
+    private func addPicoPin(_ position: NMGLatLng, selected: Bool, map: NMFMapView) -> NMFMarker {
+        let marker = NMFMarker(position: position)
+        if let image = UIImage(named: selected ? "MapPinSelected" : "MapPin") {
+            marker.iconImage = NMFOverlayImage(image: image)
+            marker.anchor = CGPoint(x: 0.5, y: 1.0)
+        }
+        marker.zIndex = selected ? 100 : 0
+        marker.mapView = map
+        overlays.append(marker)
+        return marker
     }
 
     @discardableResult

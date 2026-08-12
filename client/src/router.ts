@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type AppOverlay = 'NONE' | 'VISIT_TIME_PICKER' | 'DIRECTIONS' | 'LOCATION';
+export type AppOverlay = 'NONE' | 'VISIT_DATE' | 'VISIT_TIME_PICKER' | 'DIRECTIONS' | 'LOCATION';
 export type DetailOrigin = 'RESULTS' | 'PARKING_LOTS' | 'RECENT';
 
 export interface AppHistoryState {
@@ -61,3 +61,7 @@ export const useRoute = () => {
   }, []);
   return state;
 };
+
+/** 주차장 상세로 이동한다. 어디서 왔는지 남겨 뒤로가기 동작을 구분한다. */
+export const openDetail = (parkingLotId: string, origin: DetailOrigin) =>
+  navigate(`/parking-lots/${encodeURIComponent(parkingLotId)}`, { detailOrigin: origin });
