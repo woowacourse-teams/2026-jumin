@@ -52,7 +52,7 @@ public class ParkingLot extends BaseEntity {
     private Integer capacity; // 총 주차 구획 수
 
     @Column(name = "active", nullable = false)
-    private boolean active = true; // 서비스 사용 여부
+    private boolean isActive = true; // 서비스 사용 여부
 
     @Column(name = "source_checked_at", nullable = false)
     private Instant sourceCheckedAt; // 원천 데이터 확인 시각
