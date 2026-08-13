@@ -199,7 +199,14 @@ export const MapView = ({
       });
     return () => {
       cancelled = true;
-      listeners.forEach((listener) => mapsRef.current?.Event.removeListener(listener));
+      listeners.forEach((listener) => {
+        if (!listener) return;
+        try {
+          mapsRef.current?.Event.removeListener(listener);
+        } catch {
+          // 인증 실패로 완성되지 않은 SDK listener는 제거 과정에서도 예외를 낼 수 있다.
+        }
+      });
       overlays.forEach((overlay) => overlay.setMap(null));
       markerMap.clear();
       mapRef.current = null;

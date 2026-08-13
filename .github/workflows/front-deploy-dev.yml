@@ -5,8 +5,8 @@ on:
     branches:
       - develop
     paths:
-      - "client/**"
-      - ".github/workflows/front-deploy-dev.yml"
+      - 'client/**'
+      - '.github/workflows/front-deploy-dev.yml'
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24.11.0"
+          node-version: '24.11.0'
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
@@ -50,8 +50,8 @@ jobs:
       - name: Build frontend
         working-directory: client
         env:
-          API_BASE_URL: ""
-          USE_MOCK_API: "false"
+          API_BASE_URL: ''
+          USE_MOCK_API: 'true'
           NAVER_MAP_CLIENT_ID: ${{ vars.DEV_NAVER_MAP_CLIENT_ID }}
           NAVER_MAP_APP_NAME: ${{ vars.DEV_NAVER_MAP_APP_NAME }}
           TMAP_APP_KEY: ${{ secrets.DEV_TMAP_APP_KEY }}
@@ -103,7 +103,7 @@ jobs:
           ln -sfn "${frontend_release}" /var/www/jumin-dev/current
 
           curl --noproxy '*' --fail --silent --show-error \
-            --header 'Host: jumin-dev.internal' \
-            http://127.0.0.1/ >/dev/null
+            --resolve '3.34.182.26:443:127.0.0.1' \
+            https://3.34.182.26/ >/dev/null
 
           trap - ERR

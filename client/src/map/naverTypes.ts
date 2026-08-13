@@ -1,6 +1,6 @@
 /** 네이버 지도 웹 SDK의 외부 타입. 우리가 쓰는 범위만 좁게 선언한다. */
 
-export type Listener = object;
+export type Listener = object | null;
 export type Overlay = { setMap(map: NaverMap | null): void; setIcon?(icon: NaverMarkerIcon): void };
 export type NaverMarkerIcon = { content: string; size: NaverSize; anchor: NaverPoint };
 export type NaverMap = { setCenter(point: NaverLatLng): void; panTo(point: NaverLatLng): void };
@@ -37,7 +37,7 @@ export interface NaverMaps {
   }) => Overlay;
   Event: {
     addListener(target: object, eventName: string, listener: () => void): Listener;
-    removeListener(listener: Listener): void;
+    removeListener(listener: Exclude<Listener, null>): void;
     trigger(target: object, eventName: string): void;
   };
 }
