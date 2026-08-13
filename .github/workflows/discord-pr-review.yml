@@ -5,7 +5,10 @@ on:
     types:
       - opened
       - reopened
-      - ready_for_review
+      - closed
+    branches:
+      - main
+      - develop
     paths:
       - "server/**"
 
@@ -13,19 +16,20 @@ permissions: {}
 
 jobs:
   notify-discord:
-    if: ${{ github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create PR thread and mention reviewers
+      - name: Notify Discord
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ vars.DISCORD_CHANNEL_ID }}
           DISCORD_REVIEWER_IDS: "342524900378148865,371482203055718401,1271802299119042632"
+          PR_ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
         shell: bash
         run: |
           set -euo pipefail
@@ -40,100 +44,216 @@ jobs:
             exit 1
           fi
 
-          reviewer_ids="$(
-            jq -cen \
-              --arg ids "${DISCORD_REVIEWER_IDS:-}" \
-              '$ids
-                | split(",")
-                | map(gsub("^\\s+|\\s+$"; ""))
-                | map(select(length > 0))
-                | unique
-                | if length == 0 then
-                    error("DISCORD_REVIEWER_IDS에 리뷰어 ID를 설정해 주세요.")
-                  elif any(.[]; test("^[0-9]{17,20}$") | not) then
-                    error("DISCORD_REVIEWER_IDS에는 쉼표로 구분한 Discord 사용자 ID만 사용할 수 있습니다.")
-                  else
-                    .
-                  end'
-          )"
-
-          message_payload="$(
-            jq -cn \
-              --arg title "$PR_TITLE" \
-              --arg url "$PR_URL" \
-              --arg author "$PR_AUTHOR" \
-              '{
-                content: (
-                  "**PR 리뷰 요청**\n" +
-                  "제목: " + $title + "\n" +
-                  "작성자: " + $author + "\n" +
-                  "링크: " + $url
-                ),
-                allowed_mentions: {
-                  parse: []
-                }
-              }'
-          )"
-
           api_url="https://discord.com/api/v10"
           authorization="Authorization: Bot ${DISCORD_BOT_TOKEN}"
 
-          message_response="$(
+          discord_request() {
+            local method="$1"
+            local endpoint="$2"
+            local payload="${3:-}"
+
+            if [[ -n "$payload" ]]; then
+              curl --fail-with-body --silent --show-error \
+                -X "$method" "${api_url}${endpoint}" \
+                -H "$authorization" \
+                -H "Content-Type: application/json" \
+                --data "$payload"
+              return
+            fi
+
             curl --fail-with-body --silent --show-error \
-              -X POST "${api_url}/channels/${DISCORD_CHANNEL_ID}/messages" \
-              -H "$authorization" \
-              -H "Content-Type: application/json" \
-              --data "$message_payload"
-          )"
+              -X "$method" "${api_url}${endpoint}" \
+              -H "$authorization"
+          }
 
-          message_id="$(
-            jq -er \
-              '.id | select(type == "string" and test("^[0-9]+$"))' \
-              <<< "$message_response"
-          )"
+          create_pr_thread() {
+            local reviewer_ids message_payload message_response message_id
+            local thread_payload thread_response thread_id mention_payload
 
-          thread_payload="$(
-            jq -cn \
-              --arg number "$PR_NUMBER" \
-              --arg title "$PR_TITLE" \
-              '{
-                name: (
-                  "PR #" + $number + " " + ($title | gsub("[\\r\\n\\t]"; " "))
-                  | .[0:100]
-                ),
-                auto_archive_duration: 1440
-              }'
-          )"
+            reviewer_ids="$(
+              jq -cen \
+                --arg ids "$DISCORD_REVIEWER_IDS" \
+                '$ids
+                  | split(",")
+                  | map(gsub("^\\s+|\\s+$"; ""))
+                  | map(select(length > 0))
+                  | unique
+                  | if length == 0 then
+                      error("DISCORD_REVIEWER_IDS에 리뷰어 ID를 설정해 주세요.")
+                    elif any(.[]; test("^[0-9]{17,20}$") | not) then
+                      error("DISCORD_REVIEWER_IDS에는 쉼표로 구분한 Discord 사용자 ID만 사용할 수 있습니다.")
+                    else
+                      .
+                    end'
+            )"
 
-          thread_response="$(
-            curl --fail-with-body --silent --show-error \
-              -X POST "${api_url}/channels/${DISCORD_CHANNEL_ID}/messages/${message_id}/threads" \
-              -H "$authorization" \
-              -H "Content-Type: application/json" \
-              --data "$thread_payload"
-          )"
+            message_payload="$(
+              jq -cn \
+                --arg url "$PR_URL" \
+                '{
+                  content: $url,
+                  allowed_mentions: {
+                    parse: []
+                  }
+                }'
+            )"
 
-          thread_id="$(
-            jq -er \
-              '.id | select(type == "string" and test("^[0-9]+$"))' \
-              <<< "$thread_response"
-          )"
+            message_response="$(
+              discord_request \
+                POST \
+                "/channels/${DISCORD_CHANNEL_ID}/messages" \
+                "$message_payload"
+            )"
 
-          mention_payload="$(
-            jq -cn \
-              --argjson users "$reviewer_ids" \
-              '{
-                content: (($users | map("<@" + . + ">") | join(" ")) + " 리뷰 부탁드립니다~"),
-                allowed_mentions: {
-                  parse: [],
-                  users: $users
-                }
-              }'
-          )"
+            message_id="$(
+              jq -er \
+                '.id | select(type == "string" and test("^[0-9]+$"))' \
+                <<< "$message_response"
+            )"
 
-          curl --fail-with-body --silent --show-error \
-            -X POST "${api_url}/channels/${thread_id}/messages" \
-            -H "$authorization" \
-            -H "Content-Type: application/json" \
-            --data "$mention_payload" \
-            --output /dev/null
+            thread_payload="$(
+              jq -cn \
+                --arg number "$PR_NUMBER" \
+                --arg title "$PR_TITLE" \
+                '{
+                  name: (
+                    "#" + $number + " " + ($title | gsub("[\\r\\n\\t]"; " "))
+                    | .[0:100]
+                  ),
+                  auto_archive_duration: 10080
+                }'
+            )"
+
+            thread_response="$(
+              discord_request \
+                POST \
+                "/channels/${DISCORD_CHANNEL_ID}/messages/${message_id}/threads" \
+                "$thread_payload"
+            )"
+
+            thread_id="$(
+              jq -er \
+                '.id | select(type == "string" and test("^[0-9]+$"))' \
+                <<< "$thread_response"
+            )"
+
+            mention_payload="$(
+              jq -cn \
+                --arg author "$PR_AUTHOR" \
+                --argjson users "$reviewer_ids" \
+                '{
+                  content: (
+                    "작성자: " + $author + "\n" +
+                    (($users | map("<@" + . + ">") | join(" ")) + " 리뷰 부탁드립니다~")
+                  ),
+                  allowed_mentions: {
+                    parse: [],
+                    users: $users
+                  }
+                }'
+            )"
+
+            discord_request \
+              POST \
+              "/channels/${thread_id}/messages" \
+              "$mention_payload" \
+              > /dev/null
+          }
+
+          close_pr_threads() {
+            local channel_response guild_id active_threads_response prefix
+            local closing_message closing_payload archive_payload thread_id
+            local failed=0
+            local -a thread_ids=()
+
+            channel_response="$(
+              discord_request GET "/channels/${DISCORD_CHANNEL_ID}"
+            )"
+
+            guild_id="$(
+              jq -er \
+                '.guild_id | select(type == "string" and test("^[0-9]+$"))' \
+                <<< "$channel_response"
+            )"
+
+            active_threads_response="$(
+              discord_request GET "/guilds/${guild_id}/threads/active"
+            )"
+
+            jq -e '.threads | arrays' <<< "$active_threads_response" > /dev/null
+
+            prefix="#${PR_NUMBER}"
+            while IFS= read -r thread_id; do
+              [[ -n "$thread_id" ]] && thread_ids+=("$thread_id")
+            done < <(
+              jq -r \
+                --arg channel_id "$DISCORD_CHANNEL_ID" \
+                --arg prefix "$prefix" \
+                '.threads[]
+                  | select(.parent_id == $channel_id)
+                  | select(.name == $prefix or (.name | startswith($prefix + " ")))
+                  | .id' \
+                <<< "$active_threads_response"
+            )
+
+            if (( ${#thread_ids[@]} == 0 )); then
+              echo "종료할 Active Thread가 없습니다."
+              return
+            fi
+
+            if [[ "$PR_MERGED" == "true" ]]; then
+              closing_message="✅ PR이 Merge되었습니다."
+            else
+              closing_message="🚫 PR이 Close되었습니다."
+            fi
+
+            closing_payload="$(
+              jq -cn \
+                --arg content "$closing_message" \
+                '{
+                  content: $content,
+                  allowed_mentions: {
+                    parse: []
+                  }
+                }'
+            )"
+            archive_payload='{"archived":true}'
+
+            for thread_id in "${thread_ids[@]}"; do
+              if ! discord_request \
+                POST \
+                "/channels/${thread_id}/messages" \
+                "$closing_payload" \
+                > /dev/null; then
+                echo "Thread 종료 메시지 전송에 실패했습니다: ${thread_id}" >&2
+                failed=1
+                continue
+              fi
+
+              if ! discord_request \
+                PATCH \
+                "/channels/${thread_id}" \
+                "$archive_payload" \
+                > /dev/null; then
+                echo "Thread Archive에 실패했습니다: ${thread_id}" >&2
+                failed=1
+              fi
+            done
+
+            if (( failed != 0 )); then
+              return 1
+            fi
+          }
+
+          case "$PR_ACTION" in
+            opened|reopened)
+              create_pr_thread
+              ;;
+            closed)
+              close_pr_threads
+              ;;
+            *)
+              echo "처리하지 않는 PR 이벤트입니다: ${PR_ACTION}" >&2
+              exit 1
+              ;;
+          esac
