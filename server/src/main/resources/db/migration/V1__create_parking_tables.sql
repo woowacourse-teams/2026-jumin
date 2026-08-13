@@ -19,7 +19,7 @@ CREATE TABLE parking_lots
         CHECK (capacity IS NULL OR capacity >= 0)
 );
 
-CREATE INDEX idx_parking_lots_source_external_id
+CREATE UNIQUE INDEX idx_parking_lots_source_external_id
     ON parking_lots (source, source_external_id);
 
 CREATE INDEX idx_parking_lots_region
