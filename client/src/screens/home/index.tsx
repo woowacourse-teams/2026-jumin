@@ -37,6 +37,12 @@ export const SearchButton = styled.button`
   &:focus-visible {
     border-color: ${colors.primary};
   }
+
+  /* 검색은 지도가 아니라 패널에 속한다. */
+  @media (min-width: 768px) {
+    left: calc(var(--rail-width) + 16px);
+    width: calc(var(--panel-width) - 32px);
+  }
 `;
 
 export const LocationButton = styled(IconButton)`

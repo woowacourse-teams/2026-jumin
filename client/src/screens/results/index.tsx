@@ -53,6 +53,12 @@ export const ResultTop = styled.div`
   border-radius: var(--radius-card);
   background: #fff;
   box-shadow: 0 6px 9px rgba(20, 33, 61, 0.1);
+
+  @media (min-width: 768px) {
+    right: auto;
+    left: calc(var(--rail-width) + 16px);
+    width: calc(var(--panel-width) - 32px);
+  }
 `;
 
 export const ResultTopSummary = styled.div`
@@ -80,6 +86,16 @@ export const ResultsPanel = styled.div`
   right: 0;
   bottom: var(--nav-height);
   left: 0;
+
+  /* 패널 안에서는 카드가 가로 캐러셀이 아니라 세로 목록이 된다. */
+  @media (min-width: 768px) {
+    top: calc(var(--safe-top) + 150px);
+    right: auto;
+    left: var(--rail-width);
+    width: var(--panel-width);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 `;
 
 export const Carousel = styled.div`
@@ -93,11 +109,25 @@ export const Carousel = styled.div`
   &::-webkit-scrollbar {
     display: none;
   }
+
+  @media (min-width: 768px) {
+    flex-direction: column;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-bottom: 16px;
+  }
 `;
 
 export const ResultCard = styled.article<{ selected: boolean }>`
   min-width: 211px;
   min-height: 124px;
+
+  @media (min-width: 768px) {
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
   padding: 14px 16px;
   scroll-snap-align: center;
   border: 2px solid ${({ selected }) => (selected ? colors.primary : '#fff')};
@@ -138,6 +168,14 @@ export const MoreCard = styled.button`
   font-size: 28px;
   font-weight: 900;
   box-shadow: 0 8px 26px rgba(31, 42, 82, 0.2);
+
+  /* 세로 목록에서는 카드가 아니라 목록 끝의 버튼처럼 보이게 한다. */
+  @media (min-width: 768px) {
+    min-width: 0;
+    min-height: 52px;
+    width: 100%;
+    font-size: 22px;
+  }
 `;
 
 export const CategoryTabs = ({

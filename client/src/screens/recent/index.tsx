@@ -2,7 +2,7 @@
 
 import styled from '@emotion/styled';
 
-import { BottomNav, colors, Header, Muted, Screen } from '../../components';
+import { BottomNav, colors, Header, Muted, PanelBody, Screen } from '../../components';
 import { formatRecentAt } from '../../domain';
 import { CandidateAddress, CandidateName, CenterState } from '../shared';
 import { useGlobalNav } from '../../app/useGlobalNav';
@@ -33,21 +33,23 @@ export const RecentScreen = () => {
   return (
     <Screen bottomNav>
       <Header title="최근 이용" onBack={onHome} />
-      {items.length ? (
-        <RecentList>
-          {items.map((item) => (
-            <li key={item.parkingLotId}>
-              <RecentButton type="button" onClick={() => onSelect(item.parkingLotId)}>
-                <CandidateName>{item.name}</CandidateName>
-                <CandidateAddress>{item.address}</CandidateAddress>
-                <Muted css={{ marginTop: 5 }}>마지막 이용 {formatRecentAt(item.usedAt)}</Muted>
-              </RecentButton>
-            </li>
-          ))}
-        </RecentList>
-      ) : (
-        <CenterState>최근 이용한 주차장이 없어요.</CenterState>
-      )}
+      <PanelBody>
+        {items.length ? (
+          <RecentList>
+            {items.map((item) => (
+              <li key={item.parkingLotId}>
+                <RecentButton type="button" onClick={() => onSelect(item.parkingLotId)}>
+                  <CandidateName>{item.name}</CandidateName>
+                  <CandidateAddress>{item.address}</CandidateAddress>
+                  <Muted css={{ marginTop: 5 }}>마지막 이용 {formatRecentAt(item.usedAt)}</Muted>
+                </RecentButton>
+              </li>
+            ))}
+          </RecentList>
+        ) : (
+          <CenterState>최근 이용한 주차장이 없어요.</CenterState>
+        )}
+      </PanelBody>
       <BottomNav active="RECENT" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
     </Screen>
   );
