@@ -17,6 +17,7 @@ permissions: {}
 jobs:
   notify-discord:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Notify Discord
@@ -53,7 +54,12 @@ jobs:
             local payload="${3:-}"
 
             if [[ -n "$payload" ]]; then
-              curl --fail-with-body --silent --show-error \
+              curl \
+                --connect-timeout 10 \
+                --max-time 30 \
+                --fail-with-body \
+                --silent \
+                --show-error \
                 -X "$method" "${api_url}${endpoint}" \
                 -H "$authorization" \
                 -H "Content-Type: application/json" \
@@ -61,7 +67,12 @@ jobs:
               return
             fi
 
-            curl --fail-with-body --silent --show-error \
+            curl \
+              --connect-timeout 10 \
+              --max-time 30 \
+              --fail-with-body \
+              --silent \
+              --show-error \
               -X "$method" "${api_url}${endpoint}" \
               -H "$authorization"
           }
@@ -227,7 +238,6 @@ jobs:
                 > /dev/null; then
                 echo "Thread 종료 메시지 전송에 실패했습니다: ${thread_id}" >&2
                 failed=1
-                continue
               fi
 
               if ! discord_request \
