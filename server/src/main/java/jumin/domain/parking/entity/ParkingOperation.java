@@ -10,7 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import jumin.global.entity.BaseEntity;
 import lombok.Getter;
@@ -133,5 +133,5 @@ public class ParkingOperation extends BaseEntity {
     private LocalTime holidayCloseTime; // 공휴일 운영 종료시간
 
     @Column(name = "source_checked_at", nullable = false)
-    private Instant sourceCheckedAt; // 원천 데이터 확인 시각
+    private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
 }

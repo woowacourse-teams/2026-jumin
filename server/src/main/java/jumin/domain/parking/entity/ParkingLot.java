@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import jumin.global.entity.BaseEntity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -55,5 +55,5 @@ public class ParkingLot extends BaseEntity {
     private boolean isActive = true; // 서비스 사용 여부
 
     @Column(name = "source_checked_at", nullable = false)
-    private Instant sourceCheckedAt; // 원천 데이터 확인 시각
+    private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
 }
