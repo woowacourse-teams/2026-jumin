@@ -15,6 +15,8 @@ const Scrim = styled.div`
   align-items: flex-end;
   justify-content: center;
   background: rgba(20, 33, 61, 0.42);
+  /* iOS Safari 는 클릭할 수 있어 보이는 요소에만 click 을 만들어 준다. 이게 없으면 배경 탭이 무시된다. */
+  cursor: pointer;
 `;
 
 const Sheet = styled.div<{ dragging: boolean }>`
@@ -115,7 +117,14 @@ export const DialogSheet = ({
   }, [onClose]);
 
   return (
-    <Scrim role="presentation" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
+    <Scrim
+      role="presentation"
+      /*
+       * pointerdown 이 아니라 click 에서 닫는다. pointerdown 에서 닫으면 시트가 사라진 뒤에
+       * 이어지는 click 이 그 자리의 아래쪽 버튼(입차·출차)에 떨어져 시간 시트가 곧바로 다시 열린다.
+       */
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
       <Sheet
         ref={ref}
         role="dialog"

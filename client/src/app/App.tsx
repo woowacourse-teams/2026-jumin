@@ -116,6 +116,8 @@ export const LocatingToast = styled.div`
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  /* 알림일 뿐이므로 아래 버튼을 가리지 않는다. 측위가 길어져도 화면을 계속 쓸 수 있어야 한다. */
+  pointer-events: none;
 `;
 
 /** 잘못 인코딩된 주소(`/parking-lots/%`)로 들어와도 URIError 로 앱이 죽지 않게 한다. */
@@ -199,21 +201,31 @@ const useNativeBackButton = () => {
   }, [route.appHistoryIndex, route.overlay, route.route]);
 };
 
-/** 앱을 켤 때 스플래시를 보여주는 시간. */
-const SPLASH_DURATION_MS = 3_000;
+/** 앱을 켤 때 스플래시를 최소한 이만큼은 보여준다. */
+const SPLASH_MIN_MS = 3_000;
+/** 측위가 늦어져도 이 시간이 지나면 홈으로 넘어간다. 위치 때문에 앱이 붙잡히지 않게 한다. */
+const SPLASH_MAX_MS = 6_000;
 
 const AppRoutes = () => {
   const route = useRoute();
-  const [ready, setReady] = useState(false);
+  const [minElapsed, setMinElapsed] = useState(false);
+  const [splashTimedOut, setSplashTimedOut] = useState(false);
   const { session } = useSearchSession();
-  const { locating, locationError } = useLocation();
+  const { locating, locationError, launchLocated } = useLocation();
   const { picker, directionsTarget } = useOverlay();
 
   useEffect(() => {
     if (!__APP_CONFIG__.isProduction) runDomainSelfCheck();
-    const timer = window.setTimeout(() => setReady(true), SPLASH_DURATION_MS);
-    return () => window.clearTimeout(timer);
+    const minTimer = window.setTimeout(() => setMinElapsed(true), SPLASH_MIN_MS);
+    const maxTimer = window.setTimeout(() => setSplashTimedOut(true), SPLASH_MAX_MS);
+    return () => {
+      window.clearTimeout(minTimer);
+      window.clearTimeout(maxTimer);
+    };
   }, []);
+
+  // 최소 노출 시간을 채우고 측위까지 끝나면 홈으로 넘어간다. 둘 다 못 채워도 상한에서는 넘어간다.
+  const ready = (minElapsed && launchLocated) || splashTimedOut;
 
   useNativeBackButton();
   const page = useCurrentPage(ready);
