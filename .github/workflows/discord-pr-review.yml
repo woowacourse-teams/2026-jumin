@@ -6,6 +6,8 @@ on:
       - opened
       - reopened
       - ready_for_review
+    paths:
+      - "server/**"
 
 permissions: {}
 
@@ -17,7 +19,8 @@ jobs:
     steps:
       - name: Create PR thread and mention reviewers
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ vars.DISCORD_CHANNEL_ID }}
           DISCORD_REVIEWER_IDS: "342524900378148865,371482203055718401,1271802299119042632"
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -27,8 +30,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
-            echo "DISCORD_WEBHOOK_URL secret이 설정되지 않았습니다." >&2
+          if [[ -z "${DISCORD_BOT_TOKEN:-}" ]]; then
+            echo "DISCORD_BOT_TOKEN secret이 설정되지 않았습니다." >&2
+            exit 1
+          fi
+
+          if [[ ! "${DISCORD_CHANNEL_ID:-}" =~ ^[0-9]{17,20}$ ]]; then
+            echo "DISCORD_CHANNEL_ID variable에 Discord 채널 ID를 설정해 주세요." >&2
             exit 1
           fi
 
@@ -41,7 +49,7 @@ jobs:
                 | map(select(length > 0))
                 | unique
                 | if length == 0 then
-                    error("DISCORD_REVIEWER_IDS variable에 리뷰어 ID를 설정해 주세요.")
+                    error("DISCORD_REVIEWER_IDS에 리뷰어 ID를 설정해 주세요.")
                   elif any(.[]; test("^[0-9]{17,20}$") | not) then
                     error("DISCORD_REVIEWER_IDS에는 쉼표로 구분한 Discord 사용자 ID만 사용할 수 있습니다.")
                   else
@@ -49,17 +57,12 @@ jobs:
                   end'
           )"
 
-          thread_payload="$(
+          message_payload="$(
             jq -cn \
-              --arg number "$PR_NUMBER" \
               --arg title "$PR_TITLE" \
               --arg url "$PR_URL" \
               --arg author "$PR_AUTHOR" \
               '{
-                thread_name: (
-                  "PR #" + $number + " " + ($title | gsub("[\\r\\n\\t]"; " "))
-                  | .[0:100]
-                ),
                 content: (
                   "**PR 리뷰 요청**\n" +
                   "제목: " + $title + "\n" +
@@ -72,17 +75,47 @@ jobs:
               }'
           )"
 
-          webhook_url="${DISCORD_WEBHOOK_URL%/}"
+          api_url="https://discord.com/api/v10"
+          authorization="Authorization: Bot ${DISCORD_BOT_TOKEN}"
+
+          message_response="$(
+            curl --fail-with-body --silent --show-error \
+              -X POST "${api_url}/channels/${DISCORD_CHANNEL_ID}/messages" \
+              -H "$authorization" \
+              -H "Content-Type: application/json" \
+              --data "$message_payload"
+          )"
+
+          message_id="$(
+            jq -er \
+              '.id | select(type == "string" and test("^[0-9]+$"))' \
+              <<< "$message_response"
+          )"
+
+          thread_payload="$(
+            jq -cn \
+              --arg number "$PR_NUMBER" \
+              --arg title "$PR_TITLE" \
+              '{
+                name: (
+                  "PR #" + $number + " " + ($title | gsub("[\\r\\n\\t]"; " "))
+                  | .[0:100]
+                ),
+                auto_archive_duration: 1440
+              }'
+          )"
+
           thread_response="$(
             curl --fail-with-body --silent --show-error \
-              -X POST "${webhook_url}?wait=true" \
+              -X POST "${api_url}/channels/${DISCORD_CHANNEL_ID}/messages/${message_id}/threads" \
+              -H "$authorization" \
               -H "Content-Type: application/json" \
               --data "$thread_payload"
           )"
 
           thread_id="$(
             jq -er \
-              '.channel_id | select(type == "string" and test("^[0-9]+$"))' \
+              '.id | select(type == "string" and test("^[0-9]+$"))' \
               <<< "$thread_response"
           )"
 
@@ -99,7 +132,8 @@ jobs:
           )"
 
           curl --fail-with-body --silent --show-error \
-            -X POST "${webhook_url}?wait=true&thread_id=${thread_id}" \
+            -X POST "${api_url}/channels/${thread_id}/messages" \
+            -H "$authorization" \
             -H "Content-Type: application/json" \
             --data "$mention_payload" \
             --output /dev/null
