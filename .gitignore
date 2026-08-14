@@ -7,6 +7,9 @@ node_modules/
 dist/
 build/
 coverage/
+bin/
+out/
+*.class
 
 # 로컬 환경 파일
 .env
