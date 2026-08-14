@@ -17,6 +17,12 @@ const Scrim = styled.div`
   background: rgba(20, 33, 61, 0.42);
   /* iOS Safari 는 클릭할 수 있어 보이는 요소에만 click 을 만들어 준다. 이게 없으면 배경 탭이 무시된다. */
   cursor: pointer;
+
+  /* 넓은 화면에서는 아래에 붙는 시트가 아니라 가운데 모달이다. */
+  @media (min-width: 768px) {
+    align-items: center;
+    padding: 24px;
+  }
 `;
 
 const Sheet = styled.div<{ dragging: boolean }>`
@@ -34,6 +40,15 @@ const Sheet = styled.div<{ dragging: boolean }>`
   border-radius: 24px 24px 0 0;
   background: ${colors.surface};
   box-shadow: 0 -14px 40px rgba(25, 34, 70, 0.2);
+
+  @media (min-width: 768px) {
+    width: min(100%, 420px);
+    max-height: min(80dvh, 640px);
+    padding: 24px var(--gutter);
+    border-radius: 24px;
+    box-shadow: 0 24px 60px rgba(25, 34, 70, 0.28);
+    cursor: auto;
+  }
 `;
 
 const Handle = styled.button`
@@ -44,6 +59,10 @@ const Handle = styled.button`
   margin: 0 0 18px;
   background: transparent;
   touch-action: none;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
 
   &::before {
     content: '';

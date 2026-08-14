@@ -13,6 +13,13 @@ export const HeaderBar = styled.header`
   gap: 4px;
   padding: var(--safe-top) 12px 0;
   background: rgba(255, 255, 255, 0.96);
+
+  @media (min-width: 768px) {
+    flex: 0 0 auto;
+    width: var(--panel-width);
+    margin-left: var(--rail-width);
+    border-bottom: 1px solid ${colors.line};
+  }
 `;
 
 export const HeaderTitle = styled.h1`
