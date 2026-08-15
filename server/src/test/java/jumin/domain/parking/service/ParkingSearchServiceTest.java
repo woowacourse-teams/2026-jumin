@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -13,7 +16,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
@@ -39,27 +41,12 @@ class ParkingSearchServiceTest {
         GeoDistanceCalculator geoDistanceCalculator = new GeoDistanceCalculator();
         service = new ParkingSearchService(
                 parkingLotRepository,
+                parkingOperationRepository,
                 new ParkingSearchQueryValidator(clock),
-                new ParkingSearchResultCalculator(
-                        parkingOperationRepository,
-                        new ParkingOperationEvaluator(),
-                        geoDistanceCalculator
-                )
+                new ParkingOperationEvaluator(),
+                geoDistanceCalculator,
+                new ParkingBalancedScoreCalculator()
         );
-    }
-
-    @Test
-    @DisplayName("검색 요청을 반경 조회 저장소에 위임한다")
-    void delegates_to_radius_query_repository() {
-        // given
-        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
-                .thenReturn(List.of());
-
-        // when
-        service.search(validQuery());
-
-        // then
-        verify(parkingLotRepository).findActiveWithinRadius(anyDouble(), anyDouble(), anyInt());
     }
 
     @Test
@@ -70,19 +57,39 @@ class ParkingSearchServiceTest {
         ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
         when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
                 .thenReturn(List.of(first, second));
-        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(availableOperation(1L)));
-        when(parkingOperationRepository.findById(2L)).thenReturn(Optional.of(availableOperation(2L)));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
 
         // then
         assertThat(result.totalCount()).isEqualTo(2);
-        assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters).containsExactly(14, 28);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
+                .containsExactlyInAnyOrder(14, 28);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::estimatedFee).containsOnly(2_500);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::availabilityStatus).containsOnly("AVAILABLE");
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::balancedScore)
-                .containsExactly(0.1506, 0.1622);
+                .containsExactlyInAnyOrder(0.1506, 0.1622);
+        verify(parkingOperationRepository).findAllByParkingLotIdIn(List.of(1L, 2L));
+    }
+
+    @Test
+    @DisplayName("거리 재계산 결과가 반경을 벗어나면 후보에서 제외한다")
+    void filters_candidates_outside_radius_after_distance_recalculation() {
+        // given
+        ParkingLot outside = parkingLot(3L, 37.5040, 127.0279);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(outside));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(availableOperation(3L)));
+
+        // when
+        ParkingSearchResponse result = service.search(validQuery());
+
+        // then
+        assertThat(result.totalCount()).isZero();
+        assertThat(result.parkingLots()).isEmpty();
     }
 
     @Test
@@ -99,6 +106,46 @@ class ParkingSearchServiceTest {
         assertThat(result.searchRadiusMeters()).isEqualTo(600);
         assertThat(result.totalCount()).isZero();
         assertThat(result.parkingLots()).isEmpty();
+        verify(parkingLotRepository).findActiveWithinRadius(anyDouble(), anyDouble(), eq(600));
+        verifyNoInteractions(parkingOperationRepository);
+    }
+
+    @Test
+    @DisplayName("운영정보가 없는 후보는 운영 확인 필요 상태로 반환한다")
+    void returns_unknown_when_operation_is_missing_for_candidate() {
+        // given
+        ParkingLot candidate = parkingLot(4L, 37.4982, 127.0280);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(candidate));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of());
+
+        // when
+        ParkingLotResponse result = service.search(validQuery()).parkingLots().getFirst();
+
+        // then
+        assertThat(result.availabilityStatus()).isEqualTo("UNKNOWN");
+        assertThat(result.estimatedFee()).isNull();
+        assertThat(result.balancedScore()).isNull();
+    }
+
+    @Test
+    @DisplayName("운영 불가 후보도 요금은 반환하고 균형점수는 생략한다")
+    void returns_fee_without_score_when_operation_is_unavailable() {
+        // given
+        ParkingLot candidate = parkingLot(5L, 37.4982, 127.0280);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(candidate));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(unavailableOperation(5L)));
+
+        // when
+        ParkingLotResponse result = service.search(validQuery()).parkingLots().getFirst();
+
+        // then
+        assertThat(result.availabilityStatus()).isEqualTo("UNAVAILABLE");
+        assertThat(result.estimatedFee()).isEqualTo(2_500);
+        assertThat(result.balancedScore()).isNull();
     }
 
     @Test
@@ -142,6 +189,13 @@ class ParkingSearchServiceTest {
         ReflectionTestUtils.setField(operation, "additionalFee", 500);
         ReflectionTestUtils.setField(operation, "dailyMaxFee", null);
         ReflectionTestUtils.setField(operation, "fridayStatus", ParkingOperationStatus.ALL_DAY);
+        return operation;
+    }
+
+    private ParkingOperation unavailableOperation(long parkingLotId) {
+        ParkingOperation operation = availableOperation(parkingLotId);
+        ReflectionTestUtils.setField(operation, "thursdayStatus", ParkingOperationStatus.CLOSED);
+        ReflectionTestUtils.setField(operation, "fridayStatus", ParkingOperationStatus.CLOSED);
         return operation;
     }
 }

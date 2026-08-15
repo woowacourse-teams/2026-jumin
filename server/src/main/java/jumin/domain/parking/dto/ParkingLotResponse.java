@@ -1,7 +1,5 @@
 package jumin.domain.parking.dto;
 
-import java.util.Optional;
-
 public record ParkingLotResponse(
         Long id,
         String name,
@@ -31,30 +29,6 @@ public record ParkingLotResponse(
                 distanceMeters,
                 estimatedFee,
                 balancedScore,
-                availabilityStatus
-        );
-    }
-
-    public static ParkingLotResponse from(
-            Long id,
-            String name,
-            String address,
-            double latitude,
-            double longitude,
-            Integer distanceMeters,
-            Optional<Integer> estimatedFee,
-            Optional<Double> balancedScore,
-            String availabilityStatus
-    ) {
-        return from(
-                id,
-                name,
-                address,
-                latitude,
-                longitude,
-                distanceMeters,
-                estimatedFee.orElse(null),
-                balancedScore.orElse(null),
                 availabilityStatus
         );
     }
