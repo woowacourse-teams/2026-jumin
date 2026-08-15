@@ -2,7 +2,7 @@ name: jumin-local
 
 services:
   postgres:
-    image: postgres:18.4-alpine
+    image: postgis/postgis:18-3.6-alpine
     environment:
       POSTGRES_DB: ${DB_NAME:-jumin}
       POSTGRES_USER: ${DB_USERNAME:-jumin}
