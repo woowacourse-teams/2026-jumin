@@ -13,6 +13,11 @@ export const GlobalStyles = () => (
        */
       :root {
         --app-max-width: 440px;
+        /* 좌측 레일과 패널. 모바일에서는 패널이 화면 전체다. */
+        --rail-width: 0px;
+        --panel-width: 100%;
+        /* 지도가 시작하는 x 좌표. 레일과 패널을 합친 값이다. */
+        --panel-total: calc(var(--rail-width) + var(--panel-width));
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
         --header-height: calc(56px + var(--safe-top));
@@ -25,6 +30,24 @@ export const GlobalStyles = () => (
         --font-section: clamp(15px, 4.3vw, 17px);
         --font-body: 15px;
         --font-caption: 13px;
+      }
+
+      /* 태블릿: 왼쪽 패널 + 오른쪽 지도 */
+      @media (min-width: 768px) {
+        :root {
+          --app-max-width: 100%;
+          --panel-width: 360px;
+          --gutter: 20px;
+        }
+      }
+
+      /* 데스크톱: 아이콘 레일 + 패널 + 지도. 하단 내비게이션이 레일로 바뀌므로 높이를 0으로 둔다. */
+      @media (min-width: 1280px) {
+        :root {
+          --rail-width: 76px;
+          --panel-width: 400px;
+          --nav-height: 0px;
+        }
       }
       * {
         box-sizing: border-box;

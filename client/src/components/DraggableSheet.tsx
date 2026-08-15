@@ -4,7 +4,7 @@
  */
 
 import styled from '@emotion/styled';
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 
 import { useSheetDrag } from './useSheetDrag';
 
@@ -30,9 +30,23 @@ const Sheet = styled.div<{ top: number; bottomInset: string; dragging: boolean }
   box-shadow: 0 -10px 28px rgba(20, 33, 61, 0.12);
   transition: ${({ dragging }) => (dragging ? 'none' : 'transform 220ms ease-out')};
   will-change: transform;
+  /* 위치를 인라인 style 이 아니라 변수로 받아, 넓은 화면에서 CSS 로 되돌릴 수 있게 한다. */
+  transform: translateY(var(--sheet-offset, 0px));
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
+  }
+
+  /* 넓은 화면에서는 끌어내리는 시트가 아니라 왼쪽 패널에 고정된 목록이다. */
+  @media (min-width: 768px) {
+    top: var(--header-height);
+    right: auto;
+    left: var(--rail-width);
+    width: var(--panel-width);
+    transform: none;
+    border-radius: 0;
+    border-right: 1px solid #edf0f4;
+    box-shadow: none;
   }
 `;
 
@@ -46,6 +60,10 @@ const Grabber = styled.button`
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   background: transparent;
   touch-action: none;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
 
   &::before {
     content: '';
@@ -62,6 +80,11 @@ const Body = styled.div`
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+
+  /* 손잡이를 감춘 만큼 위쪽 여백을 대신 준다. */
+  @media (min-width: 768px) {
+    padding-top: 14px;
+  }
 `;
 
 interface DraggableSheetProps {
@@ -127,7 +150,7 @@ export const DraggableSheet = ({
       top={expandedTop}
       bottomInset={bottomInset}
       dragging={dragging}
-      style={{ transform: `translateY(${offset}px)` }}
+      style={{ '--sheet-offset': `${offset}px` } as CSSProperties}
       onTransitionEnd={syncNativeTouchRegions}
     >
       <Grabber

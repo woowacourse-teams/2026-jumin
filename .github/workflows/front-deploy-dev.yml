@@ -1,23 +1,29 @@
 name: Deploy frontend development
 
 on:
+  pull_request:
+    branches:
+      - develop
+
   push:
     branches:
       - develop
     paths:
       - 'client/**'
       - '.github/workflows/front-deploy-dev.yml'
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: development-deploy
+  group: frontend-development-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-frontend:
+    name: Frontend checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -57,7 +63,14 @@ jobs:
           TMAP_APP_KEY: ${{ secrets.DEV_TMAP_APP_KEY }}
         run: pnpm build
 
+      - name: Validate build output
+        working-directory: client
+        run: |
+          test -s dist/index.html
+          test -d dist/assets
+
       - name: Upload frontend artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: frontend-development
@@ -66,7 +79,8 @@ jobs:
           retention-days: 1
 
   deploy:
-    if: github.ref == 'refs/heads/develop'
+    name: Deploy frontend development
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
     needs: build-frontend
     runs-on: [self-hosted, Linux, ARM64, jumin-dev]
     timeout-minutes: 10

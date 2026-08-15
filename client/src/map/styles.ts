@@ -14,6 +14,19 @@ export const MapFrame = styled.div<{ height: string; native: boolean }>`
          background-image:
            linear-gradient(36deg, transparent 45%, rgba(255, 255, 255, 0.9) 46% 52%, transparent 53%),
            linear-gradient(110deg, transparent 44%, rgba(203, 210, 225, 0.65) 45% 49%, transparent 50%);`}
+
+  /* 넓은 화면에서는 패널 오른쪽을 지도가 모두 차지한다. height prop 은 무시된다. */
+  @media (min-width: 768px) {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--panel-total);
+    width: auto;
+    height: auto;
+    border-left: 1px solid #e4e9f2;
+  }
 `;
 
 export const Canvas = styled.div`

@@ -5,7 +5,16 @@ import styled from '@emotion/styled';
 
 import { api } from '../../api';
 import { close, picoError, pin, search } from '../../assets';
-import { BottomNav, colors, IconButton, LoadingBlock, Muted, Screen, SecondaryButton } from '../../components';
+import {
+  BottomNav,
+  colors,
+  IconButton,
+  LoadingBlock,
+  Muted,
+  PanelBody,
+  Screen,
+  SecondaryButton,
+} from '../../components';
 import { formatDistance, type DestinationCandidate } from '../../domain';
 import { AssetIcon, CandidateAddress, CandidateName, CenterState, ErrorPico, apiMessage } from '../shared';
 import { useGlobalNav } from '../../app/useGlobalNav';
@@ -22,6 +31,12 @@ export const SearchHeader = styled.div`
   gap: 6px;
   padding: env(safe-area-inset-top) 12px 10px 8px;
   background: #fff;
+
+  @media (min-width: 768px) {
+    width: var(--panel-width);
+    margin-left: var(--rail-width);
+    border-bottom: 1px solid ${colors.line};
+  }
 `;
 
 export const SearchInputWrap = styled.div`
@@ -198,49 +213,51 @@ export const SearchScreen = () => {
       <div aria-live="polite" className="sr-only">
         {status === 'LOADING' ? '검색 중입니다.' : message}
       </div>
-      {status === 'LOADING' && <LoadingBlock>장소를 찾고 있어요…</LoadingBlock>}
-      {status === 'SUCCESS' && candidates.length === 0 && <CenterState>검색 결과가 없어요.</CenterState>}
-      {status === 'ERROR' && (
-        <CenterState>
-          <div>
-            <ErrorPico src={picoError} alt="" />
-            <p>{message}</p>
-            <SecondaryButton type="button" onClick={() => setRetry((value) => value + 1)}>
-              다시 시도
-            </SecondaryButton>
-          </div>
-        </CenterState>
-      )}
-      {candidates.length > 0 && (
-        <CandidateList id="destination-list" role="listbox">
-          {candidates.map((candidate, index) => (
-            <li
-              key={candidate.destinationId}
-              id={`destination-option-${index}`}
-              role="option"
-              aria-selected={activeIndex === index}
-            >
-              <CandidateButton
-                type="button"
-                active={activeIndex === index}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => onSelect(candidate)}
+      <PanelBody>
+        {status === 'LOADING' && <LoadingBlock>장소를 찾고 있어요…</LoadingBlock>}
+        {status === 'SUCCESS' && candidates.length === 0 && <CenterState>검색 결과가 없어요.</CenterState>}
+        {status === 'ERROR' && (
+          <CenterState>
+            <div>
+              <ErrorPico src={picoError} alt="" />
+              <p>{message}</p>
+              <SecondaryButton type="button" onClick={() => setRetry((value) => value + 1)}>
+                다시 시도
+              </SecondaryButton>
+            </div>
+          </CenterState>
+        )}
+        {candidates.length > 0 && (
+          <CandidateList id="destination-list" role="listbox">
+            {candidates.map((candidate, index) => (
+              <li
+                key={candidate.destinationId}
+                id={`destination-option-${index}`}
+                role="option"
+                aria-selected={activeIndex === index}
               >
-                <PlaceIcon aria-hidden>
-                  <img src={pin} alt="" />
-                </PlaceIcon>
-                <span>
-                  <CandidateName>{candidate.name}</CandidateName>
-                  <CandidateAddress>{candidate.roadAddress ?? candidate.address}</CandidateAddress>
-                </span>
-                {candidate.distanceFromCurrentLocationMeters !== null && (
-                  <Muted>{formatDistance(candidate.distanceFromCurrentLocationMeters)}</Muted>
-                )}
-              </CandidateButton>
-            </li>
-          ))}
-        </CandidateList>
-      )}
+                <CandidateButton
+                  type="button"
+                  active={activeIndex === index}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => onSelect(candidate)}
+                >
+                  <PlaceIcon aria-hidden>
+                    <img src={pin} alt="" />
+                  </PlaceIcon>
+                  <span>
+                    <CandidateName>{candidate.name}</CandidateName>
+                    <CandidateAddress>{candidate.roadAddress ?? candidate.address}</CandidateAddress>
+                  </span>
+                  {candidate.distanceFromCurrentLocationMeters !== null && (
+                    <Muted>{formatDistance(candidate.distanceFromCurrentLocationMeters)}</Muted>
+                  )}
+                </CandidateButton>
+              </li>
+            ))}
+          </CandidateList>
+        )}
+      </PanelBody>
       <BottomNav active="HOME" onNearby={onNearby} onHome={onHome} onRecent={onRecent} />
     </Screen>
   );
