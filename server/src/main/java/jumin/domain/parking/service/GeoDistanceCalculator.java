@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class GeoDistanceCalculator {
 
-    private static final double EARTH_RADIUS_METERS = 6_371_000;
+    private static final double EARTH_RADIUS_METERS = 6_370_986;
 
     public int distanceMeters(Coordinate from, Coordinate to) {
         double fromLatitude = Math.toRadians(from.latitude());

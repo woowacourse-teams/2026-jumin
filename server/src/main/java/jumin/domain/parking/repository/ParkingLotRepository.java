@@ -18,7 +18,8 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
               and ST_DWithin(
                     parking_lot.location,
                     ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
-                    :radiusMeters
+                    :radiusMeters,
+                    false
               )
             """, nativeQuery = true)
     List<ParkingLot> findActiveWithinRadius(

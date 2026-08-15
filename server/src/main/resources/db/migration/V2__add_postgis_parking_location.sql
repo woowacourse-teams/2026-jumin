@@ -24,14 +24,3 @@ CREATE TRIGGER trg_parking_lots_sync_location
     ON parking_lots
     FOR EACH ROW
 EXECUTE FUNCTION sync_parking_lot_location();
-
-UPDATE parking_lots
-SET location = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography
-WHERE latitude BETWEEN -90 AND 90
-  AND longitude BETWEEN -180 AND 180;
-
-CREATE INDEX idx_parking_lots_location_geography
-    ON parking_lots
-    USING GIST (location)
-    WHERE active = true
-      AND location IS NOT NULL;

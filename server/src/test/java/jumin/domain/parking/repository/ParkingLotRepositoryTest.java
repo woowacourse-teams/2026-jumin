@@ -33,8 +33,11 @@ class ParkingLotRepositoryTest {
     @DisplayName("반경 600m 이내의 활성 주차장만 조회한다")
     void finds_only_parking_lots_within_radius() {
         // given
-        insertParkingLot("near", "가까운 주차장", 37.4990, 127.0279);
-        insertParkingLot("far", "먼 주차장", 37.5050, 127.0279);
+        insertParkingLot("near", "가까운 주차장", "서울시 테스트 주소", true, 37.4990, 127.0279);
+        insertParkingLot("far", "먼 주차장", "서울시 테스트 주소", true, 37.5050, 127.0279);
+        insertParkingLot("inactive", "비활성 주차장", "서울시 테스트 주소", false, 37.4990, 127.0279);
+        insertParkingLot("missing-location", "위치 없는 주차장", "서울시 테스트 주소", true, null, null);
+        insertParkingLot("missing-address", "주소 없는 주차장", null, true, 37.4990, 127.0279);
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinRadius(37.4981, 127.0279, 600);
@@ -43,15 +46,56 @@ class ParkingLotRepositoryTest {
         assertThat(results).extracting("name").containsExactly("가까운 주차장");
     }
 
-    private void insertParkingLot(String externalId, String name, double latitude, double longitude) {
+    @Test
+    @DisplayName("반경 경계 안쪽은 포함하고 바깥쪽은 제외한다")
+    void respects_radius_boundary() {
+        // given
+        double destinationLatitude = 37.4981;
+        double latitudePerMeter = Math.toDegrees(1 / 6_370_986d);
+        insertParkingLot(
+                "inside-boundary",
+                "경계 안쪽 주차장",
+                "서울시 테스트 주소",
+                true,
+                destinationLatitude + latitudePerMeter * 599,
+                127.0279
+        );
+        insertParkingLot(
+                "outside-boundary",
+                "경계 바깥 주차장",
+                "서울시 테스트 주소",
+                true,
+                destinationLatitude + latitudePerMeter * 601,
+                127.0279
+        );
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinRadius(
+                destinationLatitude,
+                127.0279,
+                600
+        );
+
+        // then
+        assertThat(results).extracting("name").containsExactly("경계 안쪽 주차장");
+    }
+
+    private void insertParkingLot(
+            String externalId,
+            String name,
+            String address,
+            boolean active,
+            Double latitude,
+            Double longitude
+    ) {
         jdbcTemplate.update("""
                 insert into parking_lots (
                     source, source_external_id, name, address, latitude, longitude,
                     active, source_checked_at, created_at, updated_at
                 ) values (
-                    'DATA_GO_KR', ?, ?, '서울시 테스트 주소', ?, ?,
-                    true, current_timestamp, current_timestamp, current_timestamp
+                    'DATA_GO_KR', ?, ?, ?, ?, ?,
+                    ?, current_timestamp, current_timestamp, current_timestamp
                 )
-                """, externalId, name, latitude, longitude);
+                """, externalId, name, address, latitude, longitude, active);
     }
 }

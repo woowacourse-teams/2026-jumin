@@ -157,7 +157,7 @@ interface ParkingSearchResponse {
 
 ### 3.4 Backend calculation rules
 
-1. PostgreSQL/PostGIS의 `geography(Point, 4326)` 컬럼에 `ST_DWithin`을 적용해 목적지 반경 600m 후보를 조회한다. 활성 상태와 공개 필드 존재 여부도 SQL에서 필터링한다.
+1. PostgreSQL/PostGIS의 `geography(Point, 4326)` 컬럼에 구면 기준 `ST_DWithin`을 적용해 목적지 반경 600m 후보를 조회한다. 활성 상태와 공개 필드 존재 여부도 SQL에서 필터링한다.
 2. 후보별 목적지-주차장 거리는 외부 도보 경로 provider가 아니라 Java Haversine 계산으로 구한다.
 3. 운영 상태는 입차 시각부터 출차 직전까지의 전체 구간을 평가한다. 한 시점이라도 운영 불가면 `UNAVAILABLE`, 해석할 수 없는 시점이 있으면 `UNKNOWN`이다.
 4. 요금은 기본 시간 이하이면 기본 요금, 초과하면 추가 단위 요금을 올림 적용하고 일일 최대 요금이 있으면 상한을 적용한다.
