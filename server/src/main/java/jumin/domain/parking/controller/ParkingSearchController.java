@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/parking-lots")
+@RequestMapping("/api/parking")
 public class ParkingSearchController {
 
     private final ParkingSearchService parkingSearchService;

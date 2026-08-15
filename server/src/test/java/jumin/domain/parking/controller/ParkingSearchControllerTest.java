@@ -45,7 +45,7 @@ class ParkingSearchControllerTest {
         when(parkingSearchService.search(org.mockito.ArgumentMatchers.any(ParkingSearchRequest.class))).thenReturn(result);
 
         // when
-        ResultActions response = mockMvc.perform(get("/api/parking-lots/search")
+        ResultActions response = mockMvc.perform(get("/api/parking/search")
                         .queryParam("destinationLatitude", "37.5665")
                         .queryParam("destinationLongitude", "126.9780")
                         .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
@@ -95,7 +95,7 @@ class ParkingSearchControllerTest {
                 .thenReturn(result);
 
         // when
-        ResultActions response = mockMvc.perform(get("/api/parking-lots/search")
+        ResultActions response = mockMvc.perform(get("/api/parking/search")
                 .queryParam("destinationLatitude", "37.5665")
                 .queryParam("destinationLongitude", "126.9780")
                 .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
@@ -117,7 +117,7 @@ class ParkingSearchControllerTest {
                 .thenReturn(ParkingSearchResponse.from(600, List.of()));
 
         // when
-        ResultActions response = mockMvc.perform(get("/api/parking-lots/search")
+        ResultActions response = mockMvc.perform(get("/api/parking/search")
                         .queryParam("destinationLatitude", "37.5665")
                         .queryParam("destinationLongitude", "126.9780")
                         .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
@@ -134,7 +134,7 @@ class ParkingSearchControllerTest {
     @DisplayName("필수 검색 파라미터가 누락되면 400을 반환한다")
     void rejects_request_when_required_search_parameter_is_missing() throws Exception {
         // given
-        MockHttpServletRequestBuilder request = get("/api/parking-lots/search")
+        MockHttpServletRequestBuilder request = get("/api/parking/search")
                         .queryParam("destinationLongitude", "126.9780")
                         .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
                         .queryParam("exitAt", "2026-08-14T11:00:00+09:00");
@@ -153,7 +153,7 @@ class ParkingSearchControllerTest {
     @DisplayName("좌표가 범위를 벗어나면 400을 반환한다")
     void rejects_request_when_coordinate_is_out_of_range() throws Exception {
         // given
-        MockHttpServletRequestBuilder request = get("/api/parking-lots/search")
+        MockHttpServletRequestBuilder request = get("/api/parking/search")
                         .queryParam("destinationLatitude", "91")
                         .queryParam("destinationLongitude", "126.9780")
                         .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
@@ -173,7 +173,7 @@ class ParkingSearchControllerTest {
     @DisplayName("경도가 범위를 벗어나면 400을 반환한다")
     void rejects_request_when_longitude_is_out_of_range() throws Exception {
         // given
-        MockHttpServletRequestBuilder request = get("/api/parking-lots/search")
+        MockHttpServletRequestBuilder request = get("/api/parking/search")
                 .queryParam("destinationLatitude", "37.5665")
                 .queryParam("destinationLongitude", "181")
                 .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
@@ -193,7 +193,7 @@ class ParkingSearchControllerTest {
     @DisplayName("유한하지 않은 좌표는 400을 반환한다")
     void rejects_request_when_coordinate_is_not_finite() throws Exception {
         // given
-        MockHttpServletRequestBuilder request = get("/api/parking-lots/search")
+        MockHttpServletRequestBuilder request = get("/api/parking/search")
                         .queryParam("destinationLatitude", "NaN")
                         .queryParam("destinationLongitude", "126.9780")
                         .queryParam("entryAt", "2026-08-14T10:00:00+09:00")
