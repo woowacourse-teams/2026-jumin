@@ -12,7 +12,6 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Optional;
 import jumin.global.entity.BaseEntity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -136,9 +135,9 @@ public class ParkingOperation extends BaseEntity {
     @Column(name = "source_checked_at", nullable = false)
     private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
 
-    public Optional<Integer> calculateFee(int durationMinutes) {
+    public Integer calculateFee(int durationMinutes) {
         if (!isValidBaseRule(durationMinutes)) {
-            return Optional.empty();
+            return null;
         }
 
         if (durationMinutes <= baseMinutes) {
@@ -150,7 +149,7 @@ public class ParkingOperation extends BaseEntity {
         }
 
         if (!isPositive(additionalMinutes) || !isNonNegative(additionalFee)) {
-            return Optional.empty();
+            return null;
         }
 
         long excessMinutes = (long) durationMinutes - baseMinutes;
@@ -169,14 +168,14 @@ public class ParkingOperation extends BaseEntity {
         return baseFee == 0 && Integer.valueOf(0).equals(additionalFee);
     }
 
-    private Optional<Integer> toFee(long fee, Integer maxFee) {
+    private Integer toFee(long fee, Integer maxFee) {
         if (isNonNegative(maxFee)) {
             fee = Math.min(fee, maxFee);
         }
         if (fee > Integer.MAX_VALUE) {
-            return Optional.empty();
+            return null;
         }
-        return Optional.of((int) fee);
+        return (int) fee;
     }
 
     private boolean isNonNegative(Integer value) {

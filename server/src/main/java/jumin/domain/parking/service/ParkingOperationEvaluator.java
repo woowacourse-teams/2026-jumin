@@ -1,9 +1,9 @@
 package jumin.domain.parking.service;
 
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.util.Optional;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import org.springframework.stereotype.Component;
@@ -12,130 +12,153 @@ import org.springframework.stereotype.Component;
 public class ParkingOperationEvaluator {
 
     public ParkingAvailabilityStatus evaluate(
-            ParkingOperation parkingOperation,
+            ParkingOperation operation,
             OffsetDateTime entryAt,
             OffsetDateTime exitAt
     ) {
-        if (parkingOperation == null || entryAt == null || exitAt == null || !exitAt.isAfter(entryAt)) {
+        if (isInvalidRequest(operation, entryAt, exitAt)) {
             return ParkingAvailabilityStatus.UNKNOWN;
         }
 
-        boolean hasUnknownPeriod = false;
-        for (OffsetDateTime evaluationAt = entryAt;
-             evaluationAt.isBefore(exitAt);
-             evaluationAt = nextBoundaryAt(parkingOperation, evaluationAt, exitAt)
-        ) {
-            ParkingAvailabilityStatus statusAtBoundary = evaluateAt(parkingOperation, evaluationAt);
-            if (statusAtBoundary == ParkingAvailabilityStatus.UNAVAILABLE) {
+        boolean unknownFound = false;
+        OffsetDateTime currentAt = entryAt;
+
+        while (currentAt.isBefore(exitAt)) {
+            ParkingAvailabilityStatus statusAt = evaluateStatusAt(operation, currentAt);
+            if (statusAt == ParkingAvailabilityStatus.UNAVAILABLE) {
                 return ParkingAvailabilityStatus.UNAVAILABLE;
             }
-            hasUnknownPeriod |= statusAtBoundary == ParkingAvailabilityStatus.UNKNOWN;
+
+            unknownFound |= statusAt == ParkingAvailabilityStatus.UNKNOWN;
+            currentAt = nextBoundaryAt(operation, currentAt, exitAt);
         }
-        return hasUnknownPeriod ? ParkingAvailabilityStatus.UNKNOWN : ParkingAvailabilityStatus.AVAILABLE;
+        return unknownFound ? ParkingAvailabilityStatus.UNKNOWN : ParkingAvailabilityStatus.AVAILABLE;
+    }
+
+    private boolean isInvalidRequest(
+            ParkingOperation operation,
+            OffsetDateTime entryAt,
+            OffsetDateTime exitAt
+    ) {
+        if (operation == null || entryAt == null || exitAt == null) {
+            return true;
+        }
+
+        return !exitAt.isAfter(entryAt);
     }
 
     private OffsetDateTime nextBoundaryAt(
-            ParkingOperation parkingOperation,
-            OffsetDateTime evaluationAt,
+            ParkingOperation operation,
+            OffsetDateTime currentAt,
             OffsetDateTime exitAt
     ) {
-        Optional<OffsetDateTime> nextBoundaryAt = Optional.of(nextMidnightAt(evaluationAt));
-        Schedule currentDaySchedule = scheduleForDay(parkingOperation, evaluationAt.getDayOfWeek());
-        Schedule previousDaySchedule = scheduleForDay(parkingOperation, evaluationAt.minusDays(1).getDayOfWeek());
+        OffsetDateTime nextBoundaryAt = nextOccurrenceAt(currentAt, LocalTime.MIDNIGHT);
+        Schedule currentDaySchedule = scheduleForDay(operation, currentAt.getDayOfWeek());
+        Schedule previousDaySchedule = scheduleForDay(operation, currentAt.minusDays(1).getDayOfWeek());
 
-        nextBoundaryAt = earlierBoundaryAt(nextBoundaryAt, nextCandidateBoundaryAt(evaluationAt, currentDaySchedule));
-        nextBoundaryAt = earlierBoundaryAt(nextBoundaryAt, previousOvernightCloseAt(evaluationAt, previousDaySchedule));
-        return earlierBoundaryAt(nextBoundaryAt, Optional.of(exitAt)).orElseThrow();
+        nextBoundaryAt = earlierBoundaryAt(nextBoundaryAt, nextCandidateBoundaryAt(currentAt, currentDaySchedule));
+        nextBoundaryAt = earlierBoundaryAt(nextBoundaryAt, previousOvernightCloseAt(currentAt, previousDaySchedule));
+
+        return earlierBoundaryAt(nextBoundaryAt, exitAt);
     }
 
-    private Optional<OffsetDateTime> nextCandidateBoundaryAt(OffsetDateTime evaluationAt, Schedule dailySchedule) {
-        if (!dailySchedule.isOpen()) {
-            return Optional.empty();
+    private OffsetDateTime nextCandidateBoundaryAt(OffsetDateTime currentAt, Schedule schedule) {
+        if (!schedule.isTimedOpen()) {
+            return null;
         }
         return earlierBoundaryAt(
-                nextOccurrenceAt(evaluationAt, dailySchedule.openTime()),
-                nextOccurrenceAt(evaluationAt, dailySchedule.closeTime())
+                nextOccurrenceAt(currentAt, schedule.openTime()),
+                nextOccurrenceAt(currentAt, schedule.closeTime())
         );
     }
 
-    private Optional<OffsetDateTime> previousOvernightCloseAt(
-            OffsetDateTime evaluationAt,
-            Schedule previousDaySchedule
-    ) {
+    private OffsetDateTime previousOvernightCloseAt(OffsetDateTime currentAt, Schedule previousDaySchedule) {
         if (!previousDaySchedule.isOvernight()) {
-            return Optional.empty();
+            return null;
         }
-        OffsetDateTime closeAt = evaluationAt.toLocalDate()
+        OffsetDateTime closeAt = currentAt.toLocalDate()
                 .atTime(previousDaySchedule.closeTime())
-                .atOffset(evaluationAt.getOffset());
-        return Optional.of(closeAt).filter(value -> value.isAfter(evaluationAt));
+                .atOffset(currentAt.getOffset());
+        boolean closeIsAfterCurrent = closeAt.isAfter(currentAt);
+        return closeIsAfterCurrent ? closeAt : null;
     }
 
-    private OffsetDateTime nextMidnightAt(OffsetDateTime evaluationAt) {
-        return evaluationAt.toLocalDate().plusDays(1).atStartOfDay().atOffset(evaluationAt.getOffset());
-    }
+    private OffsetDateTime nextOccurrenceAt(OffsetDateTime currentAt, LocalTime localTime) {
+        if (localTime == null) {
+            return null;
+        }
 
-    private Optional<OffsetDateTime> nextOccurrenceAt(OffsetDateTime evaluationAt, LocalTime localTime) {
-        return Optional.ofNullable(localTime).map(time -> {
-            OffsetDateTime occurrenceAt = evaluationAt.toLocalDate()
-                    .atTime(time)
-                    .atOffset(evaluationAt.getOffset());
-            if (!occurrenceAt.isAfter(evaluationAt)) {
+        try {
+            OffsetDateTime occurrenceAt = currentAt.toLocalDate()
+                    .atTime(localTime)
+                    .atOffset(currentAt.getOffset());
+
+            if (!occurrenceAt.isAfter(currentAt)) {
                 occurrenceAt = occurrenceAt.plusDays(1);
             }
+
             return occurrenceAt;
-        });
+        } catch (DateTimeException exception) {
+            return null;
+        }
     }
 
-    private Optional<OffsetDateTime> earlierBoundaryAt(
-            Optional<OffsetDateTime> currentBoundaryAt,
-            Optional<OffsetDateTime> candidateBoundaryAt
-    ) {
-        if (candidateBoundaryAt.isEmpty()
-                || (currentBoundaryAt.isPresent()
-                && !candidateBoundaryAt.get().isBefore(currentBoundaryAt.get()))) {
+    private OffsetDateTime earlierBoundaryAt(OffsetDateTime currentBoundaryAt, OffsetDateTime candidateBoundaryAt) {
+        boolean candidateBoundaryExists = candidateBoundaryAt != null;
+        boolean currentBoundaryExists = currentBoundaryAt != null;
+        boolean candidateBoundaryIsNotEarlier = candidateBoundaryExists
+                && currentBoundaryExists
+                && !candidateBoundaryAt.isBefore(currentBoundaryAt);
+
+        if (!candidateBoundaryExists || candidateBoundaryIsNotEarlier) {
             return currentBoundaryAt;
         }
         return candidateBoundaryAt;
     }
 
-    private ParkingAvailabilityStatus evaluateAt(ParkingOperation parkingOperation, OffsetDateTime evaluationAt) {
-        Schedule currentDaySchedule = scheduleForDay(parkingOperation, evaluationAt.getDayOfWeek());
-        LocalTime localTime = evaluationAt.toLocalTime();
+    private ParkingAvailabilityStatus evaluateStatusAt(ParkingOperation operation, OffsetDateTime currentAt) {
+        Schedule currentDaySchedule = scheduleForDay(operation, currentAt.getDayOfWeek());
+        LocalTime localTime = currentAt.toLocalTime();
 
-        if (covers(currentDaySchedule, localTime, false)) {
+        if (isCoveredByCurrentDay(currentDaySchedule, localTime)) {
             return ParkingAvailabilityStatus.AVAILABLE;
         }
 
-        Schedule previousDaySchedule = scheduleForDay(parkingOperation, evaluationAt.minusDays(1).getDayOfWeek());
-        if (covers(previousDaySchedule, localTime, true)) {
+        Schedule previousDaySchedule = scheduleForDay(operation, currentAt.minusDays(1).getDayOfWeek());
+        if (isCoveredByPreviousDay(previousDaySchedule, localTime)) {
             return ParkingAvailabilityStatus.AVAILABLE;
         }
 
-        if (currentDaySchedule.isUnknown() || previousDaySchedule.isUnknown()) {
+        boolean currentScheduleIsUnknown = currentDaySchedule.isUnknown();
+        boolean previousScheduleIsUnknown = previousDaySchedule.isUnknown();
+
+        if (currentScheduleIsUnknown || previousScheduleIsUnknown) {
             return ParkingAvailabilityStatus.UNKNOWN;
         }
         return ParkingAvailabilityStatus.UNAVAILABLE;
     }
 
-    private boolean covers(Schedule dailySchedule, LocalTime localTime, boolean fromPreviousDay) {
-        if (dailySchedule == null || dailySchedule.isUnknown()) {
+    private boolean isCoveredByCurrentDay(Schedule schedule, LocalTime localTime) {
+        if (schedule.isUnknown()) {
             return false;
         }
-        if (dailySchedule.isAllDay()) {
-            return !fromPreviousDay;
+        if (schedule.isAllDay()) {
+            return true;
         }
-        if (!dailySchedule.isOpen()) {
+        if (!schedule.isTimedOpen()) {
             return false;
         }
-        if (dailySchedule.isOvernight()) {
-            return fromPreviousDay
-                    ? localTime.isBefore(dailySchedule.closeTime())
-                    : !localTime.isBefore(dailySchedule.openTime());
+        if (schedule.isOvernight()) {
+            return !localTime.isBefore(schedule.openTime());
         }
-        return !fromPreviousDay
-                && !localTime.isBefore(dailySchedule.openTime())
-                && localTime.isBefore(dailySchedule.closeTime());
+        boolean isAtOrAfterOpening = !localTime.isBefore(schedule.openTime());
+        boolean isBeforeClosing = localTime.isBefore(schedule.closeTime());
+
+        return isAtOrAfterOpening && isBeforeClosing;
+    }
+
+    private boolean isCoveredByPreviousDay(Schedule schedule, LocalTime localTime) {
+        return schedule.isOvernight() && localTime.isBefore(schedule.closeTime());
     }
 
     private Schedule scheduleForDay(ParkingOperation operation, DayOfWeek dayOfWeek) {
@@ -185,33 +208,46 @@ public class ParkingOperationEvaluator {
     ) {
 
         private boolean isUnknown() {
+            boolean openScheduleHasInvalidHours = isOpenStatus()
+                    && !isAllDay()
+                    && !hasValidOperatingHours();
+
             return status == null
                     || status == ParkingOperationStatus.UNKNOWN
-                    || (status == ParkingOperationStatus.OPEN
-                    && !isAllDay() && !hasValidOperatingHours());
+                    || openScheduleHasInvalidHours;
         }
 
         private boolean isAllDay() {
-            return status != null
-                    && (status == ParkingOperationStatus.ALL_DAY
-                    || (status == ParkingOperationStatus.OPEN && isMidnightToMidnight()));
+            boolean isOpenFromMidnightToMidnight = isOpenStatus() && isMidnightToMidnight();
+
+            return status == ParkingOperationStatus.ALL_DAY
+                    || isOpenFromMidnightToMidnight;
         }
 
-        private boolean isOpen() {
-            return status == ParkingOperationStatus.OPEN && hasValidOperatingHours();
+        private boolean isTimedOpen() {
+            return isOpenStatus() && hasValidOperatingHours();
+        }
+
+        private boolean isOpenStatus() {
+            return status == ParkingOperationStatus.OPEN;
         }
 
         private boolean hasValidOperatingHours() {
-            return openTime != null && closeTime != null && !openTime.equals(closeTime);
+            boolean openTimeExists = openTime != null;
+            boolean closeTimeExists = closeTime != null;
+            return openTimeExists
+                    && closeTimeExists
+                    && !openTime.equals(closeTime);
         }
 
         private boolean isMidnightToMidnight() {
-            return LocalTime.MIDNIGHT.equals(openTime) && LocalTime.MIDNIGHT.equals(closeTime);
+            boolean opensAtMidnight = LocalTime.MIDNIGHT.equals(openTime);
+            boolean closesAtMidnight = LocalTime.MIDNIGHT.equals(closeTime);
+            return opensAtMidnight && closesAtMidnight;
         }
 
         private boolean isOvernight() {
-            return isOpen() && openTime.isAfter(closeTime);
+            return isTimedOpen() && openTime.isAfter(closeTime);
         }
     }
-
 }

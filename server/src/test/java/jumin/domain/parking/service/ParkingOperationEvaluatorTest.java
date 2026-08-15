@@ -2,8 +2,11 @@ package jumin.domain.parking.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import org.junit.jupiter.api.Test;
@@ -327,6 +330,28 @@ class ParkingOperationEvaluatorTest {
     }
 
     @Test
+    @DisplayName("자정을 넘는 이용 구간은 다음 날 운영 일정까지 평가한다")
+    void evaluates_schedule_across_midnight() {
+        // given
+        ParkingOperation operation = operationForMonday(
+                ParkingOperationStatus.ALL_DAY,
+                null,
+                null
+        );
+        ReflectionTestUtils.setField(operation, "tuesdayStatus", ParkingOperationStatus.CLOSED);
+
+        // when
+        ParkingAvailabilityStatus result = evaluator.evaluate(
+                operation,
+                OffsetDateTime.parse("2026-08-17T23:30:00+09:00"),
+                OffsetDateTime.parse("2026-08-18T00:30:00+09:00")
+        );
+
+        // then
+        assertThat(result).isEqualTo(ParkingAvailabilityStatus.UNAVAILABLE);
+    }
+
+    @Test
     @DisplayName("알 수 없는 운영 상태는 알 수 없음으로 판단한다")
     void returns_unknown_for_unknown_status() {
         // given
@@ -347,15 +372,49 @@ class ParkingOperationEvaluatorTest {
         assertThat(result).isEqualTo(ParkingAvailabilityStatus.UNKNOWN);
     }
 
+    @Test
+    @DisplayName("표현 가능한 마지막 날짜의 요청도 날짜 경계 오버플로 없이 평가한다")
+    void evaluates_maximum_date_without_overflow() {
+        // given
+        OffsetDateTime entryAt = LocalDate.MAX.atTime(23, 30).atOffset(java.time.ZoneOffset.ofHours(9));
+        OffsetDateTime exitAt = entryAt.plusMinutes(10);
+        ParkingOperation operation = operationFor(
+                entryAt.getDayOfWeek(),
+                ParkingOperationStatus.OPEN,
+                LocalTime.of(20, 0),
+                LocalTime.of(2, 0)
+        );
+
+        // when
+        ParkingAvailabilityStatus result = evaluator.evaluate(
+                operation,
+                entryAt,
+                exitAt
+        );
+
+        // then
+        assertThat(result).isEqualTo(ParkingAvailabilityStatus.AVAILABLE);
+    }
+
     private ParkingOperation operationForMonday(
             ParkingOperationStatus status,
             LocalTime openTime,
             LocalTime closeTime
     ) {
+        return operationFor(DayOfWeek.MONDAY, status, openTime, closeTime);
+    }
+
+    private ParkingOperation operationFor(
+            DayOfWeek dayOfWeek,
+            ParkingOperationStatus status,
+            LocalTime openTime,
+            LocalTime closeTime
+    ) {
         ParkingOperation operation = new ParkingOperation();
-        ReflectionTestUtils.setField(operation, "mondayStatus", status);
-        ReflectionTestUtils.setField(operation, "mondayOpenTime", openTime);
-        ReflectionTestUtils.setField(operation, "mondayCloseTime", closeTime);
+        String prefix = dayOfWeek.name().toLowerCase(Locale.ROOT);
+        ReflectionTestUtils.setField(operation, prefix + "Status", status);
+        ReflectionTestUtils.setField(operation, prefix + "OpenTime", openTime);
+        ReflectionTestUtils.setField(operation, prefix + "CloseTime", closeTime);
         return operation;
     }
 }

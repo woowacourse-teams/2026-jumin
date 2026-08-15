@@ -2,7 +2,6 @@ package jumin.domain.parking.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,10 +15,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Optional<Integer> result = operation.calculateFee(65);
+        Integer result = operation.calculateFee(65);
 
         // then
-        assertThat(result).hasValue(3_000);
+        assertThat(result).isEqualTo(3_000);
     }
 
     @Test
@@ -29,10 +28,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, 2_000);
 
         // when
-        Optional<Integer> result = operation.calculateFee(120);
+        Integer result = operation.calculateFee(120);
 
         // then
-        assertThat(result).hasValue(2_000);
+        assertThat(result).isEqualTo(2_000);
     }
 
     @Test
@@ -42,10 +41,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(0, 0, 0, 0, 0);
 
         // when
-        Optional<Integer> result = operation.calculateFee(120);
+        Integer result = operation.calculateFee(120);
 
         // then
-        assertThat(result).hasValue(0);
+        assertThat(result).isZero();
     }
 
     @Test
@@ -56,12 +55,12 @@ class ParkingOperationTest {
         ParkingOperation invalidAdditionalUnit = operation(30, 1_000, 0, 500, null);
 
         // when
-        Optional<Integer> missingRuleResult = missingRule.calculateFee(60);
-        Optional<Integer> invalidAdditionalUnitResult = invalidAdditionalUnit.calculateFee(60);
+        Integer missingRuleResult = missingRule.calculateFee(60);
+        Integer invalidAdditionalUnitResult = invalidAdditionalUnit.calculateFee(60);
 
         // then
-        assertThat(missingRuleResult).isEmpty();
-        assertThat(invalidAdditionalUnitResult).isEmpty();
+        assertThat(missingRuleResult).isNull();
+        assertThat(invalidAdditionalUnitResult).isNull();
     }
 
     @Test
@@ -71,12 +70,12 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Optional<Integer> zeroMinuteResult = operation.calculateFee(0);
-        Optional<Integer> negativeMinuteResult = operation.calculateFee(-1);
+        Integer zeroMinuteResult = operation.calculateFee(0);
+        Integer negativeMinuteResult = operation.calculateFee(-1);
 
         // then
-        assertThat(zeroMinuteResult).isEmpty();
-        assertThat(negativeMinuteResult).isEmpty();
+        assertThat(zeroMinuteResult).isNull();
+        assertThat(negativeMinuteResult).isNull();
     }
 
     @Test
@@ -86,10 +85,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 0, 500, null);
 
         // when
-        Optional<Integer> result = operation.calculateFee(30);
+        Integer result = operation.calculateFee(30);
 
         // then
-        assertThat(result).hasValue(1_000);
+        assertThat(result).isEqualTo(1_000);
     }
 
     @Test
@@ -99,10 +98,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Optional<Integer> result = operation.calculateFee(10);
+        Integer result = operation.calculateFee(10);
 
         // then
-        assertThat(result).hasValue(1_000);
+        assertThat(result).isEqualTo(1_000);
     }
 
     @Test
@@ -112,12 +111,12 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Optional<Integer> exactUnitResult = operation.calculateFee(50);
-        Optional<Integer> partialUnitResult = operation.calculateFee(51);
+        Integer exactUnitResult = operation.calculateFee(50);
+        Integer partialUnitResult = operation.calculateFee(51);
 
         // then
-        assertThat(exactUnitResult).hasValue(2_000);
-        assertThat(partialUnitResult).hasValue(2_500);
+        assertThat(exactUnitResult).isEqualTo(2_000);
+        assertThat(partialUnitResult).isEqualTo(2_500);
     }
 
     @Test
@@ -127,10 +126,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, 500);
 
         // when
-        Optional<Integer> result = operation.calculateFee(10);
+        Integer result = operation.calculateFee(10);
 
         // then
-        assertThat(result).hasValue(500);
+        assertThat(result).isEqualTo(500);
     }
 
     @Test
@@ -142,14 +141,14 @@ class ParkingOperationTest {
         ParkingOperation negativeAdditionalFee = operation(30, 1_000, 10, -1, null);
 
         // when
-        Optional<Integer> negativeBaseMinutesResult = negativeBaseMinutes.calculateFee(60);
-        Optional<Integer> negativeBaseFeeResult = negativeBaseFee.calculateFee(60);
-        Optional<Integer> negativeAdditionalFeeResult = negativeAdditionalFee.calculateFee(60);
+        Integer negativeBaseMinutesResult = negativeBaseMinutes.calculateFee(60);
+        Integer negativeBaseFeeResult = negativeBaseFee.calculateFee(60);
+        Integer negativeAdditionalFeeResult = negativeAdditionalFee.calculateFee(60);
 
         // then
-        assertThat(negativeBaseMinutesResult).isEmpty();
-        assertThat(negativeBaseFeeResult).isEmpty();
-        assertThat(negativeAdditionalFeeResult).isEmpty();
+        assertThat(negativeBaseMinutesResult).isNull();
+        assertThat(negativeBaseFeeResult).isNull();
+        assertThat(negativeAdditionalFeeResult).isNull();
     }
 
     @Test
@@ -159,10 +158,10 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(Integer.MAX_VALUE - 1, Integer.MAX_VALUE, 1, 1, null);
 
         // when
-        Optional<Integer> result = operation.calculateFee(Integer.MAX_VALUE);
+        Integer result = operation.calculateFee(Integer.MAX_VALUE);
 
         // then
-        assertThat(result).isEmpty();
+        assertThat(result).isNull();
     }
 
     private ParkingOperation operation(
