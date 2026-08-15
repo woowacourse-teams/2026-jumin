@@ -24,23 +24,37 @@ public class ParkingSearchQueryValidator {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        if (!isValidDateTime(request.entryAt())
-                || !isValidDateTime(request.exitAt())
-                || !request.entryAt().isAfter(OffsetDateTime.now(clock).withOffsetSameInstant(SEOUL_OFFSET))) {
+        validateDateTimes(request);
+        validateDuration(request);
+    }
+
+    private void validateDateTimes(ParkingSearchRequest request) {
+        if (!isValidSeoulDateTime(request.entryAt())
+                || !isValidSeoulDateTime(request.exitAt())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        long durationMinutes = Duration.between(request.entryAt(), request.exitAt()).toMinutes();
-        if (durationMinutes <= 0 || durationMinutes > MAX_DURATION_MINUTES) {
+        if (!request.entryAt().isAfter(currentSeoulTime())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
     }
 
-    private boolean isValidDateTime(OffsetDateTime value) {
+    private boolean isValidSeoulDateTime(OffsetDateTime value) {
         return value != null
                 && value.getOffset().equals(SEOUL_OFFSET)
                 && value.getSecond() == 0
                 && value.getNano() == 0
                 && value.getMinute() % 10 == 0;
+    }
+
+    private OffsetDateTime currentSeoulTime() {
+        return OffsetDateTime.now(clock).withOffsetSameInstant(SEOUL_OFFSET);
+    }
+
+    private void validateDuration(ParkingSearchRequest request) {
+        long durationMinutes = Duration.between(request.entryAt(), request.exitAt()).toMinutes();
+        if (durationMinutes <= 0 || durationMinutes > MAX_DURATION_MINUTES) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
     }
 }

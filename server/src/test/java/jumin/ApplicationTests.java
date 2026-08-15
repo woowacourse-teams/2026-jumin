@@ -14,10 +14,5 @@ class ApplicationTests {
     @Test
     @DisplayName("애플리케이션 컨텍스트가 정상적으로 로드된다")
     void contextLoads() {
-        // when
-        // Spring Boot initializes the application context before the test.
-
-        // then
-        // Context initialization failure causes this test to fail.
     }
 }

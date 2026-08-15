@@ -1,5 +1,6 @@
 package jumin.domain.parking.service;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
@@ -8,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
@@ -24,11 +26,9 @@ class ParkingSearchQueryValidatorTest {
         ParkingSearchRequest searchRequest = request(
                 37.5, 127.0, "2026-08-14T10:00:00+09:00", "2026-08-14T11:00:00+09:00");
 
-        // when
-        validator.validate(searchRequest);
-
-        // then
-        // No exception means the request is accepted.
+        // when & then
+        assertThatCode(() -> validator.validate(searchRequest))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -40,7 +40,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -52,7 +53,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -63,7 +65,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -79,7 +82,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -95,7 +99,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -107,7 +112,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -119,7 +125,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -131,7 +138,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -143,7 +151,8 @@ class ParkingSearchQueryValidatorTest {
 
         // when & then
         assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class);
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
     }
 
     @Test
@@ -153,11 +162,9 @@ class ParkingSearchQueryValidatorTest {
         ParkingSearchRequest searchRequest = request(
                 37.5, 127.0, "2026-08-14T10:00:00+09:00", "2026-08-15T10:00:00+09:00");
 
-        // when
-        validator.validate(searchRequest);
-
-        // then
-        // No exception means the maximum duration is accepted.
+        // when & then
+        assertThatCode(() -> validator.validate(searchRequest))
+                .doesNotThrowAnyException();
     }
 
     private ParkingSearchRequest request(double latitude, double longitude, String entryAt, String exitAt) {
