@@ -111,7 +111,10 @@ public class ParkingSearchService {
         Coordinate parkingLocation = new Coordinate(parkingLot.getLatitude(), parkingLot.getLongitude());
         int distanceMeters = geoDistanceCalculator.distanceMeters(destination, parkingLocation);
 
-        Integer estimatedFee = operation == null ? null : operation.calculateFee(durationMinutes);
+        Integer estimatedFee = null;
+        if (operation != null) {
+            estimatedFee = operation.calculateFee(durationMinutes);
+        }
 
         Double balancedScore = balancedScoreCalculator.calculate(
                 availabilityStatus,

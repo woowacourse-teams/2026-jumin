@@ -32,7 +32,10 @@ public class ParkingOperationEvaluator {
             unknownFound |= statusAt == ParkingAvailabilityStatus.UNKNOWN;
             currentAt = nextBoundaryAt(operation, currentAt, exitAt);
         }
-        return unknownFound ? ParkingAvailabilityStatus.UNKNOWN : ParkingAvailabilityStatus.AVAILABLE;
+        if (unknownFound) {
+            return ParkingAvailabilityStatus.UNKNOWN;
+        }
+        return ParkingAvailabilityStatus.AVAILABLE;
     }
 
     private boolean isInvalidRequest(
@@ -80,7 +83,10 @@ public class ParkingOperationEvaluator {
                 .atTime(previousDaySchedule.closeTime())
                 .atOffset(currentAt.getOffset());
         boolean closeIsAfterCurrent = closeAt.isAfter(currentAt);
-        return closeIsAfterCurrent ? closeAt : null;
+        if (closeIsAfterCurrent) {
+            return closeAt;
+        }
+        return null;
     }
 
     private OffsetDateTime nextOccurrenceAt(OffsetDateTime currentAt, LocalTime localTime) {
