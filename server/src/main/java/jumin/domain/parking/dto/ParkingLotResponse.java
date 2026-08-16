@@ -32,7 +32,4 @@ public record ParkingLotResponse(
                 availabilityStatus
         );
     }
-
-    record LocationResponse(double latitude, double longitude) {
-    }
 }
