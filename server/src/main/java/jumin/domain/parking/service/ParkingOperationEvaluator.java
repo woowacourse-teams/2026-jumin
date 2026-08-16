@@ -29,7 +29,9 @@ public class ParkingOperationEvaluator {
                 return ParkingAvailabilityStatus.UNAVAILABLE;
             }
 
-            unknownFound |= statusAt == ParkingAvailabilityStatus.UNKNOWN;
+            if (statusAt == ParkingAvailabilityStatus.UNKNOWN) {
+                unknownFound = true;
+            }
             currentAt = nextBoundaryAt(operation, currentAt, exitAt);
         }
         if (unknownFound) {
