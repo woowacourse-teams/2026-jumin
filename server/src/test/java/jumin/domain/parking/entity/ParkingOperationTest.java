@@ -105,6 +105,50 @@ class ParkingOperationTest {
     }
 
     @Test
+    @DisplayName("기본 무료시간 이내에는 0원으로 계산한다")
+    void returns_zero_fee_within_base_free_duration() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
+
+        // when
+        Integer result = operation.calculateFee(30);
+
+        // then
+        assertThat(result).isZero();
+    }
+
+    @Test
+    @DisplayName("기본 무료시간을 초과하면 기본요금을 계산한다")
+    void returns_base_fee_after_base_free_duration() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
+
+        // when
+        Integer result = operation.calculateFee(31);
+
+        // then
+        assertThat(result).isEqualTo(1_000);
+    }
+
+    @Test
+    @DisplayName("무료시간을 제외한 유료시간 기준으로 추가요금을 계산한다")
+    void calculates_additional_fee_from_paid_duration() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
+
+        // when
+        Integer baseFeeResult = operation.calculateFee(60);
+        Integer additionalFeeResult = operation.calculateFee(61);
+
+        // then
+        assertThat(baseFeeResult).isEqualTo(1_000);
+        assertThat(additionalFeeResult).isEqualTo(1_500);
+    }
+
+    @Test
     @DisplayName("추가 요금 단위는 부족한 시간도 한 단위로 올림한다")
     void rounds_up_partial_additional_unit() {
         // given
@@ -139,16 +183,20 @@ class ParkingOperationTest {
         ParkingOperation negativeBaseMinutes = operation(-1, 1_000, 10, 500, null);
         ParkingOperation negativeBaseFee = operation(30, -1, 10, 500, null);
         ParkingOperation negativeAdditionalFee = operation(30, 1_000, 10, -1, null);
+        ParkingOperation negativeBaseFreeMinutes = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(negativeBaseFreeMinutes, "baseFreeMinutes", -1);
 
         // when
         Integer negativeBaseMinutesResult = negativeBaseMinutes.calculateFee(60);
         Integer negativeBaseFeeResult = negativeBaseFee.calculateFee(60);
         Integer negativeAdditionalFeeResult = negativeAdditionalFee.calculateFee(60);
+        Integer negativeBaseFreeMinutesResult = negativeBaseFreeMinutes.calculateFee(60);
 
         // then
         assertThat(negativeBaseMinutesResult).isNull();
         assertThat(negativeBaseFeeResult).isNull();
         assertThat(negativeAdditionalFeeResult).isNull();
+        assertThat(negativeBaseFreeMinutesResult).isNull();
     }
 
     @Test

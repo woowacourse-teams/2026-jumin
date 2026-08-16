@@ -140,7 +140,12 @@ public class ParkingOperation extends BaseEntity {
             return null;
         }
 
-        if (durationMinutes <= baseMinutes) {
+        int paidDurationMinutes = paidDurationMinutes(durationMinutes);
+        if (paidDurationMinutes <= 0) {
+            return toFee(0, dailyMaxFee);
+        }
+
+        if (paidDurationMinutes <= baseMinutes) {
             return toFee(baseFee, dailyMaxFee);
         }
 
@@ -152,7 +157,7 @@ public class ParkingOperation extends BaseEntity {
             return null;
         }
 
-        long excessMinutes = (long) durationMinutes - baseMinutes;
+        long excessMinutes = (long) paidDurationMinutes - baseMinutes;
         long units = (excessMinutes + additionalMinutes - 1) / additionalMinutes;
         long fee = baseFee + units * additionalFee;
         return toFee(fee, dailyMaxFee);
@@ -160,8 +165,16 @@ public class ParkingOperation extends BaseEntity {
 
     private boolean isValidBaseRule(int durationMinutes) {
         return durationMinutes > 0
+                && (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
                 && isNonNegative(baseMinutes)
                 && isNonNegative(baseFee);
+    }
+
+    private int paidDurationMinutes(int durationMinutes) {
+        if (baseFreeMinutes == null) {
+            return durationMinutes;
+        }
+        return durationMinutes - baseFreeMinutes;
     }
 
     private boolean isFreeRule() {
