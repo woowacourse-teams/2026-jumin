@@ -51,7 +51,7 @@ class ParkingLotRepositoryTest {
     void respects_radius_boundary() {
         // given
         double destinationLatitude = 37.4981;
-        double latitudePerMeter = Math.toDegrees(1 / 6_370_986d);
+        double latitudePerMeter = Math.toDegrees(1 / 6_370_986.0);
         insertParkingLot(
                 "inside-boundary",
                 "경계 안쪽 주차장",

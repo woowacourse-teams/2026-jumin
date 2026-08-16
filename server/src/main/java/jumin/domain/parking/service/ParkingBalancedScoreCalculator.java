@@ -8,7 +8,7 @@ public class ParkingBalancedScoreCalculator {
     private static final int DISTANCE_REFERENCE_METERS = 600;
     private static final int FEE_PER_10_MINUTES = 1_500;
     private static final int REFERENCE_MINUTES = 10;
-    private static final double SCORE_ROUNDING_FACTOR = 10_000d;
+    private static final double SCORE_ROUNDING_FACTOR = 10_000.0;
 
     public Double calculate(
             ParkingAvailabilityStatus availabilityStatus,
@@ -27,7 +27,7 @@ public class ParkingBalancedScoreCalculator {
     }
 
     private double normalize(int value, double reference) {
-        return Math.min(Math.max(value / reference, 0d), 1d);
+        return Math.min(Math.max(value / reference, 0.0), 1.0);
     }
 
     private double round(double value) {
