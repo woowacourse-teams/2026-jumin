@@ -134,4 +134,68 @@ public class ParkingOperation extends BaseEntity {
 
     @Column(name = "source_checked_at", nullable = false)
     private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
+
+    public Integer calculateFee(int durationMinutes) {
+        if (!isValidBaseRule(durationMinutes)) {
+            return null;
+        }
+
+        int paidDurationMinutes = paidDurationMinutes(durationMinutes);
+        if (paidDurationMinutes <= 0) {
+            return toFee(0, dailyMaxFee);
+        }
+
+        if (paidDurationMinutes <= baseMinutes) {
+            return toFee(baseFee, dailyMaxFee);
+        }
+
+        if (isFreeRule()) {
+            return toFee(0, dailyMaxFee);
+        }
+
+        if (!isPositive(additionalMinutes) || !isNonNegative(additionalFee)) {
+            return null;
+        }
+
+        long excessMinutes = (long) paidDurationMinutes - baseMinutes;
+        long units = (excessMinutes + additionalMinutes - 1) / additionalMinutes;
+        long fee = baseFee + units * additionalFee;
+        return toFee(fee, dailyMaxFee);
+    }
+
+    private boolean isValidBaseRule(int durationMinutes) {
+        return durationMinutes > 0
+                && (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
+                && isNonNegative(baseMinutes)
+                && isNonNegative(baseFee);
+    }
+
+    private int paidDurationMinutes(int durationMinutes) {
+        if (baseFreeMinutes == null) {
+            return durationMinutes;
+        }
+        return durationMinutes - baseFreeMinutes;
+    }
+
+    private boolean isFreeRule() {
+        return baseFee == 0 && Integer.valueOf(0).equals(additionalFee);
+    }
+
+    private Integer toFee(long fee, Integer maxFee) {
+        if (isNonNegative(maxFee)) {
+            fee = Math.min(fee, maxFee);
+        }
+        if (fee > Integer.MAX_VALUE) {
+            return null;
+        }
+        return (int) fee;
+    }
+
+    private boolean isNonNegative(Integer value) {
+        return value != null && value >= 0;
+    }
+
+    private boolean isPositive(Integer value) {
+        return value != null && value > 0;
+    }
 }

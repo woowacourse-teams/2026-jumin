@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-@WebMvcTest
+@WebMvcTest(GlobalExceptionHandlerTest.ExceptionTestController.class)
 @Import(GlobalExceptionHandlerTest.ExceptionTestController.class)
 class GlobalExceptionHandlerTest {
 
@@ -39,9 +39,11 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("비즈니스 예외는 정의된 HTTP 상태와 메시지로 응답한다")
     void businessExceptionReturnsDefinedStatusAndMessage() throws Exception {
+        // given
         given(exceptionTestService.business())
                 .willThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // when & then
         mockMvc.perform(get("/test/business"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").doesNotExist())
@@ -52,6 +54,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("DTO 검증에 실패하면 필드 오류를 포함해 400으로 응답한다")
     void invalidRequestBodyReturnsFieldError() throws Exception {
+        // when & then
         mockMvc.perform(post("/test/validation")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\"}"))
@@ -65,6 +68,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("요청 본문을 읽을 수 없으면 파서 정보를 노출하지 않고 400으로 응답한다")
     void unreadableRequestBodyReturnsBadRequestWithoutParserDetails() throws Exception {
+        // when & then
         mockMvc.perform(post("/test/validation")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{"))
@@ -77,6 +81,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("없는 리소스를 요청하면 404로 응답한다")
     void missingResourceReturnsNotFound() throws Exception {
+        // when & then
         mockMvc.perform(get("/missing"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").doesNotExist())
@@ -86,6 +91,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("허용되지 않은 HTTP 메서드로 요청하면 405로 응답한다")
     void unsupportedHttpMethodReturnsMethodNotAllowed() throws Exception {
+        // when & then
         mockMvc.perform(post("/test/business"))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(header().string(HttpHeaders.ALLOW, "GET"))
@@ -96,6 +102,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("지원하지 않는 미디어 타입으로 요청하면 415로 응답한다")
     void unsupportedMediaTypeReturnsUnsupportedMediaType() throws Exception {
+        // when & then
         mockMvc.perform(post("/test/validation")
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("name"))
@@ -108,6 +115,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("필수 헤더가 누락되면 Spring이 정의한 400 상태를 유지한다")
     void missingRequestHeaderPreservesBadRequestStatus() throws Exception {
+        // when & then
         mockMvc.perform(get("/test/header"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").doesNotExist())
@@ -118,9 +126,11 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("ResponseStatusException도 공통 오류 메시지로 응답한다")
     void responseStatusExceptionPreservesDefinedStatus() throws Exception {
+        // given
         given(exceptionTestService.responseStatus())
                 .willThrow(new ResponseStatusException(HttpStatus.CONFLICT, "요청이 현재 상태와 충돌합니다."));
 
+        // when & then
         mockMvc.perform(get("/test/response-status"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").doesNotExist())
@@ -131,9 +141,11 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("예상하지 못한 예외는 내부 메시지를 노출하지 않고 500으로 응답한다")
     void unexpectedExceptionDoesNotExposeInternalMessage() throws Exception {
+        // given
         given(exceptionTestService.unexpected())
                 .willThrow(new IllegalStateException("sensitive detail"));
 
+        // when & then
         mockMvc.perform(get("/test/unexpected"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").doesNotExist())
