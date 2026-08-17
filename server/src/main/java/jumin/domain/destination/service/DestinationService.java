@@ -16,7 +16,7 @@ import org.springframework.web.util.HtmlUtils;
 @RequiredArgsConstructor
 public class DestinationService {
 
-    private static final int MAX_DESTINATIONS = 10;
+    private static final int MAX_DESTINATIONS = 5;
     private static final int MIN_QUERY_LENGTH = 2;
 
     private final LocalSearchClient localSearchClient;
