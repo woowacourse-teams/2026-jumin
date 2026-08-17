@@ -12,12 +12,15 @@ public class LocalSearchConfig {
     private static final String DEFAULT_BASE_URL = "https://naverapihub.apigw.ntruss.com";
 
     @Bean
-    public RestClient localSearchRestClient(LocalSearchProperties properties) {
+    public RestClient localSearchRestClient(
+            RestClient.Builder restClientBuilder,
+            LocalSearchProperties properties
+    ) {
         String baseUrl = properties.baseUrl();
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = DEFAULT_BASE_URL;
         }
 
-        return RestClient.builder().baseUrl(baseUrl).build();
+        return restClientBuilder.baseUrl(baseUrl).build();
     }
 }
