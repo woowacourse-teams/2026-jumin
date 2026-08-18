@@ -1,10 +1,11 @@
 import styled from '@emotion/styled';
+import currentLocationButtonIcon from '../../../../assets/icons/CurrentLocationButtonIcon.svg';
 
 export default function CurrentLocationButton() {
   return (
     <ButtonContainer>
       <Button type="button" aria-label="현재 위치로 이동">
-        <img src="/image/CurrentLocationButtonIcon.svg" alt="" />
+        <img src={currentLocationButtonIcon} alt="" />
       </Button>
     </ButtonContainer>
   );

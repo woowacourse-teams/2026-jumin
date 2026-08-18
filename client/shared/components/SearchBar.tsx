@@ -1,5 +1,6 @@
 import styled from '@emotion/styled';
 import { ChangeEventHandler, MouseEventHandler } from 'react';
+import searchIcon from '../../assets/icons/searchIcon.svg';
 
 interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;
@@ -12,7 +13,7 @@ interface Props {
 export default function SearchBar({ onClick, onChange, value, readOnly, autoFocus }: Props) {
   return (
     <MainContainer onClick={onClick}>
-      <SearchIcon src="/image/searchIcon.svg" alt="검색 아이콘" />
+      <SearchIcon src={searchIcon} alt="" />
       <SearchInput
         aria-label="목적지 검색"
         placeholder="어디에 방문하세요?"

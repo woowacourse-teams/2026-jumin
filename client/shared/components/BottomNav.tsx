@@ -1,24 +1,30 @@
 import styled from '@emotion/styled';
 import { NavLink } from 'react-router';
+import activeHomeIcon from '../../assets/icons/activeHome.svg';
+import activeNearbyIcon from '../../assets/icons/activeNearBy.svg';
+import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
+import homeIcon from '../../assets/icons/home.svg';
+import nearbyIcon from '../../assets/icons/nearby.svg';
+import recentUseIcon from '../../assets/icons/recentUse.svg';
 
 const menus = [
   {
     path: '/nearby',
     label: '주변',
-    icon: '/image/nearby.svg',
-    activeIcon: '/image/activeNearBy.svg',
+    icon: nearbyIcon,
+    activeIcon: activeNearbyIcon,
   },
   {
     path: '/',
     label: '홈',
-    icon: '/image/home.svg',
-    activeIcon: '/image/activeHome.svg',
+    icon: homeIcon,
+    activeIcon: activeHomeIcon,
   },
   {
     path: '/recent',
     label: '최근 이용',
-    icon: '/image/recentUse.svg',
-    activeIcon: '/image/activeRecentUse.svg',
+    icon: recentUseIcon,
+    activeIcon: activeRecentUseIcon,
   },
 ];
 
