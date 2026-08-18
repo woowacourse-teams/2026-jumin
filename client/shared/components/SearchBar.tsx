@@ -1,10 +1,26 @@
 import styled from '@emotion/styled';
+import { ChangeEventHandler, MouseEventHandler } from 'react';
 
-export default function SearchBar() {
+interface Props {
+  onClick?: MouseEventHandler<HTMLDivElement>;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
+  value?: string;
+  readOnly?: boolean;
+  autoFocus?: boolean;
+}
+
+export default function SearchBar({ onClick, onChange, value, readOnly, autoFocus }: Props) {
   return (
-    <MainContainer>
+    <MainContainer onClick={onClick}>
       <SearchIcon src="/image/searchIcon.svg" alt="검색 아이콘" />
-      <SearchInput aria-label="목적지 검색" placeholder="어디에 방문하세요?" />
+      <SearchInput
+        aria-label="목적지 검색"
+        placeholder="어디에 방문하세요?"
+        value={value}
+        readOnly={readOnly}
+        autoFocus={autoFocus}
+        onChange={onChange}
+      />
     </MainContainer>
   );
 }

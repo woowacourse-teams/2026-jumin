@@ -2,12 +2,14 @@ import styled from '@emotion/styled';
 import SearchBar from '../../../shared/components/SearchBar';
 import BottomNav from '../../../shared/components/BottomNav';
 import CurrentLocationButton from './components/CurrentLocationButton';
+import { useNavigate } from 'react-router';
 
 export default function MainPage() {
+  const navigate = useNavigate();
   return (
     <MainContainer>
       <Body>
-        <SearchBar />
+        <SearchBar onClick={() => navigate('/search')} />
         {/* 지도 */}
         <Footer>
           <CurrentLocationButton />
