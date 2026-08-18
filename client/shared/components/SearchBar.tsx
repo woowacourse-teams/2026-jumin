@@ -17,6 +17,7 @@ const MainContainer = styled.div`
   width: 100%;
   max-width: 358px;
   height: 54px;
+  margin: 16px auto 0;
   padding: 0 16px;
   box-sizing: border-box;
 

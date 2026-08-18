@@ -6,10 +6,15 @@ import CurrentLocationButton from './components/CurrentLocationButton';
 export default function MainPage() {
   return (
     <MainContainer>
-      <SearchBar />
-      {/* 지도 */}
-      <CurrentLocationButton />
-      <BottomNav />
+      <Body>
+        <SearchBar />
+        {/* 지도 */}
+        <CurrentLocationButton />
+
+        <Footer>
+          <BottomNav />
+        </Footer>
+      </Body>
     </MainContainer>
   );
 }
@@ -17,6 +22,19 @@ export default function MainPage() {
 const MainContainer = styled.div`
   width: 390px;
   height: 844px;
+  margin: 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
   border-radius: 28px;
-  border-color: #dce4f0;
+`;
+
+const Body = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+`;
+
+const Footer = styled.footer`
+  margin-top: auto;
 `;
