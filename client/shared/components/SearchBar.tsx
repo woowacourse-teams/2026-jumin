@@ -1,5 +1,5 @@
-import styled from '@emotion/styled';
-import { ChangeEventHandler, MouseEventHandler } from 'react';
+import { css } from '@emotion/css';
+import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import searchIcon from '../../assets/icons/searchIcon.svg';
 
 interface Props {
@@ -12,9 +12,41 @@ interface Props {
 
 export default function SearchBar({ onClick, onChange, value, readOnly, autoFocus }: Props) {
   return (
-    <MainContainer onClick={onClick}>
-      <SearchIcon src={searchIcon} alt="" />
-      <SearchInput
+    <div
+      className={css`
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        width: 100%;
+        max-width: 358px;
+        height: 54px;
+        margin: 16px auto 0;
+        padding: 0 16px;
+        box-sizing: border-box;
+
+        border: 1px solid #155eef;
+        border-radius: 16px;
+      `}
+      onClick={onClick}
+    >
+      <img
+        className={css`
+          width: 20px;
+          height: 20px;
+          flex-shrink: 0;
+        `}
+        src={searchIcon}
+        alt=""
+      />
+      <input
+        className={css`
+          flex: 1;
+          min-width: 0;
+          border: 0;
+          outline: 0;
+          background: transparent;
+        `}
         aria-label="목적지 검색"
         placeholder="어디에 방문하세요?"
         value={value}
@@ -22,36 +54,6 @@ export default function SearchBar({ onClick, onChange, value, readOnly, autoFocu
         autoFocus={autoFocus}
         onChange={onChange}
       />
-    </MainContainer>
+    </div>
   );
 }
-
-const MainContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  width: 100%;
-  max-width: 358px;
-  height: 54px;
-  margin: 16px auto 0;
-  padding: 0 16px;
-  box-sizing: border-box;
-
-  border: 1px solid #155eef;
-  border-radius: 16px;
-`;
-
-const SearchIcon = styled.img`
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-`;
-
-const SearchInput = styled.input`
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-`;

@@ -1,4 +1,4 @@
-import styled from '@emotion/styled';
+import { css } from '@emotion/css';
 import { NavLink } from 'react-router';
 import activeHomeIcon from '../../assets/icons/activeHome.svg';
 import activeNearbyIcon from '../../assets/icons/activeNearBy.svg';
@@ -30,69 +30,81 @@ const menus = [
 
 export default function BottomNav() {
   return (
-    <NavContainer aria-label="하단 메뉴">
+    <nav
+      className={css`
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+
+        width: 100%;
+        height: 86px;
+        background: white;
+      `}
+      aria-label="하단 메뉴"
+    >
       {menus.map(({ path, label, icon, activeIcon }) => (
-        <NavItem key={path} to={path} end={path === '/'}>
-          <NavIconWrapper>
-            <NavIcon className="default-icon" src={icon} alt="" />
-            <NavIcon className="active-icon" src={activeIcon} alt="" />
-          </NavIconWrapper>
+        <NavLink
+          className={css`
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+
+            color: #8a94a2;
+            font-size: 12px;
+            text-decoration: none;
+
+            &:hover,
+            &:focus-visible,
+            &.active {
+              color: #155eef;
+
+              .default-icon {
+                opacity: 0;
+              }
+
+              .active-icon {
+                opacity: 1;
+              }
+            }
+          `}
+          key={path}
+          to={path}
+          end={path === '/'}
+        >
+          <span
+            className={css`
+              position: relative;
+              width: 26px;
+              height: 26px;
+            `}
+          >
+            <img
+              className={`default-icon ${css`
+                position: absolute;
+                inset: 0;
+                width: 26px;
+                height: 26px;
+              `}`}
+              src={icon}
+              alt=""
+            />
+            <img
+              className={`active-icon ${css`
+                position: absolute;
+                inset: 0;
+                width: 26px;
+                height: 26px;
+                opacity: 0;
+              `}`}
+              src={activeIcon}
+              alt=""
+            />
+          </span>
 
           <span>{label}</span>
-        </NavItem>
+        </NavLink>
       ))}
-    </NavContainer>
+    </nav>
   );
 }
-
-const NavContainer = styled.nav`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-
-  width: 100%;
-  height: 86px;
-  background: white;
-`;
-
-const NavIconWrapper = styled.span`
-  position: relative;
-  width: 26px;
-  height: 26px;
-`;
-
-const NavIcon = styled.img`
-  position: absolute;
-  inset: 0;
-  width: 26px;
-  height: 26px;
-
-  &.active-icon {
-    opacity: 0;
-  }
-`;
-
-const NavItem = styled(NavLink)`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  color: #8a94a2;
-  font-size: 12px;
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible,
-  &.active {
-    color: #155eef;
-
-    .default-icon {
-      opacity: 0;
-    }
-
-    .active-icon {
-      opacity: 1;
-    }
-  }
-`;

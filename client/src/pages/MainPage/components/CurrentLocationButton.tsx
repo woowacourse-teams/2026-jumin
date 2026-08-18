@@ -1,33 +1,37 @@
-import styled from '@emotion/styled';
+import { css } from '@emotion/css';
 import currentLocationButtonIcon from '../../../../assets/icons/CurrentLocationButtonIcon.svg';
 
 export default function CurrentLocationButton() {
   return (
-    <ButtonContainer>
-      <Button type="button" aria-label="현재 위치로 이동">
-        <img src={currentLocationButtonIcon} alt="" />
-      </Button>
-    </ButtonContainer>
+    <div
+      className={css`
+        position: absolute;
+        right: 16px;
+        bottom: calc(100% + 16px);
+      `}
+    >
+      <button
+        className={css`
+          width: 74px;
+          height: 74px;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          cursor: pointer;
+        `}
+        type="button"
+        aria-label="현재 위치로 이동"
+      >
+        <img
+          className={css`
+            display: block;
+            width: 60px;
+            height: 60px;
+          `}
+          src={currentLocationButtonIcon}
+          alt=""
+        />
+      </button>
+    </div>
   );
 }
-
-const ButtonContainer = styled.div`
-  position: absolute;
-  right: 16px;
-  bottom: calc(100% + 16px);
-`;
-
-const Button = styled.button`
-  width: 74px;
-  height: 74px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-
-  img {
-    display: block;
-    width: 60px;
-    height: 60px;
-  }
-`;
