@@ -24,3 +24,4 @@ out/
 
 # 로컬 에이전트 설정
 .agents/
+AGENTS.md

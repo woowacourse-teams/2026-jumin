@@ -55,12 +55,6 @@ jobs:
 
       - name: Build frontend
         working-directory: client
-        env:
-          API_BASE_URL: ''
-          USE_MOCK_API: 'true'
-          NAVER_MAP_CLIENT_ID: ${{ vars.DEV_NAVER_MAP_CLIENT_ID }}
-          NAVER_MAP_APP_NAME: ${{ vars.DEV_NAVER_MAP_APP_NAME }}
-          TMAP_APP_KEY: ${{ secrets.DEV_TMAP_APP_KEY }}
         run: pnpm build
 
       - name: Validate build output
@@ -116,8 +110,10 @@ jobs:
 
           ln -sfn "${frontend_release}" /var/www/jumin-dev/current
 
-          curl --noproxy '*' --fail --silent --show-error \
-            --resolve '3.34.182.26:443:127.0.0.1' \
-            https://3.34.182.26/ >/dev/null
+          curl --noproxy '*' \
+            --fail \
+            --silent \
+            --show-error \
+            http://127.0.0.1/ >/dev/null
 
           trap - ERR
