@@ -6,7 +6,6 @@ import DestinationPage from './src/pages/DestinationPage/DestinationPage';
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<MainPage />} />;
       <Route path="/" element={<MainPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/destination" element={<DestinationPage />} />
