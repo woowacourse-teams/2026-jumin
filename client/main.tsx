@@ -1,4 +1,22 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-createRoot(document.getElementById('root')!).render(<App />);
+const renderApp = () => {
+  createRoot(document.getElementById('root')!).render(<App />);
+};
+
+const enableMocking = async () => {
+  if (!__MSW_ENABLED__) return;
+
+  const { worker } = await import('./mocks/browser');
+
+  await worker.start({
+    onUnhandledRequest(request, print) {
+      if (new URL(request.url).pathname.startsWith('/api/')) {
+        print.error();
+      }
+    },
+  });
+};
+
+void enableMocking().then(renderApp);

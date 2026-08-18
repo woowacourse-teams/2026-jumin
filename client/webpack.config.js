@@ -1,8 +1,10 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-module.exports = (_, argv) => {
+module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
+  const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
 
   return {
     entry: './main.tsx',
@@ -54,6 +56,9 @@ module.exports = (_, argv) => {
       extensions: ['.tsx', '.ts', '.js'],
     },
     plugins: [
+      new webpack.DefinePlugin({
+        __MSW_ENABLED__: JSON.stringify(isMockEnabled),
+      }),
       new HtmlWebpackPlugin({
         template: './index.html',
         filename: 'index.html',
@@ -61,7 +66,10 @@ module.exports = (_, argv) => {
       }),
     ],
     devServer: {
-      static: false,
+      static: {
+        directory: path.resolve(__dirname, 'public'),
+        watch: false,
+      },
       port: 3000,
       open: true,
       hot: true,
