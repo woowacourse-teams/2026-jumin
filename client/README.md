@@ -12,3 +12,25 @@ pnpm build
 ```
 
 `pnpm build`는 타입 검사를 통과한 뒤 프로덕션 번들을 생성합니다.
+
+## Mock API
+
+백엔드 없이 목적지 검색과 주차장 검색을 개발할 때 MSW 개발 서버를 실행합니다.
+
+```bash
+pnpm dev:mock
+```
+
+기본 시나리오는 성공 응답입니다. 앱 URL의 `mock` 검색 파라미터로 다른 응답을 확인할 수 있습니다.
+
+```text
+?mock=destination-empty
+?mock=destination-rate-limited
+?mock=destination-failed
+?mock=parking-empty
+?mock=parking-slow
+?mock=parking-server-error
+?mock=parking-network-error
+```
+
+일반 `pnpm dev`와 프로덕션 빌드에서는 MSW가 시작되지 않습니다.
