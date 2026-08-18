@@ -4,16 +4,9 @@
     "start": "webpack serve --mode development",
     "build": "pnpm typecheck && webpack --mode production",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck && eslint . && prettier --check .",
-    "ios:sync": "pnpm build && cap sync ios",
-    "ios:open": "cap open ios"
+    "check": "pnpm typecheck && eslint . && prettier --check ."
   },
   "dependencies": {
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/app-launcher": "^8.0.1",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/geolocation": "^8.2.1",
-    "@capacitor/ios": "^8.5.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "date-fns": "^4.4.0",
@@ -26,7 +19,6 @@
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
-    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
