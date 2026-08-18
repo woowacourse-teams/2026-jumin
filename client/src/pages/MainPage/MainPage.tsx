@@ -9,9 +9,8 @@ export default function MainPage() {
       <Body>
         <SearchBar />
         {/* 지도 */}
-        <CurrentLocationButton />
-
         <Footer>
+          <CurrentLocationButton />
           <BottomNav />
         </Footer>
       </Body>
@@ -37,4 +36,6 @@ const Body = styled.div`
 
 const Footer = styled.footer`
   margin-top: auto;
+  position: relative;
+  flex-shrink: 0;
 `;
