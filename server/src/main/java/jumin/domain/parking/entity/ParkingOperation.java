@@ -160,7 +160,7 @@ public class ParkingOperation extends BaseEntity {
     }
 
     private Integer toFee(long fee, Integer maxFee) {
-        if (isNonNegative(maxFee)) {
+        if (isPositive(maxFee)) {
             fee = Math.min(fee, maxFee);
         }
         if (fee > Integer.MAX_VALUE) {

@@ -283,6 +283,19 @@ class ParkingOperationTest {
         assertThat(result).isZero();
     }
 
+    @Test
+    @DisplayName("일 최대요금 0원은 상한이 없는 것으로 처리한다")
+    void ignores_zero_daily_maximum_fee() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, 0);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.MONDAY);
+
+        // then
+        assertThat(result).isEqualTo(2_500);
+    }
+
     private ParkingOperation operation(
             Integer baseMinutes,
             Integer baseFee,
