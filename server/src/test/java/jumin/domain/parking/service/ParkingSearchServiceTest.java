@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -25,8 +26,8 @@ import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingSearchServiceTest {
@@ -188,14 +189,24 @@ class ParkingSearchServiceTest {
         ReflectionTestUtils.setField(operation, "additionalMinutes", 10);
         ReflectionTestUtils.setField(operation, "additionalFee", 500);
         ReflectionTestUtils.setField(operation, "dailyMaxFee", null);
-        ReflectionTestUtils.setField(operation, "fridayStatus", ParkingOperationStatus.ALL_DAY);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", true);
+        ReflectionTestUtils.setField(operation, "saturdayPaid", true);
+        ReflectionTestUtils.setField(operation, "holidayPaid", true);
+        ReflectionTestUtils.setField(operation, "weekdayStatus", ParkingOperationStatus.OPEN);
+        ReflectionTestUtils.setField(operation, "weekdayOpenTime", LocalTime.MIDNIGHT);
+        ReflectionTestUtils.setField(operation, "weekdayCloseTime", LocalTime.MIDNIGHT);
+        ReflectionTestUtils.setField(operation, "weekendStatus", ParkingOperationStatus.OPEN);
+        ReflectionTestUtils.setField(operation, "weekendOpenTime", LocalTime.MIDNIGHT);
+        ReflectionTestUtils.setField(operation, "weekendCloseTime", LocalTime.MIDNIGHT);
+        ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.OPEN);
+        ReflectionTestUtils.setField(operation, "holidayOpenTime", LocalTime.MIDNIGHT);
+        ReflectionTestUtils.setField(operation, "holidayCloseTime", LocalTime.MIDNIGHT);
         return operation;
     }
 
     private ParkingOperation unavailableOperation(long parkingLotId) {
         ParkingOperation operation = availableOperation(parkingLotId);
-        ReflectionTestUtils.setField(operation, "thursdayStatus", ParkingOperationStatus.CLOSED);
-        ReflectionTestUtils.setField(operation, "fridayStatus", ParkingOperationStatus.CLOSED);
+        ReflectionTestUtils.setField(operation, "weekdayStatus", ParkingOperationStatus.CLOSED);
         return operation;
     }
 }

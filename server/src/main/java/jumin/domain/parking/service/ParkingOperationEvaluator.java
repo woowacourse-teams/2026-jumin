@@ -171,40 +171,20 @@ public class ParkingOperationEvaluator {
 
     private Schedule scheduleForDay(ParkingOperation operation, DayOfWeek dayOfWeek) {
         return switch (dayOfWeek) {
-            case MONDAY -> new Schedule(
-                    operation.getMondayStatus(),
-                    operation.getMondayOpenTime(),
-                    operation.getMondayCloseTime()
-            );
-            case TUESDAY -> new Schedule(
-                    operation.getTuesdayStatus(),
-                    operation.getTuesdayOpenTime(),
-                    operation.getTuesdayCloseTime()
-            );
-            case WEDNESDAY -> new Schedule(
-                    operation.getWednesdayStatus(),
-                    operation.getWednesdayOpenTime(),
-                    operation.getWednesdayCloseTime()
-            );
-            case THURSDAY -> new Schedule(
-                    operation.getThursdayStatus(),
-                    operation.getThursdayOpenTime(),
-                    operation.getThursdayCloseTime()
-            );
-            case FRIDAY -> new Schedule(
-                    operation.getFridayStatus(),
-                    operation.getFridayOpenTime(),
-                    operation.getFridayCloseTime()
+            case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY -> new Schedule(
+                    operation.getWeekdayStatus(),
+                    operation.getWeekdayOpenTime(),
+                    operation.getWeekdayCloseTime()
             );
             case SATURDAY -> new Schedule(
-                    operation.getSaturdayStatus(),
-                    operation.getSaturdayOpenTime(),
-                    operation.getSaturdayCloseTime()
+                    operation.getWeekendStatus(),
+                    operation.getWeekendOpenTime(),
+                    operation.getWeekendCloseTime()
             );
             case SUNDAY -> new Schedule(
-                    operation.getSundayStatus(),
-                    operation.getSundayOpenTime(),
-                    operation.getSundayCloseTime()
+                    operation.getHolidayStatus(),
+                    operation.getHolidayOpenTime(),
+                    operation.getHolidayCloseTime()
             );
         };
     }
@@ -226,10 +206,7 @@ public class ParkingOperationEvaluator {
         }
 
         private boolean isAllDay() {
-            boolean isOpenFromMidnightToMidnight = isOpenStatus() && isMidnightToMidnight();
-
-            return status == ParkingOperationStatus.ALL_DAY
-                    || isOpenFromMidnightToMidnight;
+            return isOpenStatus() && isMidnightToMidnight();
         }
 
         private boolean isTimedOpen() {
