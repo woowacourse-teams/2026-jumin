@@ -33,7 +33,6 @@ module.exports = (env, argv) => {
                   '@babel/preset-react',
                   {
                     runtime: 'automatic',
-                    importSource: '@emotion/react',
                     development: isDevelopment,
                   },
                 ],
