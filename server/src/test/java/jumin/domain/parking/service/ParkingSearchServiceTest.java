@@ -150,6 +150,72 @@ class ParkingSearchServiceTest {
     }
 
     @Test
+    @DisplayName("토요일 무료 주차장은 예상 요금을 0원으로 반환한다")
+    void returns_zero_fee_for_saturday_free_status() {
+        // given
+        ParkingLot candidate = parkingLot(6L, 37.4982, 127.0280);
+        ParkingOperation operation = availableOperation(6L);
+        ReflectionTestUtils.setField(operation, "saturdayPaid", false);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(candidate));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(operation));
+
+        // when
+        ParkingLotResponse result = service.search(query(
+                "2026-08-22T10:00:00+09:00",
+                "2026-08-22T11:00:00+09:00"
+        )).parkingLots().getFirst();
+
+        // then
+        assertThat(result.availabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(result.estimatedFee()).isZero();
+        assertThat(result.balancedScore()).isEqualTo(0.0117);
+    }
+
+    @Test
+    @DisplayName("일요일·공휴일 무료 주차장은 예상 요금을 0원으로 반환한다")
+    void returns_zero_fee_for_holiday_free_status() {
+        // given
+        ParkingLot candidate = parkingLot(7L, 37.4982, 127.0280);
+        ParkingOperation operation = availableOperation(7L);
+        ReflectionTestUtils.setField(operation, "holidayPaid", false);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(candidate));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(operation));
+
+        // when
+        ParkingLotResponse result = service.search(query(
+                "2026-08-23T10:00:00+09:00",
+                "2026-08-23T11:00:00+09:00"
+        )).parkingLots().getFirst();
+
+        // then
+        assertThat(result.availabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(result.estimatedFee()).isZero();
+        assertThat(result.balancedScore()).isEqualTo(0.0117);
+    }
+
+    @Test
+    @DisplayName("날짜별 유료 여부가 없으면 예상 요금을 계산하지 않는다")
+    void returns_null_fee_when_paid_status_is_unknown() {
+        ParkingLot candidate = parkingLot(8L, 37.4982, 127.0280);
+        ParkingOperation operation = availableOperation(8L);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", null);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(candidate));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(operation));
+
+        ParkingLotResponse result = service.search(validQuery()).parkingLots().getFirst();
+
+        assertThat(result.availabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(result.estimatedFee()).isNull();
+        assertThat(result.balancedScore()).isNull();
+    }
+
+    @Test
     @DisplayName("주차장 조회 중 저장소 예외를 그대로 전달한다")
     void propagates_repository_failure() {
         // given
@@ -163,11 +229,18 @@ class ParkingSearchServiceTest {
     }
 
     private ParkingSearchRequest validQuery() {
+        return query(
+                "2026-08-14T10:00:00+09:00",
+                "2026-08-14T11:00:00+09:00"
+        );
+    }
+
+    private ParkingSearchRequest query(String entryAt, String exitAt) {
         return new ParkingSearchRequest(
                 37.4981,
                 127.0279,
-                OffsetDateTime.parse("2026-08-14T10:00:00+09:00"),
-                OffsetDateTime.parse("2026-08-14T11:00:00+09:00")
+                OffsetDateTime.parse(entryAt),
+                OffsetDateTime.parse(exitAt)
         );
     }
 

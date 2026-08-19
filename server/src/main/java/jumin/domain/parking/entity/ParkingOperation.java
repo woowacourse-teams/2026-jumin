@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import jumin.global.entity.BaseEntity;
@@ -94,8 +95,15 @@ public class ParkingOperation extends BaseEntity {
     @Column(name = "source_checked_at", nullable = false)
     private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
 
-    public Integer calculateFee(int durationMinutes) {
-        if (!isValidBaseRule(durationMinutes)) {
+    public Integer calculateFee(int durationMinutes, DayOfWeek entryDayOfWeek) {
+        Boolean paidForEntryDate = paidForEntryDate(entryDayOfWeek);
+        if (durationMinutes <= 0 || paidForEntryDate == null) {
+            return null;
+        }
+        if (!paidForEntryDate) {
+            return 0;
+        }
+        if (!isValidBaseRule()) {
             return null;
         }
 
@@ -122,9 +130,20 @@ public class ParkingOperation extends BaseEntity {
         return toFee(fee, dailyMaxFee);
     }
 
-    private boolean isValidBaseRule(int durationMinutes) {
-        return durationMinutes > 0
-                && (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
+    private Boolean paidForEntryDate(DayOfWeek dayOfWeek) {
+        if (dayOfWeek == null) {
+            return null;
+        }
+
+        return switch (dayOfWeek) {
+            case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY -> weekdayPaid;
+            case SATURDAY -> saturdayPaid;
+            case SUNDAY -> holidayPaid;
+        };
+    }
+
+    private boolean isValidBaseRule() {
+        return (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
                 && isNonNegative(baseMinutes)
                 && isNonNegative(baseFee);
     }
