@@ -11,12 +11,15 @@ interface Props {
 }
 
 export const SearchResultList = ({ query, searchResults, isSearching, errorMessage, onSelect }: Props) => {
-  const message =
-    query.length < 2
-      ? '검색어를 2글자 이상 입력해 주세요.'
-      : isSearching
-        ? '검색 중...'
-        : errorMessage || (searchResults.length === 0 ? '검색 결과가 없습니다.' : '');
+  const getMessage = () => {
+    if (query.length < 2) return '검색어를 2글자 이상 입력해 주세요.';
+    if (isSearching) return '검색 중...';
+    if (errorMessage) return errorMessage;
+    if (searchResults.length === 0) return '검색 결과가 없습니다.';
+
+    return '';
+  };
+  const message = getMessage();
 
   return (
     <section
