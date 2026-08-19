@@ -8,6 +8,7 @@ import { RecentSearchList } from './components/RecentSearchList';
 import { SearchResultList } from './components/SearchResultList';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
+const SEARCH_DEBOUNCE_DELAY = 300;
 
 const loadRecentSearches = (): Destination[] => {
   try {
@@ -59,9 +60,14 @@ export const SearchPage = () => {
       }
     };
 
-    searchDestinations();
+    const timerId = window.setTimeout(() => {
+      void searchDestinations();
+    }, SEARCH_DEBOUNCE_DELAY);
 
-    return () => abortController.abort();
+    return () => {
+      window.clearTimeout(timerId);
+      abortController.abort();
+    };
   }, [normalizedQuery]);
 
   const updateRecentSearches = (nextRecentSearches: Destination[]) => {
