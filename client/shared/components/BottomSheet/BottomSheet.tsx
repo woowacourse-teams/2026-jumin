@@ -8,11 +8,11 @@ const COLLAPSED_Y = SHEET_HEIGHT - PEEK_HEIGHT;
 
 const SNAP_THRESHOLD = 80;
 
-interface BottomSheetProps {
+interface Props {
   children: ReactNode;
 }
 
-export default function BottomSheet({ children }: BottomSheetProps) {
+export default function BottomSheet({ children }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
   const dragStartPointerYRef = useRef(0); // 드래그 시작한 위치

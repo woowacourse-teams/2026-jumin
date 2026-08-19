@@ -7,7 +7,7 @@ interface ParkingRecommendationLocationState {
 }
 
 // 사용자 정의 타입 가드
-function isParkingRecommendationLocationState(state: unknown): state is ParkingRecommendationLocationState {
+const isParkingRecommendationLocationState = (state: unknown): state is ParkingRecommendationLocationState => {
   if (typeof state !== 'object' || state === null || !('searchResult' in state)) return false;
 
   const { searchResult } = state;
@@ -20,7 +20,7 @@ function isParkingRecommendationLocationState(state: unknown): state is ParkingR
     'parkingLots' in searchResult &&
     Array.isArray(searchResult.parkingLots)
   );
-}
+};
 
 export function ParkingRecommendationPage() {
   const location = useLocation();
