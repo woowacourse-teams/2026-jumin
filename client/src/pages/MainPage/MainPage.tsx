@@ -1,11 +1,11 @@
 import { css } from '@emotion/css';
 import { useNavigate } from 'react-router';
-import SearchBar from '../../../shared/components/SearchBar';
-import BottomNav from '../../../shared/components/BottomNav';
+import { SearchBar } from '../../../shared/components/SearchBar';
+import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
 import mapImg from '../../../assets/images/map_img.png';
 
-const MainPage = () => {
+export const MainPage = () => {
   const navigate = useNavigate();
   return (
     <div
@@ -55,5 +55,3 @@ const MainPage = () => {
     </div>
   );
 };
-
-export default MainPage;

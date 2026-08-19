@@ -28,7 +28,7 @@ const menus = [
   },
 ];
 
-const BottomNav = () => (
+export const BottomNav = () => (
   <nav
     className={css`
       display: grid;
@@ -106,5 +106,3 @@ const BottomNav = () => (
     ))}
   </nav>
 );
-
-export default BottomNav;

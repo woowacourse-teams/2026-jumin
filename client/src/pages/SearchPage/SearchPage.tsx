@@ -1,14 +1,30 @@
 import { css } from '@emotion/css';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import type { Destination, DestinationSearchResponse } from '../../../api/contracts';
-import SearchBar from '../../../shared/components/SearchBar';
-import BottomNav from '../../../shared/components/BottomNav';
+import { SearchBar } from '../../../shared/components/SearchBar';
+import { BottomNav } from '../../../shared/components/BottomNav';
 import { RecentSearchList } from './components/RecentSearchList';
 import { SearchResultList } from './components/SearchResultList';
 
-const SearchPage = () => {
+const RECENT_SEARCHES_KEY = 'recentSearches';
+
+const loadRecentSearches = (): Destination[] => {
+  try {
+    const storedRecentSearches = localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (!storedRecentSearches) return [];
+
+    const parsedRecentSearches: unknown = JSON.parse(storedRecentSearches);
+    return Array.isArray(parsedRecentSearches) ? (parsedRecentSearches as Destination[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const SearchPage = () => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState<Destination[]>([]);
+  const [recentSearches, setRecentSearches] = useState<Destination[]>(loadRecentSearches);
   const [searchResults, setSearchResults] = useState<Destination[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -48,12 +64,23 @@ const SearchPage = () => {
     return () => abortController.abort();
   }, [normalizedQuery]);
 
-  const selectRecentSearch = (destination: Destination) => {
-    setQuery(destination.name);
+  const updateRecentSearches = (nextRecentSearches: Destination[]) => {
+    setRecentSearches(nextRecentSearches);
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(nextRecentSearches));
+  };
+
+  const selectDestination = (destination: Destination) => {
+    const nextRecentSearches = [
+      destination,
+      ...recentSearches.filter((recentSearch) => recentSearch.destinationId !== destination.destinationId),
+    ].slice(0, 5);
+
+    updateRecentSearches(nextRecentSearches);
+    navigate('/destination', { state: { destination } });
   };
 
   const removeRecentSearch = (destinationId: string) => {
-    setRecentSearches((current) => current.filter((destination) => destination.destinationId !== destinationId));
+    updateRecentSearches(recentSearches.filter((destination) => destination.destinationId !== destinationId));
   };
 
   return (
@@ -65,6 +92,7 @@ const SearchPage = () => {
         overflow: hidden;
         box-sizing: border-box;
         border-radius: 28px;
+        background-color: #ffffff;
       `}
     >
       <div
@@ -75,7 +103,20 @@ const SearchPage = () => {
           height: 100%;
         `}
       >
-        <SearchBar autoFocus value={query} onChange={(event) => setQuery(event.target.value)} />
+        <SearchBar
+          autoFocus
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setSearchResults([]);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' || isSearching || !searchResults[0]) return;
+
+            event.preventDefault();
+            selectDestination(searchResults[0]);
+          }}
+        />
 
         {normalizedQuery ? (
           <SearchResultList
@@ -83,14 +124,14 @@ const SearchPage = () => {
             searchResults={searchResults}
             isSearching={isSearching}
             errorMessage={searchError}
-            onSelect={selectRecentSearch}
+            onSelect={selectDestination}
           />
         ) : (
           <RecentSearchList
             recentSearches={recentSearches}
-            onSelect={selectRecentSearch}
+            onSelect={selectDestination}
             onRemove={removeRecentSearch}
-            onClear={() => setRecentSearches([])}
+            onClear={() => updateRecentSearches([])}
           />
         )}
 
@@ -107,5 +148,3 @@ const SearchPage = () => {
     </div>
   );
 };
-
-export default SearchPage;

@@ -1,16 +1,17 @@
 import { css } from '@emotion/css';
-import type { ChangeEventHandler, MouseEventHandler } from 'react';
+import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import searchIcon from '../../assets/icons/searchIcon.svg';
 
 interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;
   onChange?: ChangeEventHandler<HTMLInputElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
   value?: string;
   readOnly?: boolean;
   autoFocus?: boolean;
 }
 
-const SearchBar = ({ onClick, onChange, value, readOnly, autoFocus }: Props) => (
+export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoFocus }: Props) => (
   <div
     className={css`
       display: flex;
@@ -53,8 +54,7 @@ const SearchBar = ({ onClick, onChange, value, readOnly, autoFocus }: Props) => 
       readOnly={readOnly}
       autoFocus={autoFocus}
       onChange={onChange}
+      onKeyDown={onKeyDown}
     />
   </div>
 );
-
-export default SearchBar;
