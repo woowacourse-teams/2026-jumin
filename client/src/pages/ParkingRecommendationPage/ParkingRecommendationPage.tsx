@@ -6,12 +6,27 @@ interface ParkingRecommendationLocationState {
   searchResult: ParkingSearchResponse;
 }
 
+// 사용자 정의 타입 가드
+function isParkingRecommendationLocationState(state: unknown): state is ParkingRecommendationLocationState {
+  if (typeof state !== 'object' || state === null || !('searchResult' in state)) return false;
+
+  const { searchResult } = state;
+
+  return (
+    typeof searchResult === 'object' &&
+    searchResult !== null &&
+    'totalCount' in searchResult &&
+    typeof searchResult.totalCount === 'number' &&
+    'parkingLots' in searchResult &&
+    Array.isArray(searchResult.parkingLots)
+  );
+}
+
 export function ParkingRecommendationPage() {
   const location = useLocation();
+  const state = location.state;
 
-  const state = location.state as ParkingRecommendationLocationState | null;
-
-  if (state === null) {
+  if (!isParkingRecommendationLocationState(state)) {
     return <Navigate to="/parkingTimeSheet" replace />;
   }
 

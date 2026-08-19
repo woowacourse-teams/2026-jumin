@@ -78,11 +78,11 @@ export const ParkingTimePage = () => {
       return;
     }
 
-    const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
-
     try {
       setIsLoading(true);
       setErrorMessage(null);
+
+      const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
 
       const response = await searchParkingLots({
         destinationLatitude: 37.4981,
