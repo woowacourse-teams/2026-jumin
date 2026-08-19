@@ -36,9 +36,12 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
         width: 20px;
         height: 20px;
         flex-shrink: 0;
+        pointer-events: none;
+        user-select: none;
       `}
       src={searchIcon}
       alt=""
+      draggable={false}
     />
     <input
       className={css`

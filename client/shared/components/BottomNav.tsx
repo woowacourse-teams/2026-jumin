@@ -84,9 +84,12 @@ export const BottomNav = () => (
               inset: 0;
               width: 26px;
               height: 26px;
+              pointer-events: none;
+              user-select: none;
             `}`}
             src={icon}
             alt=""
+            draggable={false}
           />
           <img
             className={`active-icon ${css`
@@ -95,9 +98,12 @@ export const BottomNav = () => (
               width: 26px;
               height: 26px;
               opacity: 0;
+              pointer-events: none;
+              user-select: none;
             `}`}
             src={activeIcon}
             alt=""
+            draggable={false}
           />
         </span>
 

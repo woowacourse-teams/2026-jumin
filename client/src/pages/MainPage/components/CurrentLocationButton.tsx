@@ -26,9 +26,12 @@ export const CurrentLocationButton = () => (
           display: block;
           width: 60px;
           height: 60px;
+          pointer-events: none;
+          user-select: none;
         `}
         src={currentLocationButtonIcon}
         alt=""
+        draggable={false}
       />
     </button>
   </div>
