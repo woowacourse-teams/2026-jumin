@@ -1,5 +1,3 @@
-import React from 'react';
+const DestinationPage = () => <div>DestinationPage</div>;
 
-export default function DestinationPage() {
-  return <div>DestinationPage</div>;
-}
+export default DestinationPage;

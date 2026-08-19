@@ -3,7 +3,7 @@ import { useState } from 'react';
 import SearchBar from '../../../shared/components/SearchBar';
 import BottomNav from '../../../shared/components/BottomNav';
 
-export default function SearchPage() {
+const SearchPage = () => {
   const [query, setQuery] = useState('');
 
   return (
@@ -38,4 +38,6 @@ export default function SearchPage() {
       </div>
     </div>
   );
-}
+};
+
+export default SearchPage;

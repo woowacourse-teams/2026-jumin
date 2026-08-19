@@ -2,9 +2,9 @@ import { css } from '@emotion/css';
 import { useNavigate } from 'react-router';
 import SearchBar from '../../../shared/components/SearchBar';
 import BottomNav from '../../../shared/components/BottomNav';
-import CurrentLocationButton from './components/CurrentLocationButton';
+import { CurrentLocationButton } from './components/CurrentLocationButton';
 
-export default function MainPage() {
+const MainPage = () => {
   const navigate = useNavigate();
   return (
     <div
@@ -40,4 +40,6 @@ export default function MainPage() {
       </div>
     </div>
   );
-}
+};
+
+export default MainPage;
