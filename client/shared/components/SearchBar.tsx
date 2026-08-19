@@ -26,6 +26,7 @@ const SearchBar = ({ onClick, onChange, value, readOnly, autoFocus }: Props) => 
 
       border: 1px solid #155eef;
       border-radius: 16px;
+      background: white;
     `}
     onClick={onClick}
   >
