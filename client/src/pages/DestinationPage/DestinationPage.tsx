@@ -124,7 +124,7 @@ export const DestinationPage = () => {
             }
           `}
           type="button"
-          onClick={() => navigate('/parkingTimePage', { state: { destination } })}
+          onClick={() => navigate('/parkingTimeSheet', { state: { destination } })}
         >
           다음
         </button>
