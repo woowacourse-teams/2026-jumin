@@ -200,6 +200,7 @@ class ParkingSearchServiceTest {
     @Test
     @DisplayName("날짜별 유료 여부가 없으면 예상 요금을 계산하지 않는다")
     void returns_null_fee_when_paid_status_is_unknown() {
+        // given
         ParkingLot candidate = parkingLot(8L, 37.4982, 127.0280);
         ParkingOperation operation = availableOperation(8L);
         ReflectionTestUtils.setField(operation, "weekdayPaid", null);
@@ -208,8 +209,10 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(operation));
 
+        // when
         ParkingLotResponse result = service.search(validQuery()).parkingLots().getFirst();
 
+        // then
         assertThat(result.availabilityStatus()).isEqualTo("AVAILABLE");
         assertThat(result.estimatedFee()).isNull();
         assertThat(result.balancedScore()).isNull();
