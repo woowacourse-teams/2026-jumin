@@ -10,18 +10,11 @@ import org.springframework.web.client.RestClient.Builder;
 @EnableConfigurationProperties(LocalSearchProperties.class)
 public class LocalSearchConfig {
 
-    private static final String DEFAULT_BASE_URL = "https://naverapihub.apigw.ntruss.com";
-
     @Bean
     public RestClient localSearchRestClient(
             Builder restClientBuilder,
             LocalSearchProperties properties
     ) {
-        String baseUrl = properties.baseUrl();
-        if (baseUrl == null || baseUrl.isBlank()) {
-            baseUrl = DEFAULT_BASE_URL;
-        }
-
-        return restClientBuilder.baseUrl(baseUrl).build();
+        return restClientBuilder.baseUrl(properties.baseUrl()).build();
     }
 }
