@@ -28,83 +28,87 @@ const menus = [
   },
 ];
 
-export default function BottomNav() {
-  return (
-    <nav
-      className={css`
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+export const BottomNav = () => (
+  <nav
+    className={css`
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
 
-        width: 100%;
-        height: 86px;
-        background: white;
-      `}
-      aria-label="하단 메뉴"
-    >
-      {menus.map(({ path, label, icon, activeIcon }) => (
-        <NavLink
-          className={css`
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+      width: 100%;
+      height: 86px;
+      background: white;
+    `}
+    aria-label="하단 메뉴"
+  >
+    {menus.map(({ path, label, icon, activeIcon }) => (
+      <NavLink
+        className={css`
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
 
-            color: #8a94a2;
-            font-size: 12px;
-            text-decoration: none;
+          color: #8a94a2;
+          font-size: 12px;
+          text-decoration: none;
 
-            &:hover,
-            &:focus-visible,
-            &.active {
-              color: #155eef;
+          &:hover,
+          &:focus-visible,
+          &.active {
+            color: #155eef;
 
-              .default-icon {
-                opacity: 0;
-              }
-
-              .active-icon {
-                opacity: 1;
-              }
+            .default-icon {
+              opacity: 0;
             }
+
+            .active-icon {
+              opacity: 1;
+            }
+          }
+        `}
+        key={path}
+        to={path}
+        end={path === '/'}
+      >
+        <span
+          className={css`
+            position: relative;
+            width: 26px;
+            height: 26px;
           `}
-          key={path}
-          to={path}
-          end={path === '/'}
         >
-          <span
-            className={css`
-              position: relative;
+          <img
+            className={`default-icon ${css`
+              position: absolute;
+              inset: 0;
               width: 26px;
               height: 26px;
-            `}
-          >
-            <img
-              className={`default-icon ${css`
-                position: absolute;
-                inset: 0;
-                width: 26px;
-                height: 26px;
-              `}`}
-              src={icon}
-              alt=""
-            />
-            <img
-              className={`active-icon ${css`
-                position: absolute;
-                inset: 0;
-                width: 26px;
-                height: 26px;
-                opacity: 0;
-              `}`}
-              src={activeIcon}
-              alt=""
-            />
-          </span>
+              pointer-events: none;
+              user-select: none;
+            `}`}
+            src={icon}
+            alt=""
+            draggable={false}
+          />
+          <img
+            className={`active-icon ${css`
+              position: absolute;
+              inset: 0;
+              width: 26px;
+              height: 26px;
+              opacity: 0;
+              pointer-events: none;
+              user-select: none;
+            `}`}
+            src={activeIcon}
+            alt=""
+            draggable={false}
+          />
+        </span>
 
-          <span>{label}</span>
-        </NavLink>
-      ))}
-    </nav>
-  );
-}
+        <span>{label}</span>
+      </NavLink>
+    ))}
+  </nav>
+);

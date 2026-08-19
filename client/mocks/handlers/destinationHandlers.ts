@@ -43,9 +43,16 @@ export const destinationHandlers = [
       );
     }
 
+    const normalizedQuery = query.toLowerCase();
+    const matchedDestinations = destinationFixtures.filter((destination) =>
+      [destination.name, destination.address, destination.roadAddress].some((value) =>
+        value?.toLowerCase().includes(normalizedQuery),
+      ),
+    );
+
     const response: DestinationSearchResponse = {
       query,
-      destinations: scenario === 'destination-empty' ? [] : destinationFixtures,
+      destinations: scenario === 'destination-empty' ? [] : matchedDestinations,
     };
 
     return HttpResponse.json(response);
