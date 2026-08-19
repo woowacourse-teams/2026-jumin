@@ -88,13 +88,14 @@ export function WheelColumn({ ariaLabel, options, value, onChange }: WheelColumn
     listRef.current.scrollTop = selectedIndex * ITEM_HEIGHT;
   }, [options, value]);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (scrollTimerRef.current !== null) {
         clearTimeout(scrollTimerRef.current);
       }
-    };
-  }, []);
+    },
+    [],
+  );
 
   return (
     <div
