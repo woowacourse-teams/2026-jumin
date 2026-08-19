@@ -12,8 +12,8 @@ public class LocalSearchConfig {
 
     @Bean
     public RestClient localSearchRestClient(
-            Builder restClientBuilder,
-            LocalSearchProperties properties
+        Builder restClientBuilder,
+        LocalSearchProperties properties
     ) {
         return restClientBuilder.baseUrl(properties.baseUrl()).build();
     }
