@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import jumin.global.entity.BaseEntity;
@@ -52,91 +53,57 @@ public class ParkingOperation extends BaseEntity {
     @Column(name = "monthly_fee")
     private Integer monthlyFee; // 월 정기권 요금(원)
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "monday_status", length = 10)
-    private ParkingOperationStatus mondayStatus; // 월요일 운영 상태
+    @Column(name = "weekday_paid")
+    private Boolean weekdayPaid; // 평일 유료 여부
 
-    @Column(name = "monday_open_time")
-    private LocalTime mondayOpenTime; // 월요일 운영 시작시간
+    @Column(name = "saturday_paid")
+    private Boolean saturdayPaid; // 토요일 유료 여부
 
-    @Column(name = "monday_close_time")
-    private LocalTime mondayCloseTime; // 월요일 운영 종료시간
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tuesday_status", length = 10)
-    private ParkingOperationStatus tuesdayStatus; // 화요일 운영 상태
-
-    @Column(name = "tuesday_open_time")
-    private LocalTime tuesdayOpenTime; // 화요일 운영 시작시간
-
-    @Column(name = "tuesday_close_time")
-    private LocalTime tuesdayCloseTime; // 화요일 운영 종료시간
+    @Column(name = "holiday_paid")
+    private Boolean holidayPaid; // 일요일·공휴일 유료 여부
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "wednesday_status", length = 10)
-    private ParkingOperationStatus wednesdayStatus; // 수요일 운영 상태
+    @Column(name = "weekday_status", length = 10)
+    private ParkingOperationStatus weekdayStatus; // 평일 운영 상태
 
-    @Column(name = "wednesday_open_time")
-    private LocalTime wednesdayOpenTime; // 수요일 운영 시작시간
+    @Column(name = "weekday_open_time")
+    private LocalTime weekdayOpenTime; // 평일 운영 시작시간
 
-    @Column(name = "wednesday_close_time")
-    private LocalTime wednesdayCloseTime; // 수요일 운영 종료시간
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "thursday_status", length = 10)
-    private ParkingOperationStatus thursdayStatus; // 목요일 운영 상태
-
-    @Column(name = "thursday_open_time")
-    private LocalTime thursdayOpenTime; // 목요일 운영 시작시간
-
-    @Column(name = "thursday_close_time")
-    private LocalTime thursdayCloseTime; // 목요일 운영 종료시간
+    @Column(name = "weekday_close_time")
+    private LocalTime weekdayCloseTime; // 평일 운영 종료시간
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "friday_status", length = 10)
-    private ParkingOperationStatus fridayStatus; // 금요일 운영 상태
+    @Column(name = "weekend_status", length = 10)
+    private ParkingOperationStatus weekendStatus; // 토요일 운영 상태
 
-    @Column(name = "friday_open_time")
-    private LocalTime fridayOpenTime; // 금요일 운영 시작시간
+    @Column(name = "weekend_open_time")
+    private LocalTime weekendOpenTime; // 토요일 운영 시작시간
 
-    @Column(name = "friday_close_time")
-    private LocalTime fridayCloseTime; // 금요일 운영 종료시간
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "saturday_status", length = 10)
-    private ParkingOperationStatus saturdayStatus; // 토요일 운영 상태
-
-    @Column(name = "saturday_open_time")
-    private LocalTime saturdayOpenTime; // 토요일 운영 시작시간
-
-    @Column(name = "saturday_close_time")
-    private LocalTime saturdayCloseTime; // 토요일 운영 종료시간
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "sunday_status", length = 10)
-    private ParkingOperationStatus sundayStatus; // 일요일 운영 상태
-
-    @Column(name = "sunday_open_time")
-    private LocalTime sundayOpenTime; // 일요일 운영 시작시간
-
-    @Column(name = "sunday_close_time")
-    private LocalTime sundayCloseTime; // 일요일 운영 종료시간
+    @Column(name = "weekend_close_time")
+    private LocalTime weekendCloseTime; // 토요일 운영 종료시간
 
     @Enumerated(EnumType.STRING)
     @Column(name = "holiday_status", length = 10)
-    private ParkingOperationStatus holidayStatus; // 공휴일 운영 상태
+    private ParkingOperationStatus holidayStatus; // 일요일·공휴일 운영 상태
 
     @Column(name = "holiday_open_time")
-    private LocalTime holidayOpenTime; // 공휴일 운영 시작시간
+    private LocalTime holidayOpenTime; // 일요일·공휴일 운영 시작시간
 
     @Column(name = "holiday_close_time")
-    private LocalTime holidayCloseTime; // 공휴일 운영 종료시간
+    private LocalTime holidayCloseTime; // 일요일·공휴일 운영 종료시간
 
     @Column(name = "source_checked_at", nullable = false)
     private LocalDateTime sourceCheckedAt; // 데이터 갱신 시각
 
-    public Integer calculateFee(int durationMinutes) {
-        if (!isValidBaseRule(durationMinutes)) {
+    public Integer calculateFee(int durationMinutes, DayOfWeek entryDayOfWeek) {
+        Boolean paidForEntryDate = paidForEntryDate(entryDayOfWeek);
+        if (durationMinutes <= 0 || paidForEntryDate == null) {
+            return null;
+        }
+        if (!paidForEntryDate) {
+            return 0;
+        }
+        if (!isValidBaseRule()) {
             return null;
         }
 
@@ -163,9 +130,20 @@ public class ParkingOperation extends BaseEntity {
         return toFee(fee, dailyMaxFee);
     }
 
-    private boolean isValidBaseRule(int durationMinutes) {
-        return durationMinutes > 0
-                && (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
+    private Boolean paidForEntryDate(DayOfWeek dayOfWeek) {
+        if (dayOfWeek == null) {
+            return null;
+        }
+
+        return switch (dayOfWeek) {
+            case MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY -> weekdayPaid;
+            case SATURDAY -> saturdayPaid;
+            case SUNDAY -> holidayPaid;
+        };
+    }
+
+    private boolean isValidBaseRule() {
+        return (baseFreeMinutes == null || isNonNegative(baseFreeMinutes))
                 && isNonNegative(baseMinutes)
                 && isNonNegative(baseFee);
     }
@@ -182,7 +160,7 @@ public class ParkingOperation extends BaseEntity {
     }
 
     private Integer toFee(long fee, Integer maxFee) {
-        if (isNonNegative(maxFee)) {
+        if (isPositive(maxFee)) {
             fee = Math.min(fee, maxFee);
         }
         if (fee > Integer.MAX_VALUE) {

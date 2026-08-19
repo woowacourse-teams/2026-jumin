@@ -113,7 +113,10 @@ public class ParkingSearchService {
 
         Integer estimatedFee = null;
         if (operation != null) {
-            estimatedFee = operation.calculateFee(durationMinutes);
+            estimatedFee = operation.calculateFee(
+                    durationMinutes,
+                    request.entryAt().getDayOfWeek()
+            );
         }
 
         Double balancedScore = balancedScoreCalculator.calculate(
