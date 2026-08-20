@@ -56,7 +56,7 @@ export const BottomNav = () => (
           &:hover,
           &:focus-visible,
           &.active {
-            color: #155eef;
+            color: #4356d8;
 
             .default-icon {
               opacity: 0;
