@@ -1,10 +1,14 @@
+import { useState } from 'react';
+
 import { css } from '@emotion/css';
 
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import type { AvailabilityStatus, ParkingLotSummary } from '../../../api/contracts';
+import { parkingSearchSuccess } from '../../../mocks/fixtures/parkingSearch';
 
 import BottomSheet from '../../../shared/components/BottomSheet/BottomSheet';
+import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 
 interface ParkingDetailLocationState {
   parkingLot?: ParkingLotSummary;
@@ -21,11 +25,15 @@ const availabilityLabel: Record<AvailabilityStatus, string> = {
 const formatFee = (fee: number | null) => (fee === null ? '미제공' : `${fee.toLocaleString('ko-KR')}원`);
 
 export const ParkingDetailPage = () => {
+  const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
+
   const navigate = useNavigate();
 
   const { state } = useLocation();
 
-  const parkingLot = (state as ParkingDetailLocationState | null)?.parkingLot;
+  const parkingLot =
+    (state as ParkingDetailLocationState | null)?.parkingLot ??
+    (__MSW_ENABLED__ ? parkingSearchSuccess.parkingLots[0] : undefined);
 
   if (!parkingLot) return <Navigate to="/parkingRecommendation" replace />;
 
@@ -79,11 +87,17 @@ export const ParkingDetailPage = () => {
 
           <p className={addressStyle}>{parkingLot.address}</p>
 
-          <button className={navigationButtonStyle} type="button">
+          <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
             길찾기 시작
           </button>
         </div>
       </BottomSheet>
+
+      <DeepLinkModal
+        isOpen={isDeepLinkModalOpen}
+        onRequestClose={() => setIsDeepLinkModalOpen(false)}
+        destination={{ name: parkingLot.name, location: parkingLot.location }}
+      />
     </main>
   );
 };
