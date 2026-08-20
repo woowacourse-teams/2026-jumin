@@ -1,6 +1,9 @@
 import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { applyGlobalStyles } from './shared/styles/globalStyle';
+
+applyGlobalStyles();
 
 const renderApp = () => {
   createRoot(document.getElementById('root')!).render(

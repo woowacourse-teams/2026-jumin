@@ -37,6 +37,12 @@ export const BottomNav = () => (
       width: 100%;
       height: 86px;
       background: white;
+
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
     `}
     aria-label="하단 메뉴"
   >

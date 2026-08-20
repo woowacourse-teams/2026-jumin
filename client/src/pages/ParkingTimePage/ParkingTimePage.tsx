@@ -1,10 +1,9 @@
 import { useState } from 'react';
 
 import { css } from '@emotion/css';
-import { useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { searchParkingLots } from '../../../api/parkingLots';
-import BottomSheet from '../../../shared/components/BottomSheet/BottomSheet';
 import { TimePickerField } from './components/TimePickerField';
 import { createSearchPeriod } from './model/searchCondition';
 import {
@@ -15,6 +14,8 @@ import {
   DEFAULT_TIME,
   type TimeValue,
 } from './model/time';
+import BottomSheet from '../../../shared/components/BottomSheet';
+import { Destination } from '../../../api/contracts';
 
 type ActiveTimeField = 'entry' | 'exit' | null;
 
@@ -24,6 +25,10 @@ const formatMonthDay = (date: Date) => {
 
   return `${month}월 ${day}일`;
 };
+
+interface NavigationState {
+  destination?: Destination;
+}
 
 export const ParkingTimePage = () => {
   const navigate = useNavigate();
@@ -35,6 +40,11 @@ export const ParkingTimePage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 목적지 데이터 가져오기
+  const { state } = useLocation();
+  const destination = (state as NavigationState | null)?.destination;
+  if (!destination) return <Navigate to="/search" replace />;
 
   const handleEntryClick = () => {
     setEntryTime((previousTime) => previousTime ?? createRoundedCurrentTime());
@@ -93,6 +103,15 @@ export const ParkingTimePage = () => {
 
       navigate('/parkingRecommendation', {
         state: {
+          // 목적지 정보는 이전 페이지에서 넘어온 응답 데이터이고, 시간은 클라이언트에서 관리하는 항목
+          // 조건이라는 객체로 묶어서 관리
+          searchCondition: {
+            destinationName: destination.name,
+            destinationLatitude: destination.latitude,
+            destinationLongitude: destination.longitude,
+            entryAt,
+            exitAt,
+          },
           searchResult: response,
         },
       });

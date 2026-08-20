@@ -16,8 +16,8 @@ export default function BottomSheet({ children }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
   const dragStartPointerYRef = useRef(0); // 드래그 시작한 위치
-  const dragStartSheetYRef = useRef(COLLAPSED_Y); // 드래그 시작 시 시트 위치
-  const currentSheetYRef = useRef(COLLAPSED_Y); // 현재 시트 위치
+  const dragStartSheetYRef = useRef(0); // 드래그 시작 시 시트 위치
+  const currentSheetYRef = useRef(0); // 현재 시트 위치
 
   // 드래그 시작 핸들러
   // 영역을 누른 위치를 저장한다.
@@ -96,7 +96,7 @@ const sheetStyle = css`
 
   background-color: #fff;
 
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   z-index: 1000;
@@ -104,10 +104,10 @@ const sheetStyle = css`
   width: 100%;
   height: ${SHEET_HEIGHT}px;
 
-  border-radius: 32px 32px 0 0;
+  border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
 
-  transform: translateY(${COLLAPSED_Y}px);
+  transform: translateY(0);
   transition: transform 250ms ease-out;
 
   will-change: transform;
