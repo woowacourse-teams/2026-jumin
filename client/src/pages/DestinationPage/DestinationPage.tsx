@@ -115,7 +115,7 @@ export const DestinationPage = () => {
             margin-top: 20px;
             border: 0;
             border-radius: 12px;
-            background: #155eef;
+            background: #4356d8;
             color: white;
             font-size: 14px;
             font-weight: 700;

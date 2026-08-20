@@ -46,7 +46,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
             place-items: center;
             border-radius: 10px;
             background: #eff4ff;
-            color: #155eef;
+            color: #4356d8;
             font-size: 16px;
           `}
           aria-hidden="true"
@@ -72,7 +72,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
 
               mark {
                 background: transparent;
-                color: #155eef;
+                color: #4356d8;
               }
             `}
           >
