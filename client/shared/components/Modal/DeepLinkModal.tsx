@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { css, cx } from '@emotion/css';
 import Modal from 'react-modal';
 
-import { buildDirectionsUrl, type Coordinate, type DirectionsProvider } from './deepLink';
+import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -79,14 +79,41 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, destination }: Props) =>
   const handleProviderClick = (provider: DirectionsProvider) => {
     if (locationState.status !== 'READY') return;
 
-    window.location.assign(
-      buildDirectionsUrl({
-        provider,
-        start: locationState.coordinate,
-        destination,
-        appName: window.location.origin,
-      }),
-    );
+    const links = buildDirectionsLinks({
+      provider,
+      start: locationState.coordinate,
+      destination,
+      appName: window.location.origin,
+    });
+    const userAgent = navigator.userAgent;
+
+    if (/Android/i.test(userAgent)) {
+      window.location.assign(links.androidIntentUrl);
+      return;
+    }
+
+    const isIOS =
+      /iPad|iPhone|iPod/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (!isIOS) {
+      window.location.assign(links.webUrl);
+      return;
+    }
+
+    let appOpened = false;
+    const markAppOpened = () => {
+      appOpened = true;
+    };
+
+    document.addEventListener('visibilitychange', markAppOpened, { once: true });
+    window.addEventListener('pagehide', markAppOpened, { once: true });
+    window.location.assign(links.appUrl);
+
+    window.setTimeout(() => {
+      document.removeEventListener('visibilitychange', markAppOpened);
+      window.removeEventListener('pagehide', markAppOpened);
+      if (!appOpened) window.location.assign(links.iosStoreUrl);
+    }, 1500);
   };
 
   return (
