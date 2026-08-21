@@ -6,7 +6,7 @@
     "build": "pnpm typecheck && webpack --mode production",
     "typecheck": "tsc --noEmit",
     "test:deep-link": "node --experimental-strip-types --test shared/components/Modal/deepLink.test.mjs",
-    "check": "pnpm typecheck && eslint . && prettier --check ."
+    "check": "pnpm typecheck && pnpm test:deep-link && eslint . && prettier --check ."
   },
   "dependencies": {
     "@emotion/css": "^11.13.5",
