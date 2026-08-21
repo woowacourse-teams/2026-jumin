@@ -1,28 +1,29 @@
 # 서버
 
-Spring Boot 백엔드 애플리케이션입니다. 애플리케이션은 로컬에서 직접 실행하고,
-PostgreSQL만 Docker Compose로 실행합니다.
+Spring Boot 기반 백엔드 애플리케이션입니다.
 
 ## 준비 사항
 
 - Java 21
-- Docker와 Docker Compose
+- Docker 및 Docker Compose
 
 ## 로컬 실행
 
-이 문서가 있는 `server/` 디렉터리에서 PostgreSQL을 실행합니다.
+`server/` 디렉터리에서 실행합니다.
+
+1. 로컬 PostgreSQL을 실행합니다.
 
 ```bash
 docker compose -f ../infra/docker-compose.local.yml up -d --wait
 ```
 
-서버를 실행합니다.
+2. 백엔드를 실행합니다.
 
 ```bash
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-별도의 환경변수가 없으면 다음 기본값을 사용합니다.
+로컬 데이터베이스 기본값은 다음과 같습니다.
 
 | 환경변수 | 기본값 |
 | --- | --- |
@@ -32,41 +33,51 @@ docker compose -f ../infra/docker-compose.local.yml up -d --wait
 | `DB_USERNAME` | `jumin` |
 | `DB_PASSWORD` | `jumin` |
 
-환경변수를 변경하려면 `../infra/.env.example`을 `../infra/.env`로 복사해 Docker Compose
-설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설정에도 지정합니다.
+기본값을 변경하려면 `infra/.env.example`을 참고해 `infra/.env`를 설정합니다.
+외부 검색 API를 사용하려면 `LOCAL_SEARCH_CLIENT_ID`와
+`LOCAL_SEARCH_CLIENT_SECRET`도 실행 환경에 설정해야 합니다.
 
-`postgres-data` 볼륨이 이미 생성된 상태에서는 `DB_NAME`, `DB_USERNAME`,
-`DB_PASSWORD`를 변경해도 기존 데이터베이스와 사용자에게 자동으로 반영되지 않습니다.
-변경 사항은 기존 데이터베이스에서 직접 적용하거나, 아래의 볼륨 삭제 명령으로
-PostgreSQL을 초기화한 후 다시 생성해야 합니다.
-
-애플리케이션이 실행되면 헬스 체크를 확인할 수 있습니다.
+서버가 실행되면 health check로 상태를 확인할 수 있습니다.
 
 ```bash
 curl http://localhost:8080/actuator/health
 ```
 
-## 테스트
+## 테스트 및 빌드
 
-테스트는 Testcontainers가 PostgreSQL 컨테이너를 자동으로 실행하므로 Docker가 실행
-중이어야 합니다.
+Docker가 실행 중인 상태에서 다음 명령을 사용합니다.
 
 ```bash
 ./gradlew clean check
+./gradlew bootJar
+```
+
+`clean check bootJar`를 한 번에 실행할 수도 있습니다.
+
+```bash
+./gradlew clean check bootJar
 ```
 
 ## 종료
 
-`server/` 디렉터리에서 다음 명령을 실행합니다.
-
-PostgreSQL 컨테이너와 네트워크를 종료하되 데이터 볼륨은 보존합니다.
+PostgreSQL을 종료하고 데이터는 유지합니다.
 
 ```bash
 docker compose -f ../infra/docker-compose.local.yml down
 ```
 
-`postgres-data`볼륨과 PostgreSQL 데이터를 모두 삭제하려면 다음 명령을 실행합니다.
+로컬 PostgreSQL 데이터까지 초기화할 때만 다음 명령을 사용합니다.
 
 ```bash
 docker compose -f ../infra/docker-compose.local.yml down --volumes
 ```
+
+## 배포
+
+- `develop` 또는 `main` 대상 PR·push: [Server CI](../.github/workflows/server-ci.yml)
+- `develop` push: 개발 서버 CD [workflow](../.github/workflows/server-dev-cd.yml)
+- 개발 서버 데이터베이스: AWS RDS
+- 개발 서버 실행: Docker Compose
+
+배포 환경의 Secret은 GitHub Environment에서 관리하며 repository에 저장하지 않습니다.
+자세한 인프라 준비 내용은 [인프라 문서](../infra/README.md)를 참고합니다.
