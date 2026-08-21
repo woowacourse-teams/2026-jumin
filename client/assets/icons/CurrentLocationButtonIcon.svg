@@ -1,8 +1,8 @@
 <svg width="74" height="74" viewBox="0 0 74 74" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g filter="url(#filter0_d_132_29)">
 <rect x="14" y="10" width="46" height="46" rx="14" fill="white" shape-rendering="crispEdges"/>
-<path d="M36.9998 36.8182C39.1085 36.8182 40.818 35.1087 40.818 33C40.818 30.8913 39.1085 29.1818 36.9998 29.1818C34.8911 29.1818 33.1816 30.8913 33.1816 33C33.1816 35.1087 34.8911 36.8182 36.9998 36.8182Z" stroke="#155EEF" stroke-width="1.90909"/>
-<path d="M37.0001 24.0273V26.8909M37.0001 39.1091V41.9727M28.0273 33H30.891M43.1092 33H45.9728" stroke="#155EEF" stroke-width="1.90909" stroke-linecap="round"/>
+<path d="M36.9998 36.8182C39.1085 36.8182 40.818 35.1087 40.818 33C40.818 30.8913 39.1085 29.1818 36.9998 29.1818C34.8911 29.1818 33.1816 30.8913 33.1816 33C33.1816 35.1087 34.8911 36.8182 36.9998 36.8182Z" stroke="#4356D8" stroke-width="1.90909"/>
+<path d="M37.0001 24.0273V26.8909M37.0001 39.1091V41.9727M28.0273 33H30.891M43.1092 33H45.9728" stroke="#4356D8" stroke-width="1.90909" stroke-linecap="round"/>
 </g>
 <defs>
 <filter id="filter0_d_132_29" x="0" y="0" width="74" height="74" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">

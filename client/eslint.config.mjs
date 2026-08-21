@@ -15,7 +15,6 @@ export default defineConfig([
     },
     rules: {
       // Airbnb 스타일 가이드를 참고해 선별한 팀 규칙
-      'arrow-body-style': ['error', 'as-needed'],
       curly: ['error', 'multi-line'],
       eqeqeq: ['error', 'always'],
       'no-duplicate-imports': 'error',

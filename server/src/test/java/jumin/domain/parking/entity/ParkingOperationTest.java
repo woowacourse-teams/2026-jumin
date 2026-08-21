@@ -2,6 +2,7 @@ package jumin.domain.parking.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.DayOfWeek;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -15,7 +16,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Integer result = operation.calculateFee(65);
+        Integer result = operation.calculateFee(65, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(3_000);
@@ -28,7 +29,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, 2_000);
 
         // when
-        Integer result = operation.calculateFee(120);
+        Integer result = operation.calculateFee(120, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(2_000);
@@ -41,7 +42,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(0, 0, 0, 0, 0);
 
         // when
-        Integer result = operation.calculateFee(120);
+        Integer result = operation.calculateFee(120, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isZero();
@@ -55,8 +56,8 @@ class ParkingOperationTest {
         ParkingOperation invalidAdditionalUnit = operation(30, 1_000, 0, 500, null);
 
         // when
-        Integer missingRuleResult = missingRule.calculateFee(60);
-        Integer invalidAdditionalUnitResult = invalidAdditionalUnit.calculateFee(60);
+        Integer missingRuleResult = missingRule.calculateFee(60, DayOfWeek.MONDAY);
+        Integer invalidAdditionalUnitResult = invalidAdditionalUnit.calculateFee(60, DayOfWeek.MONDAY);
 
         // then
         assertThat(missingRuleResult).isNull();
@@ -70,8 +71,8 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Integer zeroMinuteResult = operation.calculateFee(0);
-        Integer negativeMinuteResult = operation.calculateFee(-1);
+        Integer zeroMinuteResult = operation.calculateFee(0, DayOfWeek.MONDAY);
+        Integer negativeMinuteResult = operation.calculateFee(-1, DayOfWeek.MONDAY);
 
         // then
         assertThat(zeroMinuteResult).isNull();
@@ -85,7 +86,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 0, 500, null);
 
         // when
-        Integer result = operation.calculateFee(30);
+        Integer result = operation.calculateFee(30, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(1_000);
@@ -98,7 +99,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Integer result = operation.calculateFee(10);
+        Integer result = operation.calculateFee(10, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(1_000);
@@ -112,7 +113,7 @@ class ParkingOperationTest {
         ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
 
         // when
-        Integer result = operation.calculateFee(30);
+        Integer result = operation.calculateFee(30, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isZero();
@@ -126,7 +127,7 @@ class ParkingOperationTest {
         ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
 
         // when
-        Integer result = operation.calculateFee(31);
+        Integer result = operation.calculateFee(31, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(1_000);
@@ -140,8 +141,8 @@ class ParkingOperationTest {
         ReflectionTestUtils.setField(operation, "baseFreeMinutes", 30);
 
         // when
-        Integer baseFeeResult = operation.calculateFee(60);
-        Integer additionalFeeResult = operation.calculateFee(61);
+        Integer baseFeeResult = operation.calculateFee(60, DayOfWeek.MONDAY);
+        Integer additionalFeeResult = operation.calculateFee(61, DayOfWeek.MONDAY);
 
         // then
         assertThat(baseFeeResult).isEqualTo(1_000);
@@ -155,8 +156,8 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, null);
 
         // when
-        Integer exactUnitResult = operation.calculateFee(50);
-        Integer partialUnitResult = operation.calculateFee(51);
+        Integer exactUnitResult = operation.calculateFee(50, DayOfWeek.MONDAY);
+        Integer partialUnitResult = operation.calculateFee(51, DayOfWeek.MONDAY);
 
         // then
         assertThat(exactUnitResult).isEqualTo(2_000);
@@ -170,7 +171,7 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(30, 1_000, 10, 500, 500);
 
         // when
-        Integer result = operation.calculateFee(10);
+        Integer result = operation.calculateFee(10, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isEqualTo(500);
@@ -187,10 +188,10 @@ class ParkingOperationTest {
         ReflectionTestUtils.setField(negativeBaseFreeMinutes, "baseFreeMinutes", -1);
 
         // when
-        Integer negativeBaseMinutesResult = negativeBaseMinutes.calculateFee(60);
-        Integer negativeBaseFeeResult = negativeBaseFee.calculateFee(60);
-        Integer negativeAdditionalFeeResult = negativeAdditionalFee.calculateFee(60);
-        Integer negativeBaseFreeMinutesResult = negativeBaseFreeMinutes.calculateFee(60);
+        Integer negativeBaseMinutesResult = negativeBaseMinutes.calculateFee(60, DayOfWeek.MONDAY);
+        Integer negativeBaseFeeResult = negativeBaseFee.calculateFee(60, DayOfWeek.MONDAY);
+        Integer negativeAdditionalFeeResult = negativeAdditionalFee.calculateFee(60, DayOfWeek.MONDAY);
+        Integer negativeBaseFreeMinutesResult = negativeBaseFreeMinutes.calculateFee(60, DayOfWeek.MONDAY);
 
         // then
         assertThat(negativeBaseMinutesResult).isNull();
@@ -206,10 +207,93 @@ class ParkingOperationTest {
         ParkingOperation operation = operation(Integer.MAX_VALUE - 1, Integer.MAX_VALUE, 1, 1, null);
 
         // when
-        Integer result = operation.calculateFee(Integer.MAX_VALUE);
+        Integer result = operation.calculateFee(Integer.MAX_VALUE, DayOfWeek.MONDAY);
 
         // then
         assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("해당 날짜가 무료이면 요금 규칙과 관계없이 0원을 반환한다")
+    void returns_zero_when_entry_date_is_free() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", false);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.MONDAY);
+
+        // then
+        assertThat(result).isZero();
+    }
+
+    @Test
+    @DisplayName("무료 날짜여도 이용 시간이 올바르지 않으면 빈 결과를 반환한다")
+    void returns_empty_for_invalid_duration_on_free_date() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", false);
+
+        // when
+        Integer result = operation.calculateFee(0, DayOfWeek.MONDAY);
+
+        // then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("해당 날짜의 유료 여부를 알 수 없으면 빈 결과를 반환한다")
+    void returns_empty_when_paid_status_is_unknown() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", null);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.MONDAY);
+
+        // then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("토요일이 무료이면 평일 유료 여부와 관계없이 0원을 반환한다")
+    void returns_zero_for_saturday_free_status() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "saturdayPaid", false);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.SATURDAY);
+
+        // then
+        assertThat(result).isZero();
+    }
+
+    @Test
+    @DisplayName("일요일·공휴일이 무료이면 평일 유료 여부와 관계없이 0원을 반환한다")
+    void returns_zero_for_holiday_free_status() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, null);
+        ReflectionTestUtils.setField(operation, "holidayPaid", false);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.SUNDAY);
+
+        // then
+        assertThat(result).isZero();
+    }
+
+    @Test
+    @DisplayName("일 최대요금 0원은 상한이 없는 것으로 처리한다")
+    void ignores_zero_daily_maximum_fee() {
+        // given
+        ParkingOperation operation = operation(30, 1_000, 10, 500, 0);
+
+        // when
+        Integer result = operation.calculateFee(60, DayOfWeek.MONDAY);
+
+        // then
+        assertThat(result).isEqualTo(2_500);
     }
 
     private ParkingOperation operation(
@@ -225,6 +309,7 @@ class ParkingOperationTest {
         ReflectionTestUtils.setField(operation, "additionalMinutes", additionalMinutes);
         ReflectionTestUtils.setField(operation, "additionalFee", additionalFee);
         ReflectionTestUtils.setField(operation, "dailyMaxFee", dailyMaxFee);
+        ReflectionTestUtils.setField(operation, "weekdayPaid", true);
         return operation;
     }
 }
