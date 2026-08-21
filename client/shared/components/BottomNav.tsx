@@ -1,5 +1,6 @@
-import { css } from '@emotion/css';
-import { NavLink } from 'react-router';
+import { css, cx } from '@emotion/css';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router';
 import activeHomeIcon from '../../assets/icons/activeHome.svg';
 import activeNearbyIcon from '../../assets/icons/activeNearBy.svg';
 import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
@@ -8,12 +9,6 @@ import nearbyIcon from '../../assets/icons/nearby.svg';
 import recentUseIcon from '../../assets/icons/recentUse.svg';
 
 const menus = [
-  {
-    path: '/nearby',
-    label: '주변',
-    icon: nearbyIcon,
-    activeIcon: activeNearbyIcon,
-  },
   {
     path: '/',
     label: '홈',
@@ -28,87 +23,152 @@ const menus = [
   },
 ];
 
-export const BottomNav = () => (
-  <nav
-    className={css`
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+export const BottomNav = () => {
+  const navigate = useNavigate();
+  const [isLocating, setIsLocating] = useState(false);
+  const isMountedRef = useRef(true);
 
-      width: 100%;
-      height: 86px;
-      background: white;
-    `}
-    aria-label="하단 메뉴"
-  >
-    {menus.map(({ path, label, icon, activeIcon }) => (
-      <NavLink
-        className={css`
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    [],
+  );
 
-          color: #8a94a2;
-          font-size: 12px;
-          text-decoration: none;
+  const handleNearbyClick = () => {
+    if (!navigator.geolocation) {
+      window.alert('현재 위치를 지원하지 않는 브라우저예요.');
+      return;
+    }
 
-          &:hover,
-          &:focus-visible,
-          &.active {
-            color: #4356d8;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!isMountedRef.current) return;
 
-            .default-icon {
-              opacity: 0;
-            }
+        setIsLocating(false);
+        navigate('/parkingTimeSheet', {
+          state: {
+            destination: {
+              name: '현재 위치',
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            },
+          },
+        });
+      },
+      () => {
+        if (!isMountedRef.current) return;
 
-            .active-icon {
-              opacity: 1;
-            }
-          }
-        `}
-        key={path}
-        to={path}
-        end={path === '/'}
-      >
-        <span
-          className={css`
-            position: relative;
-            width: 26px;
-            height: 26px;
-          `}
-        >
-          <img
-            className={`default-icon ${css`
-              position: absolute;
-              inset: 0;
-              width: 26px;
-              height: 26px;
-              pointer-events: none;
-              user-select: none;
-            `}`}
-            src={icon}
-            alt=""
-            draggable={false}
-          />
-          <img
-            className={`active-icon ${css`
-              position: absolute;
-              inset: 0;
-              width: 26px;
-              height: 26px;
-              opacity: 0;
-              pointer-events: none;
-              user-select: none;
-            `}`}
-            src={activeIcon}
-            alt=""
-            draggable={false}
-          />
-        </span>
+        setIsLocating(false);
+        window.alert('현재 위치를 가져오지 못했어요. 위치 권한을 확인해 주세요.');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
 
-        <span>{label}</span>
-      </NavLink>
-    ))}
-  </nav>
+  return (
+    <nav className={navigationStyle} aria-label="하단 메뉴">
+      <button className={navigationItemStyle} type="button" disabled={isLocating} onClick={handleNearbyClick}>
+        <NavigationIcon icon={nearbyIcon} activeIcon={activeNearbyIcon} />
+        <span>{isLocating ? '위치 확인 중' : '주변'}</span>
+      </button>
+
+      {menus.map(({ path, label, icon, activeIcon }) => (
+        <NavLink className={navigationItemStyle} key={path} to={path} end={path === '/'}>
+          <NavigationIcon icon={icon} activeIcon={activeIcon} />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+};
+
+interface NavigationIconProps {
+  icon: string;
+  activeIcon: string;
+}
+
+const NavigationIcon = ({ icon, activeIcon }: NavigationIconProps) => (
+  <span className={iconContainerStyle}>
+    <img className={cx('default-icon', iconStyle)} src={icon} alt="" draggable={false} />
+    <img className={cx('active-icon', iconStyle, activeIconStyle)} src={activeIcon} alt="" draggable={false} />
+  </span>
 );
+
+const navigationStyle = css`
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  width: 100%;
+  height: 86px;
+
+  background: white;
+`;
+
+const navigationItemStyle = css`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 0;
+
+  color: #8a94a2;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: none;
+
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover,
+  &:focus-visible,
+  &.active {
+    color: #4356d8;
+
+    .default-icon {
+      opacity: 0;
+    }
+
+    .active-icon {
+      opacity: 1;
+    }
+  }
+
+  &:disabled {
+    cursor: wait;
+  }
+`;
+
+const iconContainerStyle = css`
+  position: relative;
+
+  width: 26px;
+  height: 26px;
+`;
+
+const iconStyle = css`
+  position: absolute;
+  inset: 0;
+
+  width: 26px;
+  height: 26px;
+
+  pointer-events: none;
+  user-select: none;
+`;
+
+const activeIconStyle = css`
+  opacity: 0;
+`;

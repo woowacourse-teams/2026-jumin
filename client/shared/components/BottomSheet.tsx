@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import React, { useRef, type ReactNode } from 'react';
+import React, { useEffect, useRef, type ReactNode } from 'react';
 
 const SHEET_HEIGHT = 500;
 const PEEK_HEIGHT = 100;
@@ -8,16 +8,26 @@ const COLLAPSED_Y = SHEET_HEIGHT - PEEK_HEIGHT;
 
 const SNAP_THRESHOLD = 80;
 
+export type BottomSheetSnap = 'expanded' | 'collapsed';
+
 interface Props {
   children: ReactNode;
+  snap: BottomSheetSnap;
+  onSnapChange: (snap: BottomSheetSnap) => void;
 }
 
-export default function BottomSheet({ children }: Props) {
+export default function BottomSheet({ children, snap, onSnapChange }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
+  const sheetY = snap === 'expanded' ? 0 : COLLAPSED_Y;
+
   const dragStartPointerYRef = useRef(0); // 드래그 시작한 위치
-  const dragStartSheetYRef = useRef(COLLAPSED_Y); // 드래그 시작 시 시트 위치
-  const currentSheetYRef = useRef(COLLAPSED_Y); // 현재 시트 위치
+  const dragStartSheetYRef = useRef(sheetY); // 드래그 시작 시 시트 위치
+  const currentSheetYRef = useRef(sheetY); // 현재 시트 위치
+
+  useEffect(() => {
+    currentSheetYRef.current = sheetY;
+  }, [sheetY]);
 
   // 드래그 시작 핸들러
   // 영역을 누른 위치를 저장한다.
@@ -67,6 +77,7 @@ export default function BottomSheet({ children }: Props) {
     sheetRef.current.style.transform = `translateY(${destination}px)`;
 
     currentSheetYRef.current = destination;
+    onSnapChange(destination === 0 ? 'expanded' : 'collapsed');
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -74,7 +85,13 @@ export default function BottomSheet({ children }: Props) {
   };
 
   return (
-    <section className={sheetStyle} ref={sheetRef}>
+    <section
+      className={sheetStyle}
+      ref={sheetRef}
+      style={{
+        transform: `translate3d(0, ${sheetY}px, 0)`,
+      }}
+    >
       <div
         className={handleAreaStyle}
         onPointerDown={handlePointerDown}
@@ -96,7 +113,7 @@ const sheetStyle = css`
 
   background-color: #fff;
 
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   z-index: 1000;
@@ -104,10 +121,10 @@ const sheetStyle = css`
   width: 100%;
   height: ${SHEET_HEIGHT}px;
 
-  border-radius: 32px 32px 0 0;
+  border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
 
-  transform: translateY(${COLLAPSED_Y}px);
+  transform: translateY(0);
   transition: transform 250ms ease-out;
 
   will-change: transform;

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 
 import { css } from '@emotion/css';
-import { useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { searchParkingLots } from '../../../api/parkingLots';
-import BottomSheet from '../../../shared/components/BottomSheet/BottomSheet';
+import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
+import { isSearchDestination } from '../../../shared/types/navigation';
 import { TimePickerField } from './components/TimePickerField';
 import { createSearchPeriod } from './model/searchCondition';
 import {
@@ -25,6 +27,10 @@ const formatMonthDay = (date: Date) => {
   return `${month}월 ${day}일`;
 };
 
+interface NavigationState {
+  destination?: unknown;
+}
+
 export const ParkingTimePage = () => {
   const navigate = useNavigate();
 
@@ -35,6 +41,15 @@ export const ParkingTimePage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 바텀시트 플래그
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+
+  // 목적지 데이터 가져오기
+  const { state } = useLocation();
+  const destinationCandidate = (state as NavigationState | null)?.destination;
+  if (!isSearchDestination(destinationCandidate)) return <Navigate to="/search" replace />;
+  const destination = destinationCandidate;
 
   const handleEntryClick = () => {
     setEntryTime((previousTime) => previousTime ?? createRoundedCurrentTime());
@@ -85,14 +100,23 @@ export const ParkingTimePage = () => {
       const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
 
       const response = await searchParkingLots({
-        destinationLatitude: 37.4981,
-        destinationLongitude: 127.0279,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
         entryAt,
         exitAt,
       });
 
       navigate('/parkingRecommendation', {
         state: {
+          // 목적지 정보는 이전 페이지에서 넘어온 응답 데이터이고, 시간은 클라이언트에서 관리하는 항목
+          // 조건이라는 객체로 묶어서 관리
+          searchCondition: {
+            destinationName: destination.name,
+            destinationLatitude: destination.latitude,
+            destinationLongitude: destination.longitude,
+            entryAt,
+            exitAt,
+          },
           searchResult: response,
         },
       });
@@ -105,7 +129,9 @@ export const ParkingTimePage = () => {
 
   return (
     <main className={pageStyle}>
-      <BottomSheet>
+      <SearchConditionBar destinationName={destination.name} />
+
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <div className={sheetContentStyle}>
           <header className={headerStyle}>
             <h1 className={titleStyle}>언제 주차하세요?</h1>
