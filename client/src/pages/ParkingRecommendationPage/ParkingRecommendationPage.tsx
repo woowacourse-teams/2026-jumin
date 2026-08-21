@@ -129,8 +129,6 @@ export function ParkingRecommendationPage() {
           <p className={emptyMessageStyle}>추천할 수 있는 주차장이 없습니다.</p>
         )}
       </section>
-
-      <BottomNav />
     </main>
   );
 }
