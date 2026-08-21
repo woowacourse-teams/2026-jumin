@@ -4,6 +4,9 @@ import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { searchParkingLots } from '../../../api/parkingLots';
+import BottomSheet from '../../../shared/components/BottomSheet';
+import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
+import { isSearchDestination } from '../../../shared/types/navigation';
 import { TimePickerField } from './components/TimePickerField';
 import { createSearchPeriod } from './model/searchCondition';
 import {
@@ -14,8 +17,6 @@ import {
   DEFAULT_TIME,
   type TimeValue,
 } from './model/time';
-import BottomSheet from '../../../shared/components/BottomSheet';
-import { Destination } from '../../../api/contracts';
 
 type ActiveTimeField = 'entry' | 'exit' | null;
 
@@ -27,7 +28,7 @@ const formatMonthDay = (date: Date) => {
 };
 
 interface NavigationState {
-  destination?: Destination;
+  destination?: unknown;
 }
 
 export const ParkingTimePage = () => {
@@ -43,8 +44,9 @@ export const ParkingTimePage = () => {
 
   // 목적지 데이터 가져오기
   const { state } = useLocation();
-  const destination = (state as NavigationState | null)?.destination;
-  if (!destination) return <Navigate to="/search" replace />;
+  const destinationCandidate = (state as NavigationState | null)?.destination;
+  if (!isSearchDestination(destinationCandidate)) return <Navigate to="/search" replace />;
+  const destination = destinationCandidate;
 
   const handleEntryClick = () => {
     setEntryTime((previousTime) => previousTime ?? createRoundedCurrentTime());
@@ -95,8 +97,8 @@ export const ParkingTimePage = () => {
       const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
 
       const response = await searchParkingLots({
-        destinationLatitude: 37.4981,
-        destinationLongitude: 127.0279,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
         entryAt,
         exitAt,
       });
@@ -124,6 +126,8 @@ export const ParkingTimePage = () => {
 
   return (
     <main className={pageStyle}>
+      <SearchConditionBar destinationName={destination.name} />
+
       <BottomSheet>
         <div className={sheetContentStyle}>
           <header className={headerStyle}>

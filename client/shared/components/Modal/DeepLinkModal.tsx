@@ -13,6 +13,7 @@ if (typeof document !== 'undefined') {
 interface Props {
   isOpen: boolean;
   onRequestClose: () => void;
+  onDirectionsStart?: (provider: DirectionsProvider) => void;
   destination: {
     name: string;
     location: Coordinate;
@@ -28,7 +29,7 @@ const providers: Array<{ provider: DirectionsProvider; label: string; mark: stri
   { provider: 'TMAP', label: '티맵', mark: 'T' },
 ];
 
-export const DeepLinkModal = ({ isOpen, onRequestClose, destination }: Props) => {
+export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, destination }: Props) => {
   const [locationState, setLocationState] = useState<LocationState>({ status: 'LOADING' });
   const [requestToken, setRequestToken] = useState(0);
 
@@ -85,6 +86,8 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, destination }: Props) =>
       destination,
       appName: window.location.origin,
     });
+    onDirectionsStart?.(provider);
+
     const userAgent = navigator.userAgent;
 
     if (/Android/i.test(userAgent)) {

@@ -7,8 +7,9 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import type { AvailabilityStatus, ParkingLotSummary } from '../../../api/contracts';
 import { parkingSearchSuccess } from '../../../mocks/fixtures/parkingSearch';
 
-import BottomSheet from '../../../shared/components/BottomSheet/BottomSheet';
+import BottomSheet from '../../../shared/components/BottomSheet';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
+import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 
 interface ParkingDetailLocationState {
   parkingLot?: ParkingLotSummary;
@@ -96,6 +97,7 @@ export const ParkingDetailPage = () => {
       <DeepLinkModal
         isOpen={isDeepLinkModalOpen}
         onRequestClose={() => setIsDeepLinkModalOpen(false)}
+        onDirectionsStart={() => saveRecentParkingUse(parkingLot)}
         destination={{ name: parkingLot.name, location: parkingLot.location }}
       />
     </main>
