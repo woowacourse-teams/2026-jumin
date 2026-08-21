@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="24 6 92 102" fill="none">
+  <mask id="brand-mark-cutout">
+    <rect x="24" y="6" width="92" height="102" fill="white" />
+    <circle cx="70" cy="52" r="18" fill="black" />
+  </mask>
+  <g fill="#4356D8" mask="url(#brand-mark-cutout)">
+    <rect x="24" y="52" width="28" height="56" rx="3" />
+    <circle cx="70" cy="52" r="46" />
+  </g>
+</svg>
