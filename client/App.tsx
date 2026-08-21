@@ -4,6 +4,7 @@ import { SearchPage } from './src/pages/SearchPage/SearchPage';
 import { DestinationPage } from './src/pages/DestinationPage/DestinationPage';
 import { ParkingTimePage } from './src/pages/ParkingTimePage/ParkingTimePage';
 import { ParkingRecommendationPage } from './src/pages/ParkingRecommendationPage/ParkingRecommendationPage';
+import { ParkingDetailPage } from './src/pages/ParkingDetailPage/ParkingDetailPage';
 
 const App = () => (
   <Routes>
@@ -12,6 +13,7 @@ const App = () => (
     <Route path="/destination" element={<DestinationPage />} />
     <Route path="/parkingTimeSheet" element={<ParkingTimePage />} />
     <Route path="/parkingRecommendation" element={<ParkingRecommendationPage />} />
+    <Route path="/parkingDetail" element={<ParkingDetailPage />} />
   </Routes>
 );
 
