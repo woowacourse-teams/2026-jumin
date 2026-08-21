@@ -64,7 +64,7 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, destination }: Props) =>
           status: 'ERROR',
           message:
             error.code === error.PERMISSION_DENIED
-              ? '위치 권한을 허용해야 길찾기를 시작할 수 있어요.'
+              ? '브라우저 설정에서 이 사이트의 위치 권한을 허용한 뒤 다시 시도해주세요.' // 일단 웹 출시이니까 이런식으로
               : '현재 위치를 가져오지 못했어요.',
         });
       },
