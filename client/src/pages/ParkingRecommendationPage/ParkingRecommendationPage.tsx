@@ -3,9 +3,10 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import type { ParkingLotSummary, ParkingSearchResponse } from '../../../api/contracts';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
-import { BottomNav } from '../../../shared/components/BottomNav';
 import { InfoCard } from './components/InfoCard';
 import { useState } from 'react';
+import BottomSheet from '../../../shared/components/BottomSheet';
+import { InfoRow } from './components/InfoRow';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -58,6 +59,7 @@ export const getRecommendationMessage = (type: RecommendationType, rank: number)
   return `거리와 가격의 균형 ${rank}위예요`;
 };
 
+// 유형별 추천 주차장 가져오는 메서드
 export const getTopRecommendations = (parkingLots: ParkingLotSummary[], type: RecommendationType, limit = 3) => {
   const availableLots = [...parkingLots].filter((parkingLot) => {
     if (parkingLot.availabilityStatus !== 'AVAILABLE') return false;
@@ -75,10 +77,36 @@ export const getTopRecommendations = (parkingLots: ParkingLotSummary[], type: Re
     .slice(0, limit);
 };
 
+// 유형별 더보기 주차장 가져오는 메서드
+export const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationType) => {
+  return [...parkingLots].sort((first, second) => {
+    const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
+
+    const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
+
+    return firstValue - secondValue || first.distanceMeters - second.distanceMeters || first.id - second.id;
+  });
+};
+
+// 더보기 주차장 시 필터 옵션
+const filterOptions: {
+  type: RecommendationType;
+  label: string;
+}[] = [
+  { type: 'DISTANCE', label: '거리순' },
+  { type: 'PRICE', label: '가격순' },
+  { type: 'BALANCED', label: '균형순' },
+];
+
 export function ParkingRecommendationPage() {
   const navigate = useNavigate();
 
+  // 현재 추천 주차장 카드 인덱스
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+
+  // 더보기 유무와 추천 유형
+  const [recommendationType, setRecommendationType] = useState<RecommendationType>('PRICE');
+  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
 
   const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
     const nextIndex = Math.round(event.currentTarget.scrollLeft / CARD_STEP);
@@ -94,9 +122,19 @@ export function ParkingRecommendationPage() {
   }
   const { searchCondition, searchResult } = recommendationState;
 
-  // 추천 유형과 필터링 된 주차장 목록 계산하기
-  const recommendationType: RecommendationType = 'PRICE';
+  // 추천 유형과 필터링 된 주차장 목록
   const recommendedParkingLots = getTopRecommendations(searchResult.parkingLots, recommendationType);
+  // 더보기 주차장 목록
+  const parkingLots = sortParkingLots(searchResult.parkingLots, recommendationType);
+  const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
+
+  const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
+    navigate('/parkingDetail', {
+      state: {
+        parkingLot,
+      },
+    });
+  };
 
   return (
     <main className={pageStyle}>
@@ -120,7 +158,13 @@ export function ParkingRecommendationPage() {
               </li>
             ))}
             <li className={moreButtonItemStyle}>
-              <button className={moreButtonStyle} type="button" aria-label="주차장 목록 더보기" draggable={false}>
+              <button
+                className={moreButtonStyle}
+                type="button"
+                aria-label="주차장 목록 더보기"
+                aria-controls="parking-list-sheet"
+                draggable={false}
+              >
                 +
               </button>
             </li>
@@ -129,6 +173,46 @@ export function ParkingRecommendationPage() {
           <p className={emptyMessageStyle}>추천할 수 있는 주차장이 없습니다.</p>
         )}
       </section>
+
+      <BottomSheet>
+        <section id="parking-list-sheet" className={sheetContentStyle} aria-label="주차장 전체 목록">
+          <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
+            {filterOptions.map(({ type, label }) => {
+              const isSelected = recommendationType === type;
+
+              return (
+                <button
+                  key={type}
+                  className={filterButtonStyle(isSelected)}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setRecommendationType(type)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {parkingLots.length > 0 ? (
+            <ul className={parkingListStyle} onDragStart={(event) => event.preventDefault()}>
+              {parkingLots.map((parkingLot) => (
+                <li className={parkingItemStyle} key={parkingLot.id}>
+                  <InfoRow
+                    parkingLot={parkingLot}
+                    isActive={activeParkingLotId === parkingLot.id}
+                    onSelect={(selectedParkingLot) => setSelectedParkingLotId(selectedParkingLot.id)}
+                    onNavigate={handleParkingLotDetail}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={emptyMessageStyle}>조회된 주차장이 없습니다.</p>
+          )}
+        </section>
+      </BottomSheet>
     </main>
   );
 }
@@ -204,6 +288,7 @@ const moreButtonStyle = css`
   cursor: pointer;
   user-select: none;
   -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: #4356d8;
@@ -229,4 +314,71 @@ const emptyMessageStyle = css`
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 10%);
+`;
+
+const filterStyle = css`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+
+  margin-bottom: 18px;
+`;
+
+const filterButtonStyle = (isSelected: boolean) => css`
+  height: 42px;
+  padding: 0 12px;
+
+  color: ${isSelected ? '#ffffff' : '#2463d4'};
+  font-size: 14px;
+  font-weight: 700;
+
+  background: ${isSelected ? '#4356d8' : '#edf3ff'};
+  border: 0;
+  border-radius: 12px;
+  appearance: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 2px;
+  }
+`;
+
+const sheetContentStyle = css`
+  display: flex;
+  flex-direction: column;
+
+  height: 100%;
+  min-height: 0;
+`;
+
+const parkingListStyle = css`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+
+  list-style: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+
+  & * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+`;
+
+const parkingItemStyle = css`
+  flex-shrink: 0;
 `;

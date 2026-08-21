@@ -13,7 +13,7 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
   const { name, estimatedFee, distanceMeters } = parkingLot;
 
   return (
-    <article className={cardStyle(isActive)}>
+    <article className={cardStyle(isActive)} draggable={false}>
       <h2 className={nameStyle}>{name}</h2>
 
       <p className={descriptionStyle}>{description}</p>
@@ -50,6 +50,15 @@ const cardStyle = (isActive: boolean) => css`
 
   border-radius: 24px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+
+  & * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
 `;
 
 const nameStyle = css`
