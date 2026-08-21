@@ -5,7 +5,7 @@ import type { ParkingLotSummary, ParkingSearchResponse } from '../../../api/cont
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { InfoCard } from './components/InfoCard';
 import { useState } from 'react';
-import BottomSheet from '../../../shared/components/BottomSheet';
+import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { InfoRow } from './components/InfoRow';
 
 const CARD_WIDTH = 300;
@@ -108,6 +108,8 @@ export function ParkingRecommendationPage() {
   const [recommendationType, setRecommendationType] = useState<RecommendationType>('PRICE');
   const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
 
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+
   const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
     const nextIndex = Math.round(event.currentTarget.scrollLeft / CARD_STEP);
 
@@ -152,29 +154,18 @@ export function ParkingRecommendationPage() {
                 <InfoCard
                   parkingLot={parkingLot}
                   description={getRecommendationMessage(recommendationType, index + 1)}
-                  onNavigate={() => navigate('/parkingDetail')}
+                  onNavigate={handleParkingLotDetail}
                   isActive={activeCardIndex === index}
                 />
               </li>
             ))}
-            <li className={moreButtonItemStyle}>
-              <button
-                className={moreButtonStyle}
-                type="button"
-                aria-label="주차장 목록 더보기"
-                aria-controls="parking-list-sheet"
-                draggable={false}
-              >
-                +
-              </button>
-            </li>
           </ul>
         ) : (
           <p className={emptyMessageStyle}>추천할 수 있는 주차장이 없습니다.</p>
         )}
       </section>
 
-      <BottomSheet>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section id="parking-list-sheet" className={sheetContentStyle} aria-label="주차장 전체 목록">
           <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
             {filterOptions.map(({ type, label }) => {
@@ -227,8 +218,9 @@ const pageStyle = css`
 
 const recommendationSectionStyle = css`
   position: absolute;
+
   right: 0;
-  bottom: 86px;
+  bottom: 114px;
   left: 0;
   z-index: 5;
 
@@ -237,18 +229,17 @@ const recommendationSectionStyle = css`
 
 const cardListStyle = css`
   display: flex;
-  gap: 12px;
+  gap: ${CARD_GAP}px;
 
   margin: 0;
-  padding: 12px 16px 18px;
+  padding: 0 calc((100% - ${CARD_WIDTH}px) / 2);
+
   overflow-x: auto;
-  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: calc((100% - ${CARD_WIDTH}px) / 2);
 
   list-style: none;
-  scroll-padding-inline: 16px;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  touch-action: pan-x;
 
   &::-webkit-scrollbar {
     display: none;
@@ -259,49 +250,6 @@ const cardItemStyle = css`
   flex: 0 0 300px;
 
   scroll-snap-align: start;
-`;
-
-const moreButtonItemStyle = css`
-  flex: 0 0 84px;
-
-  scroll-snap-align: end;
-`;
-
-const moreButtonStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 100%;
-  height: 158px;
-  padding: 0;
-
-  color: #ffffff;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1;
-
-  background: #4356d8;
-  border: 0;
-  border-radius: 16px;
-  box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-drag: none;
-  -webkit-tap-highlight-color: transparent;
-
-  &:hover {
-    background: #4356d8;
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 35%);
-    outline-offset: 3px;
-  }
 `;
 
 const emptyMessageStyle = css`
@@ -321,6 +269,7 @@ const filterStyle = css`
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 
+  margin-top: 10px;
   margin-bottom: 18px;
 `;
 

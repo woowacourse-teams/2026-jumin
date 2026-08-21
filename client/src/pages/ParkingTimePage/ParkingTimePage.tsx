@@ -4,7 +4,7 @@ import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { searchParkingLots } from '../../../api/parkingLots';
-import BottomSheet from '../../../shared/components/BottomSheet';
+import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { isSearchDestination } from '../../../shared/types/navigation';
 import { TimePickerField } from './components/TimePickerField';
@@ -41,6 +41,9 @@ export const ParkingTimePage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 바텀시트 플래그
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
 
   // 목적지 데이터 가져오기
   const { state } = useLocation();
@@ -128,7 +131,7 @@ export const ParkingTimePage = () => {
     <main className={pageStyle}>
       <SearchConditionBar destinationName={destination.name} />
 
-      <BottomSheet>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <div className={sheetContentStyle}>
           <header className={headerStyle}>
             <h1 className={titleStyle}>언제 주차하세요?</h1>

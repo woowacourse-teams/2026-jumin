@@ -7,7 +7,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import type { AvailabilityStatus, ParkingLotSummary } from '../../../api/contracts';
 import { parkingSearchSuccess } from '../../../mocks/fixtures/parkingSearch';
 
-import BottomSheet from '../../../shared/components/BottomSheet';
+import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 
@@ -27,6 +27,7 @@ const formatFee = (fee: number | null) => (fee === null ? '미제공' : `${fee.t
 
 export const ParkingDetailPage = () => {
   const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
 
   const navigate = useNavigate();
 
@@ -52,7 +53,7 @@ export const ParkingDetailPage = () => {
         <span />
       </div>
 
-      <BottomSheet>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <div className={sheetContentStyle}>
           <section>
             <h2 className={headlineStyle}>설정한 조건에서 제일 저렴해요</h2>
