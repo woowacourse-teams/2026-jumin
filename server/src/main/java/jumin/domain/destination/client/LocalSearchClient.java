@@ -4,6 +4,7 @@ import jumin.config.LocalSearchProperties;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class LocalSearchClient {
@@ -25,6 +27,7 @@ public class LocalSearchClient {
 
     public LocalSearchResponse search(String query) {
         if (isMissingCredential(properties.clientId()) || isMissingCredential(properties.clientSecret())) {
+            log.error("지역 검색 API 자격 증명이 설정되지 않았습니다.");
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
 
@@ -41,12 +44,14 @@ public class LocalSearchClient {
                     .onStatus(
                             status -> status.value() == 429,
                             (request, clientResponse) -> {
+                                log.warn("지역 검색 API 요청이 제한되었습니다. status={}", clientResponse.getStatusCode().value());
                                 throw new BusinessException(ErrorCode.DESTINATION_SEARCH_RATE_LIMITED);
                             }
                     )
                     .onStatus(
                             HttpStatusCode::isError,
                             (request, clientResponse) -> {
+                                log.warn("지역 검색 API가 오류 응답을 반환했습니다. status={}", clientResponse.getStatusCode().value());
                                 throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
                             }
                     )
@@ -54,18 +59,21 @@ public class LocalSearchClient {
 
             return parseResponse(responseBody);
         } catch (RestClientException exception) {
+            log.warn("지역 검색 API 호출에 실패했습니다. cause={}", exception.getClass().getSimpleName());
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
     }
 
     private LocalSearchResponse parseResponse(String responseBody) {
         if (responseBody == null || responseBody.isBlank()) {
+            log.warn("지역 검색 API 응답이 비어 있습니다.");
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
 
         try {
             return objectMapper.readValue(responseBody, LocalSearchResponse.class);
         } catch (JacksonException exception) {
+            log.warn("지역 검색 API 응답을 해석하지 못했습니다. cause={}", exception.getClass().getSimpleName());
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
     }

@@ -9,9 +9,11 @@ import jumin.domain.destination.dto.DestinationsResponse;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DestinationService {
@@ -31,16 +33,18 @@ public class DestinationService {
             throw new BusinessException(ErrorCode.INVALID_QUERY);
         }
 
-        LocalSearchResponse response = localSearchClient.search(query);
+        LocalSearchResponse localSearchResponse = localSearchClient.search(query);
 
-        return DestinationsResponse.from(
+        DestinationsResponse response = DestinationsResponse.from(
             query,
-            response.items().stream()
+            localSearchResponse.items().stream()
                 .map(this::mapLocalSearchPlace)
                 .filter(Objects::nonNull)
                 .limit(MAX_DESTINATIONS)
                 .toList()
         );
+        log.info("목적지 검색을 완료했습니다. resultCount={}", response.destinations().size());
+        return response;
     }
 
     private DestinationResponse mapLocalSearchPlace(LocalSearchPlace place) {
