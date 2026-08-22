@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
@@ -26,7 +27,7 @@ public class LocalSearchClient {
     private final ObjectMapper objectMapper;
 
     public LocalSearchResponse search(String query) {
-        if (isMissingCredential(properties.clientId()) || isMissingCredential(properties.clientSecret())) {
+        if (!StringUtils.hasText(properties.clientId()) || !StringUtils.hasText(properties.clientSecret())) {
             log.atError()
                     .setMessage("지역 검색 API 자격 증명이 설정되지 않았습니다.")
                     .addKeyValue("failureType", "missing_credentials")
@@ -37,9 +38,23 @@ public class LocalSearchClient {
         long startedAt = System.nanoTime();
 
         try {
-            String responseBody = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/search/v1/local")
+            String responseBody = fetchResponse(query, startedAt);
+            return parseResponse(responseBody, elapsedMillis(startedAt));
+        } catch (RestClientException exception) {
+            log.atWarn()
+                    .setMessage("지역 검색 API 호출에 실패했습니다.")
+                    .addKeyValue("failureType", "request_failure")
+                    .addKeyValue("cause", exception.getClass().getSimpleName())
+                    .addKeyValue("durationMs", elapsedMillis(startedAt))
+                    .log();
+            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+        }
+    }
+
+    private String fetchResponse(String query, long startedAt) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/search/v1/local")
                             .queryParam("query", query)
                             .queryParam("display", MAX_DISPLAY_COUNT)
                             .build())
@@ -69,23 +84,12 @@ public class LocalSearchClient {
                                         .log();
                                 throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
                             }
-                    )
-                    .body(String.class);
-
-            return parseResponse(responseBody, elapsedMillis(startedAt));
-        } catch (RestClientException exception) {
-            log.atWarn()
-                    .setMessage("지역 검색 API 호출에 실패했습니다.")
-                    .addKeyValue("failureType", "request_failure")
-                    .addKeyValue("cause", exception.getClass().getSimpleName())
-                    .addKeyValue("durationMs", elapsedMillis(startedAt))
-                    .log();
-            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
-        }
+                )
+                .body(String.class);
     }
 
     private LocalSearchResponse parseResponse(String responseBody, long durationMs) {
-        if (responseBody == null || responseBody.isBlank()) {
+        if (!StringUtils.hasText(responseBody)) {
             log.atWarn()
                     .setMessage("지역 검색 API 응답이 비어 있습니다.")
                     .addKeyValue("failureType", "empty_response")
@@ -109,9 +113,5 @@ public class LocalSearchClient {
 
     private long elapsedMillis(long startedAt) {
         return (System.nanoTime() - startedAt) / 1_000_000;
-    }
-
-    private boolean isMissingCredential(String value) {
-        return value == null || value.isBlank();
     }
 }
