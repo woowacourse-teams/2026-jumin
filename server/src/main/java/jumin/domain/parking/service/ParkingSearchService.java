@@ -13,11 +13,9 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -39,9 +37,7 @@ public class ParkingSearchService {
 
         List<ParkingLot> candidates = findCandidates(destination);
         if (candidates.isEmpty()) {
-            ParkingSearchResponse response = ParkingSearchResponse.from(SEARCH_RADIUS_METERS, List.of());
-            log.info("주차장 검색을 완료했습니다. resultCount={}", response.totalCount());
-            return response;
+            return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, List.of());
         }
 
         Map<Long, ParkingOperation> operationsByParkingLotId = findOperationsByParkingLotId(candidates);
@@ -56,9 +52,7 @@ public class ParkingSearchService {
                 durationMinutes
         );
 
-        ParkingSearchResponse response = ParkingSearchResponse.from(SEARCH_RADIUS_METERS, parkingLots);
-        log.info("주차장 검색을 완료했습니다. resultCount={}", response.totalCount());
-        return response;
+        return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, parkingLots);
     }
 
     private List<ParkingLot> findCandidates(Coordinate destination) {

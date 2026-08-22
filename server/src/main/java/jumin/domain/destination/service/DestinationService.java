@@ -9,11 +9,9 @@ import jumin.domain.destination.dto.DestinationsResponse;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DestinationService {
@@ -43,7 +41,6 @@ public class DestinationService {
                 .limit(MAX_DESTINATIONS)
                 .toList()
         );
-        log.info("목적지 검색을 완료했습니다. resultCount={}", response.destinations().size());
         return response;
     }
 
