@@ -38,3 +38,28 @@
 - Apple Silicon에서는 실행 명령에 `DOCKER_DEFAULT_PLATFORM=linux/amd64`를
   임시로 붙입니다.
 - 운영 RDS와 배포 환경은 이 로컬 Compose 설정의 범위에 포함하지 않습니다.
+
+`postgres-data` named volume은 로컬 PostgreSQL container의 데이터를 보존하기
+위한 것입니다. 개발 서버용 Compose에는 PostgreSQL과 이 volume을 포함하지
+않습니다.
+
+## 개발 서버 backend 배포
+
+개발 서버 배포는 `.github/workflows/server-dev-cd.yml`이 담당합니다. EC2의
+`jumin-dev` ARM64 self-hosted runner에서 검증된 JAR로 Docker image를 만들고
+Docker Compose로 backend container를 실행합니다. RDS 접속 정보는 GitHub
+`development` Environment secret으로 전달합니다.
+
+개발 서버의 데이터베이스는 AWS RDS입니다. 따라서 개발 서버에서
+`postgres-data` volume을 만들거나 PostgreSQL container를 실행하지 않습니다.
+
+배포 전 runner에 다음 경로와 권한을 준비합니다.
+
+```bash
+sudo install -d -m 2775 /opt/jumin-dev/backend/releases
+sudo chown -R <runner-user>:<runner-user> /opt/jumin-dev/backend
+```
+
+Docker Compose의 `restart: unless-stopped`로 container 프로세스 장애와 Docker
+daemon 재시작에 대응합니다. EC2 자체 재부팅 시 Docker 서비스가 자동 시작되도록
+설정해야 합니다.
