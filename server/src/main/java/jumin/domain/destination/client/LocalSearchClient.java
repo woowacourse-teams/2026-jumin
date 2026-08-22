@@ -27,9 +27,14 @@ public class LocalSearchClient {
 
     public LocalSearchResponse search(String query) {
         if (isMissingCredential(properties.clientId()) || isMissingCredential(properties.clientSecret())) {
-            log.error("지역 검색 API 자격 증명이 설정되지 않았습니다.");
+            log.atError()
+                    .setMessage("지역 검색 API 자격 증명이 설정되지 않았습니다.")
+                    .addKeyValue("failureType", "missing_credentials")
+                    .log();
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
+
+        long startedAt = System.nanoTime();
 
         try {
             String responseBody = restClient.get()
@@ -44,38 +49,66 @@ public class LocalSearchClient {
                     .onStatus(
                             status -> status.value() == 429,
                             (request, clientResponse) -> {
-                                log.warn("지역 검색 API 요청이 제한되었습니다. status={}", clientResponse.getStatusCode().value());
+                                log.atWarn()
+                                        .setMessage("지역 검색 API 요청이 제한되었습니다.")
+                                        .addKeyValue("status", clientResponse.getStatusCode().value())
+                                        .addKeyValue("failureType", "rate_limit")
+                                        .addKeyValue("durationMs", elapsedMillis(startedAt))
+                                        .log();
                                 throw new BusinessException(ErrorCode.DESTINATION_SEARCH_RATE_LIMITED);
                             }
                     )
                     .onStatus(
                             HttpStatusCode::isError,
                             (request, clientResponse) -> {
-                                log.warn("지역 검색 API가 오류 응답을 반환했습니다. status={}", clientResponse.getStatusCode().value());
+                                log.atWarn()
+                                        .setMessage("지역 검색 API가 오류 응답을 반환했습니다.")
+                                        .addKeyValue("status", clientResponse.getStatusCode().value())
+                                        .addKeyValue("failureType", "upstream_error")
+                                        .addKeyValue("durationMs", elapsedMillis(startedAt))
+                                        .log();
                                 throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
                             }
                     )
                     .body(String.class);
 
-            return parseResponse(responseBody);
+            return parseResponse(responseBody, elapsedMillis(startedAt));
         } catch (RestClientException exception) {
-            log.warn("지역 검색 API 호출에 실패했습니다. cause={}", exception.getClass().getSimpleName());
+            log.atWarn()
+                    .setMessage("지역 검색 API 호출에 실패했습니다.")
+                    .addKeyValue("failureType", "request_failure")
+                    .addKeyValue("cause", exception.getClass().getSimpleName())
+                    .addKeyValue("durationMs", elapsedMillis(startedAt))
+                    .log();
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
     }
 
-    private LocalSearchResponse parseResponse(String responseBody) {
+    private LocalSearchResponse parseResponse(String responseBody, long durationMs) {
         if (responseBody == null || responseBody.isBlank()) {
-            log.warn("지역 검색 API 응답이 비어 있습니다.");
+            log.atWarn()
+                    .setMessage("지역 검색 API 응답이 비어 있습니다.")
+                    .addKeyValue("failureType", "empty_response")
+                    .addKeyValue("durationMs", durationMs)
+                    .log();
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
 
         try {
             return objectMapper.readValue(responseBody, LocalSearchResponse.class);
         } catch (JacksonException exception) {
-            log.warn("지역 검색 API 응답을 해석하지 못했습니다. cause={}", exception.getClass().getSimpleName());
+            log.atWarn()
+                    .setMessage("지역 검색 API 응답을 해석하지 못했습니다.")
+                    .addKeyValue("failureType", "parse_error")
+                    .addKeyValue("cause", exception.getClass().getSimpleName())
+                    .addKeyValue("durationMs", durationMs)
+                    .log();
             throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     private boolean isMissingCredential(String value) {

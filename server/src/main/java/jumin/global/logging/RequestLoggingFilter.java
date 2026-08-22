@@ -35,8 +35,13 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.info("HTTP request completed: method={}, path={}, status={}, durationMs={}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), durationMs);
+            log.atInfo()
+                    .setMessage("HTTP request completed")
+                    .addKeyValue("method", request.getMethod())
+                    .addKeyValue("path", request.getRequestURI())
+                    .addKeyValue("status", response.getStatus())
+                    .addKeyValue("durationMs", durationMs)
+                    .log();
             MDC.remove(REQUEST_ID_KEY);
         }
     }
