@@ -15,7 +15,7 @@ pnpm build
 
 ## Mock API
 
-백엔드 없이 목적지 검색과 주차장 검색을 개발할 때 MSW 개발 서버를 실행합니다.
+백엔드 없이 목적지 검색, 주차장 검색, 주차장 상세 조회를 개발할 때 MSW 개발 서버를 실행합니다.
 
 ```bash
 pnpm dev:mock
@@ -31,6 +31,9 @@ pnpm dev:mock
 ?mock=parking-slow
 ?mock=parking-server-error
 ?mock=parking-network-error
+?mock=parking-detail-slow
+?mock=parking-detail-not-found
+?mock=parking-detail-server-error
 ```
 
 일반 `pnpm dev`와 프로덕션 빌드에서는 MSW가 시작되지 않습니다.
