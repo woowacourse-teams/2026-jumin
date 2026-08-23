@@ -1,8 +1,10 @@
 import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { initAnalytics } from './shared/analytics';
 import { applyGlobalStyles } from './shared/styles/globalStyle';
 
+initAnalytics(__GA_MEASUREMENT_ID__);
 applyGlobalStyles();
 
 const renderApp = () => {
