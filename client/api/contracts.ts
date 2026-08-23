@@ -37,6 +37,56 @@ export interface ParkingSearchResponse {
   parkingLots: ParkingLotSummary[];
 }
 
+export type FeeCalculationStatus = 'CALCULATED' | 'UNAVAILABLE';
+export type ParkingOperationStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
+
+export interface ParkingFeeRule {
+  baseFreeMinutes: number | null;
+  baseMinutes: number | null;
+  baseFee: number | null;
+  additionalMinutes: number | null;
+  additionalFee: number | null;
+  dailyMaxFee: number | null;
+  monthlyFee: number | null;
+}
+
+export interface ParkingOperationPeriod {
+  status: ParkingOperationStatus;
+  openTime: string | null;
+  closeTime: string | null;
+  paid: boolean | null;
+}
+
+export interface ParkingOperation {
+  availabilityStatus: AvailabilityStatus;
+  weekday: ParkingOperationPeriod;
+  weekend: ParkingOperationPeriod;
+  holiday: ParkingOperationPeriod;
+}
+
+export interface ParkingInformationSource {
+  name: string;
+  url: string | null;
+  lastCheckedAt: string;
+}
+
+export interface ParkingLotDetailResponse {
+  id: number;
+  name: string;
+  address: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  capacity: number | null;
+  distanceMeters: number;
+  estimatedFee: number | null;
+  feeCalculationStatus: FeeCalculationStatus;
+  feeRule: ParkingFeeRule | null;
+  operation: ParkingOperation;
+  source: ParkingInformationSource;
+}
+
 export interface FieldError {
   field: string;
   message: string;
