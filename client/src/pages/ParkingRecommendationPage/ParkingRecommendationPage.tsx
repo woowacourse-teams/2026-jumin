@@ -1,12 +1,13 @@
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
 
 import type { ParkingLotSummary, ParkingSearchResponse } from '../../../api/contracts';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { InfoCard } from './components/InfoCard';
-import { useState } from 'react';
 import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { InfoRow } from './components/InfoRow';
+import { trackEvent } from '../../../shared/analytics';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -119,13 +120,24 @@ export function ParkingRecommendationPage() {
   // 이전 페이지에서 state 가져오기
   const { state } = useLocation();
   const recommendationState = state as NavigationState | null;
+  const recommendedParkingLots =
+    recommendationState?.searchCondition && recommendationState.searchResult
+      ? getTopRecommendations(recommendationState.searchResult.parkingLots, recommendationType)
+      : [];
+  const hasTrackedRecommendations = useRef(false);
+
+  useEffect(() => {
+    if (hasTrackedRecommendations.current || recommendedParkingLots.length === 0) return;
+
+    hasTrackedRecommendations.current = true;
+    trackEvent('parking_recommendations_viewed');
+  }, [recommendedParkingLots.length]);
+
   if (!recommendationState?.searchCondition || !recommendationState.searchResult) {
     return <Navigate to="/parkingTimeSheet" replace />;
   }
   const { searchCondition, searchResult } = recommendationState;
 
-  // 추천 유형과 필터링 된 주차장 목록
-  const recommendedParkingLots = getTopRecommendations(searchResult.parkingLots, recommendationType);
   // 더보기 주차장 목록
   const parkingLots = sortParkingLots(searchResult.parkingLots, recommendationType);
   const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
