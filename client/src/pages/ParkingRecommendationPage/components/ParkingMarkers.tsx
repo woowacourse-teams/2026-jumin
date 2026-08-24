@@ -32,8 +32,8 @@ const markerIcons = {
 
 const destinationIcon = {
   url: destinationMarkerUrl,
-  width: 32,
-  height: 32,
+  width: 20,
+  height: 20,
   anchorX: 16,
   anchorY: 16,
 };

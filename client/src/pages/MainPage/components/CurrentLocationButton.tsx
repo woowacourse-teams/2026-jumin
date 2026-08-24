@@ -1,7 +1,11 @@
 import { css } from '@emotion/css';
 import currentLocationButtonIcon from '../../../../assets/icons/CurrentLocationButtonIcon.svg';
 
-export const CurrentLocationButton = () => (
+interface Props {
+  onClick: () => void;
+}
+
+export const CurrentLocationButton = ({ onClick }: Props) => (
   <div
     className={css`
       position: absolute;
@@ -20,6 +24,7 @@ export const CurrentLocationButton = () => (
       `}
       type="button"
       aria-label="현재 위치로 이동"
+      onClick={onClick}
     >
       <img
         className={css`
