@@ -10,9 +10,11 @@ import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -28,7 +30,14 @@ public class ParkingLotDetailService {
         queryValidator.validateForDetail(request);
 
         ParkingLot parkingLot = parkingLotRepository.findActiveWithLocationById(parkingLotId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.atWarn()
+                            .setMessage("Parking lot detail was not found")
+                            .addKeyValue("parkingLotId", parkingLotId)
+                            .addKeyValue("status", ErrorCode.PARKING_LOT_NOT_FOUND.getHttpStatus().value())
+                            .log();
+                    return new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND);
+                });
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);
 
@@ -53,6 +62,14 @@ public class ParkingLotDetailService {
         if (operation != null) {
             estimatedFee = operation.calculateFee(durationMinutes, request.entryAt().getDayOfWeek());
         }
+
+        log.atInfo()
+                .setMessage("Parking lot detail loaded")
+                .addKeyValue("parkingLotId", parkingLotId)
+                .addKeyValue("distanceMeters", distanceMeters)
+                .addKeyValue("availabilityStatus", availabilityStatus == null ? "UNKNOWN" : availabilityStatus.name())
+                .addKeyValue("hasOperation", operation != null)
+                .log();
 
         return ParkingLotDetailResponse.from(
                 parkingLot.getId(),

@@ -13,9 +13,11 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -37,10 +39,17 @@ public class ParkingSearchService {
 
         List<ParkingLot> candidates = findCandidates(destination);
         if (candidates.isEmpty()) {
+            log.atInfo()
+                    .setMessage("Parking search completed")
+                    .addKeyValue("candidateCount", 0)
+                    .addKeyValue("resultCount", 0)
+                    .addKeyValue("radiusMeters", SEARCH_RADIUS_METERS)
+                    .log();
             return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, List.of());
         }
 
         Map<Long, ParkingOperation> operationsByParkingLotId = findOperationsByParkingLotId(candidates);
+        logMissingOperations(candidates, operationsByParkingLotId);
 
         int durationMinutes = durationMinutesOf(request);
 
@@ -51,6 +60,13 @@ public class ParkingSearchService {
                 request,
                 durationMinutes
         );
+
+        log.atInfo()
+                .setMessage("Parking search completed")
+                .addKeyValue("candidateCount", candidates.size())
+                .addKeyValue("resultCount", parkingLots.size())
+                .addKeyValue("radiusMeters", SEARCH_RADIUS_METERS)
+                .log();
 
         return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, parkingLots);
     }
@@ -74,6 +90,23 @@ public class ParkingSearchService {
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(ParkingOperation::getParkingLotId, Function.identity()));
+    }
+
+    private void logMissingOperations(
+            List<ParkingLot> candidates,
+            Map<Long, ParkingOperation> operationsByParkingLotId
+    ) {
+        long missingOperationCount = candidates.stream()
+                .filter(candidate -> !operationsByParkingLotId.containsKey(candidate.getId()))
+                .count();
+
+        if (missingOperationCount > 0) {
+            log.atWarn()
+                    .setMessage("Parking operation data is missing")
+                    .addKeyValue("missingOperationCount", missingOperationCount)
+                    .addKeyValue("candidateCount", candidates.size())
+                    .log();
+        }
     }
 
     private List<ParkingLotResponse> calculateParkingLots(
