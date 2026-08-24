@@ -27,7 +27,7 @@ public class ParkingLotDetailService {
     public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request) {
         queryValidator.validateForDetail(request);
 
-        ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId)
+        ParkingLot parkingLot = parkingLotRepository.findActiveWithLocationById(parkingLotId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);

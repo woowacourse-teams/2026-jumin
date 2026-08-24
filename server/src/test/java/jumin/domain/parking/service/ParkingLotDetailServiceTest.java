@@ -50,7 +50,7 @@ class ParkingLotDetailServiceTest {
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
         ParkingOperation operation = parkingOperation();
-        when(parkingLotRepository.findById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
         when(geoDistanceCalculator.distanceMeters(
                 new Coordinate(37.4981, 127.0279),
@@ -96,7 +96,7 @@ class ParkingLotDetailServiceTest {
         // given
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
-        when(parkingLotRepository.findById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
         when(geoDistanceCalculator.distanceMeters(
                 new Coordinate(37.4981, 127.0279),
@@ -117,11 +117,11 @@ class ParkingLotDetailServiceTest {
     }
 
     @Test
-    @DisplayName("주차장이 없으면 주차장 미존재 예외를 던진다")
-    void throws_parking_lot_not_found_when_parking_lot_does_not_exist() {
+    @DisplayName("서비스 가능한 주차장이 없으면 주차장 미존재 예외를 던진다")
+    void throws_parking_lot_not_found_when_serviceable_parking_lot_does_not_exist() {
         // given
         ParkingSearchRequest request = request();
-        when(parkingLotRepository.findById(999L)).thenReturn(Optional.empty());
+        when(parkingLotRepository.findActiveWithLocationById(999L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> service.getDetail(999L, request))
