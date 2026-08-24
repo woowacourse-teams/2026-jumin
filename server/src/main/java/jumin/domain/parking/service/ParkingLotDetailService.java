@@ -63,11 +63,16 @@ public class ParkingLotDetailService {
             estimatedFee = operation.calculateFee(durationMinutes, request.entryAt().getDayOfWeek());
         }
 
+        String availabilityStatusName = "UNKNOWN";
+        if (availabilityStatus != null) {
+            availabilityStatusName = availabilityStatus.name();
+        }
+
         log.atInfo()
                 .setMessage("주차장 상세 조회가 완료되었습니다.")
                 .addKeyValue("parkingLotId", parkingLotId)
                 .addKeyValue("distanceMeters", distanceMeters)
-                .addKeyValue("availabilityStatus", availabilityStatus == null ? "UNKNOWN" : availabilityStatus.name())
+                .addKeyValue("availabilityStatus", availabilityStatusName)
                 .addKeyValue("hasOperation", operation != null)
                 .log();
 

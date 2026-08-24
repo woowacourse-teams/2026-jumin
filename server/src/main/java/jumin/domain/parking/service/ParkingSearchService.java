@@ -49,7 +49,6 @@ public class ParkingSearchService {
         }
 
         Map<Long, ParkingOperation> operationsByParkingLotId = findOperationsByParkingLotId(candidates);
-        logMissingOperations(candidates, operationsByParkingLotId);
 
         int durationMinutes = durationMinutesOf(request);
 
@@ -90,23 +89,6 @@ public class ParkingSearchService {
                         .toList())
                 .stream()
                 .collect(Collectors.toMap(ParkingOperation::getParkingLotId, Function.identity()));
-    }
-
-    private void logMissingOperations(
-            List<ParkingLot> candidates,
-            Map<Long, ParkingOperation> operationsByParkingLotId
-    ) {
-        long missingOperationCount = candidates.stream()
-                .filter(candidate -> !operationsByParkingLotId.containsKey(candidate.getId()))
-                .count();
-
-        if (missingOperationCount > 0) {
-            log.atWarn()
-                    .setMessage("주차장 운영 정보가 없습니다.")
-                    .addKeyValue("missingOperationCount", missingOperationCount)
-                    .addKeyValue("candidateCount", candidates.size())
-                    .log();
-        }
     }
 
     private List<ParkingLotResponse> calculateParkingLots(
