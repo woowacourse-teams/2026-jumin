@@ -58,6 +58,7 @@ module.exports = (env, argv) => {
       new webpack.DefinePlugin({
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
+        __NAVER_MAP_CLIENT_ID__: JSON.stringify(process.env.NAVER_MAP_CLIENT_ID ?? ''),
       }),
       new HtmlWebpackPlugin({
         template: './index.html',
