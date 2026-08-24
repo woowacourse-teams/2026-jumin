@@ -23,6 +23,7 @@
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
     "@eslint/js": "^10.0.1",
+    "@types/navermaps": "^3.9.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/react-modal": "^3.16.3",
