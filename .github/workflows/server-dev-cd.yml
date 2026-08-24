@@ -149,7 +149,7 @@ jobs:
             docker compose \
               --project-name jumin-dev \
               --file "${compose_file}" \
-              up --detach --no-deps backend
+              up --detach --no-deps --remove-orphans backend
           }
 
           compose_up "${release_id}"

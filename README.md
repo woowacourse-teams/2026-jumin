@@ -29,4 +29,4 @@
 - AngularJS 커밋 컨벤션과 Airbnb JavaScript 스타일 가이드를 따릅니다.
 - `.github/pull_request_template.md` 템플릿으로 PR을 작성하고, 병합 전에 리뷰를 요청합니다.
 
-작업을 시작하기 전에 [팀 컨벤션](docs/team-conventions.md)을 확인하세요. 서버 환경과 배포 정보는 [개발 서버 설정](docs/development-server.md)에서 관리합니다.
+작업을 시작하기 전에 [팀 컨벤션](docs/team-conventions.md)을 확인하세요. 인프라 구성과 개발 서버 배포 정보는 [인프라 README](infra/README.md)에서 확인합니다.

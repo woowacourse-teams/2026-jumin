@@ -31,16 +31,17 @@ public class DestinationService {
             throw new BusinessException(ErrorCode.INVALID_QUERY);
         }
 
-        LocalSearchResponse response = localSearchClient.search(query);
+        LocalSearchResponse localSearchResponse = localSearchClient.search(query);
 
-        return DestinationsResponse.from(
+        DestinationsResponse response = DestinationsResponse.from(
             query,
-            response.items().stream()
+            localSearchResponse.items().stream()
                 .map(this::mapLocalSearchPlace)
                 .filter(Objects::nonNull)
                 .limit(MAX_DESTINATIONS)
                 .toList()
         );
+        return response;
     }
 
     private DestinationResponse mapLocalSearchPlace(LocalSearchPlace place) {

@@ -33,7 +33,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpectedException(Exception exception) {
-        log.error("예상하지 못한 예외가 발생했습니다.", exception);
+        log.atError()
+                .setMessage("예상하지 못한 예외가 발생했습니다.")
+                .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log();
         return createResponse(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 
@@ -64,7 +69,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request
     ) {
         if (exception.isForReturnValue()) {
-            log.error("반환값 검증에 실패했습니다.", exception);
+            log.atError()
+                    .setMessage("반환값 검증에 실패했습니다.")
+                    .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log();
 
             ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
 
@@ -115,7 +125,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request
     ) {
         if (status != null && status.is5xxServerError()) {
-            log.error("Spring MVC 처리 중 서버 예외가 발생했습니다.", exception);
+            log.atError()
+                    .setMessage("Spring MVC 처리 중 서버 예외가 발생했습니다.")
+                    .addKeyValue("status", status.value())
+                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log();
         }
 
         ApiErrorResponse response = ApiErrorResponse.of(resolveMessage(status));
