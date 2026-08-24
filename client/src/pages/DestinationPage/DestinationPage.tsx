@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import type { Destination } from '../../../api/contracts';
-import mapImg from '../../../assets/images/map_img.png';
+import { NaverMap } from '../../../shared/components/NaverMap';
 import { SearchBar } from '../../../shared/components/SearchBar';
 
 interface NavigationState {
@@ -26,20 +26,7 @@ export const DestinationPage = () => {
         border-radius: 28px;
       `}
     >
-      <img
-        className={css`
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          pointer-events: none;
-          user-select: none;
-        `}
-        src={mapImg}
-        alt=""
-        draggable={false}
-      />
+      <NaverMap />
 
       <div
         className={css`

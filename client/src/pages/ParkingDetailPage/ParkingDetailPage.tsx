@@ -1,3 +1,5 @@
+import { NaverMap } from '../../../shared/components/NaverMap';
+
 import { useEffect, useState } from 'react';
 
 import { css } from '@emotion/css';
@@ -105,6 +107,7 @@ export const ParkingDetailPage = () => {
 
   return (
     <main className={pageStyle}>
+      <NaverMap latitude={searchCondition.destinationLatitude} longitude={searchCondition.destinationLongitude} />
       <header className={headerStyle}>
         <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
           <BackIcon />

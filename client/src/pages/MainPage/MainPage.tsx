@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import mapImg from '../../../assets/images/map_img.png';
+import { NaverMap } from '../../../shared/components/NaverMap';
 
 export const MainPage = () => {
   const navigate = useNavigate();
@@ -19,21 +19,7 @@ export const MainPage = () => {
         border-radius: 28px;
       `}
     >
-      <img
-        className={css`
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          pointer-events: none;
-          user-select: none;
-        `}
-        src={mapImg}
-        alt=""
-        draggable={false}
-      />
+      <NaverMap />
       <div
         className={css`
           position: relative;

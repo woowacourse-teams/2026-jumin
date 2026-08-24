@@ -1,7 +1,5 @@
 import { injectGlobal } from '@emotion/css';
 
-import mapImage from '../../assets/images/map_img.png';
-
 export const applyGlobalStyles = () => injectGlobal`
     * {
       box-sizing: border-box;
@@ -26,7 +24,7 @@ export const applyGlobalStyles = () => injectGlobal`
       margin: 0 auto;
       overflow: hidden;
 
-      background-image: url(${mapImage});
+
       background-position: center;
       background-size: cover;
       background-repeat: no-repeat;

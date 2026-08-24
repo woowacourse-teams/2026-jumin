@@ -1,3 +1,5 @@
+import { NaverMap } from '../../../shared/components/NaverMap';
+
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -189,6 +191,7 @@ export function ParkingRecommendationPage() {
 
   return (
     <main className={pageStyle}>
+      <NaverMap latitude={searchCondition.destinationLatitude} longitude={searchCondition.destinationLongitude} />
       <SearchConditionBar
         destinationName={searchCondition.destinationName}
         entryAt={searchCondition.entryAt}

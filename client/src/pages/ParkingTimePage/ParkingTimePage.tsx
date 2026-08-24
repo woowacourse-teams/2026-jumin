@@ -1,3 +1,5 @@
+import { NaverMap } from '../../../shared/components/NaverMap';
+
 import { useState } from 'react';
 
 import { css } from '@emotion/css';
@@ -129,6 +131,7 @@ export const ParkingTimePage = () => {
 
   return (
     <main className={pageStyle}>
+      <NaverMap latitude={destination.latitude} longitude={destination.longitude} />
       <SearchConditionBar destinationName={destination.name} />
 
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
@@ -221,7 +224,10 @@ function CalendarIcon() {
 }
 
 const pageStyle = css`
-  min-height: 100dvh;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 `;
 
 const sheetContentStyle = css`
