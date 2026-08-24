@@ -19,7 +19,10 @@ public record ParkingScheduleResponse(
             LocalTime closeTime,
             Boolean paid
     ) {
-        String statusName = status == null ? ParkingOperationStatus.UNKNOWN.name() : status.name();
+        String statusName = ParkingOperationStatus.UNKNOWN.name();
+        if (status != null) {
+            statusName = status.name();
+        }
         return new ParkingScheduleResponse(statusName, format(openTime), format(closeTime), paid);
     }
 
