@@ -40,7 +40,7 @@ public class ParkingSearchService {
         List<ParkingLot> candidates = findCandidates(destination);
         if (candidates.isEmpty()) {
             log.atInfo()
-                    .setMessage("Parking search completed")
+                    .setMessage("주차장 검색이 완료되었습니다.")
                     .addKeyValue("candidateCount", 0)
                     .addKeyValue("resultCount", 0)
                     .addKeyValue("radiusMeters", SEARCH_RADIUS_METERS)
@@ -62,7 +62,7 @@ public class ParkingSearchService {
         );
 
         log.atInfo()
-                .setMessage("Parking search completed")
+                .setMessage("주차장 검색이 완료되었습니다.")
                 .addKeyValue("candidateCount", candidates.size())
                 .addKeyValue("resultCount", parkingLots.size())
                 .addKeyValue("radiusMeters", SEARCH_RADIUS_METERS)
@@ -102,7 +102,7 @@ public class ParkingSearchService {
 
         if (missingOperationCount > 0) {
             log.atWarn()
-                    .setMessage("Parking operation data is missing")
+                    .setMessage("주차장 운영 정보가 없습니다.")
                     .addKeyValue("missingOperationCount", missingOperationCount)
                     .addKeyValue("candidateCount", candidates.size())
                     .log();

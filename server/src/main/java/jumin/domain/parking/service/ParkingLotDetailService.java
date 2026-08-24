@@ -32,7 +32,7 @@ public class ParkingLotDetailService {
         ParkingLot parkingLot = parkingLotRepository.findActiveWithLocationById(parkingLotId)
                 .orElseThrow(() -> {
                     log.atWarn()
-                            .setMessage("Parking lot detail was not found")
+                            .setMessage("주차장 상세 정보를 찾을 수 없습니다.")
                             .addKeyValue("parkingLotId", parkingLotId)
                             .addKeyValue("status", ErrorCode.PARKING_LOT_NOT_FOUND.getHttpStatus().value())
                             .log();
@@ -64,7 +64,7 @@ public class ParkingLotDetailService {
         }
 
         log.atInfo()
-                .setMessage("Parking lot detail loaded")
+                .setMessage("주차장 상세 조회가 완료되었습니다.")
                 .addKeyValue("parkingLotId", parkingLotId)
                 .addKeyValue("distanceMeters", distanceMeters)
                 .addKeyValue("availabilityStatus", availabilityStatus == null ? "UNKNOWN" : availabilityStatus.name())
