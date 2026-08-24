@@ -46,7 +46,7 @@ const headerStyle = css`
   column-gap: 8px;
 
   min-height: 52px;
-  padding: 20px 22px;
+  padding: 16px 22px;
 
   background: #ffffff;
   border-radius: 24px;

@@ -25,21 +25,43 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
   const dragStartSheetYRef = useRef(sheetY); // 드래그 시작 시 시트 위치
   const currentSheetYRef = useRef(sheetY); // 현재 시트 위치
 
+  const isDraggingRef = useRef(false);
+
   useEffect(() => {
     currentSheetYRef.current = sheetY;
   }, [sheetY]);
+
+  const finishDrag = () => {
+    if (!isDraggingRef.current || !sheetRef.current) return;
+
+    isDraggingRef.current = false;
+
+    const movedDistance = currentSheetYRef.current - dragStartSheetYRef.current;
+
+    let destination = dragStartSheetYRef.current < COLLAPSED_Y / 2 ? 0 : COLLAPSED_Y;
+
+    if (Math.abs(movedDistance) >= SNAP_THRESHOLD) {
+      destination = movedDistance < 0 ? 0 : COLLAPSED_Y;
+    }
+
+    sheetRef.current.style.transition = 'transform 250ms ease-out';
+    sheetRef.current.style.transform = `translateY(${destination}px)`;
+
+    currentSheetYRef.current = destination;
+    onSnapChange(destination === 0 ? 'expanded' : 'collapsed');
+  };
 
   // 드래그 시작 핸들러
   // 영역을 누른 위치를 저장한다.
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!sheetRef.current) return;
 
+    isDraggingRef.current = true;
     dragStartPointerYRef.current = event.clientY;
     dragStartSheetYRef.current = currentSheetYRef.current;
 
     sheetRef.current.style.transition = 'none';
-
-    event.currentTarget.setPointerCapture(event.pointerId); // 화면 밖으로 나가도 이벤트를 계속 받도록 설정
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   // 드래그한 거리만큼 움직이는 핸들러
@@ -59,31 +81,6 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
     sheetRef.current.style.transform = `translateY(${limitedSheetY}px)`;
   };
 
-  // 드래그 끝날 시 위치 결정하는 핸들러
-  // 충분히 위로 움직였으면 펼치고, 충분히 아래로 움직였으면 접는다.
-  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!sheetRef.current) return;
-
-    const movedDistance = currentSheetYRef.current - dragStartSheetYRef.current;
-
-    let destination = dragStartSheetYRef.current;
-
-    if (Math.abs(movedDistance) >= SNAP_THRESHOLD) {
-      destination = movedDistance < 0 ? 0 : COLLAPSED_Y;
-    }
-
-    sheetRef.current.style.transition = 'transform 250ms ease-out';
-
-    sheetRef.current.style.transform = `translateY(${destination}px)`;
-
-    currentSheetYRef.current = destination;
-    onSnapChange(destination === 0 ? 'expanded' : 'collapsed');
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
   return (
     <section
       className={sheetStyle}
@@ -96,8 +93,9 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
         className={handleAreaStyle}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
+        onLostPointerCapture={finishDrag}
       >
         <div className={handleStyle} />
       </div>
