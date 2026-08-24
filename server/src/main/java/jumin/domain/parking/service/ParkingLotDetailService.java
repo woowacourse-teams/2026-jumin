@@ -29,7 +29,8 @@ public class ParkingLotDetailService {
 
         ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
-        ParkingOperation operation = parkingOperationRepository.findById(parkingLotId).orElse(null);
+        ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
+                .orElse(null);
 
         Coordinate destination = new Coordinate(
                 request.destinationLatitude(),
