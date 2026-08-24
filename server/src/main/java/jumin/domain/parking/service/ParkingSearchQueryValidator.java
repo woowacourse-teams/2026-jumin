@@ -20,21 +20,29 @@ public class ParkingSearchQueryValidator {
     private final Clock clock;
 
     public void validate(ParkingSearchRequest request) {
+        validate(request, true);
+    }
+
+    public void validateForDetail(ParkingSearchRequest request) {
+        validate(request, false);
+    }
+
+    private void validate(ParkingSearchRequest request, boolean requireFutureEntry) {
         if (request == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        validateDateTimes(request);
+        validateDateTimes(request, requireFutureEntry);
         validateDuration(request);
     }
 
-    private void validateDateTimes(ParkingSearchRequest request) {
+    private void validateDateTimes(ParkingSearchRequest request, boolean requireFutureEntry) {
         if (!isValidSeoulDateTime(request.entryAt())
                 || !isValidSeoulDateTime(request.exitAt())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        if (!request.entryAt().isAfter(currentSeoulTime())) {
+        if (requireFutureEntry && !request.entryAt().isAfter(currentSeoulTime())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
     }

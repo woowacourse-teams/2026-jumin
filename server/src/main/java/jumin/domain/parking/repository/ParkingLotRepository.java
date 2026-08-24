@@ -1,12 +1,22 @@
 package jumin.domain.parking.repository;
 
 import java.util.List;
+import java.util.Optional;
 import jumin.domain.parking.entity.ParkingLot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
+
+    @Query(value = """
+            select parking_lot.*
+            from parking_lots parking_lot
+            where parking_lot.id = :parkingLotId
+              and parking_lot.active = true
+              and parking_lot.location is not null
+            """, nativeQuery = true)
+    Optional<ParkingLot> findActiveWithLocationById(@Param("parkingLotId") Long parkingLotId);
 
     @Query(value = """
             select parking_lot.*

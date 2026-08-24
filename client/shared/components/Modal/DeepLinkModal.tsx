@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { css, cx } from '@emotion/css';
 import Modal from 'react-modal';
 
+import { trackEvent } from '../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
 
 if (typeof document !== 'undefined') {
@@ -85,6 +86,9 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, desti
       start: locationState.coordinate,
       destination,
       appName: window.location.origin,
+    });
+    trackEvent('directions_requested', {
+      provider: provider.toLowerCase(),
     });
     onDirectionsStart?.(provider);
 

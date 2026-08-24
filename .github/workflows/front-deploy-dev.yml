@@ -55,6 +55,8 @@ jobs:
 
       - name: Build frontend
         working-directory: client
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
         run: pnpm build
 
       - name: Validate build output

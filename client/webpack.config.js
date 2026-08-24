@@ -57,6 +57,7 @@ module.exports = (env, argv) => {
     plugins: [
       new webpack.DefinePlugin({
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
+        __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
       }),
       new HtmlWebpackPlugin({
         template: './index.html',
