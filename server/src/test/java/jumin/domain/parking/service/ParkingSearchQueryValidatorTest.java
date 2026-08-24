@@ -143,6 +143,18 @@ class ParkingSearchQueryValidatorTest {
     }
 
     @Test
+    @DisplayName("상세 조회는 현재 시각 이전의 입차 시간을 허용한다")
+    void accepts_past_entry_time_for_detail() {
+        // given
+        ParkingSearchRequest searchRequest = request(
+                37.5, 127.0, "2026-08-12T08:00:00+09:00", "2026-08-12T09:00:00+09:00");
+
+        // when & then
+        assertThatCode(() -> validator.validateForDetail(searchRequest))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("24시간을 넘는 이용 시간은 거부한다")
     void rejects_duration_over_one_day() {
         // given

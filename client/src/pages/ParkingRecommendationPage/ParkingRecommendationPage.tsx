@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { ParkingLotSummary, ParkingSearchResponse } from '../../../api/contracts';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
@@ -11,7 +11,16 @@ import { trackEvent } from '../../../shared/analytics';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
-const CARD_STEP = CARD_WIDTH + CARD_GAP;
+
+const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
+  const containerRect = container.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+
+  const containerCenter = containerRect.left + containerRect.width / 2;
+  const itemCenter = itemRect.left + itemRect.width / 2;
+
+  return itemCenter - containerCenter;
+};
 
 interface NavigationState {
   searchCondition?: {
@@ -60,33 +69,17 @@ export const getRecommendationMessage = (type: RecommendationType, rank: number)
   return `거리와 가격의 균형 ${rank}위예요`;
 };
 
-// 유형별 추천 주차장 가져오는 메서드
-export const getTopRecommendations = (parkingLots: ParkingLotSummary[], type: RecommendationType, limit = 3) => {
-  const availableLots = [...parkingLots].filter((parkingLot) => {
-    if (parkingLot.availabilityStatus !== 'AVAILABLE') return false;
-
-    return getSortValue(parkingLot, type) !== null;
-  });
-
-  return availableLots
+// 유형별 활성 주차장 목록을 가져오는 메서드
+export const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationType) => {
+  return [...parkingLots]
+    .filter((parkingLot) => parkingLot.availabilityStatus === 'AVAILABLE')
     .sort((first, second) => {
       const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
+
       const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
 
       return firstValue - secondValue || first.distanceMeters - second.distanceMeters || first.id - second.id;
-    })
-    .slice(0, limit);
-};
-
-// 유형별 더보기 주차장 가져오는 메서드
-export const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationType) => {
-  return [...parkingLots].sort((first, second) => {
-    const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
-
-    const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
-
-    return firstValue - secondValue || first.distanceMeters - second.distanceMeters || first.id - second.id;
-  });
+    });
 };
 
 // 더보기 주차장 시 필터 옵션
@@ -101,29 +94,36 @@ const filterOptions: {
 
 export function ParkingRecommendationPage() {
   const navigate = useNavigate();
-
-  // 현재 추천 주차장 카드 인덱스
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const cardListRef = useRef<HTMLUListElement>(null);
+  const parkingListRef = useRef<HTMLUListElement>(null);
 
   // 더보기 유무와 추천 유형
-  const [recommendationType, setRecommendationType] = useState<RecommendationType>('PRICE');
+  const [recommendationType, setRecommendationType] = useState<RecommendationType>('DISTANCE');
   const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
 
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
 
-  const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
-    const nextIndex = Math.round(event.currentTarget.scrollLeft / CARD_STEP);
-
-    setActiveCardIndex(nextIndex);
+  // 필터링 유형 선택
+  const handleRecommendationTypeChange = (type: RecommendationType) => {
+    setRecommendationType(type);
+    setSelectedParkingLotId(null);
   };
+
+  useLayoutEffect(() => {
+    if (parkingListRef.current) {
+      parkingListRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [recommendationType]);
 
   // 이전 페이지에서 state 가져오기
   const { state } = useLocation();
   const recommendationState = state as NavigationState | null;
-  const recommendedParkingLots =
-    recommendationState?.searchCondition && recommendationState.searchResult
-      ? getTopRecommendations(recommendationState.searchResult.parkingLots, recommendationType)
-      : [];
+  const parkingLots = recommendationState?.searchResult
+    ? sortParkingLots(recommendationState.searchResult.parkingLots, recommendationType)
+    : [];
+  const recommendedParkingLots = parkingLots
+    .filter((parkingLot) => getSortValue(parkingLot, recommendationType) !== null)
+    .slice(0, 3);
   const hasTrackedRecommendations = useRef(false);
 
   useEffect(() => {
@@ -136,16 +136,53 @@ export function ParkingRecommendationPage() {
   if (!recommendationState?.searchCondition || !recommendationState.searchResult) {
     return <Navigate to="/parkingTimeSheet" replace />;
   }
-  const { searchCondition, searchResult } = recommendationState;
+  const { searchCondition } = recommendationState;
 
-  // 더보기 주차장 목록
-  const parkingLots = sortParkingLots(searchResult.parkingLots, recommendationType);
   const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
+
+  const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
+    const cardList = event.currentTarget;
+    const cards = Array.from(cardList.children);
+
+    if (cards.length === 0) return;
+
+    const nextIndex = cards.reduce((closestIndex, card, index) => {
+      const closestDistance = Math.abs(getHorizontalCenterOffset(cardList, cards[closestIndex]!));
+      const currentDistance = Math.abs(getHorizontalCenterOffset(cardList, card));
+
+      return currentDistance < closestDistance ? index : closestIndex;
+    }, 0);
+
+    const centeredParkingLot = recommendedParkingLots[nextIndex];
+
+    if (centeredParkingLot) {
+      setSelectedParkingLotId(centeredParkingLot.id);
+    }
+  };
+
+  const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
+    setSelectedParkingLotId(parkingLot.id);
+
+    const recommendationIndex = recommendedParkingLots.findIndex(
+      (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
+    );
+    const cardList = cardListRef.current;
+    const recommendationCard = recommendationIndex >= 0 ? cardList?.children.item(recommendationIndex) : null;
+
+    if (cardList && recommendationCard) {
+      const centerOffset = getHorizontalCenterOffset(cardList, recommendationCard);
+
+      if (Math.abs(centerOffset) > 1) {
+        cardList.scrollBy({ left: centerOffset, behavior: 'smooth' });
+      }
+    }
+  };
 
   const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
     navigate('/parkingDetail', {
       state: {
         parkingLot,
+        searchCondition,
       },
     });
   };
@@ -158,16 +195,19 @@ export function ParkingRecommendationPage() {
         exitAt={searchCondition.exitAt}
       />
 
-      <section className={recommendationSectionStyle} aria-label="가격순 추천 주차장">
+      <section
+        className={recommendationSectionStyle}
+        aria-label={`${recommendationLabels[recommendationType]} 추천 주차장`}
+      >
         {recommendedParkingLots.length > 0 ? (
-          <ul className={cardListStyle} onScroll={handleCardScroll}>
+          <ul key={recommendationType} ref={cardListRef} className={cardListStyle} onScroll={handleCardScroll}>
             {recommendedParkingLots.map((parkingLot, index) => (
               <li className={cardItemStyle} key={parkingLot.id}>
                 <InfoCard
                   parkingLot={parkingLot}
                   description={getRecommendationMessage(recommendationType, index + 1)}
                   onNavigate={handleParkingLotDetail}
-                  isActive={activeCardIndex === index}
+                  isActive={activeParkingLotId === parkingLot.id}
                 />
               </li>
             ))}
@@ -190,7 +230,7 @@ export function ParkingRecommendationPage() {
                   type="button"
                   role="tab"
                   aria-selected={isSelected}
-                  onClick={() => setRecommendationType(type)}
+                  onClick={() => handleRecommendationTypeChange(type)}
                 >
                   {label}
                 </button>
@@ -199,13 +239,13 @@ export function ParkingRecommendationPage() {
           </div>
 
           {parkingLots.length > 0 ? (
-            <ul className={parkingListStyle} onDragStart={(event) => event.preventDefault()}>
+            <ul ref={parkingListRef} className={parkingListStyle} onDragStart={(event) => event.preventDefault()}>
               {parkingLots.map((parkingLot) => (
                 <li className={parkingItemStyle} key={parkingLot.id}>
                   <InfoRow
                     parkingLot={parkingLot}
                     isActive={activeParkingLotId === parkingLot.id}
-                    onSelect={(selectedParkingLot) => setSelectedParkingLotId(selectedParkingLot.id)}
+                    onSelect={handleParkingLotSelect}
                     onNavigate={handleParkingLotDetail}
                   />
                 </li>

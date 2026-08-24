@@ -47,6 +47,23 @@ class ParkingLotRepositoryTest {
     }
 
     @Test
+    @DisplayName("ID로 활성 상태이며 위치 정보가 있는 주차장만 조회한다")
+    void finds_only_active_parking_lot_with_location_by_id() {
+        // given
+        insertParkingLot("active", "활성 주차장", "서울시 테스트 주소", true, 37.4990, 127.0279);
+        insertParkingLot("inactive", "비활성 주차장", "서울시 테스트 주소", false, 37.4990, 127.0279);
+        insertParkingLot("missing-location", "위치 없는 주차장", "서울시 테스트 주소", true, null, null);
+        Long activeId = parkingLotId("active");
+        Long inactiveId = parkingLotId("inactive");
+        Long missingLocationId = parkingLotId("missing-location");
+
+        // when & then
+        assertThat(parkingLotRepository.findActiveWithLocationById(activeId)).isPresent();
+        assertThat(parkingLotRepository.findActiveWithLocationById(inactiveId)).isEmpty();
+        assertThat(parkingLotRepository.findActiveWithLocationById(missingLocationId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("반경 경계 안쪽은 포함하고 바깥쪽은 제외한다")
     void respects_radius_boundary() {
         // given
@@ -97,5 +114,13 @@ class ParkingLotRepositoryTest {
                     ?, current_timestamp, current_timestamp, current_timestamp
                 )
                 """, externalId, name, address, latitude, longitude, active);
+    }
+
+    private Long parkingLotId(String externalId) {
+        return jdbcTemplate.queryForObject(
+                "select id from parking_lots where source_external_id = ?",
+                Long.class,
+                externalId
+        );
     }
 }
