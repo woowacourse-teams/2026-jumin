@@ -22,6 +22,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(ParkingLotDetailController.class)
 class ParkingLotDetailControllerTest {
@@ -91,7 +92,7 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 
-    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validRequest(long id) {
+    private MockHttpServletRequestBuilder validRequest(long id) {
         return get("/api/parking/{parkingLotId}", id)
                 .queryParam("destinationLatitude", "37.4981")
                 .queryParam("destinationLongitude", "127.0279")
