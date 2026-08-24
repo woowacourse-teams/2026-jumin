@@ -156,7 +156,7 @@ jobs:
 
           health_url="http://127.0.0.1:${BACKEND_PORT}/actuator/health"
           for _ in $(seq 1 12); do
-            if curl --noproxy '*' --fail --silent --show-error "${health_url}" >/dev/null; then
+            if curl --noproxy '*' --fail --silent --show-error --connect-timeout 2 --max-time 5 "${health_url}" >/dev/null; then
               echo "Backend development deployment succeeded: ${release_id}"
               exit 0
             fi
