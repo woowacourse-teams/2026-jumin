@@ -7,10 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jumin.domain.parking.dto.LocationResponse;
+import jumin.domain.parking.dto.ParkingFeeRuleResponse;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
-import jumin.domain.parking.dto.ParkingLotDetailResponse.FeeRuleResponse;
-import jumin.domain.parking.dto.ParkingLotDetailResponse.OperationResponse;
-import jumin.domain.parking.dto.ParkingLotDetailResponse.ScheduleResponse;
+import jumin.domain.parking.dto.ParkingOperationResponse;
+import jumin.domain.parking.dto.ParkingScheduleResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.service.ParkingLotDetailService;
 import jumin.global.exception.BusinessException;
@@ -109,12 +109,12 @@ class ParkingLotDetailControllerTest {
                 310,
                 6_000,
                 "CALCULATED",
-                new FeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),
-                new OperationResponse(
+                new ParkingFeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),
+                new ParkingOperationResponse(
                         "AVAILABLE",
-                        new ScheduleResponse("OPEN", "00:00", "00:00", true),
-                        new ScheduleResponse("OPEN", "09:00", "18:00", null),
-                        new ScheduleResponse("CLOSED", null, null, null)
+                        new ParkingScheduleResponse("OPEN", "00:00", "00:00", true),
+                        new ParkingScheduleResponse("OPEN", "09:00", "18:00", null),
+                        new ParkingScheduleResponse("CLOSED", null, null, null)
                 )
         );
     }
