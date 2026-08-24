@@ -58,6 +58,7 @@ module.exports = (env, argv) => {
       new webpack.DefinePlugin({
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
+        __NAVER_MAP_CLIENT_ID__: JSON.stringify(process.env.NAVER_MAP_CLIENT_ID ?? ''),
       }),
       new HtmlWebpackPlugin({
         template: './index.html',
@@ -70,6 +71,12 @@ module.exports = (env, argv) => {
         directory: path.resolve(__dirname, 'public'),
         watch: false,
       },
+      proxy: [
+        {
+          context: ['/api'],
+          target: process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
+        },
+      ],
       port: 3000,
       open: true,
       hot: true,

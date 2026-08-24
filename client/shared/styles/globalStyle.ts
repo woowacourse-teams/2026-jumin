@@ -1,7 +1,5 @@
 import { injectGlobal } from '@emotion/css';
 
-import mapImage from '../../assets/images/map_img.png';
-
 export const applyGlobalStyles = () => injectGlobal`
     * {
       box-sizing: border-box;
@@ -10,28 +8,30 @@ export const applyGlobalStyles = () => injectGlobal`
     html,
     body {
       margin: 0;
+      width: 100%;
+      height: 100%;
       min-height: 100%;
     }
 
     body {
       min-height: 100dvh;
+      overflow: hidden;
       background-color: #eef2f7;
     }
 
     #root {
       position: relative;
-
-      width: min(390px, 100vw);
-      height: min(844px, 100dvh);
+      width: 100%;
+      max-width: 430px;
+      height: 100dvh;
       margin: 0 auto;
       overflow: hidden;
-
-      background-image: url(${mapImage});
-      background-position: center;
-      background-size: cover;
-      background-repeat: no-repeat;
-
-      border-radius: 28px;
     }
 
+    @media (min-width: 431px) {
+      #root {
+        height: min(844px, 100dvh);
+      border-radius: 28px;
+      }
+    }
   `;

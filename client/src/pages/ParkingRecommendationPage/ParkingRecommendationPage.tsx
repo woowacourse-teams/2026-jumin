@@ -1,3 +1,5 @@
+import { NaverMap } from '../../../shared/components/NaverMap';
+
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -5,9 +7,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ParkingLotSummary, ParkingSearchResponse } from '../../../api/contracts';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { InfoCard } from './components/InfoCard';
-import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import BottomSheet, { BOTTOM_SHEET_HEIGHT, type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { InfoRow } from './components/InfoRow';
 import { trackEvent } from '../../../shared/analytics';
+import { ParkingMarkers } from './components/ParkingMarkers';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -96,6 +99,7 @@ export function ParkingRecommendationPage() {
   const navigate = useNavigate();
   const cardListRef = useRef<HTMLUListElement>(null);
   const parkingListRef = useRef<HTMLUListElement>(null);
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
 
   // 더보기 유무와 추천 유형
   const [recommendationType, setRecommendationType] = useState<RecommendationType>('DISTANCE');
@@ -124,6 +128,7 @@ export function ParkingRecommendationPage() {
   const recommendedParkingLots = parkingLots
     .filter((parkingLot) => getSortValue(parkingLot, recommendationType) !== null)
     .slice(0, 3);
+  const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
   const hasTrackedRecommendations = useRef(false);
 
   useEffect(() => {
@@ -133,12 +138,50 @@ export function ParkingRecommendationPage() {
     trackEvent('parking_recommendations_viewed');
   }, [recommendedParkingLots.length]);
 
+  useEffect(() => {
+    if (!map || activeParkingLotId === null) return;
+
+    const activeParkingLot = recommendationState?.searchResult?.parkingLots.find(
+      (parkingLot) => parkingLot.id === activeParkingLotId,
+    );
+
+    if (!activeParkingLot) return;
+
+    const position = new naver.maps.LatLng(activeParkingLot.location.latitude, activeParkingLot.location.longitude);
+
+    if (sheetSnap === 'collapsed') {
+      map.panTo(position);
+      return;
+    }
+
+    const searchConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+
+    if (!searchConditionBar) return;
+
+    const mapRect = map.getElement().getBoundingClientRect();
+    const searchConditionBarBottomY = searchConditionBar.getBoundingClientRect().bottom - mapRect.top;
+    const bottomSheetTopY = map.getSize().height - BOTTOM_SHEET_HEIGHT;
+    const visibleAreaCenterY = (searchConditionBarBottomY + bottomSheetTopY) / 2;
+    const projection = map.getProjection();
+    const positionOffset = projection.fromCoordToOffset(position);
+    const mapCenterOffset = new naver.maps.Point(map.getSize().width / 2, map.getSize().height / 2);
+    const targetCenterOffset = new naver.maps.Point(
+      positionOffset.x,
+      mapCenterOffset.y + positionOffset.y - visibleAreaCenterY,
+    );
+    const targetCenter = projection.fromOffsetToCoord(targetCenterOffset);
+
+    map.panTo(targetCenter, { duration: 300 });
+  }, [activeParkingLotId, map, recommendationState, sheetSnap]);
+
   if (!recommendationState?.searchCondition || !recommendationState.searchResult) {
     return <Navigate to="/parkingTimeSheet" replace />;
   }
   const { searchCondition } = recommendationState;
 
-  const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
+  const selectParkingLot = (parkingLot: ParkingLotSummary) => {
+    setSelectedParkingLotId(parkingLot.id);
+  };
 
   const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
     const cardList = event.currentTarget;
@@ -156,12 +199,12 @@ export function ParkingRecommendationPage() {
     const centeredParkingLot = recommendedParkingLots[nextIndex];
 
     if (centeredParkingLot) {
-      setSelectedParkingLotId(centeredParkingLot.id);
+      selectParkingLot(centeredParkingLot);
     }
   };
 
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
-    setSelectedParkingLotId(parkingLot.id);
+    selectParkingLot(parkingLot);
 
     const recommendationIndex = recommendedParkingLots.findIndex(
       (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
@@ -189,6 +232,23 @@ export function ParkingRecommendationPage() {
 
   return (
     <main className={pageStyle}>
+      <NaverMap
+        latitude={searchCondition.destinationLatitude}
+        longitude={searchCondition.destinationLongitude}
+        onMapReady={setMap}
+      />
+      <ParkingMarkers
+        map={map}
+        destination={{
+          name: searchCondition.destinationName,
+          latitude: searchCondition.destinationLatitude,
+          longitude: searchCondition.destinationLongitude,
+        }}
+        parkingLots={parkingLots}
+        recommendedParkingLots={recommendedParkingLots}
+        selectedParkingLotId={activeParkingLotId}
+        onSelect={handleParkingLotSelect}
+      />
       <SearchConditionBar
         destinationName={searchCondition.destinationName}
         entryAt={searchCondition.entryAt}
@@ -200,7 +260,7 @@ export function ParkingRecommendationPage() {
         aria-label={`${recommendationLabels[recommendationType]} 추천 주차장`}
       >
         {recommendedParkingLots.length > 0 ? (
-          <ul key={recommendationType} ref={cardListRef} className={cardListStyle} onScroll={handleCardScroll}>
+          <ul key={recommendationType} ref={cardListRef} className={cardListStyle} onScrollEnd={handleCardScroll}>
             {recommendedParkingLots.map((parkingLot, index) => (
               <li className={cardItemStyle} key={parkingLot.id}>
                 <InfoCard

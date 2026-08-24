@@ -1,10 +1,10 @@
 import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 
-const SHEET_HEIGHT = 500;
+export const BOTTOM_SHEET_HEIGHT = 500;
 const PEEK_HEIGHT = 100;
 
-const COLLAPSED_Y = SHEET_HEIGHT - PEEK_HEIGHT;
+const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
 
 const SNAP_THRESHOLD = 80;
 
@@ -117,7 +117,7 @@ const sheetStyle = css`
   z-index: 1000;
 
   width: 100%;
-  height: ${SHEET_HEIGHT}px;
+  height: ${BOTTOM_SHEET_HEIGHT}px;
 
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
@@ -156,7 +156,7 @@ const contentStyle = css`
   flex: 1;
   min-height: 0;
 
-  padding: 0 24px 28px;
+  padding: 0 24px max(28px, env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
 `;

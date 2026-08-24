@@ -17,15 +17,12 @@ const pageStyle = css`
   display: grid;
   place-items: center;
 
-  width: min(100%, 390px);
-  height: min(100dvh, 844px);
-  min-height: 600px;
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 
   color: #fff;
   background: #4356d8;
-  border-radius: 28px;
 `;
 
 const contentStyle = css`

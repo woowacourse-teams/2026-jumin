@@ -1,39 +1,69 @@
 import { css } from '@emotion/css';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import mapImg from '../../../assets/images/map_img.png';
+import { NaverMap } from '../../../shared/components/NaverMap';
+import { NaverMapMarker } from '../../../shared/components/NaverMapMarker';
+
+const currentLocationIcon = {
+  url: currentLocationMarkerUrl,
+  width: 30,
+  height: 30,
+  anchorX: 23,
+  anchorY: 21,
+};
 
 export const MainPage = () => {
   const navigate = useNavigate();
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const handleCurrentLocationClick = () => {
+    if (!navigator.geolocation) {
+      window.alert('현재 위치를 지원하지 않는 브라우저예요.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const location = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
+
+        setCurrentLocation(location);
+        map?.panTo(new naver.maps.LatLng(location.latitude, location.longitude));
+      },
+      () => {
+        window.alert('현재 위치를 가져오지 못했어요. 위치 권한을 확인해 주세요.');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
   return (
     <div
       className={css`
         position: relative;
-        width: 390px;
-        height: 844px;
-        margin: 0 auto;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        box-sizing: border-box;
-        border-radius: 28px;
       `}
     >
-      <img
-        className={css`
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          pointer-events: none;
-          user-select: none;
-        `}
-        src={mapImg}
-        alt=""
-        draggable={false}
-      />
+      <NaverMap onMapReady={setMap} />
+      {currentLocation && (
+        <NaverMapMarker
+          map={map}
+          latitude={currentLocation.latitude}
+          longitude={currentLocation.longitude}
+          icon={currentLocationIcon}
+          title="현재 위치"
+          zIndex={50}
+        />
+      )}
       <div
         className={css`
           position: relative;
@@ -52,7 +82,7 @@ export const MainPage = () => {
           z-index: 1;
         `}
       >
-        <CurrentLocationButton />
+        <CurrentLocationButton onClick={handleCurrentLocationClick} />
         <BottomNav />
       </footer>
     </div>

@@ -69,7 +69,7 @@ const validateParkingSearchRequest = (url: URL): FieldError[] => {
 };
 
 export const parkingSearchHandlers = [
-  http.get('/api/parking-lots/search', async ({ request }) => {
+  http.get('/api/parking/search', async ({ request }) => {
     const errors = validateParkingSearchRequest(new URL(request.url));
 
     if (errors.length > 0) {

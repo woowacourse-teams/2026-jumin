@@ -84,7 +84,7 @@ export interface ParkingLotDetailResponse {
   feeCalculationStatus: FeeCalculationStatus;
   feeRule: ParkingFeeRule | null;
   operation: ParkingOperation;
-  source: ParkingInformationSource;
+  source?: ParkingInformationSource;
 }
 
 export interface FieldError {

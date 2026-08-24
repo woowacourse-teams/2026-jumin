@@ -6,7 +6,8 @@
     "build": "pnpm typecheck && webpack --mode production",
     "typecheck": "tsc --noEmit",
     "test:deep-link": "node --experimental-strip-types --test shared/components/Modal/deepLink.test.mjs",
-    "check": "pnpm typecheck && pnpm test:deep-link && eslint . && prettier --check ."
+    "test:parking-markers": "node --experimental-strip-types --test src/pages/ParkingRecommendationPage/components/parkingMarker.test.mjs",
+    "check": "pnpm typecheck && pnpm test:deep-link && pnpm test:parking-markers && eslint . && prettier --check ."
   },
   "dependencies": {
     "@emotion/css": "^11.13.5",
@@ -23,6 +24,7 @@
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
     "@eslint/js": "^10.0.1",
+    "@types/navermaps": "^3.9.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/react-modal": "^3.16.3",

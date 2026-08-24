@@ -1,3 +1,5 @@
+import { NaverMap } from '../../../shared/components/NaverMap';
+
 import { useEffect, useState } from 'react';
 
 import { css } from '@emotion/css';
@@ -100,11 +102,12 @@ export const ParkingDetailPage = () => {
   }
 
   const { feeRule, operation, source } = parkingLotDetail;
-  const checkedDate = formatCheckedDate(source.lastCheckedAt);
+  const checkedDate = source ? formatCheckedDate(source.lastCheckedAt) : null;
   const durationLabel = formatDuration(searchCondition.entryAt, searchCondition.exitAt);
 
   return (
     <main className={pageStyle}>
+      <NaverMap latitude={searchCondition.destinationLatitude} longitude={searchCondition.destinationLongitude} />
       <header className={headerStyle}>
         <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
           <BackIcon />
@@ -182,10 +185,12 @@ export const ParkingDetailPage = () => {
             </div>
           </dl>
 
-          <p className={sourceStyle}>
-            {source.name}
-            {checkedDate && ` · ${checkedDate} 기준`}
-          </p>
+          {source && (
+            <p className={sourceStyle}>
+              {source.name}
+              {checkedDate && ` · ${checkedDate} 기준`}
+            </p>
+          )}
 
           <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
             길찾기 시작
@@ -214,21 +219,14 @@ function BackIcon() {
 const pageStyle = css`
   position: relative;
 
-  width: min(100%, 390px);
-
-  height: min(100dvh, 844px);
-
-  min-height: 700px;
-
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
 
   overflow: hidden;
 
   color: #14213d;
 
   background: transparent;
-
-  border-radius: 28px;
 `;
 
 const headerStyle = css`
