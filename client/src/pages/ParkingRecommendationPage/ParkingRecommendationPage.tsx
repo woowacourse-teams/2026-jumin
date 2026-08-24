@@ -10,6 +10,7 @@ import { InfoCard } from './components/InfoCard';
 import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { InfoRow } from './components/InfoRow';
 import { trackEvent } from '../../../shared/analytics';
+import { ParkingMarkers } from './components/ParkingMarkers';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -98,6 +99,7 @@ export function ParkingRecommendationPage() {
   const navigate = useNavigate();
   const cardListRef = useRef<HTMLUListElement>(null);
   const parkingListRef = useRef<HTMLUListElement>(null);
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
 
   // 더보기 유무와 추천 유형
   const [recommendationType, setRecommendationType] = useState<RecommendationType>('DISTANCE');
@@ -142,6 +144,11 @@ export function ParkingRecommendationPage() {
 
   const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
 
+  const selectParkingLot = (parkingLot: ParkingLotSummary) => {
+    setSelectedParkingLotId(parkingLot.id);
+    map?.panTo(new naver.maps.LatLng(parkingLot.location.latitude, parkingLot.location.longitude));
+  };
+
   const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
     const cardList = event.currentTarget;
     const cards = Array.from(cardList.children);
@@ -158,12 +165,12 @@ export function ParkingRecommendationPage() {
     const centeredParkingLot = recommendedParkingLots[nextIndex];
 
     if (centeredParkingLot) {
-      setSelectedParkingLotId(centeredParkingLot.id);
+      selectParkingLot(centeredParkingLot);
     }
   };
 
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
-    setSelectedParkingLotId(parkingLot.id);
+    selectParkingLot(parkingLot);
 
     const recommendationIndex = recommendedParkingLots.findIndex(
       (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
@@ -191,7 +198,23 @@ export function ParkingRecommendationPage() {
 
   return (
     <main className={pageStyle}>
-      <NaverMap latitude={searchCondition.destinationLatitude} longitude={searchCondition.destinationLongitude} />
+      <NaverMap
+        latitude={searchCondition.destinationLatitude}
+        longitude={searchCondition.destinationLongitude}
+        onMapReady={setMap}
+      />
+      <ParkingMarkers
+        map={map}
+        destination={{
+          name: searchCondition.destinationName,
+          latitude: searchCondition.destinationLatitude,
+          longitude: searchCondition.destinationLongitude,
+        }}
+        parkingLots={parkingLots}
+        recommendedParkingLots={recommendedParkingLots}
+        selectedParkingLotId={activeParkingLotId}
+        onSelect={handleParkingLotSelect}
+      />
       <SearchConditionBar
         destinationName={searchCondition.destinationName}
         entryAt={searchCondition.entryAt}

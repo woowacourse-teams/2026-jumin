@@ -7,9 +7,10 @@ interface Props {
   latitude?: number;
   longitude?: number;
   zoom?: number;
+  onMapReady?: (map: naver.maps.Map | null) => void;
 }
 
-export const NaverMap = ({ latitude, longitude, zoom = 15 }: Props) => {
+export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) => {
   // 네이버 지도 SDK가 지도를 삽입할 DOM 요소
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +40,10 @@ export const NaverMap = ({ latitude, longitude, zoom = 15 }: Props) => {
         }
 
         // 좌표가 없으면 네이버 지도의 기본 중심을 사용한다.
-        mapRef.current = new naver.maps.Map(mapContainerRef.current, mapOptions);
+        const map = new naver.maps.Map(mapContainerRef.current, mapOptions);
+
+        mapRef.current = map;
+        onMapReady?.(map);
       } catch (error) {
         // 컴포넌트가 살아 있을 때만 오류를 출력한다.
         if (!isCancelled) {
@@ -54,10 +58,11 @@ export const NaverMap = ({ latitude, longitude, zoom = 15 }: Props) => {
       isCancelled = true;
 
       // 지도 인스턴스와 내부 이벤트를 정리한다.
+      onMapReady?.(null);
       mapRef.current?.destroy();
       mapRef.current = null;
     };
-  }, [latitude, longitude, zoom]);
+  }, [latitude, longitude, onMapReady, zoom]);
 
   return (
     <div className={mapStyle}>
