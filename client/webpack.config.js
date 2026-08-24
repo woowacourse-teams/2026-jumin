@@ -71,6 +71,12 @@ module.exports = (env, argv) => {
         directory: path.resolve(__dirname, 'public'),
         watch: false,
       },
+      proxy: [
+        {
+          context: ['/api'],
+          target: process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
+        },
+      ],
       port: 3000,
       open: true,
       hot: true,

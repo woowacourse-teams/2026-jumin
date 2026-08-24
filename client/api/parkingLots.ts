@@ -22,7 +22,7 @@ export async function searchParkingLots(params: ParkingSearchParams): Promise<Pa
     exitAt: params.exitAt,
   });
 
-  const response = await fetch(`/api/parking-lots/search?${searchParams.toString()}`);
+  const response = await fetch(`/api/parking/search?${searchParams.toString()}`);
 
   if (!response.ok) {
     const error = await response.json();

@@ -102,7 +102,7 @@ export const ParkingDetailPage = () => {
   }
 
   const { feeRule, operation, source } = parkingLotDetail;
-  const checkedDate = formatCheckedDate(source.lastCheckedAt);
+  const checkedDate = source ? formatCheckedDate(source.lastCheckedAt) : null;
   const durationLabel = formatDuration(searchCondition.entryAt, searchCondition.exitAt);
 
   return (
@@ -185,10 +185,12 @@ export const ParkingDetailPage = () => {
             </div>
           </dl>
 
-          <p className={sourceStyle}>
-            {source.name}
-            {checkedDate && ` · ${checkedDate} 기준`}
-          </p>
+          {source && (
+            <p className={sourceStyle}>
+              {source.name}
+              {checkedDate && ` · ${checkedDate} 기준`}
+            </p>
+          )}
 
           <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
             길찾기 시작
