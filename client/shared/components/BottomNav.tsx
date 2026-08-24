@@ -107,7 +107,8 @@ const navigationStyle = css`
   grid-template-columns: repeat(3, 1fr);
 
   width: 100%;
-  height: 86px;
+  height: calc(86px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
 
   background: white;
 `;

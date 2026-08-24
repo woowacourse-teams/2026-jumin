@@ -19,11 +19,9 @@ export const DestinationPage = () => {
     <main
       className={css`
         position: relative;
-        width: 390px;
-        height: 844px;
-        margin: 0 auto;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        border-radius: 28px;
       `}
     >
       <NaverMap />
@@ -44,7 +42,7 @@ export const DestinationPage = () => {
           bottom: 0;
           left: 0;
           z-index: 1;
-          padding: 24px 16px 20px;
+          padding: 24px 16px max(20px, env(safe-area-inset-bottom));
           border-radius: 28px 28px 0 0;
           background: white;
           box-sizing: border-box;

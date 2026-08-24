@@ -11,12 +11,9 @@ export const MainPage = () => {
     <div
       className={css`
         position: relative;
-        width: 390px;
-        height: 844px;
-        margin: 0 auto;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        box-sizing: border-box;
-        border-radius: 28px;
       `}
     >
       <NaverMap />

@@ -156,7 +156,7 @@ const contentStyle = css`
   flex: 1;
   min-height: 0;
 
-  padding: 0 24px 28px;
+  padding: 0 24px max(28px, env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
 `;

@@ -219,21 +219,14 @@ function BackIcon() {
 const pageStyle = css`
   position: relative;
 
-  width: min(100%, 390px);
-
-  height: min(100dvh, 844px);
-
-  min-height: 700px;
-
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
 
   overflow: hidden;
 
   color: #14213d;
 
   background: transparent;
-
-  border-radius: 28px;
 `;
 
 const headerStyle = css`

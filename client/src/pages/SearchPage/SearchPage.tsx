@@ -92,12 +92,9 @@ export const SearchPage = () => {
   return (
     <div
       className={css`
-        width: 390px;
-        height: 844px;
-        margin: 0 auto;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
-        box-sizing: border-box;
-        border-radius: 28px;
         background-color: #ffffff;
       `}
     >
@@ -146,6 +143,7 @@ export const SearchPage = () => {
             margin-top: auto;
             position: relative;
             flex-shrink: 0;
+            height: calc(86px + env(safe-area-inset-bottom));
           `}
         >
           <BottomNav />
