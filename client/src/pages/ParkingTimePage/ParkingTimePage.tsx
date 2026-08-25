@@ -7,6 +7,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { searchParkingLots } from '../../../api/parkingLots';
 import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import { DestinationMapOverlay } from '../../../shared/components/DestinationMapOverlay';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { isSearchDestination } from '../../../shared/types/navigation';
 import { TimePickerField } from './components/TimePickerField';
@@ -35,6 +36,7 @@ interface NavigationState {
 
 export const ParkingTimePage = () => {
   const navigate = useNavigate();
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
 
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
 
@@ -131,7 +133,13 @@ export const ParkingTimePage = () => {
 
   return (
     <main className={pageStyle}>
-      <NaverMap latitude={destination.latitude} longitude={destination.longitude} />
+      <NaverMap latitude={destination.latitude} longitude={destination.longitude} onMapReady={setMap} />
+      <DestinationMapOverlay
+        map={map}
+        latitude={destination.latitude}
+        longitude={destination.longitude}
+        title={destination.name}
+      />
       <SearchConditionBar destinationName={destination.name} />
 
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
