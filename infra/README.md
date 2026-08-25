@@ -9,6 +9,10 @@
 | --- | --- |
 | `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS 실행 |
 | `docker-compose.dev.yml` | 개발 서버 백엔드 컨테이너 실행 |
+| `docker-compose.proxy.yml` | 개발 서버 Nginx + Certbot 실행 |
+| `nginx/bootstrap.conf` | 최초 인증서 발급 전 HTTP 설정 |
+| `nginx/jumin.conf` | HTTPS, 정적 파일, API 프록시 설정 |
+| `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `.env.example` | 로컬 데이터베이스 환경변수 예시 |
 
 ## 로컬 데이터베이스
@@ -68,6 +72,143 @@ secret으로 전달합니다.
 - `jumin-dev` self-hosted runner
 - EC2에서 RDS로 연결할 수 있는 네트워크 권한
 - GitHub `development` Environment secret
+
+## 개발 서버 HTTPS 프록시
+
+개발 서버의 요청 흐름은 다음과 같습니다.
+
+```text
+브라우저 -> dev.jucha.info -> EC2:80/443 -> Docker Nginx
+                                             |-- /api/* -> backend:8080
+                                             `-- 그 외  -> /var/www/jumin-dev/current
+```
+
+가비아 DNS에는 다음 A 레코드가 등록되어 있어야 합니다.
+
+| 타입 | 호스트 | 값 | TTL |
+| --- | --- | --- | --- |
+| A | `dev` | EC2의 Elastic IP | `600` |
+
+아래 명령은 저장소 루트에서 실행합니다. 먼저 백엔드 컨테이너가 실행 중이고
+`jumin-dev_default` Docker 네트워크에 `backend`라는 별칭으로 연결되어 있어야 합니다.
+
+```bash
+docker inspect jumin-backend-dev \
+  --format '{{range $name, $network := .NetworkSettings.Networks}}network={{$name}} aliases={{json $network.Aliases}}{{println}}{{end}}'
+```
+
+### 1. 사전 준비
+
+EC2 보안 그룹에서 인바운드 TCP `80`, `443`을 허용하고 인증서 저장 경로를 만듭니다.
+인증서 파일은 Git 저장소가 아니라 EC2의 `/opt/jumin-dev/certbot/conf`에 보존됩니다.
+
+```bash
+sudo install -d -m 755 /opt/jumin-dev/certbot/www
+sudo install -d -m 755 /opt/jumin-dev/certbot/conf
+```
+
+### 2. Docker Nginx로 HTTP 전환
+
+호스트 Nginx가 이미 80번 포트를 사용하므로 먼저 중지한 뒤, 인증서 없이 실행할 수
+있는 bootstrap 설정으로 컨테이너를 시작합니다. 호스트 Nginx 설정은 롤백을 위해
+삭제하지 않습니다.
+
+```bash
+sudo systemctl stop nginx
+
+NGINX_CONF_FILE=./nginx/bootstrap.conf \
+  docker compose \
+    --project-name jumin-proxy \
+    --file infra/docker-compose.proxy.yml \
+    up --detach nginx
+
+curl --fail --show-error --head http://dev.jucha.info
+```
+
+전환에 실패하면 다음 명령으로 즉시 원래 구성으로 돌아갑니다.
+
+```bash
+docker compose \
+  --project-name jumin-proxy \
+  --file infra/docker-compose.proxy.yml \
+  down
+sudo systemctl start nginx
+```
+
+### 3. Let's Encrypt 인증서 발급
+
+`TEAM_EMAIL`에는 인증서 만료 알림을 받을 팀 이메일을 넣습니다. 이메일은 저장소에
+커밋하지 않습니다.
+
+```bash
+TEAM_EMAIL='팀 이메일 주소'
+
+docker compose \
+  --project-name jumin-proxy \
+  --file infra/docker-compose.proxy.yml \
+  run --rm certbot certonly \
+    --webroot \
+    --webroot-path /var/www/certbot \
+    --domain dev.jucha.info \
+    --email "${TEAM_EMAIL}" \
+    --agree-tos \
+    --no-eff-email \
+    --non-interactive
+```
+
+### 4. HTTPS 설정 적용
+
+인증서가 발급되면 기본 `jumin.conf`를 사용하도록 Nginx 컨테이너를 다시 만듭니다.
+정상 확인 후에만 호스트 Nginx의 자동 시작을 해제합니다.
+
+```bash
+docker compose \
+  --project-name jumin-proxy \
+  --file infra/docker-compose.proxy.yml \
+  up --detach --force-recreate nginx
+
+docker compose \
+  --project-name jumin-proxy \
+  --file infra/docker-compose.proxy.yml \
+  exec --no-TTY nginx nginx -t
+
+curl --fail --show-error --head https://dev.jucha.info
+curl --fail --show-error http://127.0.0.1:8080/actuator/health
+
+sudo systemctl disable nginx
+```
+
+HTTP 요청은 HTTPS로 리다이렉트됩니다. `/api/` 요청은 Docker 네트워크 안에서
+`backend:8080`으로 전달되고, 그 외 요청은 프론트엔드 정적 파일로 처리됩니다.
+
+### 5. 인증서 자동 갱신
+
+먼저 실제 인증서를 변경하지 않는 갱신 테스트를 실행합니다.
+
+```bash
+docker compose \
+  --project-name jumin-proxy \
+  --file infra/docker-compose.proxy.yml \
+  run --rm certbot renew --dry-run
+```
+
+테스트가 성공하면 root crontab에 갱신 스크립트를 등록합니다. 아래의
+`/absolute/path/to/repository`는 EC2에 체크아웃한 저장소의 절대 경로로 바꿉니다.
+
+```bash
+sudo crontab -e
+```
+
+```cron
+17 3 * * * /absolute/path/to/repository/infra/scripts/renew-certificates.sh >> /var/log/jumin-certbot.log 2>&1
+```
+
+갱신 상태와 Nginx 로그는 다음 명령으로 확인합니다.
+
+```bash
+sudo tail -n 100 /var/log/jumin-certbot.log
+docker logs --tail 100 jumin-nginx-dev
+```
 
 ## 로그
 
