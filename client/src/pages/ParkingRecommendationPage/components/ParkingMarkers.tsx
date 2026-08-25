@@ -1,8 +1,8 @@
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import defaultRecommendationMarkerUrl from '../../../../assets/icons/markers/defaultRecommandMarker.svg';
-import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
 import selectedRecommendationMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 import unselectedRecommendationMarkerUrl from '../../../../assets/icons/markers/unselectedRecommandMarker.svg';
+import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/components/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 
@@ -30,14 +30,6 @@ const markerIcons = {
   },
 } satisfies Record<ParkingMarkerType, Parameters<typeof NaverMapMarker>[0]['icon']>;
 
-const destinationIcon = {
-  url: destinationMarkerUrl,
-  width: 20,
-  height: 20,
-  anchorX: 16,
-  anchorY: 16,
-};
-
 interface Props {
   map: naver.maps.Map | null;
   destination: {
@@ -63,13 +55,11 @@ export const ParkingMarkers = ({
 
   return (
     <>
-      <NaverMapMarker
+      <DestinationMapOverlay
         map={map}
         latitude={destination.latitude}
         longitude={destination.longitude}
-        icon={destinationIcon}
         title={destination.name}
-        zIndex={40}
       />
 
       {parkingLots.map((parkingLot) => {

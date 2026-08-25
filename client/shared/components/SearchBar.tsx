@@ -50,6 +50,7 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
         border: 0;
         outline: 0;
         background: transparent;
+        font-size: 16px;
       `}
       aria-label="목적지 검색"
       placeholder="어디에 방문하세요?"
