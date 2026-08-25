@@ -1,4 +1,5 @@
 import { NaverMap } from '../../../shared/components/NaverMap';
+import { NaverMapMarker } from '../../../shared/components/NaverMapMarker';
 
 import { useEffect, useState } from 'react';
 
@@ -7,16 +8,38 @@ import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import type { ParkingLotDetailResponse, ParkingLotSummary, ParkingOperationPeriod } from '../../../api/contracts';
+import destinationMarkerUrl from '../../../assets/icons/markers/destinationMarker.svg';
+import selectedParkingMarkerUrl from '../../../assets/icons/markers/selectedRecommandMarker.svg';
 
-import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import BottomSheet, { BOTTOM_SHEET_HEIGHT, type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { getParkingLotDetail, type ParkingDetailParams } from '../../../api/parkingLots';
 
+interface ParkingDetailSearchCondition extends ParkingDetailParams {
+  destinationName?: string;
+}
+
 interface ParkingDetailLocationState {
   parkingLot?: ParkingLotSummary;
-  searchCondition?: ParkingDetailParams;
+  searchCondition?: ParkingDetailSearchCondition;
 }
+
+const destinationMarkerIcon = {
+  url: destinationMarkerUrl,
+  width: 32,
+  height: 32,
+  anchorX: 16,
+  anchorY: 16,
+};
+
+const parkingLotMarkerIcon = {
+  url: selectedParkingMarkerUrl,
+  width: 74,
+  height: 90,
+  anchorX: 37,
+  anchorY: 73,
+};
 
 const formatFee = (fee: number | null) => (fee === null ? '미제공' : `${fee.toLocaleString('ko-KR')}원`);
 
@@ -53,6 +76,7 @@ const formatCheckedDate = (lastCheckedAt: string) => {
 export const ParkingDetailPage = () => {
   const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
 
   // 주차장의 상세정보 및 비동기 상태
   const [parkingLotDetail, setParkingLotDetail] = useState<ParkingLotDetailResponse | null>(null);
@@ -93,6 +117,27 @@ export const ParkingDetailPage = () => {
     };
   }, [parkingLot, searchCondition]);
 
+  useEffect(() => {
+    if (!map || !parkingLotDetail || !searchCondition) return;
+
+    const destinationPosition = new naver.maps.LatLng(
+      searchCondition.destinationLatitude,
+      searchCondition.destinationLongitude,
+    );
+    const parkingLotPosition = new naver.maps.LatLng(
+      parkingLotDetail.location.latitude,
+      parkingLotDetail.location.longitude,
+    );
+
+    map.fitBounds([destinationPosition, parkingLotPosition], {
+      top: 112,
+      right: 40,
+      bottom: sheetSnap === 'expanded' ? BOTTOM_SHEET_HEIGHT + 24 : 124,
+      left: 40,
+      maxZoom: 16,
+    });
+  }, [map, parkingLotDetail, searchCondition, sheetSnap]);
+
   if (!parkingLot || !searchCondition) {
     return <Navigate to="/parkingRecommendation" replace />;
   }
@@ -107,7 +152,27 @@ export const ParkingDetailPage = () => {
 
   return (
     <main className={pageStyle}>
-      <NaverMap latitude={searchCondition.destinationLatitude} longitude={searchCondition.destinationLongitude} />
+      <NaverMap
+        latitude={searchCondition.destinationLatitude}
+        longitude={searchCondition.destinationLongitude}
+        onMapReady={setMap}
+      />
+      <NaverMapMarker
+        map={map}
+        latitude={searchCondition.destinationLatitude}
+        longitude={searchCondition.destinationLongitude}
+        icon={destinationMarkerIcon}
+        title={searchCondition.destinationName ?? '목적지'}
+        zIndex={20}
+      />
+      <NaverMapMarker
+        map={map}
+        latitude={parkingLotDetail.location.latitude}
+        longitude={parkingLotDetail.location.longitude}
+        icon={parkingLotMarkerIcon}
+        title={parkingLotDetail.name}
+        zIndex={30}
+      />
       <header className={headerStyle}>
         <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
           <BackIcon />
@@ -116,16 +181,15 @@ export const ParkingDetailPage = () => {
         <h1 className={parkingNameStyle}>{parkingLot.name}</h1>
       </header>
 
-      <div className={parkingMarkerStyle} aria-hidden="true">
-        <span />
-      </div>
-
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <div className={sheetContentStyle}>
           <section>
-            <h2 className={sectionLabelStyle}>예상 요금</h2>
-
             <div className={feeCardStyle}>
+              <div className={totalFeeStyle}>
+                <span>{durationLabel} 예상 요금</span>
+                <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
+              </div>
+
               <dl className={feeRuleListStyle}>
                 {feeRule?.baseFreeMinutes !== null &&
                   feeRule?.baseFreeMinutes !== undefined &&
@@ -157,11 +221,6 @@ export const ParkingDetailPage = () => {
                   </div>
                 )}
               </dl>
-
-              <div className={totalFeeStyle}>
-                <span>{durationLabel} 총액</span>
-                <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
-              </div>
             </div>
           </section>
 
@@ -185,16 +244,18 @@ export const ParkingDetailPage = () => {
             </div>
           </dl>
 
-          {source && (
-            <p className={sourceStyle}>
-              {source.name}
-              {checkedDate && ` · ${checkedDate} 기준`}
-            </p>
-          )}
+          <div className={sheetFooterStyle}>
+            {source && (
+              <p className={sourceStyle}>
+                {source.name}
+                {checkedDate && ` · ${checkedDate} 기준`}
+              </p>
+            )}
 
-          <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
-            길찾기 시작
-          </button>
+            <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
+              길찾기 시작
+            </button>
+          </div>
         </div>
       </BottomSheet>
 
@@ -311,58 +372,12 @@ const parkingNameStyle = css`
   white-space: nowrap;
 `;
 
-const parkingMarkerStyle = css`
-  position: absolute;
-
-  top: 222px;
-
-  left: 50%;
-
-  z-index: 1;
-
-  display: grid;
-
-  place-items: center;
-
-  width: 30px;
-
-  height: 30px;
-
-  background: #fff;
-
-  border-radius: 50%;
-
-  box-shadow: 0 3px 10px rgb(20 33 61 / 30%);
-
-  transform: translateX(-50%);
-
-  span {
-    width: 13px;
-
-    height: 13px;
-
-    background: #283754;
-
-    border-radius: 50%;
-  }
-`;
-
 const sheetContentStyle = css`
   display: flex;
 
   flex-direction: column;
 
   min-height: 100%;
-`;
-
-const sectionLabelStyle = css`
-  margin: 0 0 14px;
-
-  color: #18233d;
-
-  font-size: 17px;
-
-  font-weight: 800;
 `;
 
 const feeCardStyle = css`
@@ -513,4 +528,8 @@ const navigationButtonStyle = css`
 
     outline-offset: 3px;
   }
+`;
+
+const sheetFooterStyle = css`
+  margin-top: auto;
 `;

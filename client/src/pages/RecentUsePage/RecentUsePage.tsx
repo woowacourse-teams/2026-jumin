@@ -2,9 +2,11 @@ import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import type { ParkingLotSummary } from '../../../api/contracts';
 import { BottomNav } from '../../../shared/components/BottomNav';
+import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
-import { loadRecentParkingUses } from '../../../shared/utils/recentParkingUses';
+import { loadRecentParkingUses, saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 
 const formatMonthDay = (usedAt: string) =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -15,7 +17,15 @@ const formatMonthDay = (usedAt: string) =>
 
 export const RecentUsePage = () => {
   const navigate = useNavigate();
-  const [recentParkingUses] = useState(loadRecentParkingUses);
+  const [recentParkingUses, setRecentParkingUses] = useState(loadRecentParkingUses);
+  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotSummary | null>(null);
+
+  const handleDirectionsStart = () => {
+    if (!selectedParkingLot) return;
+
+    saveRecentParkingUse(selectedParkingLot);
+    setRecentParkingUses(loadRecentParkingUses());
+  };
 
   return (
     <main className={pageStyle}>
@@ -37,7 +47,7 @@ export const RecentUsePage = () => {
                 title={parkingLot.name}
                 address={parkingLot.address}
                 metadata={`마지막 이용 ${formatMonthDay(usedAt)}`}
-                onSelect={() => navigate('/parkingDetail', { state: { parkingLot } })}
+                onSelect={() => setSelectedParkingLot(parkingLot)}
               />
             ))}
           </ul>
@@ -47,6 +57,15 @@ export const RecentUsePage = () => {
       <footer className={footerStyle}>
         <BottomNav />
       </footer>
+
+      {selectedParkingLot && (
+        <DeepLinkModal
+          isOpen
+          onRequestClose={() => setSelectedParkingLot(null)}
+          onDirectionsStart={handleDirectionsStart}
+          destination={{ name: selectedParkingLot.name, location: selectedParkingLot.location }}
+        />
+      )}
     </main>
   );
 };
