@@ -123,9 +123,12 @@ export const ParkingDetailPage = () => {
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <div className={sheetContentStyle}>
           <section>
-            <h2 className={sectionLabelStyle}>예상 요금</h2>
-
             <div className={feeCardStyle}>
+              <div className={totalFeeStyle}>
+                <span>{durationLabel} 예상 요금</span>
+                <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
+              </div>
+
               <dl className={feeRuleListStyle}>
                 {feeRule?.baseFreeMinutes !== null &&
                   feeRule?.baseFreeMinutes !== undefined &&
@@ -157,11 +160,6 @@ export const ParkingDetailPage = () => {
                   </div>
                 )}
               </dl>
-
-              <div className={totalFeeStyle}>
-                <span>{durationLabel} 총액</span>
-                <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
-              </div>
             </div>
           </section>
 
@@ -185,16 +183,18 @@ export const ParkingDetailPage = () => {
             </div>
           </dl>
 
-          {source && (
-            <p className={sourceStyle}>
-              {source.name}
-              {checkedDate && ` · ${checkedDate} 기준`}
-            </p>
-          )}
+          <div className={sheetFooterStyle}>
+            {source && (
+              <p className={sourceStyle}>
+                {source.name}
+                {checkedDate && ` · ${checkedDate} 기준`}
+              </p>
+            )}
 
-          <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
-            길찾기 시작
-          </button>
+            <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
+              길찾기 시작
+            </button>
+          </div>
         </div>
       </BottomSheet>
 
@@ -355,16 +355,6 @@ const sheetContentStyle = css`
   min-height: 100%;
 `;
 
-const sectionLabelStyle = css`
-  margin: 0 0 14px;
-
-  color: #18233d;
-
-  font-size: 17px;
-
-  font-weight: 800;
-`;
-
 const feeCardStyle = css`
   overflow: hidden;
 
@@ -513,4 +503,8 @@ const navigationButtonStyle = css`
 
     outline-offset: 3px;
   }
+`;
+
+const sheetFooterStyle = css`
+  margin-top: auto;
 `;
