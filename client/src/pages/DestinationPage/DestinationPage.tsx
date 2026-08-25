@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import type { Destination } from '../../../api/contracts';
+import { DestinationMapOverlay } from '../../../shared/components/DestinationMapOverlay';
 import { NaverMap } from '../../../shared/components/NaverMap';
 import { SearchBar } from '../../../shared/components/SearchBar';
 
@@ -10,8 +12,44 @@ interface NavigationState {
 
 export const DestinationPage = () => {
   const navigate = useNavigate();
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bottomSheetRef = useRef<HTMLElement>(null);
   const { state } = useLocation();
   const destination = (state as NavigationState | null)?.destination;
+
+  useLayoutEffect(() => {
+    if (!map || !destination || !headerRef.current || !bottomSheetRef.current) return;
+
+    const centerDestination = () => {
+      map.refresh(true);
+
+      if (!headerRef.current || !bottomSheetRef.current) return;
+
+      const mapRect = map.getElement().getBoundingClientRect();
+      const headerBottomY = headerRef.current.getBoundingClientRect().bottom - mapRect.top;
+      const bottomSheetTopY = bottomSheetRef.current.getBoundingClientRect().top - mapRect.top;
+
+      if (bottomSheetTopY <= headerBottomY) return;
+
+      const visibleAreaCenterY = (headerBottomY + bottomSheetTopY) / 2;
+      const destinationPosition = new naver.maps.LatLng(destination.latitude, destination.longitude);
+      const projection = map.getProjection();
+      const destinationOffset = projection.fromCoordToOffset(destinationPosition);
+      const mapCenterOffset = new naver.maps.Point(map.getSize().width / 2, map.getSize().height / 2);
+      const targetCenterOffset = new naver.maps.Point(
+        destinationOffset.x,
+        mapCenterOffset.y + destinationOffset.y - visibleAreaCenterY,
+      );
+
+      map.setCenter(projection.fromOffsetToCoord(targetCenterOffset));
+    };
+
+    centerDestination();
+    window.addEventListener('resize', centerDestination);
+
+    return () => window.removeEventListener('resize', centerDestination);
+  }, [destination, map]);
 
   if (!destination) return <Navigate to="/search" replace />;
 
@@ -24,9 +62,16 @@ export const DestinationPage = () => {
         overflow: hidden;
       `}
     >
-      <NaverMap />
+      <NaverMap latitude={destination.latitude} longitude={destination.longitude} onMapReady={setMap} />
+      <DestinationMapOverlay
+        map={map}
+        latitude={destination.latitude}
+        longitude={destination.longitude}
+        title={destination.name}
+      />
 
       <div
+        ref={headerRef}
         className={css`
           position: relative;
           z-index: 1;
@@ -36,6 +81,7 @@ export const DestinationPage = () => {
       </div>
 
       <section
+        ref={bottomSheetRef}
         className={css`
           position: absolute;
           right: 0;

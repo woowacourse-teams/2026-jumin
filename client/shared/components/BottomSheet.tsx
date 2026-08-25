@@ -83,6 +83,7 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 
   return (
     <section
+      data-bottom-sheet
       className={sheetStyle}
       ref={sheetRef}
       style={{

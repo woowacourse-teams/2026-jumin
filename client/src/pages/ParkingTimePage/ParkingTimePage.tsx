@@ -1,6 +1,6 @@
 import { NaverMap } from '../../../shared/components/NaverMap';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
 import { Navigate, useLocation, useNavigate } from 'react-router';
@@ -37,6 +37,7 @@ interface NavigationState {
 export const ParkingTimePage = () => {
   const navigate = useNavigate();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const pageRef = useRef<HTMLElement>(null);
 
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
 
@@ -52,8 +53,45 @@ export const ParkingTimePage = () => {
   // 목적지 데이터 가져오기
   const { state } = useLocation();
   const destinationCandidate = (state as NavigationState | null)?.destination;
-  if (!isSearchDestination(destinationCandidate)) return <Navigate to="/search" replace />;
-  const destination = destinationCandidate;
+  const destination = isSearchDestination(destinationCandidate) ? destinationCandidate : null;
+
+  useLayoutEffect(() => {
+    if (!map || !destination) return;
+
+    const centerDestination = () => {
+      map.refresh(true);
+
+      const searchConditionBar = pageRef.current?.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+      const bottomSheet = pageRef.current?.querySelector<HTMLElement>('[data-bottom-sheet]');
+
+      if (!searchConditionBar || !bottomSheet) return;
+
+      const mapRect = map.getElement().getBoundingClientRect();
+      const headerBottomY = searchConditionBar.getBoundingClientRect().bottom - mapRect.top;
+      const bottomSheetTopY = bottomSheet.getBoundingClientRect().top - mapRect.top;
+
+      if (bottomSheetTopY <= headerBottomY) return;
+
+      const visibleAreaCenterY = (headerBottomY + bottomSheetTopY) / 2;
+      const destinationPosition = new naver.maps.LatLng(destination.latitude, destination.longitude);
+      const projection = map.getProjection();
+      const destinationOffset = projection.fromCoordToOffset(destinationPosition);
+      const mapCenterOffset = new naver.maps.Point(map.getSize().width / 2, map.getSize().height / 2);
+      const targetCenterOffset = new naver.maps.Point(
+        destinationOffset.x,
+        mapCenterOffset.y + destinationOffset.y - visibleAreaCenterY,
+      );
+
+      map.setCenter(projection.fromOffsetToCoord(targetCenterOffset));
+    };
+
+    centerDestination();
+    window.addEventListener('resize', centerDestination);
+
+    return () => window.removeEventListener('resize', centerDestination);
+  }, [destination, map, sheetSnap]);
+
+  if (!destination) return <Navigate to="/search" replace />;
 
   const handleEntryClick = () => {
     setEntryTime((previousTime) => previousTime ?? createRoundedCurrentTime());
@@ -132,7 +170,7 @@ export const ParkingTimePage = () => {
   };
 
   return (
-    <main className={pageStyle}>
+    <main ref={pageRef} className={pageStyle}>
       <NaverMap latitude={destination.latitude} longitude={destination.longitude} onMapReady={setMap} />
       <DestinationMapOverlay
         map={map}
