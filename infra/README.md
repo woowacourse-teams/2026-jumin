@@ -71,6 +71,8 @@ secret으로 전달합니다.
 - Docker Engine과 Docker Compose plugin
 - `jumin-dev` self-hosted runner
 - EC2에서 RDS로 연결할 수 있는 네트워크 권한
+- EC2에 연결된 IAM Role의 `/jumin/dev/backend` 로그 기록 권한
+- CloudWatch Logs로 나가는 outbound HTTPS 연결
 - GitHub `development` Environment secret
 
 ## 개발 서버 HTTPS 프록시
@@ -212,8 +214,23 @@ docker logs --tail 100 jumin-nginx-dev
 
 ## 로그
 
-로컬과 개발 서버는 별도 로그 수집 스택 없이 애플리케이션의 stdout/stderr를
-콘솔에서 확인합니다. 운영 환경의 로그 수집·검색·알림은 CloudWatch Logs를 사용합니다.
+로컬은 애플리케이션의 stdout/stderr를 콘솔에서 확인합니다. 개발 서버의
+`jumin-backend-dev` 컨테이너는 Docker `awslogs` logging driver로 stdout/stderr를
+서울 리전(`ap-northeast-2`)의 `/jumin/dev/backend` CloudWatch Logs 그룹에 전송합니다.
+로그 그룹은 배포 전에 생성하며 Docker가 자동으로 만들지 않습니다.
+
+개발 서버의 CloudWatch 로그 설정은 다음을 사용합니다.
+
+```text
+로그 클래스: Standard
+보존 기간: 7일
+전송 방식: non-blocking
+버퍼 크기: 10m
+```
+
+EC2에 연결된 IAM Role에는 해당 로그 그룹의 로그 스트림 조회·생성·기록 권한만
+부여합니다. 로그 수집 설정을 변경하면 backend 컨테이너를 재생성해야 반영됩니다.
+운영 환경의 로그 수집·검색·알림도 CloudWatch Logs를 사용합니다.
 
 ## 관련 문서
 
