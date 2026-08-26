@@ -9,6 +9,7 @@
 | --- | --- |
 | `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS 실행 |
 | `docker-compose.dev.yml` | 개발 서버 백엔드 컨테이너 실행 |
+| `docker-compose.prod.yml` | 운영 서버 백엔드 컨테이너 실행 |
 | `docker-compose.proxy.yml` | 개발 서버 Nginx + Certbot 실행 |
 | `nginx/bootstrap.conf` | 최초 인증서 발급 전 HTTP 설정 |
 | `nginx/jumin.conf` | HTTPS, 정적 파일, API 프록시 설정 |
@@ -74,6 +75,32 @@ secret으로 전달합니다.
 - EC2에 연결된 IAM Role의 `/jumin/dev/backend` 로그 기록 권한
 - CloudWatch Logs로 나가는 outbound HTTPS 연결
 - GitHub `development` Environment secret
+
+## 운영 서버 배포
+
+운영 서버 백엔드 배포는 [`server-prod-cd.yml`](../.github/workflows/server-prod-cd.yml)이
+담당합니다. `main`에 변경사항이 반영되면 다음 순서로 배포합니다.
+
+1. 백엔드 테스트와 JAR 빌드
+2. 운영 서버용 Docker image 빌드
+3. `jumin-prod` ARM64 self-hosted runner에서 백엔드 컨테이너 실행
+4. `/actuator/health` 확인
+5. health check 실패 시 이전 Docker image와 release symlink 복구
+
+운영 배포 전에 다음 인프라가 준비되어 있어야 합니다.
+
+- `jumin-prod` 라벨을 가진 Linux ARM64 self-hosted runner
+- 운영 EC2의 `/opt/jumin-prod/backend` 쓰기 권한
+- EC2에서 운영 RDS로 연결할 수 있는 네트워크 권한
+- Docker Engine, Docker Compose plugin, `curl`, `rsync`
+- 운영 CloudWatch Logs 그룹 `/jumin/prod/backend`
+- GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
+  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET` secret
+- 운영 Nginx가 `127.0.0.1:8080`의 backend로 `/api/` 요청을 전달하는 설정
+
+`production` Environment와 `jumin-prod` runner가 없는 상태에서는 deploy job을 실행할 수
+없으므로 운영 배포가 완료되지 않습니다. 운영 배포는 `main` 병합 후 GitHub Actions에서
+실행하며, workflow의 health check가 성공한 뒤에만 완료로 판단합니다.
 
 ## 개발 서버 HTTPS 프록시
 
@@ -238,3 +265,4 @@ EC2에 연결된 IAM Role에는 해당 로그 그룹의 로그 스트림 조회�
 - [팀 컨벤션](../docs/team-conventions.md): 브랜치와 커밋 규칙
 - [Server CI](../.github/workflows/server-ci.yml): 백엔드 검증 workflow
 - [Server CD](../.github/workflows/server-dev-cd.yml): 개발 서버 배포 workflow
+- [Server production CD](../.github/workflows/server-prod-cd.yml): 운영 서버 배포 workflow
