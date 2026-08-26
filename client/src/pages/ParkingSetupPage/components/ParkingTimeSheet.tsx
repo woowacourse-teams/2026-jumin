@@ -1,0 +1,244 @@
+import { useState } from 'react';
+
+import { css } from '@emotion/css';
+
+import { addOneHour, addThirtyMinutes, addTwoHours, DEFAULT_TIME, TimeValue } from '../model/time';
+import { formatMonthDay } from '../utils/timeFormat';
+import { TimePickerField } from './TimePickerField';
+
+interface Props {
+  entryTime: TimeValue;
+  exitTime: TimeValue | null;
+  onEntryTimeChange: (value: TimeValue) => void;
+  onExitTimeChange: (value: TimeValue | null) => void;
+  onSubmit: () => void;
+}
+
+// 입출차 중 선택된 필드 인터페이스
+type ActiveTimeField = 'entry' | 'exit' | null;
+
+export const ParkingTimeSheet = ({ entryTime, exitTime, onEntryTimeChange, onExitTimeChange, onSubmit }: Props) => {
+  const [activeField, setActiveField] = useState<ActiveTimeField>(null);
+
+  // 입차 영역 클릭
+  const handleEntryClick = () => {
+    setActiveField((previousField) => (previousField === 'entry' ? null : 'entry'));
+  };
+
+  // 출차 영역 클릭
+  const handleExitClick = () => {
+    // 출차 시간은 null일 수 있으므로, 최초 클릭 시 00:00으로 초기화
+    if (exitTime === null) {
+      onExitTimeChange({ ...DEFAULT_TIME });
+    }
+
+    setActiveField((previousField) => (previousField === 'exit' ? null : 'exit'));
+  };
+
+  // 30분, 1시간, 2시간 추가 메서드
+  const handleAddThirtyMinutes = () => {
+    if (entryTime === null) return;
+
+    if (exitTime === null) onExitTimeChange(addThirtyMinutes(entryTime));
+    else onExitTimeChange(addThirtyMinutes(exitTime));
+    setActiveField(null);
+  };
+  const handleAddOneHour = () => {
+    if (entryTime === null) return;
+
+    if (exitTime === null) onExitTimeChange(addOneHour(entryTime));
+    else onExitTimeChange(addOneHour(exitTime));
+    setActiveField(null);
+  };
+  const handleAddTwoHours = () => {
+    if (entryTime === null) return;
+
+    if (exitTime === null) onExitTimeChange(addTwoHours(entryTime));
+    else onExitTimeChange(addTwoHours(exitTime));
+    setActiveField(null);
+  };
+
+  return (
+    <div className={sheetContentStyle}>
+      <header className={headerStyle}>
+        <h1 className={titleStyle}>언제 주차하세요?</h1>
+
+        <time className={dateStyle} dateTime={new Date().toISOString().slice(0, 10)}>
+          <CalendarIcon />
+          {formatMonthDay(new Date())}
+        </time>
+      </header>
+
+      <div className={timeFieldsStyle}>
+        <TimePickerField
+          label="입차"
+          value={entryTime}
+          isActive={activeField === 'entry'}
+          onToggle={handleEntryClick}
+          onChange={onEntryTimeChange}
+        />
+
+        <TimePickerField
+          label="출차"
+          value={exitTime}
+          isActive={activeField === 'exit'}
+          onToggle={handleExitClick}
+          onChange={onExitTimeChange}
+        />
+      </div>
+
+      <div className={quickButtonsStyle}>
+        <button
+          className={quickButtonStyle}
+          type="button"
+          disabled={entryTime === null}
+          onClick={handleAddThirtyMinutes}
+        >
+          +30분
+        </button>
+
+        <button className={quickButtonStyle} type="button" disabled={entryTime === null} onClick={handleAddOneHour}>
+          +1시간
+        </button>
+
+        <button className={quickButtonStyle} type="button" disabled={entryTime === null} onClick={handleAddTwoHours}>
+          +2시간
+        </button>
+      </div>
+
+      <button className={recommendButtonStyle} type="button" disabled={exitTime === null} onClick={onSubmit}>
+        추천 받기
+      </button>
+    </div>
+  );
+};
+
+function CalendarIcon() {
+  return (
+    <svg className={calendarIconStyle} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 3v3M17 3v3M4 9h16" />
+      <rect x="4" y="5" width="16" height="16" rx="3" />
+    </svg>
+  );
+}
+
+const sheetContentStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  height: 100%;
+`;
+
+const headerStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 12px;
+`;
+
+const titleStyle = css`
+  margin: 0;
+
+  color: #101b37;
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -1.2px;
+`;
+
+const dateStyle = css`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  min-height: 44px;
+  padding: 0 14px;
+
+  color: #101b37;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+
+  background: #f5f6fb;
+  border-radius: 14px;
+`;
+
+const calendarIconStyle = css`
+  width: 20px;
+  height: 20px;
+
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+`;
+
+const timeFieldsStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+`;
+
+const quickButtonsStyle = css`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+`;
+
+const quickButtonStyle = css`
+  min-height: 52px;
+
+  border: 0;
+  border-radius: 14px;
+
+  color: #435ed8;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+
+  background: #f5f6ff;
+  cursor: pointer;
+
+  &:active:not(:disabled) {
+    background: #e9edff;
+  }
+
+  &:disabled {
+    color: #a8afc9;
+    cursor: not-allowed;
+  }
+`;
+
+const recommendButtonStyle = css`
+  width: 100%;
+  min-height: 58px;
+  margin-top: 10px;
+
+  border: 0;
+  border-radius: 16px;
+
+  color: #fff;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+
+  background: #4356d8;
+  cursor: pointer;
+
+  &:active {
+    background: #3548c8;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 3px;
+  }
+`;

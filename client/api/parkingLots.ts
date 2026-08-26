@@ -14,7 +14,11 @@ export interface ParkingDetailParams {
   exitAt: string;
 }
 
-export async function searchParkingLots(params: ParkingSearchParams): Promise<ParkingSearchResponse> {
+// 주차장 목록을 가져오는 메서드
+export async function searchParkingLots(
+  params: ParkingSearchParams,
+  signal?: AbortSignal,
+): Promise<ParkingSearchResponse> {
   const searchParams = new URLSearchParams({
     destinationLatitude: String(params.destinationLatitude),
     destinationLongitude: String(params.destinationLongitude),
@@ -22,10 +26,11 @@ export async function searchParkingLots(params: ParkingSearchParams): Promise<Pa
     exitAt: params.exitAt,
   });
 
-  const response = await fetch(`/api/parking/search?${searchParams.toString()}`);
+  const response = await fetch(`/api/parking/search?${searchParams.toString()}`, { signal });
 
   if (!response.ok) {
     const error = await response.json();
+
     throw new Error(error.message ?? '주차장을 조회하지 못했습니다.');
   }
 

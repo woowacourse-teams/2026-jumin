@@ -82,7 +82,7 @@ export const SearchPage = () => {
     ].slice(0, 5);
 
     updateRecentSearches(nextRecentSearches);
-    navigate('/destination', { state: { destination } });
+    navigate('/parkingsetup', { state: { destination } });
   };
 
   const removeRecentSearch = (destinationId: string) => {
