@@ -6,14 +6,16 @@
     "build": "pnpm typecheck && webpack --mode production",
     "typecheck": "tsc --noEmit",
     "test:deep-link": "node --experimental-strip-types --test shared/components/Modal/deepLink.test.mjs",
-    "test:parking-markers": "node --experimental-strip-types --test src/pages/ParkingRecommendationPage/components/parkingMarker.test.mjs",
+    "test:parking-markers": "node --experimental-strip-types --test src/pages/ParkingRecommendPage/components/parkingMarker.test.mjs",
     "check": "pnpm typecheck && pnpm test:deep-link && pnpm test:parking-markers && eslint . && prettier --check ."
   },
   "dependencies": {
     "@emotion/css": "^11.13.5",
+    "@tanstack/react-query": "^5.102.3",
     "date-fns": "^4.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-error-boundary": "^6.1.3",
     "react-modal": "^3.16.3",
     "react-router": "^8.3.0"
   },

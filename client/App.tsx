@@ -1,19 +1,17 @@
 import { Routes, Route } from 'react-router';
 import { MainPage } from './src/pages/MainPage/MainPage';
 import { SearchPage } from './src/pages/SearchPage/SearchPage';
-import { DestinationPage } from './src/pages/DestinationPage/DestinationPage';
-import { ParkingTimePage } from './src/pages/ParkingTimePage/ParkingTimePage';
-import { ParkingRecommendationPage } from './src/pages/ParkingRecommendationPage/ParkingRecommendationPage';
 import { ParkingDetailPage } from './src/pages/ParkingDetailPage/ParkingDetailPage';
 import { RecentUsePage } from './src/pages/RecentUsePage/RecentUsePage';
+import { ParkingSetupPage } from './src/pages/ParkingSetupPage/ParkingSetupPage';
+import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRecommendPage';
 
 const App = () => (
   <Routes>
     <Route path="/" element={<MainPage />} />
     <Route path="/search" element={<SearchPage />} />
-    <Route path="/destination" element={<DestinationPage />} />
-    <Route path="/parkingTimeSheet" element={<ParkingTimePage />} />
-    <Route path="/parkingRecommendation" element={<ParkingRecommendationPage />} />
+    <Route path="/parkingsetup" element={<ParkingSetupPage />} />
+    <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
     <Route path="/parkingDetail" element={<ParkingDetailPage />} />
     <Route path="/recent" element={<RecentUsePage />} />
   </Routes>

@@ -34,7 +34,5 @@ export const addMinutesToTime = (time: TimeValue, minutesToAdd: number): TimeVal
 };
 
 export const addThirtyMinutes = (time: TimeValue) => addMinutesToTime(time, 30);
-
 export const addOneHour = (time: TimeValue) => addMinutesToTime(time, 60);
-
 export const addTwoHours = (time: TimeValue) => addMinutesToTime(time, 120);

@@ -3,15 +3,28 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { initAnalytics } from './shared/analytics';
 import { applyGlobalStyles } from './shared/styles/globalStyle';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 initAnalytics(__GA_MEASUREMENT_ID__);
 applyGlobalStyles();
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 const renderApp = () => {
   createRoot(document.getElementById('root')!).render(
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>,
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>,
   );
 };
 

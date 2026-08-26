@@ -1,4 +1,4 @@
-import { TimeValue } from '../../src/pages/ParkingTimePage/model/time';
+import { TimeValue } from '../../src/pages/ParkingSetupPage/model/time';
 
 export const formatTimeValue = ({ hour, minute }: TimeValue) => {
   const formattedHour = String(hour).padStart(2, '0');

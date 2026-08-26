@@ -139,7 +139,7 @@ export const ParkingDetailPage = () => {
   }, [map, parkingLotDetail, searchCondition, sheetSnap]);
 
   if (!parkingLot || !searchCondition) {
-    return <Navigate to="/parkingRecommendation" replace />;
+    return <Navigate to="/parkingsetup" replace />;
   }
 
   if (!parkingLotDetail) {

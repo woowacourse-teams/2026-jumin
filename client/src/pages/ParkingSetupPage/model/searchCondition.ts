@@ -3,6 +3,7 @@ import type { TimeValue } from './time';
 
 const formatOffsetDateTime = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm:ss'+09:00'");
 
+// TimeValue 인터페이스의 값을 Date 객체로 변환해서 예외처리 후, string으로 포맷해서 전달
 export const createSearchPeriod = (date: Date, entryTime: TimeValue, exitTime: TimeValue) => {
   const entryAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), entryTime.hour, entryTime.minute);
 
