@@ -110,7 +110,7 @@ jobs:
           current_link="${release_root}/current"
           compose_file="${repository_root}/infra/docker-compose.prod.yml"
           image_name="jumin-backend"
-          compose_project="jumin-prod-backend"
+          compose_project="jumin-prod"
           container_name="jumin-backend-prod"
           previous_image="$(docker inspect --format '{{.Config.Image}}' "${container_name}" 2>/dev/null || true)"
           previous_tag=""

@@ -1,3 +1,5 @@
+name: jumin-prod
+
 services:
   backend:
     image: jumin-backend:${IMAGE_TAG:-prod}
