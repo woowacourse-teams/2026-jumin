@@ -6,7 +6,7 @@
     "build": "pnpm typecheck && webpack --mode production",
     "typecheck": "tsc --noEmit",
     "test:deep-link": "node --experimental-strip-types --test shared/components/Modal/deepLink.test.mjs",
-    "test:parking-markers": "node --experimental-strip-types --test src/pages/ParkingRecommendationPage/components/parkingMarker.test.mjs",
+    "test:parking-markers": "node --experimental-strip-types --test src/pages/ParkingRecommendPage/components/parkingMarker.test.mjs",
     "check": "pnpm typecheck && pnpm test:deep-link && pnpm test:parking-markers && eslint . && prettier --check ."
   },
   "dependencies": {

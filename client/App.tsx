@@ -4,7 +4,7 @@ import { SearchPage } from './src/pages/SearchPage/SearchPage';
 import { ParkingDetailPage } from './src/pages/ParkingDetailPage/ParkingDetailPage';
 import { RecentUsePage } from './src/pages/RecentUsePage/RecentUsePage';
 import { ParkingSetupPage } from './src/pages/ParkingSetupPage/ParkingSetupPage';
-import { ParkingRecommendPage } from './src/pages/ParkingRecommendationPage/ParkingRecommendPage';
+import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRecommendPage';
 
 const App = () => (
   <Routes>
