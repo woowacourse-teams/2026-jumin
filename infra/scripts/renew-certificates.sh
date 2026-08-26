@@ -2,16 +2,21 @@
 
 set -Eeuo pipefail
 
-script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-infra_directory="$(cd -- "${script_directory}/.." && pwd)"
-compose_file="${infra_directory}/docker-compose.proxy.yml"
+current_release="/opt/jumin-dev/proxy/current"
+compose_file="${JUMIN_DEV_PROXY_COMPOSE_FILE:-${current_release}/docker-compose.proxy.yml}"
+current_config="${JUMIN_DEV_PROXY_CONFIG_FILE:-${current_release}/jumin.conf}"
 
-docker compose \
+test -f "${compose_file}"
+test -f "${current_config}"
+
+NGINX_CONF_FILE="${current_config}" \
+  docker compose \
   --project-name jumin-proxy \
   --file "${compose_file}" \
   run --rm certbot renew --quiet
 
-docker compose \
+NGINX_CONF_FILE="${current_config}" \
+  docker compose \
   --project-name jumin-proxy \
   --file "${compose_file}" \
   exec --no-TTY nginx nginx -s reload

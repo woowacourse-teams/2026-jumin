@@ -1,0 +1,137 @@
+name: Deploy production proxy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.proxy.prod.yml'
+      - 'infra/nginx/bootstrap.prod.conf'
+      - 'infra/nginx/jumin.prod.conf'
+      - '.github/workflows/proxy-prod-cd.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production proxy
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: [self-hosted, Linux, ARM64, jumin-prod]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Deploy Nginx proxy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          repository_root="${GITHUB_WORKSPACE:-$PWD}"
+          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_root="/opt/jumin-prod/proxy/releases"
+          release_dir="${release_root}/${release_id}"
+          current_link="/opt/jumin-prod/proxy/current"
+          repository_compose_file="${repository_root}/infra/docker-compose.proxy.prod.yml"
+          compose_file="${repository_compose_file}"
+          compose_project="jumin-proxy-prod"
+          container_name="jumin-nginx-prod"
+          previous_release="$(readlink -f "${current_link}" 2>/dev/null || true)"
+          deployment_attempted=false
+
+          rollback() {
+            local exit_code="${1:-$?}"
+            trap - ERR
+
+            echo "Production proxy deployment failed; restoring the previous release." >&2
+            if [[ -n "${previous_release}" && -d "${previous_release}" ]]; then
+              ln -sfn "${previous_release}" "${current_link}"
+              rollback_compose_file="${current_link}/docker-compose.proxy.prod.yml"
+              if [[ ! -f "${rollback_compose_file}" ]]; then
+                rollback_compose_file="${repository_compose_file}"
+              fi
+              NGINX_CONF_FILE="${current_link}/jumin.prod.conf" \
+                docker compose \
+                  --project-name "${compose_project}" \
+                  --file "${rollback_compose_file}" \
+                  up --detach --force-recreate nginx || true
+            elif [[ "${deployment_attempted}" == true ]]; then
+              docker compose \
+                --project-name "${compose_project}" \
+                --file "${compose_file}" \
+                down --remove-orphans || true
+            fi
+
+            if [[ -z "${previous_release}" && -L "${current_link}" ]]; then
+              unlink "${current_link}"
+            fi
+
+            exit "${exit_code}"
+          }
+          trap rollback ERR
+
+          test -f "${compose_file}"
+          docker network inspect jumin-prod_default >/dev/null
+
+          if docker inspect "${container_name}" >/dev/null 2>&1 && [[ ! -L "${current_link}" ]]; then
+            echo "Existing ${container_name} found without managed current symlink; refusing deployment." >&2
+            exit 1
+          fi
+
+          mkdir -p "${release_dir}"
+          install -m 644 "${repository_compose_file}" \
+            "${release_dir}/docker-compose.proxy.prod.yml"
+          install -m 644 "${repository_root}/infra/nginx/jumin.prod.conf" \
+            "${release_dir}/jumin.prod.conf"
+          ln -sfn "${release_dir}" "${current_link}"
+          compose_file="${current_link}/docker-compose.proxy.prod.yml"
+
+          NGINX_CONF_FILE="${current_link}/jumin.prod.conf" \
+            docker compose \
+              --project-name "${compose_project}" \
+              --file "${compose_file}" \
+              config --quiet
+
+          NGINX_CONF_FILE="${current_link}/jumin.prod.conf" \
+            docker compose \
+              --project-name "${compose_project}" \
+              --file "${compose_file}" \
+              run --rm --no-deps nginx nginx -t
+
+          deployment_attempted=true
+          NGINX_CONF_FILE="${current_link}/jumin.prod.conf" \
+            docker compose \
+              --project-name "${compose_project}" \
+              --file "${compose_file}" \
+              up --detach --force-recreate nginx
+
+          for _ in $(seq 1 12); do
+            if curl --noproxy '*' \
+              --fail \
+              --silent \
+              --show-error \
+              --connect-timeout 2 \
+              --max-time 5 \
+              --resolve 'jucha.info:443:127.0.0.1' \
+              https://jucha.info/ >/dev/null; then
+              trap - ERR
+              echo "Production proxy deployment succeeded: ${release_id}"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          docker logs --tail 80 "${container_name}" >&2 || true
+          rollback 1

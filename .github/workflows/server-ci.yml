@@ -10,10 +10,20 @@ on:
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.proxy.yml'
+      - 'infra/docker-compose.proxy.prod.yml'
+      - 'infra/nginx/bootstrap.conf'
+      - 'infra/nginx/bootstrap.prod.conf'
+      - 'infra/nginx/jumin.conf'
+      - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/renew-certificates.sh'
+      - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
       - '.github/workflows/server-prod-cd.yml'
+      - '.github/workflows/proxy-dev-cd.yml'
+      - '.github/workflows/proxy-prod-cd.yml'
   push:
     branches:
       - develop
@@ -23,10 +33,20 @@ on:
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.proxy.yml'
+      - 'infra/docker-compose.proxy.prod.yml'
+      - 'infra/nginx/bootstrap.conf'
+      - 'infra/nginx/bootstrap.prod.conf'
+      - 'infra/nginx/jumin.conf'
+      - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/renew-certificates.sh'
+      - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
       - '.github/workflows/server-prod-cd.yml'
+      - '.github/workflows/proxy-dev-cd.yml'
+      - '.github/workflows/proxy-prod-cd.yml'
   workflow_dispatch:
 
 permissions:
@@ -94,3 +114,9 @@ jobs:
           LOCAL_SEARCH_CLIENT_ID: ci
           LOCAL_SEARCH_CLIENT_SECRET: ci
         run: docker compose --file infra/docker-compose.prod.yml config --quiet
+
+      - name: Validate development proxy Compose configuration
+        run: docker compose --file infra/docker-compose.proxy.yml config --quiet
+
+      - name: Validate production proxy Compose configuration
+        run: docker compose --file infra/docker-compose.proxy.prod.yml config --quiet
