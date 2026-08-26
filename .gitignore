@@ -1,10 +1,15 @@
 # 의존성
 node_modules/
+.pnpm-store/
+.gradle/
 
 # 빌드 산출물
 dist/
 build/
 coverage/
+bin/
+out/
+*.class
 
 # 로컬 환경 파일
 .env
@@ -16,3 +21,7 @@ coverage/
 .idea/
 .vscode/
 *.iml
+
+# 로컬 에이전트 설정
+.agents/
+AGENTS.md

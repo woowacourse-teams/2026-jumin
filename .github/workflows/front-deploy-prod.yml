@@ -1,0 +1,125 @@
+name: Deploy frontend production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - ".github/workflows/front-deploy-prod.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production
+  cancel-in-progress: false
+
+jobs:
+  build-frontend:
+    name: Build frontend production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.11.0"
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: Check frontend
+        working-directory: client
+        run: pnpm check
+
+      - name: Build frontend
+        working-directory: client
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
+        run: pnpm build
+
+      - name: Validate build output
+        working-directory: client
+        run: |
+          test -s dist/index.html
+          test -d dist/assets
+          test -n "$(find dist/assets -type f -print -quit)"
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-production-${{ github.sha }}-${{ github.run_id }}
+          path: client/dist
+          if-no-files-found: error
+          retention-days: 3
+
+  deploy:
+    name: Deploy frontend production
+    if: github.ref == 'refs/heads/main'
+    needs: build-frontend
+    runs-on: [self-hosted, Linux, ARM64, jumin-prod]
+    timeout-minutes: 10
+
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-production-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/jumin-prod-deploy/frontend
+
+      - name: Deploy frontend
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_root="/var/www/jumin-prod/releases"
+          frontend_release="${release_root}/${release_id}"
+          current_link="/var/www/jumin-prod/current"
+          previous_frontend="$(readlink -f "${current_link}" 2>/dev/null || true)"
+
+          rollback() {
+            if [[ -n "${previous_frontend}" && -d "${previous_frontend}" ]]; then
+              ln -sfn "${previous_frontend}" "${current_link}"
+            elif [[ -L "${current_link}" ]]; then
+              unlink "${current_link}"
+            fi
+          }
+          trap rollback ERR
+
+          install -d -m 2755 "${frontend_release}"
+          rsync -a --delete \
+            "${RUNNER_TEMP}/jumin-prod-deploy/frontend/" \
+            "${frontend_release}/"
+
+          test -s "${frontend_release}/index.html"
+          test -d "${frontend_release}/assets"
+
+          ln -sfn "${frontend_release}" "${current_link}"
+
+          curl --noproxy '*' \
+            --fail \
+            --silent \
+            --show-error \
+            --resolve 'jucha.info:443:127.0.0.1' \
+            https://jucha.info/ >/dev/null
+
+          trap - ERR

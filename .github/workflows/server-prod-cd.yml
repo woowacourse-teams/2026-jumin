@@ -1,0 +1,220 @@
+name: Deploy server production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - 'infra/docker-compose.prod.yml'
+      - 'server/Dockerfile'
+      - '.github/workflows/server-prod-cd.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build server production artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run server checks
+        working-directory: server
+        run: ./gradlew clean check bootJar
+
+      - name: Prepare server artifact
+        working-directory: server
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          jar_file="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
+          test -n "${jar_file}"
+          test -s "${jar_file}"
+
+          mkdir -p "${RUNNER_TEMP}/jumin-backend-delivery"
+          cp "${jar_file}" "${RUNNER_TEMP}/jumin-backend-delivery/app.jar"
+          (
+            cd "${RUNNER_TEMP}/jumin-backend-delivery"
+            sha256sum app.jar > app.jar.sha256
+          )
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-production-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/jumin-backend-delivery
+          if-no-files-found: error
+          retention-days: 3
+
+  deploy:
+    name: Deploy server production
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    environment: production
+    runs-on: [self-hosted, Linux, ARM64, jumin-prod]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download server artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-production-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/jumin-prod-deploy/backend
+
+      - name: Deploy backend with Docker Compose
+        shell: bash
+        env:
+          BACKEND_ARTIFACT_DIR: ${{ runner.temp }}/jumin-prod-deploy/backend
+          BACKEND_RELEASE_ROOT: /opt/jumin-prod/backend
+          BACKEND_PORT: '8080'
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          LOCAL_SEARCH_CLIENT_ID: ${{ secrets.LOCAL_SEARCH_CLIENT_ID }}
+          LOCAL_SEARCH_CLIENT_SECRET: ${{ secrets.LOCAL_SEARCH_CLIENT_SECRET }}
+        run: |
+          set -Eeuo pipefail
+
+          repository_root="${GITHUB_WORKSPACE:-$PWD}"
+          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_root="${BACKEND_RELEASE_ROOT}"
+          release_dir="${release_root}/releases/${release_id}"
+          current_link="${release_root}/current"
+          compose_file="${repository_root}/infra/docker-compose.prod.yml"
+          image_name="jumin-backend"
+          compose_project="jumin-prod"
+          container_name="jumin-backend-prod"
+          previous_image="$(docker inspect --format '{{.Config.Image}}' "${container_name}" 2>/dev/null || true)"
+          previous_tag=""
+          previous_release="$(readlink -f "${current_link}" 2>/dev/null || true)"
+          deployment_attempted=false
+
+          if [[ -n "${previous_image}" ]]; then
+            if [[ "${previous_image}" != "${image_name}:"* ]]; then
+              echo "Unexpected existing production image: ${previous_image}" >&2
+              exit 1
+            fi
+            previous_tag="${previous_image#${image_name}:}"
+          fi
+
+          compose_up() {
+            local image_tag="$1"
+
+            IMAGE_TAG="${image_tag}" \
+            BACKEND_PORT="${BACKEND_PORT}" \
+            DB_URL="${DB_URL}" \
+            DB_USERNAME="${DB_USERNAME}" \
+            DB_PASSWORD="${DB_PASSWORD}" \
+            LOCAL_SEARCH_CLIENT_ID="${LOCAL_SEARCH_CLIENT_ID}" \
+            LOCAL_SEARCH_CLIENT_SECRET="${LOCAL_SEARCH_CLIENT_SECRET}" \
+            docker compose \
+              --project-name "${compose_project}" \
+              --file "${compose_file}" \
+              up --detach --no-deps --remove-orphans backend
+          }
+
+          rollback() {
+            local exit_code="${1:-$?}"
+            trap - ERR
+
+            echo "Production deployment failed; restoring the previous release." >&2
+            if [[ -n "${previous_tag}" ]]; then
+              compose_up "${previous_tag}" || true
+            elif [[ "${deployment_attempted}" == true ]]; then
+              docker compose \
+                --project-name "${compose_project}" \
+                --file "${compose_file}" \
+                down --remove-orphans || true
+            fi
+
+            if [[ -n "${previous_release}" && -d "${previous_release}" ]]; then
+              ln -sfn "${previous_release}" "${current_link}"
+            elif [[ -L "${current_link}" ]]; then
+              unlink "${current_link}"
+            fi
+
+            exit "${exit_code}"
+          }
+          trap rollback ERR
+
+          for required_variable in \
+            DB_URL \
+            DB_USERNAME \
+            DB_PASSWORD \
+            LOCAL_SEARCH_CLIENT_ID \
+            LOCAL_SEARCH_CLIENT_SECRET; do
+            if [[ -z "${!required_variable}" ]]; then
+              echo "Missing required production secret: ${required_variable}" >&2
+              exit 1
+            fi
+          done
+
+          test -s "${BACKEND_ARTIFACT_DIR}/app.jar"
+          if [[ -f "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" ]]; then
+            (
+              cd "${BACKEND_ARTIFACT_DIR}"
+              sha256sum --check app.jar.sha256
+            )
+          fi
+
+          test -f "${compose_file}"
+          mkdir -p "${release_dir}"
+          cp "${BACKEND_ARTIFACT_DIR}/app.jar" "${release_dir}/app.jar"
+          if [[ -f "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" ]]; then
+            cp "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" "${release_dir}/app.jar.sha256"
+          fi
+
+          ln -sfn "${release_dir}" "${current_link}"
+          docker build \
+            --file "${repository_root}/server/Dockerfile" \
+            --tag "${image_name}:${release_id}" \
+            "${release_dir}"
+
+          deployment_attempted=true
+          compose_up "${release_id}"
+
+          health_url="http://127.0.0.1:${BACKEND_PORT}/actuator/health"
+          for _ in $(seq 1 12); do
+            if curl --noproxy '*' --fail --silent --show-error --connect-timeout 2 --max-time 5 "${health_url}" >/dev/null; then
+              docker inspect --format '{{.State.Health.Status}}' "${container_name}" | grep -qx healthy
+              trap - ERR
+              echo "Backend production deployment succeeded: ${release_id}"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Backend production health check failed. Recent container logs:" >&2
+          docker compose \
+            --project-name "${compose_project}" \
+            --file "${compose_file}" \
+            logs --tail=80 backend >&2 || true
+          rollback 1

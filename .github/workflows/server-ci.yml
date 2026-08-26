@@ -1,0 +1,122 @@
+name: Server CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'server/**'
+      - 'infra/docker-compose.local.yml'
+      - 'infra/docker-compose.dev.yml'
+      - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.proxy.yml'
+      - 'infra/docker-compose.proxy.prod.yml'
+      - 'infra/nginx/bootstrap.conf'
+      - 'infra/nginx/bootstrap.prod.conf'
+      - 'infra/nginx/jumin.conf'
+      - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/renew-certificates.sh'
+      - 'infra/scripts/renew-certificates-prod.sh'
+      - 'server/Dockerfile'
+      - '.github/workflows/server-ci.yml'
+      - '.github/workflows/server-dev-cd.yml'
+      - '.github/workflows/server-prod-cd.yml'
+      - '.github/workflows/proxy-dev-cd.yml'
+      - '.github/workflows/proxy-prod-cd.yml'
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'server/**'
+      - 'infra/docker-compose.local.yml'
+      - 'infra/docker-compose.dev.yml'
+      - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.proxy.yml'
+      - 'infra/docker-compose.proxy.prod.yml'
+      - 'infra/nginx/bootstrap.conf'
+      - 'infra/nginx/bootstrap.prod.conf'
+      - 'infra/nginx/jumin.conf'
+      - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/renew-certificates.sh'
+      - 'infra/scripts/renew-certificates-prod.sh'
+      - 'server/Dockerfile'
+      - '.github/workflows/server-ci.yml'
+      - '.github/workflows/server-dev-cd.yml'
+      - '.github/workflows/server-prod-cd.yml'
+      - '.github/workflows/proxy-dev-cd.yml'
+      - '.github/workflows/proxy-prod-cd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify server
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run server checks
+        working-directory: server
+        run: ./gradlew clean check bootJar
+
+      - name: Prepare Docker build context
+        working-directory: server
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          jar_file="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
+          test -n "${jar_file}"
+          test -s "${jar_file}"
+
+          mkdir -p "${RUNNER_TEMP}/jumin-backend-image-context"
+          cp "${jar_file}" "${RUNNER_TEMP}/jumin-backend-image-context/app.jar"
+
+      - name: Validate backend Docker image build
+        run: docker build --file server/Dockerfile --tag jumin-backend:ci "${RUNNER_TEMP}/jumin-backend-image-context"
+
+      - name: Validate Docker Compose configuration
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/jumin
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          LOCAL_SEARCH_CLIENT_ID: ci
+          LOCAL_SEARCH_CLIENT_SECRET: ci
+        run: docker compose --file infra/docker-compose.dev.yml config --quiet
+
+      - name: Validate production Docker Compose configuration
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/jumin
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          LOCAL_SEARCH_CLIENT_ID: ci
+          LOCAL_SEARCH_CLIENT_SECRET: ci
+        run: docker compose --file infra/docker-compose.prod.yml config --quiet
+
+      - name: Validate development proxy Compose configuration
+        run: docker compose --file infra/docker-compose.proxy.yml config --quiet
+
+      - name: Validate production proxy Compose configuration
+        run: docker compose --file infra/docker-compose.proxy.prod.yml config --quiet

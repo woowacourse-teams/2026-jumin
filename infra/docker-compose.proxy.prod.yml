@@ -1,0 +1,32 @@
+name: jumin-proxy-prod
+
+services:
+  nginx:
+    image: nginx:1.30.4-alpine
+    container_name: jumin-nginx-prod
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - '${NGINX_CONF_FILE:-./nginx/jumin.prod.conf}:/etc/nginx/conf.d/default.conf:ro'
+      - '/var/www/jumin-prod:/var/www/jumin-prod:ro'
+      - '/opt/jumin-prod/certbot/www:/var/www/certbot:ro'
+      - '/opt/jumin-prod/certbot/conf:/etc/letsencrypt:ro'
+    networks:
+      - jumin-prod
+
+  certbot:
+    image: certbot/certbot:v5.7.0
+    profiles:
+      - certificate
+    volumes:
+      - '/opt/jumin-prod/certbot/www:/var/www/certbot'
+      - '/opt/jumin-prod/certbot/conf:/etc/letsencrypt'
+    networks:
+      - jumin-prod
+
+networks:
+  jumin-prod:
+    name: jumin-prod_default
+    external: true
