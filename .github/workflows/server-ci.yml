@@ -9,9 +9,11 @@ on:
       - 'server/**'
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
+      - 'infra/docker-compose.prod.yml'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
+      - '.github/workflows/server-prod-cd.yml'
   push:
     branches:
       - develop
@@ -20,9 +22,11 @@ on:
       - 'server/**'
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
+      - 'infra/docker-compose.prod.yml'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
+      - '.github/workflows/server-prod-cd.yml'
   workflow_dispatch:
 
 permissions:
@@ -81,3 +85,12 @@ jobs:
           LOCAL_SEARCH_CLIENT_ID: ci
           LOCAL_SEARCH_CLIENT_SECRET: ci
         run: docker compose --file infra/docker-compose.dev.yml config --quiet
+
+      - name: Validate production Docker Compose configuration
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/jumin
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          LOCAL_SEARCH_CLIENT_ID: ci
+          LOCAL_SEARCH_CLIENT_SECRET: ci
+        run: docker compose --file infra/docker-compose.prod.yml config --quiet
