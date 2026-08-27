@@ -7,15 +7,20 @@ import { useNavigate } from 'react-router';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
 import { trackEvent } from '../../../../shared/analytics';
-import BottomSheet, { type BottomSheetSnap } from '../../../../shared/components/BottomSheet';
+import BottomSheet, {
+  BOTTOM_SHEET_HEIGHT,
+  type BottomSheetSnap,
+} from '../../../../shared/components/BottomSheet';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 import {
   ParkingDetailCondition,
   ParkingSearchCondition,
 } from '../../../../shared/types/navigation';
+import { ParkingMarkers } from './ParkingMarkers';
 
 interface Props {
+  map: naver.maps.Map | null;
   searchCondition: ParkingSearchCondition;
 }
 
@@ -86,7 +91,7 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
   return itemRect.left + itemRect.width / 2 - (containerRect.left + containerRect.width / 2);
 };
 
-export const ParkingRecommendContent = ({ searchCondition }: Props) => {
+export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
   const navigate = useNavigate();
 
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
@@ -115,6 +120,72 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   );
 
   const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
+
+  useEffect(() => {
+    // 지도 생성 전이거나 활성화된 주차장이 없으면 카메라를 이동하지 않는다.
+    if (!map || activeParkingLotId === null) return;
+
+    // 현재 선택되었거나 기본으로 활성화된 주차장을 찾는다.
+    const activeParkingLot = parkingLots.find((parkingLot) => parkingLot.id === activeParkingLotId);
+
+    if (!activeParkingLot) return;
+
+    // 활성 주차장의 위·경도를 네이버 지도 좌표 객체로 변환한다.
+    const position = new naver.maps.LatLng(
+      activeParkingLot.location.latitude,
+      activeParkingLot.location.longitude,
+    );
+
+    // 바텀시트가 접혀 있으면 가리는 영역이 작으므로
+    // 활성 주차장을 지도 중앙으로 이동시킨다.
+    if (sheetSnap === 'collapsed') {
+      map.panTo(position);
+      return;
+    }
+
+    // 바텀시트가 펼쳐졌을 때 실제로 지도가 보이는 영역을 계산하기 위해
+    // 상단 검색 조건 바의 DOM 요소를 가져온다.
+    const searchConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+
+    if (!searchConditionBar) return;
+
+    // 검색 조건 바의 아래쪽 위치를 지도 상단 기준의 좌표로 변환한다.
+    const mapRect = map.getElement().getBoundingClientRect();
+    const searchConditionBarBottom =
+      searchConditionBar.getBoundingClientRect().bottom - mapRect.top;
+
+    // 전체 지도 높이에서 바텀시트 높이를 빼서
+    // 바텀시트가 시작되는 세로 위치를 구한다.
+    const bottomSheetTop = map.getSize().height - BOTTOM_SHEET_HEIGHT;
+
+    // 검색 조건 바와 바텀시트 사이에서 실제로 보이는 지도 영역의 중앙을 구한다.
+    const visibleAreaCenter = (searchConditionBarBottom + bottomSheetTop) / 2;
+
+    // 위·경도 좌표와 화면상의 픽셀 좌표를 서로 변환하기 위한 객체다.
+    const projection = map.getProjection();
+
+    // 활성 주차장의 위·경도를 지도 내부의 픽셀 좌표로 변환한다.
+    const positionOffset = projection.fromCoordToOffset(position);
+
+    // 활성 주차장이 전체 지도 중앙이 아니라
+    // 실제로 보이는 영역의 중앙에 위치하도록 새로운 지도 중심을 계산한다.
+    const targetCenterOffset = new naver.maps.Point(
+      positionOffset.x,
+      map.getSize().height / 2 + positionOffset.y - visibleAreaCenter,
+    );
+
+    // 계산한 픽셀 좌표를 다시 위·경도 좌표로 변환한다.
+    const targetCenter = projection.fromOffsetToCoord(targetCenterOffset);
+
+    // 계산한 중심 좌표로 300ms 동안 부드럽게 이동한다.
+    map.panTo(targetCenter, { duration: 300 });
+  }, [
+    // 선택된 주차장, 지도, 주차장 목록 또는 바텀시트 상태가 바뀔 때 재계산한다.
+    activeParkingLotId,
+    map,
+    parkingLots,
+    sheetSnap,
+  ]);
 
   useLayoutEffect(() => {
     parkingListRef.current?.scrollTo({
@@ -201,6 +272,18 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
   return (
     <>
+      <ParkingMarkers
+        map={map}
+        destination={{
+          name: searchCondition.destinationName,
+          latitude: searchCondition.destinationLatitude,
+          longitude: searchCondition.destinationLongitude,
+        }}
+        parkingLots={parkingLots}
+        recommendedParkingLots={recommendedParkingLots}
+        selectedParkingLotId={activeParkingLotId}
+        onSelect={handleParkingLotSelect}
+      />
       <section
         className={recommendationSectionStyle}
         aria-label={`${recommendationLabels[recommendationType]} 추천 주차장`}
@@ -281,6 +364,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
 const recommendationSectionStyle = css`
   position: absolute;
+  pointer-events: auto;
 
   right: 0;
   bottom: 114px;

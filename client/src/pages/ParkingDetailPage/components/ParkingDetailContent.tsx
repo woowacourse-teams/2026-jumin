@@ -101,7 +101,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       right: 40,
       bottom: sheetSnap === 'expanded' ? BOTTOM_SHEET_HEIGHT + 24 : 124,
       left: 40,
-      maxZoom: 16,
+      maxZoom: 15,
     });
 
     map.panBy(new naver.maps.Point(0, 100));

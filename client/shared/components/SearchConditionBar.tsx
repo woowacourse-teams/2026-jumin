@@ -14,7 +14,12 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
   return (
     <header className={headerStyle} aria-label="검색 조건">
-      <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
+      <button
+        className={backButtonStyle}
+        type="button"
+        aria-label="이전 화면으로 이동"
+        onClick={() => navigate(-1)}
+      >
         <img className={backIconStyle} src={backIcon} alt="" draggable={false} />
       </button>
 
@@ -39,6 +44,7 @@ const headerStyle = css`
   right: 16px;
   left: 16px;
   z-index: 10;
+  pointer-events: auto;
 
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
