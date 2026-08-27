@@ -8,11 +8,14 @@ import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
 import { trackEvent } from '../../../../shared/analytics';
 import BottomSheet, { type BottomSheetSnap } from '../../../../shared/components/BottomSheet';
-import type { ParkingSearchCondition } from '../../../../shared/types/parkingSearch';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
+import {
+  ParkingDetailCondition,
+  ParkingSearchCondition,
+} from '../../../../shared/types/navigation';
 
-interface ContentProps {
+interface Props {
   searchCondition: ParkingSearchCondition;
 }
 
@@ -57,7 +60,11 @@ const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationT
 
       const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
 
-      return firstValue - secondValue || first.distanceMeters - second.distanceMeters || first.id - second.id;
+      return (
+        firstValue - secondValue ||
+        first.distanceMeters - second.distanceMeters ||
+        first.id - second.id
+      );
     });
 
 const getRecommendationMessage = (type: RecommendationType, rank: number) => {
@@ -79,7 +86,7 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
   return itemRect.left + itemRect.width / 2 - (containerRect.left + containerRect.width / 2);
 };
 
-export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
+export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   const navigate = useNavigate();
 
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
@@ -100,7 +107,10 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
   );
 
   const recommendedParkingLots = useMemo(
-    () => parkingLots.filter((parkingLot) => getSortValue(parkingLot, recommendationType) !== null).slice(0, 3),
+    () =>
+      parkingLots
+        .filter((parkingLot) => getSortValue(parkingLot, recommendationType) !== null)
+        .slice(0, 3),
     [parkingLots, recommendationType],
   );
 
@@ -135,7 +145,8 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
     );
 
     const cardList = cardListRef.current;
-    const recommendationCard = recommendationIndex >= 0 ? cardList?.children.item(recommendationIndex) : null;
+    const recommendationCard =
+      recommendationIndex >= 0 ? cardList?.children.item(recommendationIndex) : null;
 
     if (!cardList || !recommendationCard) return;
 
@@ -171,10 +182,19 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
   };
 
   const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
+    const detailCondition: ParkingDetailCondition = {
+      parkingLotId: parkingLot.id,
+      parkingLotName: parkingLot.name,
+      destinationName: searchCondition.destinationName,
+      destinationLatitude: searchCondition.destinationLatitude,
+      destinationLongitude: searchCondition.destinationLongitude,
+      entryAt: searchCondition.entryAt,
+      exitAt: searchCondition.exitAt,
+    };
+
     navigate('/parkingDetail', {
       state: {
-        parkingLot,
-        searchCondition,
+        detailCondition,
       },
     });
   };
@@ -186,7 +206,12 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
         aria-label={`${recommendationLabels[recommendationType]} 추천 주차장`}
       >
         {recommendedParkingLots.length > 0 ? (
-          <ul key={recommendationType} ref={cardListRef} className={cardListStyle} onScrollEnd={handleCardScroll}>
+          <ul
+            key={recommendationType}
+            ref={cardListRef}
+            className={cardListStyle}
+            onScrollEnd={handleCardScroll}
+          >
             {recommendedParkingLots.map((parkingLot, index) => (
               <li className={cardItemStyle} key={parkingLot.id}>
                 <InfoCard
@@ -204,7 +229,11 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
       </section>
 
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
-        <section id="parking-list-sheet" className={sheetContentStyle} aria-label="주차장 전체 목록">
+        <section
+          id="parking-list-sheet"
+          className={sheetContentStyle}
+          aria-label="주차장 전체 목록"
+        >
           <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
             {filterOptions.map(({ type, label }) => {
               const isSelected = recommendationType === type;
@@ -225,7 +254,11 @@ export const ParkingRecommendContent = ({ searchCondition }: ContentProps) => {
           </div>
 
           {parkingLots.length > 0 ? (
-            <ul ref={parkingListRef} className={parkingListStyle} onDragStart={(event) => event.preventDefault()}>
+            <ul
+              ref={parkingListRef}
+              className={parkingListStyle}
+              onDragStart={(event) => event.preventDefault()}
+            >
               {parkingLots.map((parkingLot) => (
                 <li className={parkingItemStyle} key={parkingLot.id}>
                   <InfoRow

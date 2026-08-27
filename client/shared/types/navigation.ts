@@ -1,17 +1,17 @@
-export interface SearchDestination {
-  name: string;
-  latitude: number;
-  longitude: number;
+export interface ParkingSearchCondition {
+  destinationName: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  entryAt: string;
+  exitAt: string;
 }
 
-export const isSearchDestination = (value: unknown): value is SearchDestination => {
-  if (typeof value !== 'object' || value === null) return false;
-
-  const destination = value as Record<string, unknown>;
-
-  return (
-    typeof destination.name === 'string' &&
-    typeof destination.latitude === 'number' &&
-    typeof destination.longitude === 'number'
-  );
-};
+export interface ParkingDetailCondition {
+  parkingLotId: number;
+  parkingLotName: string;
+  destinationName: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  entryAt: string;
+  exitAt: string;
+}

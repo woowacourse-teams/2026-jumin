@@ -1,19 +1,22 @@
-import type { AvailabilityStatus, ParkingLotSummary } from '../../api/contracts';
+import type { ParkingLotDetailResponse } from '../../api/contracts';
 
 const RECENT_PARKING_USES_KEY = 'recentParkingUses';
 const MAX_RECENT_PARKING_USES = 20;
-const availabilityStatuses: AvailabilityStatus[] = ['AVAILABLE', 'UNAVAILABLE', 'UNKNOWN'];
+
+export type RecentParkingLot = Pick<
+  ParkingLotDetailResponse,
+  'id' | 'name' | 'address' | 'location'
+>;
 
 export interface RecentParkingUse {
-  parkingLot: ParkingLotSummary;
+  parkingLot: RecentParkingLot;
   usedAt: string;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
-const isNullableNumber = (value: unknown): value is number | null => value === null || typeof value === 'number';
-
-const isParkingLotSummary = (value: unknown): value is ParkingLotSummary => {
+const isRecentParkingLot = (value: unknown): value is RecentParkingLot => {
   if (!isRecord(value) || !isRecord(value.location)) return false;
 
   return (
@@ -21,18 +24,13 @@ const isParkingLotSummary = (value: unknown): value is ParkingLotSummary => {
     typeof value.name === 'string' &&
     typeof value.address === 'string' &&
     typeof value.location.latitude === 'number' &&
-    typeof value.location.longitude === 'number' &&
-    typeof value.distanceMeters === 'number' &&
-    isNullableNumber(value.estimatedFee) &&
-    isNullableNumber(value.balancedScore) &&
-    typeof value.availabilityStatus === 'string' &&
-    availabilityStatuses.includes(value.availabilityStatus as AvailabilityStatus)
+    typeof value.location.longitude === 'number'
   );
 };
 
 const isRecentParkingUse = (value: unknown): value is RecentParkingUse =>
   isRecord(value) &&
-  isParkingLotSummary(value.parkingLot) &&
+  isRecentParkingLot(value.parkingLot) &&
   typeof value.usedAt === 'string' &&
   !Number.isNaN(Date.parse(value.usedAt));
 
@@ -50,7 +48,7 @@ export const loadRecentParkingUses = (): RecentParkingUse[] => {
   }
 };
 
-export const saveRecentParkingUse = (parkingLot: ParkingLotSummary, usedAt = new Date()) => {
+export const saveRecentParkingUse = (parkingLot: RecentParkingLot, usedAt = new Date()) => {
   try {
     const nextRecentParkingUses = [
       { parkingLot, usedAt: usedAt.toISOString() },

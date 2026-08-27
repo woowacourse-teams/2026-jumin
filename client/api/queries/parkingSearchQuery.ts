@@ -1,30 +1,28 @@
-// api/queries/parkingSearchQuery.ts
-
 import { queryOptions } from '@tanstack/react-query';
 
 import { searchParkingLots } from '../parkingLots';
-import { ParkingSearchCondition } from '../../shared/types/parkingSearch';
+import { ParkingSearchQueryKeyParams } from '../../shared/types/queryKeys';
 
-export const parkingSearchQueryOptions = (condition: ParkingSearchCondition) =>
+export const parkingSearchQueryOptions = (key: ParkingSearchQueryKeyParams) =>
   queryOptions({
     queryKey: [
       'parking-lots',
       'search',
       {
-        destinationLatitude: condition.destinationLatitude,
-        destinationLongitude: condition.destinationLongitude,
-        entryAt: condition.entryAt,
-        exitAt: condition.exitAt,
+        destinationLatitude: key.destinationLatitude,
+        destinationLongitude: key.destinationLongitude,
+        entryAt: key.entryAt,
+        exitAt: key.exitAt,
       },
     ],
 
     queryFn: ({ signal }) =>
       searchParkingLots(
         {
-          destinationLatitude: condition.destinationLatitude,
-          destinationLongitude: condition.destinationLongitude,
-          entryAt: condition.entryAt,
-          exitAt: condition.exitAt,
+          destinationLatitude: key.destinationLatitude,
+          destinationLongitude: key.destinationLongitude,
+          entryAt: key.entryAt,
+          exitAt: key.exitAt,
         },
         signal,
       ),
