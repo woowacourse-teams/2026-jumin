@@ -53,8 +53,8 @@ export const ParkingDetailPage = () => {
 
 const pageStyle = css`
   position: relative;
-  pointer-events: none;
 
+  pointer-events: none;
   width: 100%;
   height: 100%;
 
