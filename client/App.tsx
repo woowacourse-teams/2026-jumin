@@ -5,14 +5,18 @@ import { ParkingDetailPage } from './src/pages/ParkingDetailPage/ParkingDetailPa
 import { RecentUsePage } from './src/pages/RecentUsePage/RecentUsePage';
 import { ParkingSetupPage } from './src/pages/ParkingSetupPage/ParkingSetupPage';
 import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRecommendPage';
+import { MapLayout } from './shared/maps/MapLayout';
 
 const App = () => (
   <Routes>
-    <Route path="/" element={<MainPage />} />
+    <Route element={<MapLayout />}>
+      <Route path="/" element={<MainPage />} />
+      <Route path="/parkingsetup" element={<ParkingSetupPage />} />
+      <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
+      <Route path="/parkingDetail" element={<ParkingDetailPage />} />
+    </Route>
+
     <Route path="/search" element={<SearchPage />} />
-    <Route path="/parkingsetup" element={<ParkingSetupPage />} />
-    <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
-    <Route path="/parkingDetail" element={<ParkingDetailPage />} />
     <Route path="/recent" element={<RecentUsePage />} />
   </Routes>
 );
