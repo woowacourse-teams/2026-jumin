@@ -1,5 +1,5 @@
-import { NaverMap } from '../../../shared/components/NaverMap';
-import { NaverMapMarker } from '../../../shared/components/NaverMapMarker';
+import { NaverMap } from '../../../shared/maps/NaverMap';
+import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 import { useEffect, useState } from 'react';
 
@@ -7,11 +7,18 @@ import { css } from '@emotion/css';
 
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
-import type { ParkingLotDetailResponse, ParkingLotSummary, ParkingOperationPeriod } from '../../../api/contracts';
+import type {
+  ParkingLotDetailResponse,
+  ParkingLotSummary,
+  ParkingOperationPeriod,
+} from '../../../api/contracts';
 import destinationMarkerUrl from '../../../assets/icons/markers/destinationMarker.svg';
 import selectedParkingMarkerUrl from '../../../assets/icons/markers/selectedRecommandMarker.svg';
 
-import BottomSheet, { BOTTOM_SHEET_HEIGHT, type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import BottomSheet, {
+  BOTTOM_SHEET_HEIGHT,
+  type BottomSheetSnap,
+} from '../../../shared/components/BottomSheet';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { getParkingLotDetail, type ParkingDetailParams } from '../../../api/parkingLots';
@@ -41,10 +48,13 @@ const parkingLotMarkerIcon = {
   anchorY: 73,
 };
 
-const formatFee = (fee: number | null) => (fee === null ? '미제공' : `${fee.toLocaleString('ko-KR')}원`);
+const formatFee = (fee: number | null) =>
+  fee === null ? '미제공' : `${fee.toLocaleString('ko-KR')}원`;
 
 const formatDuration = (entryAt: string, exitAt: string) => {
-  const durationMinutes = Math.round((new Date(exitAt).getTime() - new Date(entryAt).getTime()) / 60_000);
+  const durationMinutes = Math.round(
+    (new Date(exitAt).getTime() - new Date(entryAt).getTime()) / 60_000,
+  );
 
   if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return '예상';
 
@@ -174,7 +184,12 @@ export const ParkingDetailPage = () => {
         zIndex={30}
       />
       <header className={headerStyle}>
-        <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
+        <button
+          className={backButtonStyle}
+          type="button"
+          aria-label="이전 화면으로 이동"
+          onClick={() => navigate(-1)}
+        >
           <BackIcon />
         </button>
 
@@ -207,12 +222,14 @@ export const ParkingDetailPage = () => {
                   </div>
                 )}
 
-                {feeRule && feeRule.additionalMinutes !== null && feeRule.additionalFee !== null && (
-                  <div>
-                    <dt>추가 {feeRule.additionalMinutes}분당</dt>
-                    <dd>{formatFee(feeRule.additionalFee)}</dd>
-                  </div>
-                )}
+                {feeRule &&
+                  feeRule.additionalMinutes !== null &&
+                  feeRule.additionalFee !== null && (
+                    <div>
+                      <dt>추가 {feeRule.additionalMinutes}분당</dt>
+                      <dd>{formatFee(feeRule.additionalFee)}</dd>
+                    </div>
+                  )}
 
                 {!feeRule && (
                   <div>
@@ -252,7 +269,11 @@ export const ParkingDetailPage = () => {
               </p>
             )}
 
-            <button className={navigationButtonStyle} type="button" onClick={() => setIsDeepLinkModalOpen(true)}>
+            <button
+              className={navigationButtonStyle}
+              type="button"
+              onClick={() => setIsDeepLinkModalOpen(true)}
+            >
               길찾기 시작
             </button>
           </div>

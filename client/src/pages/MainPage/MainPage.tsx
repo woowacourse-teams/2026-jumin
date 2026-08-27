@@ -5,8 +5,8 @@ import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocat
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { NaverMap } from '../../../shared/components/NaverMap';
-import { NaverMapMarker } from '../../../shared/components/NaverMapMarker';
+import { NaverMap } from '../../../shared/maps/NaverMap';
+import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -19,7 +19,10 @@ const currentLocationIcon = {
 export const MainPage = () => {
   const navigate = useNavigate();
   const [map, setMap] = useState<naver.maps.Map | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   const handleCurrentLocationClick = () => {
     if (!navigator.geolocation) {

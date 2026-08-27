@@ -1,7 +1,6 @@
 import { css } from '@emotion/css';
 import { useEffect, useRef } from 'react';
-
-import { loadNaverMaps } from '../naverMap';
+import { loadNaverMaps } from './loadNaverMaps';
 
 interface Props {
   latitude?: number;
