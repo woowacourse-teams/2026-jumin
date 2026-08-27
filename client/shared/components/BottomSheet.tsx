@@ -108,6 +108,7 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 const sheetStyle = css`
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
 
   background-color: #fff;
 

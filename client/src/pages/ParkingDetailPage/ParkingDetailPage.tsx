@@ -1,11 +1,10 @@
-import { NaverMap } from '../../../shared/maps/NaverMap';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 import { useEffect, useState } from 'react';
 
 import { css } from '@emotion/css';
 
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type {
   ParkingLotDetailResponse,
@@ -86,8 +85,7 @@ const formatCheckedDate = (lastCheckedAt: string) => {
 export const ParkingDetailPage = () => {
   const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
-  const [map, setMap] = useState<naver.maps.Map | null>(null);
-
+  const map = useOutletContext<naver.maps.Map | null>();
   // 주차장의 상세정보 및 비동기 상태
   const [parkingLotDetail, setParkingLotDetail] = useState<ParkingLotDetailResponse | null>(null);
 
@@ -162,11 +160,6 @@ export const ParkingDetailPage = () => {
 
   return (
     <main className={pageStyle}>
-      <NaverMap
-        latitude={searchCondition.destinationLatitude}
-        longitude={searchCondition.destinationLongitude}
-        onMapReady={setMap}
-      />
       <NaverMapMarker
         map={map}
         latitude={searchCondition.destinationLatitude}
@@ -300,6 +293,7 @@ function BackIcon() {
 
 const pageStyle = css`
   position: relative;
+  pointer-events: none;
 
   width: 100%;
   height: 100%;
@@ -313,6 +307,7 @@ const pageStyle = css`
 
 const headerStyle = css`
   position: relative;
+  pointer-events: auto;
 
   z-index: 2;
 
