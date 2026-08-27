@@ -6,8 +6,8 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { Navigate, useLocation } from 'react-router';
 
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
-import type { ParkingSearchCondition } from '../../../shared/types/parkingSearch';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
+import { ParkingSearchCondition } from '../../../shared/types/navigation';
 
 interface NavigationState {
   searchCondition?: ParkingSearchCondition;

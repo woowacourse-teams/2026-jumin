@@ -2,11 +2,14 @@ import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import type { ParkingLotSummary } from '../../../api/contracts';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
-import { loadRecentParkingUses, saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
+import {
+  loadRecentParkingUses,
+  type RecentParkingLot,
+  saveRecentParkingUse,
+} from '../../../shared/utils/recentParkingUses';
 
 const formatMonthDay = (usedAt: string) =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -18,7 +21,7 @@ const formatMonthDay = (usedAt: string) =>
 export const RecentUsePage = () => {
   const navigate = useNavigate();
   const [recentParkingUses, setRecentParkingUses] = useState(loadRecentParkingUses);
-  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotSummary | null>(null);
+  const [selectedParkingLot, setSelectedParkingLot] = useState<RecentParkingLot | null>(null);
 
   const handleDirectionsStart = () => {
     if (!selectedParkingLot) return;
@@ -30,7 +33,12 @@ export const RecentUsePage = () => {
   return (
     <main className={pageStyle}>
       <header className={headerStyle}>
-        <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
+        <button
+          className={backButtonStyle}
+          type="button"
+          aria-label="이전 화면으로 이동"
+          onClick={() => navigate(-1)}
+        >
           ‹
         </button>
         <h1 className={titleStyle}>최근 이용</h1>

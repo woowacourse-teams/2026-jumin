@@ -1,4 +1,9 @@
-import type { ParkingLotDetailResponse, ParkingSearchResponse, ValidationErrorResponse } from './contracts';
+import type {
+  DestinationSearchResponse,
+  ParkingLotDetailResponse,
+  ParkingSearchResponse,
+  ValidationErrorResponse,
+} from './contracts';
 
 export interface ParkingSearchParams {
   destinationLatitude: number;
@@ -13,6 +18,24 @@ export interface ParkingDetailParams {
   entryAt: string;
   exitAt: string;
 }
+
+// 목적지를 검색 및 자동완성하는 메서드
+export const searchDestinations = async (
+  query: string,
+  signal?: AbortSignal,
+): Promise<DestinationSearchResponse> => {
+  const response = await fetch(`/api/destinations/search?query=${encodeURIComponent(query)}`, {
+    signal,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+
+    throw new Error(error?.message ?? '목적지 검색 결과를 불러오지 못했습니다.');
+  }
+
+  return response.json();
+};
 
 // 주차장 목록을 가져오는 메서드
 export async function searchParkingLots(
@@ -37,9 +60,11 @@ export async function searchParkingLots(
   return response.json();
 }
 
+// 주차장 상세정보를 가져오는 메서드
 export async function getParkingLotDetail(
   parkingLotId: number,
   params: ParkingDetailParams,
+  signal?: AbortSignal,
 ): Promise<ParkingLotDetailResponse> {
   const searchParams = new URLSearchParams({
     destinationLatitude: String(params.destinationLatitude),
@@ -48,7 +73,9 @@ export async function getParkingLotDetail(
     exitAt: params.exitAt,
   });
 
-  const response = await fetch(`/api/parking/${parkingLotId}?${searchParams.toString()}`);
+  const response = await fetch(`/api/parking/${parkingLotId}?${searchParams.toString()}`, {
+    signal,
+  });
 
   if (!response.ok) {
     const error: ValidationErrorResponse = await response.json();
