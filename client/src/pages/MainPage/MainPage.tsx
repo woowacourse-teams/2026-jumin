@@ -1,12 +1,11 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { NaverMap } from '../../../shared/components/NaverMap';
-import { NaverMapMarker } from '../../../shared/components/NaverMapMarker';
+import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -18,8 +17,11 @@ const currentLocationIcon = {
 
 export const MainPage = () => {
   const navigate = useNavigate();
-  const [map, setMap] = useState<naver.maps.Map | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const map = useOutletContext<naver.maps.Map | null>();
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   const handleCurrentLocationClick = () => {
     if (!navigator.geolocation) {
@@ -48,12 +50,12 @@ export const MainPage = () => {
     <div
       className={css`
         position: relative;
+        pointer-events: none;
         width: 100%;
         height: 100%;
         overflow: hidden;
       `}
     >
-      <NaverMap onMapReady={setMap} />
       {currentLocation && (
         <NaverMapMarker
           map={map}
@@ -76,6 +78,7 @@ export const MainPage = () => {
       <footer
         className={css`
           position: absolute;
+          pointer-events: auto;
           right: 0;
           bottom: 0;
           left: 0;

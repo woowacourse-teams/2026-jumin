@@ -3,7 +3,7 @@ import defaultRecommendationMarkerUrl from '../../../../assets/icons/markers/def
 import selectedRecommendationMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 import unselectedRecommendationMarkerUrl from '../../../../assets/icons/markers/unselectedRecommandMarker.svg';
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
-import { NaverMapMarker } from '../../../../shared/components/NaverMapMarker';
+import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 
 const markerIcons = {
@@ -63,7 +63,11 @@ export const ParkingMarkers = ({
       />
 
       {parkingLots.map((parkingLot) => {
-        const markerType = getParkingMarkerType(parkingLot.id, selectedParkingLotId, recommendedParkingLotIds);
+        const markerType = getParkingMarkerType(
+          parkingLot.id,
+          selectedParkingLotId,
+          recommendedParkingLotIds,
+        );
 
         return (
           <NaverMapMarker

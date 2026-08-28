@@ -28,6 +28,7 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
       border: 1px solid #4356d8;
       border-radius: 16px;
       background: white;
+      pointer-events: auto;
     `}
     onClick={onClick}
   >

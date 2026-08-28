@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { css } from '@emotion/css';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Navigate, useLocation } from 'react-router';
+import { Navigate, useLocation, useOutletContext } from 'react-router';
 
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
@@ -18,6 +18,8 @@ export const ParkingRecommendPage = () => {
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const searchCondition = navigationState?.searchCondition;
+  const map = useOutletContext<naver.maps.Map | null>();
+
   if (!searchCondition) {
     return <Navigate to="/parkingsetup" replace />;
   }
@@ -45,7 +47,7 @@ export const ParkingRecommendPage = () => {
             )}
           >
             <Suspense fallback={<div>주차장을 불러오는 중...</div>}>
-              <ParkingRecommendContent searchCondition={searchCondition} />
+              <ParkingRecommendContent map={map} searchCondition={searchCondition} />
             </Suspense>
           </ErrorBoundary>
         )}
@@ -56,6 +58,7 @@ export const ParkingRecommendPage = () => {
 
 const pageStyle = css`
   position: relative;
+  pointer-events: none;
 
   width: 100%;
   height: 100%;

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import destinationMarkerUrl from '../../assets/icons/markers/destinationMarker.svg';
-import { NaverMapMarker } from './NaverMapMarker';
+import { NaverMapMarker } from '../maps/NaverMapMarker';
 
 const SEARCH_RADIUS_METERS = 600;
 

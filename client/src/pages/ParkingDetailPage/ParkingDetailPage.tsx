@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 
 import { css } from '@emotion/css';
 
-import { Navigate, useLocation } from 'react-router';
+import { Navigate, useLocation, useOutletContext } from 'react-router';
 
 import { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
@@ -19,6 +19,8 @@ export const ParkingDetailPage = () => {
   const navigationState = state as NavigationState | null;
   const detailCondition = navigationState?.detailCondition;
 
+  const map = useOutletContext<naver.maps.Map | null>();
+
   if (!detailCondition) {
     return <Navigate to="/parkingsetup" replace />;
   }
@@ -32,7 +34,7 @@ export const ParkingDetailPage = () => {
           <ErrorBoundary
             onReset={reset}
             fallbackRender={({ error, resetErrorBoundary }) => (
-              <div role="alert">
+            <div className={errorFallbackStyle} role="alert">
                 <p>{error instanceof Error ? error.message : '상세 정보를 불러오지 못했습니다.'}</p>
 
                 <button type="button" onClick={resetErrorBoundary}>
@@ -42,7 +44,7 @@ export const ParkingDetailPage = () => {
             )}
           >
             <Suspense fallback={<div>상세 정보를 불러오는 중...</div>}>
-              <ParkingDetailContent detailCondition={detailCondition} />
+              <ParkingDetailContent map={map} detailCondition={detailCondition} />
             </Suspense>
           </ErrorBoundary>
         )}
@@ -54,6 +56,7 @@ export const ParkingDetailPage = () => {
 const pageStyle = css`
   position: relative;
 
+  pointer-events: none;
   width: 100%;
   height: 100%;
 
@@ -62,4 +65,8 @@ const pageStyle = css`
   color: #14213d;
 
   background: transparent;
+`;
+
+const errorFallbackStyle = css`
+  pointer-events: auto;
 `;

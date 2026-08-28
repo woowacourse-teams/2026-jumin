@@ -4,13 +4,29 @@ import { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
-import BottomSheet, { BottomSheetSnap } from '../../../../shared/components/BottomSheet';
-import { useState } from 'react';
+import BottomSheet, {
+  BOTTOM_SHEET_HEIGHT,
+  BottomSheetSnap,
+} from '../../../../shared/components/BottomSheet';
+import { useEffect, useState } from 'react';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
+import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
+import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
+
 interface Props {
+  map: naver.maps.Map | null;
   detailCondition: ParkingDetailCondition;
 }
+
+const parkingLotMarkerIcon = {
+  url: selectedParkingMarkerUrl,
+  width: 74,
+  height: 90,
+  anchorX: 37,
+  anchorY: 73,
+};
 
 const formatFee = (fee: number | null) =>
   fee === null ? '미제공' : `${fee.toLocaleString('ko-KR')}원`;
@@ -47,7 +63,7 @@ const formatCheckedDate = (lastCheckedAt: string) => {
   return `${year}.${month}.${day}`;
 };
 
-export const ParkingDetailContent = ({ detailCondition }: Props) => {
+export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
 
@@ -67,8 +83,47 @@ export const ParkingDetailContent = ({ detailCondition }: Props) => {
   const checkedDate = source ? formatCheckedDate(source.lastCheckedAt) : null;
   const durationLabel = formatDuration(detailCondition.entryAt, detailCondition.exitAt);
 
+  useEffect(() => {
+    if (!map) return;
+
+    const destinationPosition = new naver.maps.LatLng(
+      detailCondition.destinationLatitude,
+      detailCondition.destinationLongitude,
+    );
+
+    const parkingLotPosition = new naver.maps.LatLng(
+      parkingLotDetail.location.latitude,
+      parkingLotDetail.location.longitude,
+    );
+
+    map.fitBounds([destinationPosition, parkingLotPosition], {
+      top: 112,
+      right: 40,
+      bottom: sheetSnap === 'expanded' ? BOTTOM_SHEET_HEIGHT + 24 : 124,
+      left: 40,
+      maxZoom: 15,
+    });
+
+    map.panBy(new naver.maps.Point(0, 100));
+  }, [map, parkingLotDetail, detailCondition, sheetSnap]);
+
   return (
     <div>
+      <DestinationMapOverlay
+        map={map}
+        latitude={detailCondition.destinationLatitude}
+        longitude={detailCondition.destinationLongitude}
+        title={detailCondition.destinationName}
+      />
+
+      <NaverMapMarker
+        map={map}
+        latitude={parkingLotDetail.location.latitude}
+        longitude={parkingLotDetail.location.longitude}
+        icon={parkingLotMarkerIcon}
+        title={parkingLotDetail.name}
+        zIndex={30}
+      />
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section className={sheetContentStyle}>
           <div className={feeCardStyle}>

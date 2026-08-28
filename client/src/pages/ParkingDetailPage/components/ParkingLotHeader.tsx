@@ -34,6 +34,8 @@ function BackIcon() {
 const headerStyle = css`
   position: relative;
 
+  pointer-events: auto;
+
   z-index: 2;
 
   display: flex;
