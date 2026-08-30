@@ -1,18 +1,19 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
+import { NearbyParkingMarkers } from './components/NearbyParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
   width: 30,
   height: 30,
-  anchorX: 23,
-  anchorY: 21,
+  anchorX: 15,
+  anchorY: 14,
 };
 
 export const MainPage = () => {
@@ -23,7 +24,7 @@ export const MainPage = () => {
     longitude: number;
   } | null>(null);
 
-  const handleCurrentLocationClick = () => {
+  const requestCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       window.alert('현재 위치를 지원하지 않는 브라우저예요.');
       return;
@@ -44,7 +45,12 @@ export const MainPage = () => {
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
-  };
+  }, [map]);
+
+  useEffect(() => {
+    if (!map) return;
+    requestCurrentLocation();
+  }, [map, requestCurrentLocation]);
 
   return (
     <div
@@ -57,14 +63,18 @@ export const MainPage = () => {
       `}
     >
       {currentLocation && (
-        <NaverMapMarker
-          map={map}
-          latitude={currentLocation.latitude}
-          longitude={currentLocation.longitude}
-          icon={currentLocationIcon}
-          title="현재 위치"
-          zIndex={50}
-        />
+        <>
+          <NaverMapMarker
+            map={map}
+            latitude={currentLocation.latitude}
+            longitude={currentLocation.longitude}
+            icon={currentLocationIcon}
+            title="현재 위치"
+            zIndex={50}
+          />
+
+          <NearbyParkingMarkers map={map} currentLocation={currentLocation} />
+        </>
       )}
       <div
         className={css`
@@ -85,7 +95,7 @@ export const MainPage = () => {
           z-index: 1;
         `}
       >
-        <CurrentLocationButton onClick={handleCurrentLocationClick} />
+        <CurrentLocationButton onClick={requestCurrentLocation} />
         <BottomNav />
       </footer>
     </div>
