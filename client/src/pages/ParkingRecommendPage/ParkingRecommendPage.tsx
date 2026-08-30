@@ -8,6 +8,7 @@ import { Navigate, useLocation, useOutletContext } from 'react-router';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
 import { ParkingSearchCondition } from '../../../shared/types/navigation';
+import { ErrorCard } from '../../../shared/components/ErrorCard';
 
 interface NavigationState {
   searchCondition?: ParkingSearchCondition;
@@ -36,14 +37,8 @@ export const ParkingRecommendPage = () => {
         {({ reset }) => (
           <ErrorBoundary
             onReset={reset}
-            fallbackRender={({ error, resetErrorBoundary }) => (
-              <div role="alert">
-                <p>{error instanceof Error ? error.message : '주차장을 불러오지 못했습니다.'}</p>
-
-                <button type="button" onClick={resetErrorBoundary}>
-                  다시 시도
-                </button>
-              </div>
+            fallbackRender={({ resetErrorBoundary }) => (
+              <ErrorCard label="추천 주차장을 불러오지 못했어요" onRetry={resetErrorBoundary} />
             )}
           >
             <Suspense fallback={<div>주차장을 불러오는 중...</div>}>
