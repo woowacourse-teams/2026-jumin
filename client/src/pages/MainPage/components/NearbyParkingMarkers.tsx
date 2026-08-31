@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { addOneHour, createRoundedCurrentTime } from '../../ParkingSetupPage/model/time';
-import { createSearchPeriod } from '../../ParkingSetupPage/model/searchCondition';
+import { addHours } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
 import candidateParkingMarkerUrl from '../../../../assets/icons/markers/defaultRecommandMarker.svg';
@@ -8,6 +7,8 @@ import recommendedParkingMarkerUrl from '../../../../assets/icons/markers/unsele
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { SearchRadiusCircle } from '../../../../shared/maps/SearchRadiusCircle';
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { createRoundedCurrentDate } from '../../ParkingSetupPage/model/time';
+import { formatOffsetDateTime } from '../../ParkingSetupPage/utils/timeFormat';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -38,16 +39,14 @@ const parkingMarkerIcons = {
 export const NearbyParkingMarkers = ({ map, searchCenter, showSearchCenterMarker }: Props) => {
   // 검색 시간 생성
   const searchCondition = useMemo(() => {
-    const entryTime = createRoundedCurrentTime();
-    const exitTime = addOneHour(entryTime);
-
-    const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
+    const { entryAt } = createRoundedCurrentDate();
+    const exitAt = addHours(entryAt, 1);
 
     return {
       destinationLatitude: searchCenter.latitude,
       destinationLongitude: searchCenter.longitude,
-      entryAt,
-      exitAt,
+      entryAt: formatOffsetDateTime(entryAt),
+      exitAt: formatOffsetDateTime(exitAt),
     };
   }, [searchCenter.latitude, searchCenter.longitude]);
   // useQuery 호출
