@@ -2,23 +2,31 @@ import { useState } from 'react';
 
 import { css } from '@emotion/css';
 
-import { addOneHour, addThirtyMinutes, addTwoHours, DEFAULT_TIME, TimeValue } from '../model/time';
+import { ParkingPeriod } from '../model/time';
 import { formatMonthDay } from '../utils/timeFormat';
 import { TimePickerField } from './TimePickerField';
 
+import { addDays, addMinutes, format, set, set as setDate } from 'date-fns';
+
+import { validatePeriod } from '../utils/validate';
+import { Calendar } from './Calendar';
+import { useModal } from '../../../../shared/hooks/useModal';
+import { Modal } from '../../../../shared/components/Modal/Modal';
+
 interface Props {
-  entryTime: TimeValue;
-  exitTime: TimeValue | null;
-  onEntryTimeChange: (value: TimeValue) => void;
-  onExitTimeChange: (value: TimeValue | null) => void;
+  period: ParkingPeriod;
+  onEntryAtChange: (entryAt: Date) => void;
+  onExitAtChange: (exitAt: Date) => void;
   onSubmit: () => void;
 }
 
 // 입출차 중 선택된 필드 인터페이스
 type ActiveTimeField = 'entry' | 'exit' | null;
 
-export const ParkingTimeSheet = ({ entryTime, exitTime, onEntryTimeChange, onExitTimeChange, onSubmit }: Props) => {
+export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSubmit }: Props) => {
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
+
+  const modal = useModal();
 
   // 입차 영역 클릭
   const handleEntryClick = () => {
@@ -27,63 +35,106 @@ export const ParkingTimeSheet = ({ entryTime, exitTime, onEntryTimeChange, onExi
 
   // 출차 영역 클릭
   const handleExitClick = () => {
-    // 출차 시간은 null일 수 있으므로, 최초 클릭 시 00:00으로 초기화
-    if (exitTime === null) {
-      onExitTimeChange({ ...DEFAULT_TIME });
-    }
+    // 출차 시간은 null일 수 있으므로, 최초 클릭 시 (입차시간 + 30분)으로 초기화
+    onExitAtChange(period.exitAt ?? addMinutes(period.entryAt, 30));
 
     setActiveField((previousField) => (previousField === 'exit' ? null : 'exit'));
   };
 
+  // 출차의 경우 보정을 해야 하기 때문에, 핸들러를 묶는 핸들러 구성
+  const handleExitTimeChange = (selectedTime: Date) => {
+    // 출차 휠에서 선택한 시·분을 입차 날짜에 적용
+    const exitAt = setDate(period.entryAt, {
+      hours: selectedTime.getHours(),
+      minutes: selectedTime.getMinutes(),
+      seconds: 0,
+      milliseconds: 0,
+    });
+
+    // 선택한 출차 시각이 입차보다 이르면 다음 날로 보정
+    const normalizedExitAt = exitAt < period.entryAt ? addDays(exitAt, 1) : exitAt;
+
+    onExitAtChange(normalizedExitAt);
+  };
+
+  // 날짜 선택 핸들러
+  const handleEntryDateChange = (selectedDate: Date) => {
+    const entryAt = set(selectedDate, {
+      hours: period.entryAt.getHours(),
+      minutes: period.entryAt.getMinutes(),
+      seconds: 0,
+      milliseconds: 0,
+    });
+
+    onEntryAtChange(entryAt);
+
+    if (period.exitAt !== null) {
+      const exitAt = set(selectedDate, {
+        hours: period.exitAt.getHours(),
+        minutes: period.exitAt.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      const normalizedExitAt = exitAt < entryAt ? addDays(exitAt, 1) : exitAt;
+      onExitAtChange(normalizedExitAt);
+    }
+  };
+
   // 30분, 1시간, 2시간 추가 메서드
   const handleAddThirtyMinutes = () => {
-    if (entryTime === null) return;
+    onExitAtChange(period.exitAt ? addMinutes(period.exitAt, 30) : addMinutes(period.entryAt, 30));
 
-    if (exitTime === null) onExitTimeChange(addThirtyMinutes(entryTime));
-    else onExitTimeChange(addThirtyMinutes(exitTime));
     setActiveField(null);
   };
   const handleAddOneHour = () => {
-    if (entryTime === null) return;
+    onExitAtChange(period.exitAt ? addMinutes(period.exitAt, 60) : addMinutes(period.entryAt, 60));
 
-    if (exitTime === null) onExitTimeChange(addOneHour(entryTime));
-    else onExitTimeChange(addOneHour(exitTime));
     setActiveField(null);
   };
   const handleAddTwoHours = () => {
-    if (entryTime === null) return;
+    onExitAtChange(
+      period.exitAt ? addMinutes(period.exitAt, 120) : addMinutes(period.entryAt, 120),
+    );
 
-    if (exitTime === null) onExitTimeChange(addTwoHours(entryTime));
-    else onExitTimeChange(addTwoHours(exitTime));
     setActiveField(null);
   };
+
+  const isValidPeriod = validatePeriod(period);
 
   return (
     <div className={sheetContentStyle}>
       <header className={headerStyle}>
         <h1 className={titleStyle}>언제 주차하세요?</h1>
 
-        <time className={dateStyle} dateTime={new Date().toISOString().slice(0, 10)}>
+        <button
+          type="button"
+          className={calendarButtonStyle}
+          aria-label="입차 날짜 선택"
+          onClick={modal.open}
+        >
           <CalendarIcon />
-          {formatMonthDay(new Date())}
-        </time>
+          <time className={dateStyle} dateTime={format(period.entryAt, 'yyyy-MM-dd')}>
+            {formatMonthDay(period.entryAt)}
+          </time>
+        </button>
       </header>
 
       <div className={timeFieldsStyle}>
         <TimePickerField
           label="입차"
-          value={entryTime}
+          date={period.entryAt}
           isActive={activeField === 'entry'}
           onToggle={handleEntryClick}
-          onChange={onEntryTimeChange}
+          onChange={onEntryAtChange}
         />
 
         <TimePickerField
           label="출차"
-          value={exitTime}
+          date={period.exitAt}
           isActive={activeField === 'exit'}
           onToggle={handleExitClick}
-          onChange={onExitTimeChange}
+          onChange={handleExitTimeChange}
         />
       </div>
 
@@ -91,24 +142,45 @@ export const ParkingTimeSheet = ({ entryTime, exitTime, onEntryTimeChange, onExi
         <button
           className={quickButtonStyle}
           type="button"
-          disabled={entryTime === null}
+          disabled={period.entryAt === null}
           onClick={handleAddThirtyMinutes}
         >
           +30분
         </button>
 
-        <button className={quickButtonStyle} type="button" disabled={entryTime === null} onClick={handleAddOneHour}>
+        <button
+          className={quickButtonStyle}
+          type="button"
+          disabled={period.entryAt === null}
+          onClick={handleAddOneHour}
+        >
           +1시간
         </button>
 
-        <button className={quickButtonStyle} type="button" disabled={entryTime === null} onClick={handleAddTwoHours}>
+        <button
+          className={quickButtonStyle}
+          type="button"
+          disabled={period.entryAt === null}
+          onClick={handleAddTwoHours}
+        >
           +2시간
         </button>
       </div>
 
-      <button className={recommendButtonStyle} type="button" disabled={exitTime === null} onClick={onSubmit}>
+      <button
+        className={recommendButtonStyle}
+        type="button"
+        disabled={!isValidPeriod}
+        onClick={onSubmit}
+      >
         추천 받기
       </button>
+
+      {modal.isOpen && (
+        <Modal isOpen={modal.isOpen} onClose={modal.close} label="주차할 날짜를 선택하세요">
+          <Calendar selectedDate={period.entryAt} onSelect={handleEntryDateChange} />
+        </Modal>
+      )}
     </div>
   );
 };
@@ -149,22 +221,53 @@ const titleStyle = css`
   letter-spacing: -1.2px;
 `;
 
-const dateStyle = css`
+const calendarButtonStyle = css`
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 
   min-height: 44px;
+  margin: 0;
   padding: 0 14px;
 
-  color: #101b37;
+  color: #ffffff;
+  font-family: inherit;
+
+  background: #4356d8;
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 100ms ease;
+
+  &:hover {
+    background: #3b4dcc;
+    box-shadow: 0 4px 12px rgb(67 86 216 / 20%);
+  }
+
+  &:active {
+    background: #3548c8;
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 2px;
+  }
+`;
+
+const dateStyle = css`
   font-size: 16px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-
-  background: #f5f6fb;
-  border-radius: 14px;
 `;
 
 const calendarIconStyle = css`
@@ -240,5 +343,11 @@ const recommendButtonStyle = css`
   &:focus-visible {
     outline: 3px solid rgb(67 86 216 / 30%);
     outline-offset: 3px;
+  }
+
+  &:disabled {
+    color: #929bb3;
+    background: #dce0ec;
+    cursor: not-allowed;
   }
 `;

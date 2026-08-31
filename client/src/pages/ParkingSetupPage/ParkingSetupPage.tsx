@@ -6,8 +6,9 @@ import { SearchBar } from '../../../shared/components/SearchBar';
 import { DestinationConfirmSheet } from './components/DestinationConfirmSheet';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingTimeSheet } from './components/ParkingTimeSheet';
-import { createRoundedCurrentTime, TimeValue } from './model/time';
-import { createSearchPeriod } from './model/searchCondition';
+import { createRoundedCurrentDate, ParkingPeriod } from './model/time';
+import { validatePeriod } from './utils/validate';
+import { formatOffsetDateTime } from './utils/timeFormat';
 
 // 목적지 확인, 입출차 시간 입력 step
 type ParkingSetupStep = 'destination' | 'time';
@@ -23,9 +24,23 @@ export const ParkingSetupPage = () => {
   // 목적지 확인, 입출차 시간 입력 step
   const [step, setStep] = useState<ParkingSetupStep>('destination');
 
-  // 입/출차 시간
-  const [entryTime, setEntryTime] = useState<TimeValue>(createRoundedCurrentTime());
-  const [exitTime, setExitTime] = useState<TimeValue | null>(null);
+  // 입출차 날짜 및 시간
+  const [period, setPeriod] = useState<ParkingPeriod>(createRoundedCurrentDate());
+
+  // 입출차 직접 변경 핸들러
+  const handleEntryAtChange = (entryAt: Date) => {
+    setPeriod((previousPeriod) => ({
+      ...previousPeriod,
+      entryAt,
+    }));
+  };
+
+  const handleExitAtChange = (exitAt: Date) => {
+    setPeriod((previousPeriod) => ({
+      ...previousPeriod,
+      exitAt,
+    }));
+  };
 
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
 
@@ -36,18 +51,16 @@ export const ParkingSetupPage = () => {
 
   // 추천 받기 핸들러
   const handleRecommend = () => {
-    if (exitTime === null) {
-      return;
-    }
+    if (!validatePeriod(period)) return;
 
-    const { entryAt, exitAt } = createSearchPeriod(new Date(), entryTime, exitTime);
+    const { entryAt, exitAt } = period;
 
     const searchCondition = {
       destinationName: destination.name,
       destinationLatitude: destination.latitude,
       destinationLongitude: destination.longitude,
-      entryAt,
-      exitAt,
+      entryAt: formatOffsetDateTime(entryAt),
+      exitAt: formatOffsetDateTime(exitAt),
     };
 
     navigate('/parkingRecommend', {
@@ -75,10 +88,9 @@ export const ParkingSetupPage = () => {
 
           <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
             <ParkingTimeSheet
-              entryTime={entryTime}
-              exitTime={exitTime}
-              onEntryTimeChange={setEntryTime}
-              onExitTimeChange={setExitTime}
+              period={period}
+              onEntryAtChange={handleEntryAtChange}
+              onExitAtChange={handleExitAtChange}
               onSubmit={handleRecommend}
             />
           </BottomSheet>
