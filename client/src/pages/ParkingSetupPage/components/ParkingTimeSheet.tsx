@@ -6,9 +6,12 @@ import { ParkingPeriod } from '../model/time';
 import { formatMonthDay } from '../utils/timeFormat';
 import { TimePickerField } from './TimePickerField';
 
-import { addDays, addMinutes, format, set as setDate } from 'date-fns';
+import { addDays, addMinutes, format, set, set as setDate } from 'date-fns';
 
 import { validatePeriod } from '../utils/validate';
+import { Calendar } from './Calendar';
+import { useModal } from '../../../../shared/hooks/useModal';
+import { Modal } from '../../../../shared/components/Modal/Modal';
 
 interface Props {
   period: ParkingPeriod;
@@ -22,6 +25,8 @@ type ActiveTimeField = 'entry' | 'exit' | null;
 
 export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSubmit }: Props) => {
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
+
+  const modal = useModal();
 
   // 입차 영역 클릭
   const handleEntryClick = () => {
@@ -52,6 +57,30 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
     onExitAtChange(normalizedExitAt);
   };
 
+  // 날짜 선택 핸들러
+  const handleEntryDateChange = (selectedDate: Date) => {
+    const entryAt = set(selectedDate, {
+      hours: period.entryAt.getHours(),
+      minutes: period.entryAt.getMinutes(),
+      seconds: 0,
+      milliseconds: 0,
+    });
+
+    onEntryAtChange(entryAt);
+
+    if (period.exitAt !== null) {
+      const exitAt = set(selectedDate, {
+        hours: period.exitAt.getHours(),
+        minutes: period.exitAt.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      const normalizedExitAt = exitAt < entryAt ? addDays(exitAt, 1) : exitAt;
+      onExitAtChange(normalizedExitAt);
+    }
+  };
+
   // 30분, 1시간, 2시간 추가 메서드
   const handleAddThirtyMinutes = () => {
     onExitAtChange(period.exitAt ? addMinutes(period.exitAt, 30) : addMinutes(period.entryAt, 30));
@@ -78,10 +107,17 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
       <header className={headerStyle}>
         <h1 className={titleStyle}>언제 주차하세요?</h1>
 
-        <time className={dateStyle} dateTime={format(period.entryAt, 'yyyy-MM-dd')}>
+        <button
+          type="button"
+          className={calendarButtonStyle}
+          aria-label="입차 날짜 선택"
+          onClick={modal.open}
+        >
           <CalendarIcon />
-          {formatMonthDay(period.entryAt)}
-        </time>
+          <time className={dateStyle} dateTime={format(period.entryAt, 'yyyy-MM-dd')}>
+            {formatMonthDay(period.entryAt)}
+          </time>
+        </button>
       </header>
 
       <div className={timeFieldsStyle}>
@@ -139,6 +175,12 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
       >
         추천 받기
       </button>
+
+      {modal.isOpen && (
+        <Modal isOpen={modal.isOpen} onClose={modal.close} label="주차할 날짜를 선택하세요">
+          <Calendar selectedDate={period.entryAt} onSelect={handleEntryDateChange} />
+        </Modal>
+      )}
     </div>
   );
 };
@@ -179,22 +221,53 @@ const titleStyle = css`
   letter-spacing: -1.2px;
 `;
 
-const dateStyle = css`
+const calendarButtonStyle = css`
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 
   min-height: 44px;
+  margin: 0;
   padding: 0 14px;
 
-  color: #101b37;
+  color: #ffffff;
+  font-family: inherit;
+
+  background: #4356d8;
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 100ms ease;
+
+  &:hover {
+    background: #3b4dcc;
+    box-shadow: 0 4px 12px rgb(67 86 216 / 20%);
+  }
+
+  &:active {
+    background: #3548c8;
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 2px;
+  }
+`;
+
+const dateStyle = css`
   font-size: 16px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-
-  background: #f5f6fb;
-  border-radius: 14px;
 `;
 
 const calendarIconStyle = css`

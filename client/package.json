@@ -10,6 +10,7 @@
     "check": "pnpm typecheck && pnpm test:deep-link && pnpm test:parking-markers && eslint . && prettier --check ."
   },
   "dependencies": {
+    "@daypicker/react": "^10.0.1",
     "@emotion/css": "^11.13.5",
     "@tanstack/react-query": "^5.102.3",
     "date-fns": "^4.4.0",
