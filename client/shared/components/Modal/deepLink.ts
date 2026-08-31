@@ -35,7 +35,12 @@ const stores = {
   },
 } as const;
 
-export const buildDirectionsLinks = ({ provider, start, destination, appName }: BuildDirectionsLinksParams) => {
+export const buildDirectionsLinks = ({
+  provider,
+  start,
+  destination,
+  appName,
+}: BuildDirectionsLinksParams) => {
   let appUrl: URL;
   let webUrl: string;
 

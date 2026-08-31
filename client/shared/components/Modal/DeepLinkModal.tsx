@@ -22,7 +22,9 @@ interface Props {
 }
 
 type LocationState =
-  { status: 'LOADING' } | { status: 'READY'; coordinate: Coordinate } | { status: 'ERROR'; message: string };
+  | { status: 'LOADING' }
+  | { status: 'READY'; coordinate: Coordinate }
+  | { status: 'ERROR'; message: string };
 
 const providers: Array<{ provider: DirectionsProvider; label: string; mark: string }> = [
   { provider: 'NAVER', label: '네이버 지도', mark: 'N' },
@@ -30,7 +32,12 @@ const providers: Array<{ provider: DirectionsProvider; label: string; mark: stri
   { provider: 'TMAP', label: '티맵', mark: 'T' },
 ];
 
-export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, destination }: Props) => {
+export const DeepLinkModal = ({
+  isOpen,
+  onRequestClose,
+  onDirectionsStart,
+  destination,
+}: Props) => {
   const [locationState, setLocationState] = useState<LocationState>({ status: 'LOADING' });
   const [requestToken, setRequestToken] = useState(0);
 
@@ -41,7 +48,8 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, desti
 
     if (!navigator.geolocation) {
       queueMicrotask(() => {
-        if (!isCancelled) setLocationState({ status: 'ERROR', message: '현재 위치를 지원하지 않는 브라우저예요.' });
+        if (!isCancelled)
+          setLocationState({ status: 'ERROR', message: '현재 위치를 지원하지 않는 브라우저예요.' });
       });
       return () => {
         isCancelled = true;
@@ -100,7 +108,8 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, desti
     }
 
     const isIOS =
-      /iPad|iPhone|iPod/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      /iPad|iPhone|iPod/i.test(userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     if (!isIOS) {
       window.location.assign(links.webUrl);
@@ -132,7 +141,12 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, desti
       contentLabel="길찾기 앱 선택"
       shouldCloseOnOverlayClick
     >
-      <button className={closeButtonStyle} type="button" aria-label="길찾기 앱 선택 닫기" onClick={onRequestClose}>
+      <button
+        className={closeButtonStyle}
+        type="button"
+        aria-label="길찾기 앱 선택 닫기"
+        onClick={onRequestClose}
+      >
         ×
       </button>
 
@@ -159,7 +173,9 @@ export const DeepLinkModal = ({ isOpen, onRequestClose, onDirectionsStart, desti
         ))}
       </div>
 
-      {locationState.status === 'LOADING' && <p className={statusStyle}>현재 위치를 확인하고 있어요.</p>}
+      {locationState.status === 'LOADING' && (
+        <p className={statusStyle}>현재 위치를 확인하고 있어요.</p>
+      )}
       {locationState.status === 'ERROR' && (
         <div className={errorStyle} role="alert">
           <p>{locationState.message}</p>

@@ -7,6 +7,9 @@ export const applyGlobalStyles = () => injectGlobal`
 
     html,
     body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin: 0;
       width: 100%;
       height: 100%;

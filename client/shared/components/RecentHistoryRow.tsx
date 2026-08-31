@@ -9,7 +9,14 @@ interface Props {
   removeLabel?: string;
 }
 
-export const RecentHistoryRow = ({ title, address, metadata, onSelect, onRemove, removeLabel }: Props) => (
+export const RecentHistoryRow = ({
+  title,
+  address,
+  metadata,
+  onSelect,
+  onRemove,
+  removeLabel,
+}: Props) => (
   <li className={rowStyle}>
     <button className={contentButtonStyle} type="button" onClick={onSelect}>
       <span className={historyIconStyle} aria-hidden="true">
@@ -24,7 +31,12 @@ export const RecentHistoryRow = ({ title, address, metadata, onSelect, onRemove,
     </button>
 
     {onRemove && (
-      <button className={removeButtonStyle} type="button" aria-label={removeLabel} onClick={onRemove}>
+      <button
+        className={removeButtonStyle}
+        type="button"
+        aria-label={removeLabel}
+        onClick={onRemove}
+      >
         ×
       </button>
     )}

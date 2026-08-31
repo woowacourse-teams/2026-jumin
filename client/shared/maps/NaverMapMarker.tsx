@@ -26,7 +26,15 @@ const createMarkerIcon = (icon: MarkerIcon): naver.maps.ImageIcon => ({
   anchor: new naver.maps.Point(icon.anchorX, icon.anchorY),
 });
 
-export const NaverMapMarker = ({ map, latitude, longitude, icon, title, zIndex, onClick }: Props) => {
+export const NaverMapMarker = ({
+  map,
+  latitude,
+  longitude,
+  icon,
+  title,
+  zIndex,
+  onClick,
+}: Props) => {
   const onClickRef = useRef(onClick);
   const clickable = onClick !== undefined;
 
@@ -46,7 +54,9 @@ export const NaverMapMarker = ({ map, latitude, longitude, icon, title, zIndex, 
       zIndex,
     });
 
-    const listener = clickable ? naver.maps.Event.addListener(marker, 'click', () => onClickRef.current?.()) : null;
+    const listener = clickable
+      ? naver.maps.Event.addListener(marker, 'click', () => onClickRef.current?.())
+      : null;
 
     return () => {
       if (listener) naver.maps.Event.removeListener(listener);

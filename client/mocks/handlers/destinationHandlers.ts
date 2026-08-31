@@ -1,5 +1,9 @@
 import { delay, http, HttpResponse } from 'msw';
-import type { ApiErrorResponse, DestinationSearchResponse } from '../../api/contracts';
+import type {
+  ApiErrorResponse,
+  DestinationNameResponse,
+  DestinationSearchResponse,
+} from '../../api/contracts';
 import { destinationFixtures } from '../fixtures/destinations';
 import { getMockScenario } from '../scenario';
 
@@ -56,5 +60,12 @@ export const destinationHandlers = [
     };
 
     return HttpResponse.json(response);
+  }),
+  http.get('/api/destinations/reverse-geocode', async () => {
+    await delay(500);
+
+    return HttpResponse.json<DestinationNameResponse>({
+      displayName: '지도에서 다시 선택한 목적지',
+    });
   }),
 ];

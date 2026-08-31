@@ -69,7 +69,12 @@ export const BottomNav = () => {
 
   return (
     <nav className={navigationStyle} aria-label="하단 메뉴">
-      <button className={navigationItemStyle} type="button" disabled={isLocating} onClick={handleNearbyClick}>
+      <button
+        className={navigationItemStyle}
+        type="button"
+        disabled={isLocating}
+        onClick={handleNearbyClick}
+      >
         <NavigationIcon icon={nearbyIcon} activeIcon={activeNearbyIcon} />
         <span>{isLocating ? '위치 확인 중' : '주변'}</span>
       </button>
@@ -92,7 +97,12 @@ interface NavigationIconProps {
 const NavigationIcon = ({ icon, activeIcon }: NavigationIconProps) => (
   <span className={iconContainerStyle}>
     <img className={cx('default-icon', iconStyle)} src={icon} alt="" draggable={false} />
-    <img className={cx('active-icon', iconStyle, activeIconStyle)} src={activeIcon} alt="" draggable={false} />
+    <img
+      className={cx('active-icon', iconStyle, activeIconStyle)}
+      src={activeIcon}
+      alt=""
+      draggable={false}
+    />
   </span>
 );
 
