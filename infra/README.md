@@ -18,7 +18,7 @@
 | `nginx/jumin.prod.conf` | 운영 HTTPS, 정적 파일, API 프록시 설정 |
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
-| `.env.example` | 로컬 데이터베이스 환경변수 예시 |
+| `.env.example` | 로컬·배포 환경변수 예시 |
 
 ## 로컬 데이터베이스
 
@@ -78,7 +78,9 @@ secret으로 전달합니다.
 - EC2에서 RDS로 연결할 수 있는 네트워크 권한
 - EC2에 연결된 IAM Role의 `/jumin/dev/backend` 로그 기록 권한
 - CloudWatch Logs로 나가는 outbound HTTPS 연결
-- GitHub `development` Environment secret
+- GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
+  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
+  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET` secret
 
 ## 운영 서버 배포
 
@@ -99,7 +101,8 @@ secret으로 전달합니다.
 - Docker Engine, Docker Compose plugin, `curl`, `rsync`
 - 운영 CloudWatch Logs 그룹 `/jumin/prod/backend`
 - GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
-  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET` secret
+  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
+  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET` secret
 - 운영 백엔드 Compose가 생성한 `jumin-prod_default` Docker network
 
 운영 백엔드 workflow는 Compose project `jumin-prod`로 실행되므로 기본 network
