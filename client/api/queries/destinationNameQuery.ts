@@ -9,7 +9,7 @@ interface DestinationNameQueryParams {
 
 export const destinationNameQueryOptions = (params: DestinationNameQueryParams) => {
   return queryOptions({
-    //좌표가 달면 서로 다른 요청으로 구분되어야함
+    //좌표가 다르면 서로 다른 요청으로 구분되어야함
     queryKey: [
       'latitude',
       'longitude',
