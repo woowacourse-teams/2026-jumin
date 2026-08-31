@@ -5,7 +5,6 @@ import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocat
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { NearbyParkingMarkers } from './components/NearbyParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 
 const currentLocationIcon = {
@@ -29,10 +28,6 @@ export const MainPage = () => {
   // 파란색 현재 위치 마커에 사용
   const [currentLocation, setCurrentLocation] = useState<MapLocation | null>(null);
 
-  // 주차장 검색 중심
-  // 600m 원과 API 요청에 사용
-  const [searchCenter, setSearchCenter] = useState<MapLocation | null>(null);
-
   const requestCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       window.alert('현재 위치를 지원하지 않는 브라우저예요.');
@@ -47,8 +42,6 @@ export const MainPage = () => {
         };
 
         setCurrentLocation(location);
-        setSearchCenter(location);
-
         map?.panTo(new naver.maps.LatLng(location.latitude, location.longitude));
       },
       () => {
@@ -62,37 +55,6 @@ export const MainPage = () => {
     if (!map) return;
     requestCurrentLocation();
   }, [map, requestCurrentLocation]);
-
-  useEffect(() => {
-    if (!map) return;
-
-    const listener = naver.maps.Event.addListener(
-      map,
-      'click',
-      (event: naver.maps.PointerEvent) => {
-        const coordinate = event.coord as naver.maps.LatLng;
-        const clickedLocation = {
-          latitude: coordinate.lat(),
-          longitude: coordinate.lng(),
-        };
-
-        setSearchCenter(clickedLocation);
-        map.panTo(coordinate);
-      },
-    );
-
-    return () => {
-      naver.maps.Event.removeListener(listener);
-    };
-  }, [map]);
-
-  // 현재 위치랑 목적지 위치랑 같으면 현재 위치 마커를
-  // 다르면 목적지 마커를 표시하도록 하는 분기처리
-  const isSearchCenterAtCurrentLocation =
-    currentLocation !== null &&
-    searchCenter !== null &&
-    currentLocation.latitude === searchCenter.latitude &&
-    currentLocation.longitude === searchCenter.longitude;
 
   return (
     <div
@@ -114,14 +76,6 @@ export const MainPage = () => {
             title="현재 위치"
             zIndex={50}
           />
-
-          {searchCenter && (
-            <NearbyParkingMarkers
-              map={map}
-              searchCenter={searchCenter}
-              showSearchCenterMarker={!isSearchCenterAtCurrentLocation}
-            />
-          )}
         </>
       )}
       <div
