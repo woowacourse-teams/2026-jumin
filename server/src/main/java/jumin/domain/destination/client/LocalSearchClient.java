@@ -3,8 +3,8 @@ package jumin.domain.destination.client;
 import jumin.config.LocalSearchProperties;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -15,7 +15,6 @@ import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class LocalSearchClient {
 
     private static final String CLIENT_ID_HEADER = "X-NCP-APIGW-API-KEY-ID";
@@ -26,13 +25,23 @@ public class LocalSearchClient {
     private final LocalSearchProperties properties;
     private final ObjectMapper objectMapper;
 
+    public LocalSearchClient(
+            @Qualifier("localSearchRestClient") RestClient restClient,
+            LocalSearchProperties properties,
+            ObjectMapper objectMapper
+    ) {
+        this.restClient = restClient;
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+    }
+
     public LocalSearchResponse search(String query) {
         if (!StringUtils.hasText(properties.clientId()) || !StringUtils.hasText(properties.clientSecret())) {
             log.atError()
                     .setMessage("지역 검색 API 자격 증명이 설정되지 않았습니다.")
                     .addKeyValue("failureType", "missing_credentials")
                     .log();
-            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
         }
 
         long startedAt = System.nanoTime();
@@ -47,7 +56,7 @@ public class LocalSearchClient {
                     .addKeyValue("cause", exception.getClass().getSimpleName())
                     .addKeyValue("durationMs", elapsedMillis(startedAt))
                     .log();
-            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
         }
     }
 
@@ -82,7 +91,7 @@ public class LocalSearchClient {
                                         .addKeyValue("failureType", "upstream_error")
                                         .addKeyValue("durationMs", elapsedMillis(startedAt))
                                         .log();
-                                throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+                                throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
                             }
                 )
                 .body(String.class);
@@ -95,7 +104,7 @@ public class LocalSearchClient {
                     .addKeyValue("failureType", "empty_response")
                     .addKeyValue("durationMs", durationMs)
                     .log();
-            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
         }
 
         try {
@@ -107,7 +116,7 @@ public class LocalSearchClient {
                     .addKeyValue("cause", exception.getClass().getSimpleName())
                     .addKeyValue("durationMs", durationMs)
                     .log();
-            throw new BusinessException(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED);
+            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
         }
     }
 

@@ -15,7 +15,10 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "요청을 처리하는 중 서버 오류가 발생했습니다."),
     INVALID_QUERY(HttpStatus.BAD_REQUEST, "검색어는 2자 이상 입력해 주세요."),
     DESTINATION_SEARCH_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "목적지 검색 요청이 너무 많습니다."),
-    NAVER_DESTINATION_SEARCH_FAILED(HttpStatus.BAD_GATEWAY, "목적지를 검색하지 못했습니다."),
+    DESTINATION_SEARCH_CLIENT_FAILED(HttpStatus.BAD_GATEWAY, "목적지를 검색하지 못했습니다."),
+    DESTINATION_REVERSE_GEOCODING_NOT_FOUND(HttpStatus.NOT_FOUND, "목적지 위치 정보를 찾을 수 없습니다."),
+    DESTINATION_REVERSE_GEOCODING_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "목적지 위치 조회 요청이 너무 많습니다."),
+    DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED(HttpStatus.BAD_GATEWAY, "목적지 위치를 조회하지 못했습니다."),
     ;
 
     private final HttpStatus httpStatus;
