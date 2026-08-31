@@ -28,6 +28,6 @@ export const destinationNameQueryOptions = (params: DestinationNameQueryParams) 
 
     enabled: params.enabled,
 
-    retry: false,
+    retry: 1,
   });
 };
