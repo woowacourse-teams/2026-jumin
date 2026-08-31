@@ -5,7 +5,10 @@ import { getMockScenario } from '../scenario';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
-const validateCoordinates = (latitudeValue: string | null, longitudeValue: string | null): FieldError[] => {
+const validateCoordinates = (
+  latitudeValue: string | null,
+  longitudeValue: string | null,
+): FieldError[] => {
   const errors: FieldError[] = [];
   const latitude = Number(latitudeValue);
   const longitude = Number(longitudeValue);
@@ -19,7 +22,10 @@ const validateCoordinates = (latitudeValue: string | null, longitudeValue: strin
   if (longitudeValue === null) {
     errors.push({ field: 'destinationLongitude', message: '목적지 경도는 필수입니다.' });
   } else if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-    errors.push({ field: 'destinationLongitude', message: '목적지 경도 범위가 올바르지 않습니다.' });
+    errors.push({
+      field: 'destinationLongitude',
+      message: '목적지 경도 범위가 올바르지 않습니다.',
+    });
   }
 
   return errors;
@@ -27,7 +33,12 @@ const validateCoordinates = (latitudeValue: string | null, longitudeValue: strin
 
 const validateDateTime = (field: 'entryAt' | 'exitAt', value: string | null): FieldError[] => {
   if (value === null) {
-    return [{ field, message: field === 'entryAt' ? '입차 시각은 필수입니다.' : '출차 시각은 필수입니다.' }];
+    return [
+      {
+        field,
+        message: field === 'entryAt' ? '입차 시각은 필수입니다.' : '출차 시각은 필수입니다.',
+      },
+    ];
   }
 
   const match = offsetDateTimePattern.exec(value);
@@ -100,6 +111,8 @@ export const parkingSearchHandlers = [
 
     await delay(scenario === 'parking-slow' ? 2000 : 400);
 
-    return HttpResponse.json(scenario === 'parking-empty' ? parkingSearchEmpty : parkingSearchSuccess);
+    return HttpResponse.json(
+      scenario === 'parking-empty' ? parkingSearchEmpty : parkingSearchSuccess,
+    );
   }),
 ];

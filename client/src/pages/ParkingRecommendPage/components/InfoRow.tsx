@@ -13,7 +13,11 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
   const { name, estimatedFee, distanceMeters } = parkingLot;
 
   return (
-    <article className={rowStyle(isActive)} draggable={false} onDragStart={(event) => event.preventDefault()}>
+    <article
+      className={rowStyle(isActive)}
+      draggable={false}
+      onDragStart={(event) => event.preventDefault()}
+    >
       <button
         className={selectButtonStyle}
         type="button"
@@ -30,12 +34,18 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
         <h2 className={nameStyle}>{name}</h2>
 
         <p className={metadataStyle}>
-          <strong>{estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}</strong>
+          <strong>
+            {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
+          </strong>
           <span>{distanceMeters.toLocaleString('ko-KR')}m</span>
         </p>
       </div>
 
-      <button className={detailButtonStyle(isActive)} type="button" onClick={() => onNavigate(parkingLot)}>
+      <button
+        className={detailButtonStyle(isActive)}
+        type="button"
+        onClick={() => onNavigate(parkingLot)}
+      >
         상세보기
       </button>
     </article>
