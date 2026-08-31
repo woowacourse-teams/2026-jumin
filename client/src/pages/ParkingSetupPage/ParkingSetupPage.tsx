@@ -9,6 +9,7 @@ import { ParkingTimeSheet } from './components/ParkingTimeSheet';
 import { createRoundedCurrentDate, ParkingPeriod } from './model/time';
 import { validatePeriod } from './utils/validate';
 import { formatOffsetDateTime } from './utils/timeFormat';
+import { css } from '@emotion/css';
 
 // 목적지 확인, 입출차 시간 입력 step
 type ParkingSetupStep = 'destination' | 'time';
@@ -74,8 +75,15 @@ export const ParkingSetupPage = () => {
     <main>
       {step === 'destination' ? (
         <>
-          <SearchBar onClick={() => navigate('/search')} />
-
+          <div
+            className={css`
+              position: relative;
+              z-index: 1;
+              width: 100%;
+            `}
+          >
+            <SearchBar onClick={() => navigate('/search')} />
+          </div>
           <DestinationConfirmSheet
             destination={destination}
             onCancel={() => navigate('/search')}
