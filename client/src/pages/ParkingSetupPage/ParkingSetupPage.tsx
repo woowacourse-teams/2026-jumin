@@ -6,9 +6,9 @@ import { SearchBar } from '../../../shared/components/SearchBar';
 import { DestinationConfirmSheet } from './components/DestinationConfirmSheet';
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingTimeSheet } from './components/ParkingTimeSheet';
-import { createRoundedCurrentDate, ParkingPeriod } from './model/time';
+import { ParkingPeriod } from './model/time';
 import { validatePeriod } from './utils/validate';
-import { formatOffsetDateTime } from './utils/timeFormat';
+import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../shared/utils/time';
 import { css } from '@emotion/css';
 import destinationMarkerUrl from '../../../assets/icons/markers/destinationMarker.svg';
 import { useQuery } from '@tanstack/react-query';
@@ -49,8 +49,10 @@ export const ParkingSetupPage = () => {
   const [step, setStep] = useState<ParkingSetupStep>('destination');
 
   // 입출차 날짜 및 시간
-  const [period, setPeriod] = useState<ParkingPeriod>(createRoundedCurrentDate());
-
+  const [period, setPeriod] = useState<ParkingPeriod>(() => ({
+    entryAt: createRoundedCurrentDate(),
+    exitAt: null,
+  }));
   // 지도 이동 여부
   const [hasMovedMap, setHasMovedMap] = useState(false);
 

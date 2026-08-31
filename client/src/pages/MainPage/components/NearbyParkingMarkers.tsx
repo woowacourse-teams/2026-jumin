@@ -7,8 +7,7 @@ import recommendedParkingMarkerUrl from '../../../../assets/icons/markers/unsele
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { SearchRadiusCircle } from '../../../../shared/maps/SearchRadiusCircle';
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
-import { createRoundedCurrentDate } from '../../ParkingSetupPage/model/time';
-import { formatOffsetDateTime } from '../../ParkingSetupPage/utils/timeFormat';
+import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -39,7 +38,7 @@ const parkingMarkerIcons = {
 export const NearbyParkingMarkers = ({ map, searchCenter, showSearchCenterMarker }: Props) => {
   // 검색 시간 생성
   const searchCondition = useMemo(() => {
-    const { entryAt } = createRoundedCurrentDate();
+    const entryAt = createRoundedCurrentDate();
     const exitAt = addHours(entryAt, 1);
 
     return {
