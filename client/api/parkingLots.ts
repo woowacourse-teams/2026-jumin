@@ -1,4 +1,5 @@
 import type {
+  DestinationNameResponse,
   DestinationSearchResponse,
   ParkingLotDetailResponse,
   ParkingSearchResponse,
@@ -34,6 +35,24 @@ export const searchDestinations = async (
     throw new Error(error?.message ?? '목적지 검색 결과를 불러오지 못했습니다.');
   }
 
+  return response.json();
+};
+
+export const getDestinationName = async (
+  latitude: number,
+  longitude: number,
+  signal?: AbortSignal,
+): Promise<DestinationNameResponse> => {
+  const response = await fetch(
+    `/api/destinations/reverse-geocode?latitude=${latitude}&longitude=${longitude}`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+
+    throw new Error(error?.message ?? '목적지를 다시 설정해주세요.');
+  }
   return response.json();
 };
 
