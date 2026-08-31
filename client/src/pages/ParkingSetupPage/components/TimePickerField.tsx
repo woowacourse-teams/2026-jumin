@@ -1,22 +1,28 @@
 import { css } from '@emotion/css';
 
-import type { TimeValue } from '../model/time';
 import { WheelColumn } from './WheelColumn';
+import { set as setDate } from 'date-fns';
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const MINUTES = [0, 10, 20, 30, 40, 50];
 
 interface TimePickerFieldProps {
   label: string;
-  value: TimeValue | null;
+  date: Date | null;
   isActive: boolean;
   onToggle: () => void;
-  onChange: (value: TimeValue) => void;
+  onChange: (value: Date) => void;
 }
 
-export function TimePickerField({ label, value, isActive, onToggle, onChange }: TimePickerFieldProps) {
-  const hourText = value === null ? '--' : String(value.hour).padStart(2, '0');
-  const minuteText = value === null ? '--' : String(value.minute).padStart(2, '0');
+export function TimePickerField({
+  label,
+  date,
+  isActive,
+  onToggle,
+  onChange,
+}: TimePickerFieldProps) {
+  const hourText = date === null ? '--' : String(date.getHours()).padStart(2, '0');
+  const minuteText = date === null ? '--' : String(date.getMinutes()).padStart(2, '0');
 
   return (
     <section className={timeFieldStyle(isActive)}>
@@ -24,13 +30,21 @@ export function TimePickerField({ label, value, isActive, onToggle, onChange }: 
         {label}
       </button>
 
-      {isActive && value !== null ? (
+      {isActive && date !== null ? (
         <div className={timeControlStyle}>
           <WheelColumn
             ariaLabel={`${label} 시간`}
             options={HOURS}
-            value={value.hour}
-            onChange={(hour) => onChange({ ...value, hour })}
+            value={date.getHours()}
+            onChange={(hour) =>
+              onChange(
+                setDate(date, {
+                  hours: hour,
+                  seconds: 0,
+                  milliseconds: 0,
+                }),
+              )
+            }
           />
 
           <span className={colonStyle}>:</span>
@@ -38,12 +52,24 @@ export function TimePickerField({ label, value, isActive, onToggle, onChange }: 
           <WheelColumn
             ariaLabel={`${label} 분`}
             options={MINUTES}
-            value={value.minute}
-            onChange={(minute) => onChange({ ...value, minute })}
+            value={date.getMinutes()}
+            onChange={(minute) =>
+              onChange(
+                setDate(date, {
+                  minutes: minute,
+                  seconds: 0,
+                  milliseconds: 0,
+                }),
+              )
+            }
           />
         </div>
       ) : (
-        <button type="button" className={[timeControlStyle, timeDisplayButtonStyle].join(' ')} onClick={onToggle}>
+        <button
+          type="button"
+          className={[timeControlStyle, timeDisplayButtonStyle].join(' ')}
+          onClick={onToggle}
+        >
           <span>{hourText}</span>
           <span className={colonStyle}>:</span>
           <span>{minuteText}</span>

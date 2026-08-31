@@ -1,38 +1,23 @@
-export interface TimeValue {
-  hour: number;
-  minute: number;
+// 입출차 시간 상태 관리를 위한 인터페이스
+export interface ParkingPeriod {
+  entryAt: Date;
+  exitAt: Date | null;
 }
 
-export const DEFAULT_TIME: TimeValue = {
-  hour: 0,
-  minute: 0,
-};
+export interface CompleteParkingPeriod {
+  entryAt: Date;
+  exitAt: Date;
+}
 
-export const createRoundedCurrentTime = (now = new Date()): TimeValue => {
+// 입차: 현재 시간을 기준으로 가장 가까운 10분 단위의 날짜(시간 포함)를 반환, 출차는 null로 초기화
+export const createRoundedCurrentDate = (now = new Date()): ParkingPeriod => {
   const roundedDate = new Date(now);
   const minutesUntilNextSlot = 10 - (roundedDate.getMinutes() % 10);
 
   roundedDate.setMinutes(roundedDate.getMinutes() + minutesUntilNextSlot, 0, 0);
 
   return {
-    hour: roundedDate.getHours(),
-    minute: roundedDate.getMinutes(),
+    entryAt: roundedDate,
+    exitAt: null,
   };
 };
-
-const MINUTES_PER_HOUR = 60;
-const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
-
-export const addMinutesToTime = (time: TimeValue, minutesToAdd: number): TimeValue => {
-  const currentMinutes = time.hour * MINUTES_PER_HOUR + time.minute;
-  const addedMinutes = (currentMinutes + minutesToAdd) % MINUTES_PER_DAY;
-
-  return {
-    hour: Math.floor(addedMinutes / MINUTES_PER_HOUR),
-    minute: addedMinutes % MINUTES_PER_HOUR,
-  };
-};
-
-export const addThirtyMinutes = (time: TimeValue) => addMinutesToTime(time, 30);
-export const addOneHour = (time: TimeValue) => addMinutesToTime(time, 60);
-export const addTwoHours = (time: TimeValue) => addMinutesToTime(time, 120);

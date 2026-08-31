@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import backIcon from '../../assets/icons/backIcon.svg';
-import { formatIsoTime } from '../utils/formatTime';
+import { formatIsoDateTime } from '../utils/formatTime';
 import { useNavigate } from 'react-router';
 
 interface Props {
@@ -28,9 +28,9 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
         {entryAt && exitAt && (
           <p className={timeRangeStyle}>
-            <time dateTime={entryAt}>{formatIsoTime(entryAt)}</time>
+            <time dateTime={entryAt}>{formatIsoDateTime(entryAt)}</time>
             <span aria-hidden="true"> – </span>
-            <time dateTime={exitAt}>{formatIsoTime(exitAt)}</time>
+            <time dateTime={exitAt}>{formatIsoDateTime(exitAt)}</time>
           </p>
         )}
       </div>

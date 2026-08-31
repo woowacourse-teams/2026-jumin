@@ -1,5 +1,12 @@
 import { css } from '@emotion/css';
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type UIEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type UIEvent,
+} from 'react';
 
 const ITEM_HEIGHT = 27;
 const VISIBLE_ITEM_COUNT = 3;
