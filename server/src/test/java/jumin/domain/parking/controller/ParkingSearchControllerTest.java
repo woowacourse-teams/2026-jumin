@@ -2,6 +2,7 @@ package jumin.domain.parking.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,7 +43,7 @@ class ParkingSearchControllerTest {
                         240, 2_000, 0.1250, "AVAILABLE"
                 )
         ));
-        when(parkingSearchService.search(org.mockito.ArgumentMatchers.any(ParkingSearchRequest.class))).thenReturn(result);
+        when(parkingSearchService.search(any(ParkingSearchRequest.class))).thenReturn(result);
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/search")
@@ -91,7 +92,7 @@ class ParkingSearchControllerTest {
                         240, null, null, "UNKNOWN"
                 )
         ));
-        when(parkingSearchService.search(org.mockito.ArgumentMatchers.any(ParkingSearchRequest.class)))
+        when(parkingSearchService.search(any(ParkingSearchRequest.class)))
                 .thenReturn(result);
 
         // when
@@ -113,7 +114,7 @@ class ParkingSearchControllerTest {
     @DisplayName("관련 없는 쿼리 파라미터를 무시한다")
     void ignores_unrelated_query_parameters() throws Exception {
         // given
-        when(parkingSearchService.search(org.mockito.ArgumentMatchers.any(ParkingSearchRequest.class)))
+        when(parkingSearchService.search(any(ParkingSearchRequest.class)))
                 .thenReturn(ParkingSearchResponse.from(600, List.of()));
 
         // when
