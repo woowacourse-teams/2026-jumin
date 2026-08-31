@@ -150,7 +150,7 @@ export const ParkingSetupPage = () => {
               width: 100%;
             `}
           >
-            <SearchBar value={destinationName} readOnly onClick={() => navigate('/search')} />
+            <SearchBar onClick={() => navigate('/search')} />
           </div>
           <DestinationConfirmSheet
             name={destinationName}
