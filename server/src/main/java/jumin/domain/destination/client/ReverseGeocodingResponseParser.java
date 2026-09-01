@@ -12,6 +12,8 @@ import tools.jackson.databind.ObjectMapper;
 final class ReverseGeocodingResponseParser {
 
     private static final String ROAD_ADDRESS_RESULT = "roadaddr";
+    private static final String LOT_ADDRESS_RESULT = "addr";
+    private static final String ADMINISTRATIVE_ADDRESS_RESULT = "admcode";
     private static final int UNKNOWN_STATUS_CODE = -1;
     private static final int SUCCESS_STATUS_CODE = 0;
     private static final int NO_RESULTS_STATUS_CODE = 3;
@@ -88,31 +90,42 @@ final class ReverseGeocodingResponseParser {
             throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED);
         }
 
-        JsonNode roadAddressResult = findRoadAddressResult(root.path("results"));
-        if (roadAddressResult == null) {
-            return ReverseGeocodingResult.empty();
-        }
-        return mapResult(roadAddressResult);
+        JsonNode results = root.path("results");
+        JsonNode roadAddressResult = findResult(results, ROAD_ADDRESS_RESULT);
+        JsonNode lotAddressResult = findResult(results, LOT_ADDRESS_RESULT);
+        JsonNode administrativeAddressResult = findResult(results, ADMINISTRATIVE_ADDRESS_RESULT);
+        return mapResults(roadAddressResult, lotAddressResult, administrativeAddressResult);
     }
 
-    private JsonNode findRoadAddressResult(JsonNode results) {
+    private JsonNode findResult(JsonNode results, String resultName) {
         if (!results.isArray()) {
             return null;
         }
 
         for (JsonNode result : results) {
-            if (ROAD_ADDRESS_RESULT.equals(result.path("name").asString(""))) {
+            if (resultName.equals(result.path("name").asString(""))) {
                 return result;
             }
         }
         return null;
     }
 
-    private ReverseGeocodingResult mapResult(JsonNode roadAddressResult) {
-        JsonNode land = roadAddressResult.path("land");
-        String buildingName = readBuildingName(land.path("addition0"));
-        String roadAddress = buildRoadAddress(roadAddressResult, land);
-        return new ReverseGeocodingResult(buildingName, roadAddress);
+    private ReverseGeocodingResult mapResults(
+            JsonNode roadAddressResult,
+            JsonNode lotAddressResult,
+            JsonNode administrativeAddressResult
+    ) {
+        String buildingName = "";
+        String roadAddress = "";
+        if (roadAddressResult != null) {
+            JsonNode land = roadAddressResult.path("land");
+            buildingName = readBuildingName(land.path("addition0"));
+            roadAddress = buildRoadAddress(roadAddressResult, land);
+        }
+
+        String lotAddress = buildLotAddress(lotAddressResult);
+        String administrativeAddress = buildAdministrativeAddress(administrativeAddressResult);
+        return new ReverseGeocodingResult(buildingName, roadAddress, lotAddress, administrativeAddress);
     }
 
     private String readBuildingName(JsonNode addition) {
@@ -141,6 +154,51 @@ final class ReverseGeocodingResponseParser {
         appendEupMyeon(address, textOrEmpty(result.path("region").path("area3").path("name")));
         appendAddressPart(address, roadName);
         appendAddressPart(address, buildingNumber.toString());
+        return address.toString();
+    }
+
+    private String buildLotAddress(JsonNode result) {
+        if (result == null) {
+            return "";
+        }
+
+        JsonNode land = result.path("land");
+        String mainNumber = textOrEmpty(land.path("number1"));
+        if (!StringUtils.hasText(mainNumber)) {
+            return "";
+        }
+
+        String subNumber = textOrEmpty(land.path("number2"));
+        StringBuilder landNumber = new StringBuilder();
+        if ("2".equals(textOrEmpty(land.path("type")))) {
+            landNumber.append("산 ");
+        }
+        landNumber.append(mainNumber);
+        if (StringUtils.hasText(subNumber)) {
+            landNumber.append('-').append(subNumber);
+        }
+
+        StringBuilder address = new StringBuilder();
+        JsonNode region = result.path("region");
+        appendAddressPart(address, textOrEmpty(region.path("area1").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area2").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area3").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area4").path("name")));
+        appendAddressPart(address, landNumber.toString());
+        return address.toString();
+    }
+
+    private String buildAdministrativeAddress(JsonNode result) {
+        if (result == null) {
+            return "";
+        }
+
+        JsonNode region = result.path("region");
+        StringBuilder address = new StringBuilder();
+        appendAddressPart(address, textOrEmpty(region.path("area1").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area2").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area3").path("name")));
+        appendAddressPart(address, textOrEmpty(region.path("area4").path("name")));
         return address.toString();
     }
 

@@ -21,7 +21,7 @@ public class ReverseGeocodingClient {
 
     private static final String CLIENT_ID_HEADER = "X-NCP-APIGW-API-KEY-ID";
     private static final String CLIENT_SECRET_HEADER = "X-NCP-APIGW-API-KEY";
-    private static final String ROAD_ADDRESS_ORDER = "roadaddr";
+    private static final String REVERSE_GEOCODING_ORDERS = "roadaddr,addr,admcode";
 
     private final ReverseGeocodingProperties properties;
     private final ReverseGeocodingResponseParser responseParser;
@@ -77,7 +77,7 @@ public class ReverseGeocodingClient {
                         .path("/map-reversegeocode/v2/gc")
                         .queryParam("coords", longitude + "," + latitude)
                         .queryParam("sourcecrs", "EPSG:4326")
-                        .queryParam("orders", ROAD_ADDRESS_ORDER)
+                        .queryParam("orders", REVERSE_GEOCODING_ORDERS)
                         .queryParam("output", "json")
                         .build())
                 .header(CLIENT_ID_HEADER, properties.clientId())

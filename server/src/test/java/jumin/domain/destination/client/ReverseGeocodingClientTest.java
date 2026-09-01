@@ -50,7 +50,7 @@ class ReverseGeocodingClientTest {
                     assertThat(request.getURI().getPath()).isEqualTo("/map-reversegeocode/v2/gc");
                     assertThat(request.getURI().getQuery()).contains("coords=126.978,37.5665");
                     assertThat(request.getURI().getQuery()).contains("sourcecrs=EPSG:4326");
-                    assertThat(request.getURI().getQuery()).contains("orders=roadaddr");
+                    assertThat(request.getURI().getQuery()).contains("orders=roadaddr,addr,admcode");
                     assertThat(request.getURI().getQuery()).contains("output=json");
                     assertThat(request.getHeaders().getFirst("X-NCP-APIGW-API-KEY-ID")).isEqualTo(CLIENT_ID);
                     assertThat(request.getHeaders().getFirst("X-NCP-APIGW-API-KEY")).isEqualTo(CLIENT_SECRET);
@@ -113,6 +113,52 @@ class ReverseGeocodingClientTest {
 
         // then
         assertThat(response.roadAddress()).isEqualTo("전라남도 광양시 광양읍 매일시장길 20");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("도로명 주소가 없으면 지번 주소와 행정동 주소를 매핑한다")
+    void maps_lot_and_administrative_addresses_when_road_address_is_missing() {
+        // given
+        server.expect(anything())
+                .andRespond(withSuccess("""
+                        {
+                          "status": {"code": 0},
+                          "results": [
+                            {
+                              "name": "addr",
+                              "region": {
+                                "area1": {"name": "전라남도"},
+                                "area2": {"name": "광양시"},
+                                "area3": {"name": "광양읍"},
+                                "area4": {"name": "읍내리"}
+                              },
+                              "land": {
+                                "type": "1",
+                                "number1": "252",
+                                "number2": "1"
+                              }
+                            },
+                            {
+                              "name": "admcode",
+                              "region": {
+                                "area1": {"name": "전라남도"},
+                                "area2": {"name": "광양시"},
+                                "area3": {"name": "광양읍"}
+                              }
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        // when
+        ReverseGeocodingResult response = client.reverseGeocode(34.9765, 127.585);
+
+        // then
+        assertThat(response.buildingName()).isBlank();
+        assertThat(response.roadAddress()).isBlank();
+        assertThat(response.lotAddress()).isEqualTo("전라남도 광양시 광양읍 읍내리 252-1");
+        assertThat(response.administrativeAddress()).isEqualTo("전라남도 광양시 광양읍");
         server.verify();
     }
 
