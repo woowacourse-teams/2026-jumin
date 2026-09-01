@@ -9,24 +9,24 @@ import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 const markerIcons = {
   selected: {
     url: selectedRecommendationMarkerUrl,
-    width: 74,
-    height: 90,
-    anchorX: 37,
-    anchorY: 73,
+    width: 50,
+    height: 60,
+    anchorX: 25,
+    anchorY: 60,
   },
   recommended: {
     url: unselectedRecommendationMarkerUrl,
-    width: 50,
+    width: 40,
     height: 61,
-    anchorX: 25,
-    anchorY: 49.5,
+    anchorX: 20,
+    anchorY: 61,
   },
   candidate: {
     url: defaultRecommendationMarkerUrl,
     width: 20,
     height: 20,
     anchorX: 10,
-    anchorY: 10,
+    anchorY: 20,
   },
 } satisfies Record<ParkingMarkerType, Parameters<typeof NaverMapMarker>[0]['icon']>;
 
