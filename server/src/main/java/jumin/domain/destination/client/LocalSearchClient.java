@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
@@ -23,7 +22,7 @@ public class LocalSearchClient {
 
     private final RestClient restClient;
     private final LocalSearchProperties properties;
-    private final ObjectMapper objectMapper;
+    private final LocalSearchResponseParser responseParser;
 
     public LocalSearchClient(
             @Qualifier("localSearchRestClient") RestClient restClient,
@@ -32,7 +31,7 @@ public class LocalSearchClient {
     ) {
         this.restClient = restClient;
         this.properties = properties;
-        this.objectMapper = objectMapper;
+        this.responseParser = new LocalSearchResponseParser(objectMapper);
     }
 
     public LocalSearchResponse search(String query) {
@@ -48,7 +47,7 @@ public class LocalSearchClient {
 
         try {
             String responseBody = fetchResponse(query, startedAt);
-            return parseResponse(responseBody, elapsedMillis(startedAt));
+            return responseParser.parse(responseBody, elapsedMillis(startedAt));
         } catch (RestClientException exception) {
             log.atWarn()
                     .setMessage("지역 검색 API 호출에 실패했습니다.")
@@ -95,29 +94,6 @@ public class LocalSearchClient {
                             }
                 )
                 .body(String.class);
-    }
-
-    private LocalSearchResponse parseResponse(String responseBody, long durationMs) {
-        if (!StringUtils.hasText(responseBody)) {
-            log.atWarn()
-                    .setMessage("지역 검색 API 응답이 비어 있습니다.")
-                    .addKeyValue("failureType", "empty_response")
-                    .addKeyValue("durationMs", durationMs)
-                    .log();
-            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
-        }
-
-        try {
-            return objectMapper.readValue(responseBody, LocalSearchResponse.class);
-        } catch (JacksonException exception) {
-            log.atWarn()
-                    .setMessage("지역 검색 API 응답을 해석하지 못했습니다.")
-                    .addKeyValue("failureType", "parse_error")
-                    .addKeyValue("cause", exception.getClass().getSimpleName())
-                    .addKeyValue("durationMs", durationMs)
-                    .log();
-            throw new BusinessException(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED);
-        }
     }
 
     private long elapsedMillis(long startedAt) {
