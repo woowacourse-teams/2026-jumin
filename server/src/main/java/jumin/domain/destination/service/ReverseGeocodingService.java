@@ -28,6 +28,12 @@ public class ReverseGeocodingService {
         if (StringUtils.hasText(result.roadAddress())) {
             return new ReverseGeocodeResponse(result.roadAddress());
         }
+        if (StringUtils.hasText(result.lotAddress())) {
+            return new ReverseGeocodeResponse(result.lotAddress());
+        }
+        if (StringUtils.hasText(result.administrativeAddress())) {
+            return new ReverseGeocodeResponse(result.administrativeAddress());
+        }
         throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_NOT_FOUND);
     }
 }
