@@ -108,7 +108,7 @@ class LocalSearchClientTest {
         // when & then
         assertThatThrownBy(() -> client.search("강남"))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NAVER_DESTINATION_SEARCH_FAILED)
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DESTINATION_SEARCH_CLIENT_FAILED)
                 );
         server.verify();
     }

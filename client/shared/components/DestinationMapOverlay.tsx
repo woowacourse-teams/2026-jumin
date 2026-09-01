@@ -7,7 +7,7 @@ const destinationIcon = {
   width: 30,
   height: 30,
   anchorX: 15,
-  anchorY: 14,
+  anchorY: 30,
 };
 
 interface Props {
