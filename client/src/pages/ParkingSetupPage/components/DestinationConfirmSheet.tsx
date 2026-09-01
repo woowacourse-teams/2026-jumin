@@ -1,13 +1,19 @@
 import { css } from '@emotion/css';
-import { Destination } from '../../../../api/contracts';
-
 interface Props {
-  destination: Destination;
+  name: string;
+  address?: string;
+  nextDisabled?: boolean;
   onCancel: () => void;
   onNext: () => void;
 }
 
-export const DestinationConfirmSheet = ({ destination, onCancel, onNext }: Props) => {
+export const DestinationConfirmSheet = ({
+  name,
+  address,
+  nextDisabled,
+  onCancel,
+  onNext,
+}: Props) => {
   return (
     <section
       className={css`
@@ -52,20 +58,22 @@ export const DestinationConfirmSheet = ({ destination, onCancel, onNext }: Props
           line-height: 1.4;
         `}
       >
-        {destination.name}
+        {name}
       </h1>
-      <p
-        className={css`
-          margin: 0;
-          overflow: hidden;
-          color: #7f8b9d;
-          font-size: 12px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        `}
-      >
-        {destination.roadAddress ?? destination.address}
-      </p>
+      {address && (
+        <p
+          className={css`
+            margin: 0;
+            overflow: hidden;
+            color: #7f8b9d;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          `}
+        >
+          {address}
+        </p>
+      )}
 
       <button
         className={css`
@@ -84,8 +92,13 @@ export const DestinationConfirmSheet = ({ destination, onCancel, onNext }: Props
           &:focus-visible {
             background: #1249c4;
           }
+          &:disabled {
+            background: #aeb7d8;
+            cursor: not-allowed;
+          }
         `}
         type="button"
+        disabled={nextDisabled}
         onClick={onNext}
       >
         다음

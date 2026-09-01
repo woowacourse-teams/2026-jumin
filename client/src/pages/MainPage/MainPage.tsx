@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { SearchBar } from '../../../shared/components/SearchBar';
@@ -11,19 +11,24 @@ const currentLocationIcon = {
   url: currentLocationMarkerUrl,
   width: 30,
   height: 30,
-  anchorX: 23,
-  anchorY: 21,
+  anchorX: 15,
+  anchorY: 14,
 };
+
+interface MapLocation {
+  latitude: number;
+  longitude: number;
+}
 
 export const MainPage = () => {
   const navigate = useNavigate();
   const map = useOutletContext<naver.maps.Map | null>();
-  const [currentLocation, setCurrentLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
 
-  const handleCurrentLocationClick = () => {
+  // GPS로 확인한 실제 내 위치
+  // 파란색 현재 위치 마커에 사용
+  const [currentLocation, setCurrentLocation] = useState<MapLocation | null>(null);
+
+  const requestCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       window.alert('현재 위치를 지원하지 않는 브라우저예요.');
       return;
@@ -44,7 +49,12 @@ export const MainPage = () => {
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
-  };
+  }, [map]);
+
+  useEffect(() => {
+    if (!map) return;
+    requestCurrentLocation();
+  }, [map, requestCurrentLocation]);
 
   return (
     <div
@@ -57,14 +67,16 @@ export const MainPage = () => {
       `}
     >
       {currentLocation && (
-        <NaverMapMarker
-          map={map}
-          latitude={currentLocation.latitude}
-          longitude={currentLocation.longitude}
-          icon={currentLocationIcon}
-          title="현재 위치"
-          zIndex={50}
-        />
+        <>
+          <NaverMapMarker
+            map={map}
+            latitude={currentLocation.latitude}
+            longitude={currentLocation.longitude}
+            icon={currentLocationIcon}
+            title="현재 위치"
+            zIndex={50}
+          />
+        </>
       )}
       <div
         className={css`
@@ -85,7 +97,7 @@ export const MainPage = () => {
           z-index: 1;
         `}
       >
-        <CurrentLocationButton onClick={handleCurrentLocationClick} />
+        <CurrentLocationButton onClick={requestCurrentLocation} />
         <BottomNav />
       </footer>
     </div>

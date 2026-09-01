@@ -6,12 +6,11 @@ interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;
   onChange?: ChangeEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
-  value?: string;
   readOnly?: boolean;
   autoFocus?: boolean;
 }
 
-export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoFocus }: Props) => (
+export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }: Props) => (
   <div
     className={css`
       display: flex;
@@ -55,7 +54,6 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
       `}
       aria-label="목적지 검색"
       placeholder="어디에 방문하세요?"
-      value={value}
       readOnly={readOnly}
       autoFocus={autoFocus}
       onChange={onChange}
