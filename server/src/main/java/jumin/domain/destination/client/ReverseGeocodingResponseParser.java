@@ -27,10 +27,8 @@ final class ReverseGeocodingResponseParser {
 
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            if (root == null || !root.isObject()) {
-                throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED);
-            }
-            return parseResult(root);
+            validateResponseRoot(root, durationMs);
+            return parseResult(root, durationMs);
         } catch (JacksonException exception) {
             log.atWarn()
                     .setMessage("역지오코딩 API 응답을 해석하지 못했습니다.")
@@ -54,12 +52,39 @@ final class ReverseGeocodingResponseParser {
         throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED);
     }
 
-    private ReverseGeocodingResult parseResult(JsonNode root) {
-        int statusCode = root.path("status").path("code").asInt(UNKNOWN_STATUS_CODE);
+    private void validateResponseRoot(JsonNode root, long durationMs) {
+        if (root != null && root.isObject()) {
+            return;
+        }
+
+        String responseType = "null";
+        if (root != null) {
+            responseType = root.getNodeType().name();
+        }
+        log.atWarn()
+                .setMessage("역지오코딩 API 응답 형식이 올바르지 않습니다.")
+                .addKeyValue("failureType", "invalid_response")
+                .addKeyValue("responseType", responseType)
+                .addKeyValue("durationMs", durationMs)
+                .log();
+        throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED);
+    }
+
+    private ReverseGeocodingResult parseResult(JsonNode root, long durationMs) {
+        JsonNode status = root.path("status");
+        int statusCode = status.path("code").asInt(UNKNOWN_STATUS_CODE);
         if (statusCode == NO_RESULTS_STATUS_CODE) {
             return ReverseGeocodingResult.empty();
         }
         if (statusCode != SUCCESS_STATUS_CODE) {
+            log.atWarn()
+                    .setMessage("역지오코딩 API가 실패 상태를 반환했습니다.")
+                    .addKeyValue("failureType", "provider_error")
+                    .addKeyValue("statusCode", statusCode)
+                    .addKeyValue("statusName", textOrEmpty(status.path("name")))
+                    .addKeyValue("statusMessage", textOrEmpty(status.path("message")))
+                    .addKeyValue("durationMs", durationMs)
+                    .log();
             throw new BusinessException(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED);
         }
 
@@ -68,13 +93,6 @@ final class ReverseGeocodingResponseParser {
             return ReverseGeocodingResult.empty();
         }
         return mapResult(roadAddressResult);
-    }
-
-    private ReverseGeocodingResult mapResult(JsonNode roadAddressResult) {
-        JsonNode land = roadAddressResult.path("land");
-        String buildingName = readBuildingName(land.path("addition0"));
-        String roadAddress = buildRoadAddress(roadAddressResult, land);
-        return new ReverseGeocodingResult(buildingName, roadAddress);
     }
 
     private JsonNode findRoadAddressResult(JsonNode results) {
@@ -88,6 +106,13 @@ final class ReverseGeocodingResponseParser {
             }
         }
         return null;
+    }
+
+    private ReverseGeocodingResult mapResult(JsonNode roadAddressResult) {
+        JsonNode land = roadAddressResult.path("land");
+        String buildingName = readBuildingName(land.path("addition0"));
+        String roadAddress = buildRoadAddress(roadAddressResult, land);
+        return new ReverseGeocodingResult(buildingName, roadAddress);
     }
 
     private String readBuildingName(JsonNode addition) {
@@ -126,16 +151,6 @@ final class ReverseGeocodingResponseParser {
         return node.asString("");
     }
 
-    private void appendEupMyeon(StringBuilder address, String areaName) {
-        if (areaName == null) {
-            return;
-        }
-        String normalizedAreaName = areaName.trim();
-        if (normalizedAreaName.endsWith("읍") || normalizedAreaName.endsWith("면")) {
-            appendAddressPart(address, normalizedAreaName);
-        }
-    }
-
     private void appendAddressPart(StringBuilder address, String part) {
         if (!StringUtils.hasText(part)) {
             return;
@@ -144,5 +159,15 @@ final class ReverseGeocodingResponseParser {
             address.append(' ');
         }
         address.append(part.trim());
+    }
+
+        private void appendEupMyeon(StringBuilder address, String areaName) {
+        if (areaName == null) {
+            return;
+        }
+        String normalizedAreaName = areaName.trim();
+        if (normalizedAreaName.endsWith("읍") || normalizedAreaName.endsWith("면")) {
+            appendAddressPart(address, normalizedAreaName);
+        }
     }
 }

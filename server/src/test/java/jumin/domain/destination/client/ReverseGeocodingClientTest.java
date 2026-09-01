@@ -12,12 +12,16 @@ import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ReverseGeocodingClientTest {
 
     private static final String BASE_URL = "https://maps.apigw.ntruss.com";
@@ -145,7 +149,7 @@ class ReverseGeocodingClientTest {
 
     @Test
     @DisplayName("네이버 역지오코딩 API의 비정상 JSON 응답을 502 비즈니스 오류로 변환한다")
-    void maps_malformed_response_to_business_exception() {
+    void maps_malformed_response_to_business_exception(CapturedOutput output) {
         // given
         server.expect(anything())
                 .andRespond(withSuccess("null", MediaType.APPLICATION_JSON));
@@ -156,6 +160,39 @@ class ReverseGeocodingClientTest {
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED)
                 );
+        assertThat(output)
+                .contains("failureType=\"invalid_response\"")
+                .contains("responseType=\"NULL\"");
+    }
+
+    @Test
+    @DisplayName("네이버 역지오코딩 API가 실패 상태를 반환하면 상태 정보를 로그로 남기고 502로 변환한다")
+    void maps_provider_error_status_to_business_exception_and_logs_details(CapturedOutput output) {
+        // given
+        server.expect(anything())
+                .andRespond(withSuccess("""
+                        {
+                          "status": {
+                            "code": 1,
+                            "name": "invalid request",
+                            "message": "invalid coordinate"
+                          },
+                          "results": []
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        // when & then
+        assertThatThrownBy(() -> client.reverseGeocode(37.5665, 126.9780))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED)
+                );
+        assertThat(output)
+                .contains("failureType=\"provider_error\"")
+                .contains("statusCode=\"1\"")
+                .contains("statusName=\"invalid request\"")
+                .contains("statusMessage=\"invalid coordinate\"");
+        server.verify();
     }
 
     @Test
