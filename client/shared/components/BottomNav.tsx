@@ -47,7 +47,7 @@ export const BottomNav = () => {
         if (!isMountedRef.current) return;
 
         setIsLocating(false);
-        navigate('/parkingTimeSheet', {
+        navigate('/parkingsetup', {
           state: {
             destination: {
               name: '현재 위치',
