@@ -10,6 +10,7 @@ import { ParkingLotHeader } from './components/ParkingLotHeader';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
@@ -38,7 +39,7 @@ export const ParkingDetailPage = () => {
               <ErrorCard label="주차장 상세정보를 불러오지 못했어요" onRetry={resetErrorBoundary} />
             )}
           >
-            <Suspense fallback={<div>상세 정보를 불러오는 중...</div>}>
+            <Suspense fallback={<ParkingDetailSkeleton />}>
               <ParkingDetailContent map={map} detailCondition={detailCondition} />
             </Suspense>
           </ErrorBoundary>
