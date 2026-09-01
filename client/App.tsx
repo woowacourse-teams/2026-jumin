@@ -1,16 +1,17 @@
 import { Routes, Route } from 'react-router';
-import { MainPage } from './src/pages/MainPage/MainPage';
 import { SearchPage } from './src/pages/SearchPage/SearchPage';
 import { ParkingDetailPage } from './src/pages/ParkingDetailPage/ParkingDetailPage';
 import { RecentUsePage } from './src/pages/RecentUsePage/RecentUsePage';
 import { ParkingSetupPage } from './src/pages/ParkingSetupPage/ParkingSetupPage';
 import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRecommendPage';
 import { MapLayout } from './shared/maps/MapLayout';
+import { HomePage } from './src/pages/HomePage/HomePage';
 
 const App = () => (
   <Routes>
+    <Route path="/" element={<HomePage />} />
+
     <Route element={<MapLayout />}>
-      <Route path="/" element={<MainPage />} />
       <Route path="/parkingsetup" element={<ParkingSetupPage />} />
       <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
       <Route path="/parkingDetail" element={<ParkingDetailPage />} />

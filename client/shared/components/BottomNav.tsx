@@ -1,12 +1,12 @@
 import { css, cx } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router';
+import { NavLink } from 'react-router';
 import activeHomeIcon from '../../assets/icons/activeHome.svg';
 import activeNearbyIcon from '../../assets/icons/activeNearBy.svg';
 import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
 import homeIcon from '../../assets/icons/home.svg';
 import nearbyIcon from '../../assets/icons/nearby.svg';
 import recentUseIcon from '../../assets/icons/recentUse.svg';
+import { useNearbyParkingNavigation } from '../hooks/useNearbyParkingNavigation';
 
 const menus = [
   {
@@ -24,48 +24,7 @@ const menus = [
 ];
 
 export const BottomNav = () => {
-  const navigate = useNavigate();
-  const [isLocating, setIsLocating] = useState(false);
-  const isMountedRef = useRef(true);
-
-  useEffect(
-    () => () => {
-      isMountedRef.current = false;
-    },
-    [],
-  );
-
-  const handleNearbyClick = () => {
-    if (!navigator.geolocation) {
-      window.alert('현재 위치를 지원하지 않는 브라우저예요.');
-      return;
-    }
-
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!isMountedRef.current) return;
-
-        setIsLocating(false);
-        navigate('/parkingsetup', {
-          state: {
-            destination: {
-              name: '현재 위치',
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-            },
-          },
-        });
-      },
-      () => {
-        if (!isMountedRef.current) return;
-
-        setIsLocating(false);
-        window.alert('현재 위치를 가져오지 못했어요. 위치 권한을 확인해 주세요.');
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-  };
+  const { isLocating, navigateToNearbyParking } = useNearbyParkingNavigation();
 
   return (
     <nav className={navigationStyle} aria-label="하단 메뉴">
@@ -73,7 +32,7 @@ export const BottomNav = () => {
         className={navigationItemStyle}
         type="button"
         disabled={isLocating}
-        onClick={handleNearbyClick}
+        onClick={navigateToNearbyParking}
       >
         <NavigationIcon icon={nearbyIcon} activeIcon={activeNearbyIcon} />
         <span>{isLocating ? '위치 확인 중' : '주변'}</span>
