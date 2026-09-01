@@ -1,5 +1,6 @@
 package jumin.global.exception;
 
+import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -150,7 +151,7 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.message").value("요청을 처리하는 중 서버 오류가 발생했습니다."))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not("sensitive detail")));
+                .andExpect(jsonPath("$.message").value(not("sensitive detail")));
     }
 
     interface ExceptionTestService {

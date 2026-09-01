@@ -100,6 +100,8 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           LOCAL_SEARCH_CLIENT_ID: ${{ secrets.LOCAL_SEARCH_CLIENT_ID }}
           LOCAL_SEARCH_CLIENT_SECRET: ${{ secrets.LOCAL_SEARCH_CLIENT_SECRET }}
+          REVERSE_GEOCODING_CLIENT_ID: ${{ secrets.REVERSE_GEOCODING_CLIENT_ID }}
+          REVERSE_GEOCODING_CLIENT_SECRET: ${{ secrets.REVERSE_GEOCODING_CLIENT_SECRET }}
         run: |
           set -Eeuo pipefail
 
@@ -135,6 +137,8 @@ jobs:
             DB_PASSWORD="${DB_PASSWORD}" \
             LOCAL_SEARCH_CLIENT_ID="${LOCAL_SEARCH_CLIENT_ID}" \
             LOCAL_SEARCH_CLIENT_SECRET="${LOCAL_SEARCH_CLIENT_SECRET}" \
+            REVERSE_GEOCODING_CLIENT_ID="${REVERSE_GEOCODING_CLIENT_ID}" \
+            REVERSE_GEOCODING_CLIENT_SECRET="${REVERSE_GEOCODING_CLIENT_SECRET}" \
             docker compose \
               --project-name "${compose_project}" \
               --file "${compose_file}" \
@@ -170,7 +174,9 @@ jobs:
             DB_USERNAME \
             DB_PASSWORD \
             LOCAL_SEARCH_CLIENT_ID \
-            LOCAL_SEARCH_CLIENT_SECRET; do
+            LOCAL_SEARCH_CLIENT_SECRET \
+            REVERSE_GEOCODING_CLIENT_ID \
+            REVERSE_GEOCODING_CLIENT_SECRET; do
             if [[ -z "${!required_variable}" ]]; then
               echo "Missing required production secret: ${required_variable}" >&2
               exit 1

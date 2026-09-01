@@ -104,6 +104,8 @@ jobs:
           DB_PASSWORD: ci
           LOCAL_SEARCH_CLIENT_ID: ci
           LOCAL_SEARCH_CLIENT_SECRET: ci
+          REVERSE_GEOCODING_CLIENT_ID: ci
+          REVERSE_GEOCODING_CLIENT_SECRET: ci
         run: docker compose --file infra/docker-compose.dev.yml config --quiet
 
       - name: Validate production Docker Compose configuration
@@ -113,6 +115,8 @@ jobs:
           DB_PASSWORD: ci
           LOCAL_SEARCH_CLIENT_ID: ci
           LOCAL_SEARCH_CLIENT_SECRET: ci
+          REVERSE_GEOCODING_CLIENT_ID: ci
+          REVERSE_GEOCODING_CLIENT_SECRET: ci
         run: docker compose --file infra/docker-compose.prod.yml config --quiet
 
       - name: Validate development proxy Compose configuration
