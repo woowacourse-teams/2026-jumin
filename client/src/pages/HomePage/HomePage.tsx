@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router';
 import { css } from '@emotion/css';
-import { BottomNav } from '../../../shared/components/BottomNav';
 
-import brandMark from '../../../assets/icons/brandMark_white.svg';
+import brandMark from '../../../assets/icons/brandMark_gray.svg';
 import searchIcon from '../../../assets/icons/searchIcon.svg';
-import homeLanding from '../../../assets/images/home_landing.svg';
+import { HomeQuickNav } from './components/HomeQuickNav';
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -13,7 +12,6 @@ export const HomePage = () => {
     <main className={pageStyle}>
       <header className={brandStyle}>
         <img className={logoStyle} src={brandMark} alt="" draggable={false} />
-        <span className={brandNameStyle}>주차의 민족</span>
       </header>
 
       <div className={contentStyle}>
@@ -33,16 +31,9 @@ export const HomePage = () => {
             </span>
           </button>
 
-          <img
-            className={landingImageStyle}
-            src={homeLanding}
-            alt="거리, 요금, 운영시간과 추천 주차장 정보를 한눈에 확인하는 서비스 안내"
-            draggable={false}
-          />
+          <HomeQuickNav />
         </section>
       </div>
-
-      <BottomNav />
     </main>
   );
 };
@@ -78,23 +69,15 @@ const brandStyle = css`
   align-items: center;
   gap: 12px;
 
-  padding: 18px;
+  padding: 20px;
   min-height: 42px;
 
-  background-color: #4356d8;
   color: white;
 `;
 
-const brandNameStyle = css`
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.6px;
-`;
-
 const logoStyle = css`
-  width: 50px;
-  height: 48px;
+  width: 26px;
+  height: 28px;
   object-fit: contain;
 
   pointer-events: none;
@@ -147,7 +130,7 @@ const searchButtonStyle = css`
   margin-top: 26px;
   padding: 0 18px;
 
-  color: #17233e;
+  color: #c4c4c4;
   font-family: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -196,16 +179,4 @@ const chevronStyle = css`
   font-size: 34px;
   font-weight: 300;
   line-height: 1;
-`;
-
-const landingImageStyle = css`
-  display: block;
-
-  width: 100%;
-  height: auto;
-  margin-top: 20px;
-
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
 `;
