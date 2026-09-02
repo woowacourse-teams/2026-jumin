@@ -9,6 +9,7 @@ import { SearchConditionBar } from '../../../shared/components/SearchConditionBa
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
 import { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 
 interface NavigationState {
   searchCondition?: ParkingSearchCondition;
@@ -41,7 +42,7 @@ export const ParkingRecommendPage = () => {
               <ErrorCard label="추천 주차장을 불러오지 못했어요" onRetry={resetErrorBoundary} />
             )}
           >
-            <Suspense fallback={<div>주차장을 불러오는 중...</div>}>
+            <Suspense fallback={<ParkingRecommendSkeleton />}>
               <ParkingRecommendContent map={map} searchCondition={searchCondition} />
             </Suspense>
           </ErrorBoundary>
