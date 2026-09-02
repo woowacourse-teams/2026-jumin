@@ -78,6 +78,14 @@ export const RecentUsePage = () => {
   );
 };
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
 const pageStyle = css`
   position: relative;
 
@@ -95,9 +103,10 @@ const pageStyle = css`
 const headerStyle = css`
   display: flex;
   align-items: center;
+  text-align: center;
 
-  min-height: 104px;
-  padding: 28px 20px 8px;
+  min-height: calc(104px + env(safe-area-inset-top, 0px));
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 8px;
   flex-shrink: 0;
 `;
 
@@ -108,6 +117,7 @@ const backButtonStyle = css`
   width: 44px;
   height: 44px;
   padding: 0;
+  margin-bottom: 10px;
 
   color: #43506a;
   font-size: 36px;
@@ -130,7 +140,7 @@ const titleStyle = css`
 
 const listSectionStyle = css`
   min-height: 0;
-  padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
   flex: 1;
   overflow-y: auto;
 `;
@@ -157,5 +167,5 @@ const footerStyle = css`
   left: 0;
   z-index: 2;
 
-  height: calc(86px + env(safe-area-inset-bottom));
+  height: calc(86px + env(safe-area-inset-bottom, 0px));
 `;

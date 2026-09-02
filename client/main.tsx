@@ -42,4 +42,10 @@ const enableMocking = async () => {
   });
 };
 
+if (__PWA_ENABLED__ && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+
 void enableMocking().then(renderApp);

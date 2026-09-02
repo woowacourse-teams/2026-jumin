@@ -48,7 +48,7 @@ const pageStyle = css`
   overflow: hidden;
 
   color: #101b37;
-  background: #f8faff;
+  background: #fff;
 `;
 
 const contentStyle = css`
@@ -69,7 +69,7 @@ const brandStyle = css`
   align-items: center;
   gap: 12px;
 
-  padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 20px;
   min-height: 42px;
 
   color: white;

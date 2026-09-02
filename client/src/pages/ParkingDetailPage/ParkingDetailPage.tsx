@@ -48,7 +48,6 @@ export const ParkingDetailPage = () => {
     </main>
   );
 };
-
 const pageStyle = css`
   position: relative;
 
