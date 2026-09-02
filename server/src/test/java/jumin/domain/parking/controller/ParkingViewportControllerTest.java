@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import jumin.domain.parking.dto.LocationResponse;
 import jumin.domain.parking.dto.ParkingViewportLotResponse;
 import jumin.domain.parking.dto.ParkingViewportRequest;
@@ -35,7 +36,7 @@ class ParkingViewportControllerTest {
         // given
         ParkingViewportResponse result = new ParkingViewportResponse(
                 1,
-                java.util.List.of(new ParkingViewportLotResponse(
+                List.of(new ParkingViewportLotResponse(
                         1L,
                         "시청 주차장",
                         "서울특별시 중구 세종대로 110",
