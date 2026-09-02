@@ -20,6 +20,7 @@ body {
 #root {
   position: relative;
   width: 100%;
+  height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }
@@ -30,7 +31,7 @@ body {
   }
 }
 
-@media (min-width: 431px) {
+@media (min-width: 431px) and (hover: hover) and (pointer: fine) {
   #root {
     max-width: 430px;
     height: min(844px, 100dvh);

@@ -78,6 +78,14 @@ export const RecentUsePage = () => {
   );
 };
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
 const pageStyle = css`
   position: relative;
 
@@ -95,6 +103,7 @@ const pageStyle = css`
 const headerStyle = css`
   display: flex;
   align-items: center;
+  text-align: center;
 
   min-height: calc(104px + env(safe-area-inset-top, 0px));
   padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 8px;
@@ -108,6 +117,7 @@ const backButtonStyle = css`
   width: 44px;
   height: 44px;
   padding: 0;
+  margin-bottom: 10px;
 
   color: #43506a;
   font-size: 36px;
