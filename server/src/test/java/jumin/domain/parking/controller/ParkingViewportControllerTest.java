@@ -73,6 +73,7 @@ class ParkingViewportControllerTest {
     @Test
     @DisplayName("viewport 좌표가 누락되면 400 오류를 반환한다")
     void rejects_missing_viewport_coordinate() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/parking/viewport")
                 .queryParam("westLongitude", "126.9700")
                 .queryParam("southLatitude", "37.5600")
@@ -85,6 +86,7 @@ class ParkingViewportControllerTest {
     @Test
     @DisplayName("북쪽 위도가 북극이면 400 오류를 반환한다")
     void rejects_north_pole_latitude() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/parking/viewport")
                 .queryParam("westLongitude", "126.9700")
                 .queryParam("southLatitude", "37.5600")
@@ -98,6 +100,7 @@ class ParkingViewportControllerTest {
     @Test
     @DisplayName("남쪽 위도가 남극이면 400 오류를 반환한다")
     void rejects_south_pole_latitude() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/parking/viewport")
                 .queryParam("westLongitude", "126.9700")
                 .queryParam("southLatitude", "-90")
