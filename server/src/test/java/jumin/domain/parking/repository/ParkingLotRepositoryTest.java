@@ -47,6 +47,29 @@ class ParkingLotRepositoryTest {
     }
 
     @Test
+    @DisplayName("viewport 내부와 경계의 활성 주차장만 조회한다")
+    void finds_only_active_parking_lots_inside_viewport() {
+        // given
+        insertParkingLot("viewport-inside", "viewport 내부", "서울시 테스트 주소", true, 37.4990, 127.0279);
+        insertParkingLot("viewport-boundary", "viewport 경계", "서울시 테스트 주소", true, 37.5000, 127.0280);
+        insertParkingLot("viewport-outside", "viewport 외부", "서울시 테스트 주소", true, 37.5001, 127.0281);
+        insertParkingLot("viewport-inactive", "viewport 비활성", "서울시 테스트 주소", false, 37.4990, 127.0279);
+        insertParkingLot("viewport-missing-location", "viewport 위치 없음", "서울시 테스트 주소", true, null, null);
+        insertParkingLot("viewport-missing-address", "viewport 주소 없음", null, true, 37.4990, 127.0279);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
+                127.0270,
+                37.4980,
+                127.0280,
+                37.5000
+        );
+
+        // then
+        assertThat(results).extracting("name").containsExactly("viewport 내부", "viewport 경계");
+    }
+
+    @Test
     @DisplayName("ID로 활성 상태이며 위치 정보가 있는 주차장만 조회한다")
     void finds_only_active_parking_lot_with_location_by_id() {
         // given
