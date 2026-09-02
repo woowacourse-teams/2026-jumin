@@ -5,36 +5,37 @@ export const applyGlobalStyles = () => injectGlobal`
       box-sizing: border-box;
     }
 
-    html,
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      min-height: 100%;
-    }
+   html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
 
-    body {
-      min-height: 100dvh;
-      overflow: hidden;
-      background-color: #eef2f7;
-    }
+body {
+  overflow: hidden;
+  background: #eef2f7;
+}
 
-    #root {
-      position: relative;
-      width: 100%;
-      max-width: 430px;
-      height: 100dvh;
-      margin: 0 auto;
-      overflow: hidden;
-    }
+#root {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
 
-    @media (min-width: 431px) {
-      #root {
-        height: min(844px, 100dvh);
-      border-radius: 28px;
-      }
-    }
+@media (display-mode: standalone) {
+  #root {
+    height: 100vh;
+  }
+}
+
+@media (min-width: 431px) {
+  #root {
+    max-width: 430px;
+    height: min(844px, 100dvh);
+    margin: 0 auto;
+    border-radius: 28px;
+  }
+}
   `;

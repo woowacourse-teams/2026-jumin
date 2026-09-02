@@ -107,7 +107,7 @@ const contentStyle = css`
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: 0 24px max(28px, env(safe-area-inset-bottom));
+  padding: 0 24px max(28px, env(safe-area-inset-bottom, 0px));
 `;
 
 const feeCardStyle = css`
