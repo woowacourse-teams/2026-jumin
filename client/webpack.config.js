@@ -5,6 +5,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
+  const isE2E = env?.e2e === true || env?.e2e === 'true';
 
   return {
     entry: './main.tsx',
@@ -78,8 +79,8 @@ module.exports = (env, argv) => {
         },
       ],
       port: 3000,
-      open: true,
-      hot: true,
+      open: !isE2E,
+      hot: !isE2E,
       historyApiFallback: true,
       client: {
         overlay: true,
