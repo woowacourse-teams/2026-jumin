@@ -42,9 +42,9 @@ const headerStyle = css`
 
   align-items: center;
 
-  height: calc(88px + env(safe-area-inset-top, 0px));
+  height: calc(60px + env(safe-area-inset-top, 0px));
 
-  padding: calc(24px + env(safe-area-inset-top, 0px)) 18px 0;
+  padding: calc(0px + env(safe-area-inset-top, 0px)) 18px 0;
 
   box-sizing: border-box;
 
