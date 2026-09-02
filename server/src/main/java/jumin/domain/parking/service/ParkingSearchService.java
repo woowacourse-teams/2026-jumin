@@ -8,9 +8,9 @@ import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
-import jumin.domain.parking.dto.ParkingViewportLotResponse;
-import jumin.domain.parking.dto.ParkingViewportRequest;
-import jumin.domain.parking.dto.ParkingViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotRepository;
@@ -75,16 +75,16 @@ public class ParkingSearchService {
         return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, parkingLots);
     }
 
-    public ParkingViewportResponse searchViewport(ParkingViewportRequest request) {
+    public ParkingLotViewportResponses searchViewport(ParkingLotViewportRequest request) {
         validateCoordinateOrder(request);
 
-        List<ParkingViewportLotResponse> parkingLots = parkingLotRepository.findActiveWithinViewport(
+        List<ParkingLotViewportResponse> parkingLots = parkingLotRepository.findActiveWithinViewport(
                         request.westLongitude(),
                         request.southLatitude(),
                         request.eastLongitude(),
                         request.northLatitude()
                 ).stream()
-                .map(ParkingViewportLotResponse::from)
+                .map(ParkingLotViewportResponse::from)
                 .toList();
 
         log.atInfo()
@@ -92,7 +92,7 @@ public class ParkingSearchService {
                 .addKeyValue("resultCount", parkingLots.size())
                 .log();
 
-        return ParkingViewportResponse.from(parkingLots);
+        return ParkingLotViewportResponses.from(parkingLots);
     }
 
     private List<ParkingLot> findCandidates(Coordinate destination) {
@@ -135,7 +135,7 @@ public class ParkingSearchService {
                 .toList();
     }
 
-    private void validateCoordinateOrder(ParkingViewportRequest request) {
+    private void validateCoordinateOrder(ParkingLotViewportRequest request) {
         if (request.northLatitude() <= request.southLatitude()
                 || request.westLongitude() >= request.eastLongitude()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);

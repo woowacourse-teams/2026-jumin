@@ -13,10 +13,9 @@ import java.util.List;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotResponse;
-import jumin.domain.parking.dto.LocationResponse;
-import jumin.domain.parking.dto.ParkingViewportLotResponse;
-import jumin.domain.parking.dto.ParkingViewportRequest;
-import jumin.domain.parking.dto.ParkingViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -216,16 +215,15 @@ class ParkingSearchControllerTest {
     @DisplayName("북서쪽과 남동쪽 좌표로 viewport 내 주차장 목록을 반환한다")
     void returns_parking_lots_in_viewport() throws Exception {
         // given
-        ParkingViewportResponse result = new ParkingViewportResponse(
+        ParkingLotViewportResponses result = new ParkingLotViewportResponses(
                 1,
-                List.of(new ParkingViewportLotResponse(
+                List.of(new ParkingLotViewportResponse(
                         1L,
-                        "시청 주차장",
-                        "서울특별시 중구 세종대로 110",
-                        new LocationResponse(37.5665, 126.9780)
+                        37.5665,
+                        126.9780
                 ))
         );
-        when(parkingSearchService.searchViewport(any(ParkingViewportRequest.class))).thenReturn(result);
+        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class))).thenReturn(result);
 
         // when
         MockHttpServletRequestBuilder request = get("/api/parking/viewport")
@@ -239,12 +237,10 @@ class ParkingSearchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.parkingLots[0].id").value(1))
-                .andExpect(jsonPath("$.parkingLots[0].name").value("시청 주차장"))
-                .andExpect(jsonPath("$.parkingLots[0].address").value("서울특별시 중구 세종대로 110"))
-                .andExpect(jsonPath("$.parkingLots[0].location.latitude").value(37.5665))
-                .andExpect(jsonPath("$.parkingLots[0].location.longitude").value(126.9780));
+                .andExpect(jsonPath("$.parkingLots[0].latitude").value(37.5665))
+                .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780));
 
-        verify(parkingSearchService).searchViewport(new ParkingViewportRequest(
+        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
                 126.9700,
                 37.5600,
                 126.9900,

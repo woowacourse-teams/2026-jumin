@@ -20,8 +20,8 @@ import java.util.List;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
-import jumin.domain.parking.dto.ParkingViewportRequest;
-import jumin.domain.parking.dto.ParkingViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
@@ -253,7 +253,7 @@ class ParkingSearchServiceTest {
         )).thenReturn(List.of(parkingLot));
 
         // when
-        ParkingViewportResponse result = service.searchViewport(new ParkingViewportRequest(
+        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
                 126.9700,
                 37.5600,
                 126.9900,
@@ -263,15 +263,16 @@ class ParkingSearchServiceTest {
         // then
         assertThat(result.totalCount()).isEqualTo(1);
         assertThat(result.parkingLots()).hasSize(1);
-        assertThat(result.parkingLots().getFirst().name()).isEqualTo("시청 주차장");
-        assertThat(result.parkingLots().getFirst().location().latitude()).isEqualTo(37.5665);
+        assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
+        assertThat(result.parkingLots().getFirst().latitude()).isEqualTo(37.5665);
+        assertThat(result.parkingLots().getFirst().longitude()).isEqualTo(126.9780);
     }
 
     @Test
     @DisplayName("서쪽 경도가 동쪽 경도보다 크면 DB를 호출하지 않고 400 오류를 반환한다")
     void rejects_reversed_longitude_bounds() {
         // given
-        ParkingViewportRequest request = new ParkingViewportRequest(
+        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                 126.9900,
                 37.5600,
                 126.9700,
@@ -290,7 +291,7 @@ class ParkingSearchServiceTest {
     @DisplayName("북쪽 위도가 남쪽 위도보다 작으면 DB를 호출하지 않고 400 오류를 반환한다")
     void rejects_reversed_latitude_bounds() {
         // given
-        ParkingViewportRequest request = new ParkingViewportRequest(
+        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                 126.9700,
                 37.5750,
                 126.9900,

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
-public record ParkingViewportRequest(
+public record ParkingLotViewportRequest(
         @NotNull(message = "서쪽 경도는 필수입니다.")
         @DecimalMin(value = "-180.0", message = "서쪽 경도는 -180 이상이어야 합니다.")
         @DecimalMax(value = "180.0", message = "서쪽 경도는 180 이하이어야 합니다.")
