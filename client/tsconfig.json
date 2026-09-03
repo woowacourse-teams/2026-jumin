@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["navermaps"],
+    "types": ["navermaps", "jest", "@testing-library/jest-dom"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "moduleDetection": "force",

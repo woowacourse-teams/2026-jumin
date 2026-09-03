@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - "client/**"
-      - ".github/workflows/front-deploy-prod.yml"
+      - 'client/**'
+      - '.github/workflows/front-deploy-prod.yml'
 
   workflow_dispatch:
 
@@ -30,14 +30,14 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.20.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24.11.0"
+          node-version: '24.11.0'
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 

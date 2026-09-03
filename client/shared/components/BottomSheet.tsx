@@ -2,12 +2,11 @@ import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
-const PEEK_HEIGHT = 100;
-
+const PEEK_HEIGHT = 120;
 const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
-
 const SNAP_THRESHOLD = 80;
 
+// 바텀시트 열렸는지 여부
 export type BottomSheetSnap = 'expanded' | 'collapsed';
 
 interface Props {
@@ -109,6 +108,7 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 const sheetStyle = css`
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
 
   background-color: #fff;
 

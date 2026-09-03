@@ -65,13 +65,15 @@ curl http://localhost:8080/actuator/health
 
 ## 환경변수
 
-별도 설정이 없으면 기본값을 사용합니다.
+Base URL은 별도 설정이 없으면 기본값을 사용하지만, 외부 API 인증 정보는 별도로 설정해야 합니다.
 
 환경변수를 변경하려면 `../infra/.env.example`을 `../infra/.env`로 복사해
 Compose 설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설정에도 지정합니다.
 
 외부 검색 API를 사용하려면 `LOCAL_SEARCH_CLIENT_ID`와
-`LOCAL_SEARCH_CLIENT_SECRET`도 실행 환경에 설정해야 합니다.
+`LOCAL_SEARCH_CLIENT_SECRET`을, 역지오코딩 API를 사용하려면
+`REVERSE_GEOCODING_CLIENT_ID`와 `REVERSE_GEOCODING_CLIENT_SECRET`을
+각각 실행 환경에 설정해야 합니다.
 
 > [!WARNING]
 > `postgres-data` 볼륨이 이미 존재하면 DB 이름·사용자·비밀번호 변경이 기존

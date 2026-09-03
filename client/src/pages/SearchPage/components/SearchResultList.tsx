@@ -10,7 +10,13 @@ interface Props {
   onSelect: (destination: Destination) => void;
 }
 
-export const SearchResultList = ({ query, searchResults, isSearching, errorMessage, onSelect }: Props) => {
+export const SearchResultList = ({
+  query,
+  searchResults,
+  isSearching,
+  errorMessage,
+  onSelect,
+}: Props) => {
   const getMessage = () => {
     if (query.length < 2) return '검색어를 2글자 이상 입력해 주세요.';
     if (isSearching) return '검색 중...';

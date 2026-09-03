@@ -6,12 +6,11 @@ interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;
   onChange?: ChangeEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
-  value?: string;
   readOnly?: boolean;
   autoFocus?: boolean;
 }
 
-export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoFocus }: Props) => (
+export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }: Props) => (
   <div
     className={css`
       display: flex;
@@ -21,13 +20,23 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
       width: 100%;
       max-width: 358px;
       height: 54px;
-      margin: 16px auto 0;
+      margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
       padding: 0 16px;
       box-sizing: border-box;
+
+      @supports (-webkit-touch-callout: none) {
+        @media (display-mode: standalone) {
+          margin-top: max(
+            calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)),
+            clamp(56px, 9dvh, 88px)
+          );
+        }
+      }
 
       border: 1px solid #4356d8;
       border-radius: 16px;
       background: white;
+      pointer-events: auto;
     `}
     onClick={onClick}
   >
@@ -54,7 +63,6 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, value, readOnly, autoF
       `}
       aria-label="목적지 검색"
       placeholder="어디에 방문하세요?"
-      value={value}
       readOnly={readOnly}
       autoFocus={autoFocus}
       onChange={onChange}

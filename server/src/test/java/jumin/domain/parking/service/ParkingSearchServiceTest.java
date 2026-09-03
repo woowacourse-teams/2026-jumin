@@ -20,11 +20,15 @@ import java.util.List;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -229,6 +233,77 @@ class ParkingSearchServiceTest {
         assertThatThrownBy(() -> service.search(validQuery()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("database detail");
+    }
+
+    @Test
+    @DisplayName("viewport 주차장을 marker용 응답으로 변환한다")
+    void maps_parking_lots_to_viewport_response() {
+        // given
+        ParkingLot parkingLot = mock(ParkingLot.class);
+        when(parkingLot.getId()).thenReturn(1L);
+        when(parkingLot.getName()).thenReturn("시청 주차장");
+        when(parkingLot.getAddress()).thenReturn("서울특별시 중구 세종대로 110");
+        when(parkingLot.getLatitude()).thenReturn(37.5665);
+        when(parkingLot.getLongitude()).thenReturn(126.9780);
+        when(parkingLotRepository.findActiveWithinViewport(
+                126.9700,
+                37.5600,
+                126.9900,
+                37.5750
+        )).thenReturn(List.of(parkingLot));
+
+        // when
+        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
+                126.9700,
+                37.5600,
+                126.9900,
+                37.5750
+        ));
+
+        // then
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.parkingLots()).hasSize(1);
+        assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
+        assertThat(result.parkingLots().getFirst().latitude()).isEqualTo(37.5665);
+        assertThat(result.parkingLots().getFirst().longitude()).isEqualTo(126.9780);
+    }
+
+    @Test
+    @DisplayName("서쪽 경도가 동쪽 경도보다 크면 DB를 호출하지 않고 400 오류를 반환한다")
+    void rejects_reversed_longitude_bounds() {
+        // given
+        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
+                126.9900,
+                37.5600,
+                126.9700,
+                37.5750
+        );
+
+        // when & then
+        assertThatThrownBy(() -> service.searchViewport(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+        verifyNoInteractions(parkingLotRepository);
+    }
+
+    @Test
+    @DisplayName("북쪽 위도가 남쪽 위도보다 작으면 DB를 호출하지 않고 400 오류를 반환한다")
+    void rejects_reversed_latitude_bounds() {
+        // given
+        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
+                126.9700,
+                37.5750,
+                126.9900,
+                37.5600
+        );
+
+        // when & then
+        assertThatThrownBy(() -> service.searchViewport(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+        verifyNoInteractions(parkingLotRepository);
     }
 
     private ParkingSearchRequest validQuery() {

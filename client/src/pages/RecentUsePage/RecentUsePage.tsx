@@ -2,11 +2,14 @@ import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import type { ParkingLotSummary } from '../../../api/contracts';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
 import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
-import { loadRecentParkingUses, saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
+import {
+  loadRecentParkingUses,
+  type RecentParkingLot,
+  saveRecentParkingUse,
+} from '../../../shared/utils/recentParkingUses';
 
 const formatMonthDay = (usedAt: string) =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -18,7 +21,7 @@ const formatMonthDay = (usedAt: string) =>
 export const RecentUsePage = () => {
   const navigate = useNavigate();
   const [recentParkingUses, setRecentParkingUses] = useState(loadRecentParkingUses);
-  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotSummary | null>(null);
+  const [selectedParkingLot, setSelectedParkingLot] = useState<RecentParkingLot | null>(null);
 
   const handleDirectionsStart = () => {
     if (!selectedParkingLot) return;
@@ -30,7 +33,12 @@ export const RecentUsePage = () => {
   return (
     <main className={pageStyle}>
       <header className={headerStyle}>
-        <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
+        <button
+          className={backButtonStyle}
+          type="button"
+          aria-label="이전 화면으로 이동"
+          onClick={() => navigate(-1)}
+        >
           ‹
         </button>
         <h1 className={titleStyle}>최근 이용</h1>
@@ -87,9 +95,10 @@ const pageStyle = css`
 const headerStyle = css`
   display: flex;
   align-items: center;
+  text-align: center;
 
-  min-height: 104px;
-  padding: 28px 20px 8px;
+  min-height: calc(104px + env(safe-area-inset-top, 0px));
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 8px;
   flex-shrink: 0;
 `;
 
@@ -100,6 +109,7 @@ const backButtonStyle = css`
   width: 44px;
   height: 44px;
   padding: 0;
+  margin-bottom: 10px;
 
   color: #43506a;
   font-size: 36px;
@@ -122,7 +132,7 @@ const titleStyle = css`
 
 const listSectionStyle = css`
   min-height: 0;
-  padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
   flex: 1;
   overflow-y: auto;
 `;
@@ -149,5 +159,5 @@ const footerStyle = css`
   left: 0;
   z-index: 2;
 
-  height: calc(86px + env(safe-area-inset-bottom));
+  height: calc(86px + env(safe-area-inset-bottom, 0px));
 `;

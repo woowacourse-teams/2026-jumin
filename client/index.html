@@ -2,8 +2,46 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="주차장을 찾는 가장 간단한 방법" />
+    <meta name="theme-color" content="#4356d8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="주차의민족" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/pwa-192.png" />
+    <link rel="apple-touch-startup-image" href="/splash/pwa-startup.png" />
+    <link rel="stylesheet" href="/vendor/add-to-homescreen/add-to-homescreen.min.css" />
+    <script src="/vendor/add-to-homescreen/add-to-homescreen.min.js"></script>
+
+    <meta name="google-site-verification" content="Oh0gFl8bMw2R8wu-VhLL3l4_ESG8YZyFXdVjIOUxH2I" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:site_name" content="주차의민족" />
+    <meta property="og:title" content="주차의민족" />
+    <meta property="og:description" content="주차장을 찾는 가장 간단한 방법" />
+    <meta property="og:url" content="https://jucha.info/" />
+    <meta
+      property="og:image"
+      content="https://jucha.info/<%= require('./assets/og/og-default.png') %>"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1730" />
+    <meta property="og:image:height" content="909" />
+    <meta property="og:image:alt" content="주차의민족 - 주차장을 찾는 가장 간단한 방법" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="주차의민족" />
+    <meta name="twitter:description" content="주차장을 찾는 가장 간단한 방법" />
+    <meta
+      name="twitter:image"
+      content="https://jucha.info/<%= require('./assets/og/og-default.png') %>"
+    />
+    <meta name="twitter:image:alt" content="주차의민족 - 주차장을 찾는 가장 간단한 방법" />
+
     <title>주차의 민족</title>
+    <link rel="icon" type="image/png" href="/icons/pwa-192.png" />
   </head>
   <body>
     <div id="root"></div>

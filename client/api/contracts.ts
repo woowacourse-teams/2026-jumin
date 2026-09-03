@@ -15,6 +15,10 @@ export interface DestinationSearchResponse {
   destinations: Destination[];
 }
 
+export interface DestinationNameResponse {
+  displayName: string;
+}
+
 export type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
 
 export interface ParkingLotSummary {

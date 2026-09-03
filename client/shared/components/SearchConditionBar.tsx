@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import backIcon from '../../assets/icons/backIcon.svg';
-import { formatIsoTime } from '../utils/formatTime';
+import { formatIsoDateTime } from '../utils/formatTime';
 import { useNavigate } from 'react-router';
 
 interface Props {
@@ -14,7 +14,12 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
   return (
     <header className={headerStyle} aria-label="검색 조건">
-      <button className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" onClick={() => navigate(-1)}>
+      <button
+        className={backButtonStyle}
+        type="button"
+        aria-label="이전 화면으로 이동"
+        onClick={() => navigate(-1)}
+      >
         <img className={backIconStyle} src={backIcon} alt="" draggable={false} />
       </button>
 
@@ -23,9 +28,9 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
         {entryAt && exitAt && (
           <p className={timeRangeStyle}>
-            <time dateTime={entryAt}>{formatIsoTime(entryAt)}</time>
+            <time dateTime={entryAt}>{formatIsoDateTime(entryAt)}</time>
             <span aria-hidden="true"> – </span>
-            <time dateTime={exitAt}>{formatIsoTime(exitAt)}</time>
+            <time dateTime={exitAt}>{formatIsoDateTime(exitAt)}</time>
           </p>
         )}
       </div>
@@ -35,10 +40,11 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
 const headerStyle = css`
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   right: 16px;
   left: 16px;
   z-index: 10;
+  pointer-events: auto;
 
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);

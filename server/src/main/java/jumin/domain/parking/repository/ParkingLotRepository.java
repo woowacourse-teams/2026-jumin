@@ -37,4 +37,30 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
             @Param("longitude") double longitude,
             @Param("radiusMeters") int radiusMeters
     );
+
+    @Query(value = """
+            select parking_lot.*
+            from parking_lots parking_lot
+            where parking_lot.active = true
+              and parking_lot.location is not null
+              and parking_lot.name is not null
+              and parking_lot.address is not null
+              and ST_Intersects(
+                    parking_lot.location,
+                    ST_MakeEnvelope(
+                        :westLongitude,
+                        :southLatitude,
+                        :eastLongitude,
+                        :northLatitude,
+                        4326
+                    )::geography
+              )
+            order by parking_lot.id
+            """, nativeQuery = true)
+    List<ParkingLot> findActiveWithinViewport(
+            @Param("westLongitude") double westLongitude,
+            @Param("southLatitude") double southLatitude,
+            @Param("eastLongitude") double eastLongitude,
+            @Param("northLatitude") double northLatitude
+    );
 }

@@ -1,2 +1,8 @@
+overrides:
+  fast-uri: 3.1.6
+
 allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': true
   msw: true
+  unrs-resolver: false
