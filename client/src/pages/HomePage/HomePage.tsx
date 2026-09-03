@@ -4,6 +4,7 @@ import { css } from '@emotion/css';
 import brandMark from '../../../assets/icons/brandMark_gray.svg';
 import searchIcon from '../../../assets/icons/searchIcon.svg';
 import { HomeQuickNav } from './components/HomeQuickNav';
+import { InstallAppButton } from './components/InstallAppButton';
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export const HomePage = () => {
           </button>
 
           <HomeQuickNav />
+          <InstallAppButton />
         </section>
       </div>
     </main>

@@ -3,6 +3,8 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
+const addToHomescreenDist = path.dirname(require.resolve('pwa-add-to-homescreen'));
+
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
@@ -73,6 +75,21 @@ module.exports = (env, argv) => {
           { from: 'public/manifest.webmanifest', to: 'manifest.webmanifest' },
           { from: 'public/service-worker.js', to: 'service-worker.js' },
           { from: 'public/icons', to: 'icons' },
+          {
+            from: path.join(addToHomescreenDist, 'add-to-homescreen.min.css'),
+            to: 'vendor/add-to-homescreen/add-to-homescreen.min.css',
+          },
+          {
+            from: path.join(addToHomescreenDist, 'add-to-homescreen_ko.min.js'),
+            to: 'vendor/add-to-homescreen/add-to-homescreen.min.js',
+          },
+          {
+            from: path.join(addToHomescreenDist, 'assets/img'),
+            to: 'vendor/add-to-homescreen/assets/img',
+            globOptions: {
+              ignore: ['**/sample/**', '**/aardvark-*'],
+            },
+          },
         ],
       }),
     ],
