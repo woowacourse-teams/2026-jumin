@@ -75,6 +75,7 @@ module.exports = (env, argv) => {
           { from: 'public/manifest.webmanifest', to: 'manifest.webmanifest' },
           { from: 'public/service-worker.js', to: 'service-worker.js' },
           { from: 'public/icons', to: 'icons' },
+          { from: 'public/splash', to: 'splash' },
           {
             from: path.join(addToHomescreenDist, 'add-to-homescreen.min.css'),
             to: 'vendor/add-to-homescreen/add-to-homescreen.min.css',

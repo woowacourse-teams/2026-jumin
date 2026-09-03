@@ -1,24 +1,50 @@
 import { css } from '@emotion/css';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import brandMark from '../../../../assets/icons/brandMark.svg';
-import { showInstallGuide } from '../../../../shared/pwa/addToHomeScreen';
+import {
+  getInstallAvailability,
+  initializeInstallPrompt,
+  requestPwaInstall,
+  subscribeToInstallAvailability,
+} from '../../../../shared/pwa/installPrompt';
 
-export const InstallAppButton = () => (
-  <button className={buttonStyle} type="button" onClick={showInstallGuide}>
-    <span className={iconContainerStyle} aria-hidden="true">
-      <img className={iconStyle} src={brandMark} alt="" draggable={false} />
-    </span>
+export const InstallAppButton = () => {
+  const isInstallAvailable = useSyncExternalStore(
+    subscribeToInstallAvailability,
+    getInstallAvailability,
+    () => false,
+  );
 
-    <span className={copyStyle}>
-      <strong className={titleStyle}>홈 화면에 설치</strong>
-      <span className={descriptionStyle}>앱처럼 빠르게 주차장을 찾아보세요.</span>
-    </span>
+  useEffect(() => {
+    initializeInstallPrompt();
+  }, []);
 
-    <span className={chevronStyle} aria-hidden="true">
-      ›
-    </span>
-  </button>
-);
+  if (!isInstallAvailable) return null;
+
+  return (
+    <button
+      className={buttonStyle}
+      type="button"
+      onClick={() => {
+        void requestPwaInstall();
+      }}
+    >
+      <span className={iconContainerStyle} aria-hidden="true">
+        <img className={iconStyle} src={brandMark} alt="" draggable={false} />
+      </span>
+
+      <span className={copyStyle}>
+        <strong className={titleStyle}>홈 화면에 설치</strong>
+        <span className={descriptionStyle}>앱처럼 빠르게 주차장을 찾아보세요.</span>
+      </span>
+
+      <span className={chevronStyle} aria-hidden="true">
+        ›
+      </span>
+    </button>
+  );
+};
 
 const buttonStyle = css`
   display: grid;

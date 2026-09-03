@@ -21,6 +21,7 @@
 | Web App Manifest | 앱 이름, 아이콘, 시작 URL과 standalone 실행 방식을 브라우저에 전달한다. | [`client/public/manifest.webmanifest`](../client/public/manifest.webmanifest) |
 | Manifest 연결    | 브라우저가 manifest 파일을 찾을 수 있도록 HTML에서 연결한다.            | [`client/index.html`](../client/index.html)                                   |
 | 앱 아이콘        | 홈 화면과 설치 가이드에서 사용할 아이콘을 제공한다.                     | `client/public/icons/`                                                        |
+| 시작 이미지      | iOS에서 홈 화면 앱을 실행할 때 표시할 정적 시작 이미지를 제공한다.      | `client/public/splash/`                                                       |
 | Service Worker   | 설치 후 정적 리소스 캐시와 오프라인 대응 기반을 제공한다.               | [`client/public/service-worker.js`](../client/public/service-worker.js)       |
 | HTTPS            | Service Worker를 등록하고 실제 PWA 동작을 검증하기 위한 보안 환경이다.  | 개발·운영 배포 서버                                                           |
 
@@ -93,29 +94,35 @@ const guide = window.AddToHomeScreen?.({
 });
 ```
 
-앱 시작 시 [`client/main.tsx`](../client/main.tsx)에서 한 번 초기화한다. Desktop Chrome처럼 `beforeinstallprompt` 이벤트를 사용하는 브라우저가 있으므로 사용자가 버튼을 누르기 전에 인스턴스를 만들어 두어야 한다.
+앱 시작 시 [`client/main.tsx`](../client/main.tsx)에서 가이드와 브라우저 설치 이벤트 구독을 한 번 초기화한다. `beforeinstallprompt`는 사용자가 버튼을 누르기 전에 발생할 수 있으므로 앱 진입 시점부터 저장해야 한다.
 
 ```ts
 initializeInstallGuide();
+initializeInstallPrompt();
 ```
 
 ### 3.6. 홈 화면 설치 버튼 연결
 
-[`InstallAppButton`](../client/src/pages/HomePage/components/InstallAppButton.tsx)을 홈 화면에 렌더링하고 클릭 시 한국어 가이드를 표시한다.
+[`InstallAppButton`](../client/src/pages/HomePage/components/InstallAppButton.tsx)을 홈 화면에 렌더링한다. 설치 동작은 브라우저 지원 여부에 따라 다음처럼 나뉜다.
+
+- Android Chromium: [`client/shared/pwa/installPrompt.ts`](../client/shared/pwa/installPrompt.ts)에 저장한 `beforeinstallprompt` 이벤트의 `prompt()`를 호출한다.
+- iOS처럼 이벤트를 지원하지 않는 환경: `pwa-add-to-homescreen`의 한국어 가이드를 표시한다.
 
 ```ts
-export const showInstallGuide = () => {
-  initializeInstallGuide()?.show("ko");
+export const requestPwaInstall = async () => {
+  if (deferredInstallPrompt) {
+    const installPrompt = deferredInstallPrompt;
+    deferredInstallPrompt = null;
+
+    await installPrompt.prompt();
+    return installPrompt.userChoice;
+  }
+
+  showInstallGuide();
 };
 ```
 
-```tsx
-<button type="button" onClick={showInstallGuide}>
-  홈 화면에 설치
-</button>
-```
-
-설치된 PWA에서 다시 설치 버튼이 보이지 않도록 standalone 모드에서는 버튼을 숨긴다.
+저장된 이벤트의 `prompt()`는 한 번만 사용할 수 있으므로 호출 직전에 저장값을 비운다. Android에서는 이벤트가 준비된 경우에만 버튼을 렌더링하고, 설치된 PWA에서 다시 설치 버튼이 보이지 않도록 standalone 모드에서도 숨긴다.
 
 ```css
 @media (display-mode: standalone) {
@@ -123,17 +130,36 @@ export const showInstallGuide = () => {
 }
 ```
 
-### 3.7. Service Worker 캐시 범위 추가
+### 3.7. OS 시작 화면 설정
 
-가이드 JavaScript, CSS와 이미지도 정적 리소스이므로 `/vendor/` 경로를 Service Worker 캐시 대상에 포함한다.
+Android는 Web App Manifest의 `background_color`, `theme_color`와 앱 아이콘을 조합해 시작 화면을 자동 생성한다. 프로젝트의 primary 색상과 실행 직후 배경을 일치시키기 위해 두 색상을 `#4356d8`로 설정한다.
+
+```json
+{
+  "background_color": "#4356d8",
+  "theme_color": "#4356d8"
+}
+```
+
+iOS는 Manifest의 시작 화면 설정을 사용하지 않으므로 [`client/index.html`](../client/index.html)에 별도의 정적 이미지를 연결한다.
+
+```html
+<link rel="apple-touch-startup-image" href="/splash/pwa-startup.png" />
+```
+
+이 이미지는 앱이 홈 화면에서 standalone으로 실행될 때 웹 콘텐츠가 준비되기 전 표시된다. 기기마다 화면 크기와 비율이 다르므로 실제 지원 기기에서 여백과 이미지 배율을 확인하고, 필요하면 기기별 시작 이미지를 추가한다.
+
+### 3.8. Service Worker 캐시 범위 추가
+
+가이드 JavaScript, CSS와 이미지 및 iOS 시작 이미지도 정적 리소스이므로 `/vendor/`와 `/splash/` 경로를 Service Worker 캐시 대상에 포함한다.
 
 ```js
-url.pathname.startsWith("/vendor/");
+url.pathname.startsWith("/vendor/") || url.pathname.startsWith("/splash/");
 ```
 
 이는 한 번 불러온 설치 가이드 리소스를 재사용할 수 있게 한다. Service Worker가 아직 설치되지 않은 최초 방문에서는 일반 네트워크 요청으로 파일을 불러온다.
 
-### 3.8. 테스트와 빌드 검증
+### 3.9. 테스트와 빌드 검증
 
 ```bash
 cd client
@@ -144,11 +170,14 @@ pnpm build
 다음 항목을 함께 확인한다.
 
 - 홈 화면에 설치 버튼이 렌더링되는가
-- 버튼 클릭 시 `show('ko')`가 호출되는가
+- Android에서 버튼 클릭 시 저장된 설치 이벤트의 `prompt()`가 한 번 호출되는가
+- 설치 이벤트가 없는 iOS 등의 환경에서 버튼 클릭 시 `show('ko')`가 호출되는가
 - `dist/vendor/add-to-homescreen/`에 CSS, JavaScript와 이미지가 생성되는가
+- `dist/splash/pwa-startup.png`에 iOS 시작 이미지가 생성되는가
 - 브라우저 Network 탭에서 가이드 리소스가 `200`으로 응답하는가
-- iOS Safari, Android Chrome과 Desktop 환경에서 각기 맞는 가이드가 표시되는가
+- iOS Safari에서는 설치 가이드가, Android Chrome에서는 브라우저 설치창이 표시되는가
 - 홈 화면에 설치해 standalone으로 실행했을 때 설치 버튼이 숨겨지는가
+- Android 시작 화면 배경이 primary 색상으로 표시되고 iOS 시작 이미지가 의도한 비율로 표시되는가
 
 ## 4. 라이브러리 사용법
 
@@ -242,12 +271,18 @@ typeof window.AddToHomeScreen;
 // 정상 결과: 'function'
 ```
 
-### 버튼을 눌러도 가이드가 표시되지 않는 경우
+### iOS에서 버튼을 눌러도 가이드가 표시되지 않는 경우
 
 - 이미 standalone 모드로 실행 중인지 확인한다.
 - `displayOptions`에서 현재 기기 유형이 활성화돼 있는지 확인한다.
-- Desktop Chrome에서는 `beforeinstallprompt`가 발생할 수 있는 설치 가능 환경인지 확인한다.
 - 가이드 CSS와 이미지 요청에 `404`가 발생하지 않는지 확인한다.
+
+### Android에서 설치 버튼 또는 설치창이 표시되지 않는 경우
+
+- Manifest, 아이콘과 Service Worker 등 브라우저의 설치 가능 조건을 충족하는지 확인한다.
+- 이미 앱이 설치돼 있지 않은지 확인한다.
+- HTTPS 또는 `localhost` 환경에서 실행 중인지 확인한다. 로컬 IP의 HTTP 주소에서는 이벤트가 발생하지 않을 수 있다.
+- `beforeinstallprompt` 이벤트를 저장한 뒤 `prompt()`를 이미 사용하지 않았는지 확인한다. 이벤트 하나당 한 번만 호출할 수 있다.
 
 ### 안내 이미지가 보이지 않는 경우
 
