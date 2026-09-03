@@ -40,6 +40,7 @@ self.addEventListener('fetch', (event) => {
   if (
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith('/splash/') ||
     url.pathname.startsWith('/vendor/')
   ) {
     event.respondWith(
