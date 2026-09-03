@@ -25,8 +25,14 @@ type ActiveTimeField = 'entry' | 'exit' | null;
 
 export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSubmit }: Props) => {
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
+  const [pendingEntryDate, setPendingEntryDate] = useState(period.entryAt);
 
   const modal = useModal();
+
+  const handleCalendarOpen = () => {
+    setPendingEntryDate(period.entryAt);
+    modal.open();
+  };
 
   // 입차 영역 클릭
   const handleEntryClick = () => {
@@ -81,6 +87,11 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
     }
   };
 
+  const handleCalendarConfirm = () => {
+    handleEntryDateChange(pendingEntryDate);
+    modal.close();
+  };
+
   // 30분, 1시간, 2시간 추가 메서드
   const handleAddThirtyMinutes = () => {
     onExitAtChange(period.exitAt ? addMinutes(period.exitAt, 30) : addMinutes(period.entryAt, 30));
@@ -111,7 +122,7 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
           type="button"
           className={calendarButtonStyle}
           aria-label="입차 날짜 선택"
-          onClick={modal.open}
+          onClick={handleCalendarOpen}
         >
           <CalendarIcon />
           <time className={dateStyle} dateTime={format(period.entryAt, 'yyyy-MM-dd')}>
@@ -178,7 +189,11 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
 
       {modal.isOpen && (
         <Modal isOpen={modal.isOpen} onClose={modal.close} label="주차할 날짜를 선택하세요">
-          <Calendar selectedDate={period.entryAt} onSelect={handleEntryDateChange} />
+          <Calendar selectedDate={pendingEntryDate} onSelect={setPendingEntryDate} />
+
+          <button type="button" className={recommendButtonStyle} onClick={handleCalendarConfirm}>
+            {format(pendingEntryDate, 'M월 d일')} 선택
+          </button>
         </Modal>
       )}
     </div>
