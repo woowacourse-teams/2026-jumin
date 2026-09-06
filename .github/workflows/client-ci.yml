@@ -1,0 +1,76 @@
+name: Client CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'client/**'
+      - '.github/workflows/front-ci.yml'
+
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'client/**'
+      - '.github/workflows/front-ci.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Client checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.11.0'
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install client dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: Check client
+        working-directory: client
+        run: pnpm check
+
+      - name: Build client
+        working-directory: client
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
+        run: pnpm build
+
+      - name: Validate build output
+        working-directory: client
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test -s dist/index.html
+          test -d dist/assets
+          test -n "$(find dist/assets -type f -print -quit)"
