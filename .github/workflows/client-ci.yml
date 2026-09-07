@@ -5,9 +5,6 @@ on:
     branches:
       - develop
       - main
-    paths:
-      - 'client/**'
-      - '.github/workflows/front-ci.yml'
 
   push:
     branches:
@@ -15,7 +12,7 @@ on:
       - main
     paths:
       - 'client/**'
-      - '.github/workflows/front-ci.yml'
+      - '.github/workflows/client-ci.yml'
 
   workflow_dispatch:
 
