@@ -1,6 +1,7 @@
 package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,5 +32,10 @@ public class ParkingSearchController {
             @Valid @ModelAttribute ParkingLotViewportRequest request
     ) {
         return ResponseEntity.ok(parkingSearchService.searchViewport(request));
+    }
+
+    @GetMapping("/viewport/{parkingLotId}")
+    public ResponseEntity<ParkingLotViewportDetailResponse> parkingLotDetail(@PathVariable Long parkingLotId) {
+        return ResponseEntity.ok(parkingSearchService.getParkingLotDetail(parkingLotId));
     }
 }
