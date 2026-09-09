@@ -23,22 +23,34 @@ public record ParkingLotViewportDetailResponse(
                 parkingLot.getAddress(),
                 parkingLot.getCapacity(),
                 ParkingFeeRuleResponse.from(operation),
-                List.of(
-                        ParkingDailyOperationResponse.from(
-                                "WEEKDAY",
-                                operation == null ? null : operation.getWeekdayOpenTime(),
-                                operation == null ? null : operation.getWeekdayCloseTime()
-                        ),
-                        ParkingDailyOperationResponse.from(
-                                "SATURDAY",
-                                operation == null ? null : operation.getWeekendOpenTime(),
-                                operation == null ? null : operation.getWeekendCloseTime()
-                        ),
-                        ParkingDailyOperationResponse.from(
-                                "HOLIDAY",
-                                operation == null ? null : operation.getHolidayOpenTime(),
-                                operation == null ? null : operation.getHolidayCloseTime()
-                        )
+                dailyOperations(operation)
+        );
+    }
+
+    private static List<ParkingDailyOperationResponse> dailyOperations(ParkingOperation operation) {
+        if (operation == null) {
+            return List.of(
+                    ParkingDailyOperationResponse.from("WEEKDAY", null, null),
+                    ParkingDailyOperationResponse.from("SATURDAY", null, null),
+                    ParkingDailyOperationResponse.from("HOLIDAY", null, null)
+            );
+        }
+
+        return List.of(
+                ParkingDailyOperationResponse.from(
+                        "WEEKDAY",
+                        operation.getWeekdayOpenTime(),
+                        operation.getWeekdayCloseTime()
+                ),
+                ParkingDailyOperationResponse.from(
+                        "SATURDAY",
+                        operation.getWeekendOpenTime(),
+                        operation.getWeekendCloseTime()
+                ),
+                ParkingDailyOperationResponse.from(
+                        "HOLIDAY",
+                        operation.getHolidayOpenTime(),
+                        operation.getHolidayCloseTime()
                 )
         );
     }
