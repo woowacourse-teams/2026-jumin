@@ -291,6 +291,11 @@ class ParkingSearchServiceTest {
         assertThat(result.feeRule().dailyMaxFee()).isEqualTo(30_000);
         assertThat(result.dailyOperations()).extracting("day")
                 .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
+        assertThat(result.dailyOperations().get(0).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(0).paid()).isTrue();
+        assertThat(result.dailyOperations().get(1).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(1).paid()).isFalse();
+        assertThat(result.dailyOperations().get(2).status()).isEqualTo("CLOSED");
         assertThat(result.dailyOperations().get(0).openTime()).isEqualTo("00:00");
         assertThat(result.dailyOperations().get(1).closeTime()).isEqualTo("18:00");
         assertThat(result.dailyOperations().get(2).openTime()).isNull();
@@ -312,8 +317,10 @@ class ParkingSearchServiceTest {
         assertThat(result.dailyOperations()).extracting("day")
                 .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
         assertThat(result.dailyOperations()).allSatisfy(detail -> {
+            assertThat(detail.status()).isEqualTo("UNKNOWN");
             assertThat(detail.openTime()).isNull();
             assertThat(detail.closeTime()).isNull();
+            assertThat(detail.paid()).isNull();
         });
     }
 
@@ -428,6 +435,8 @@ class ParkingSearchServiceTest {
         ReflectionTestUtils.setField(operation, "dailyMaxFee", 30_000);
         ReflectionTestUtils.setField(operation, "weekendOpenTime", LocalTime.of(9, 0));
         ReflectionTestUtils.setField(operation, "weekendCloseTime", LocalTime.of(18, 0));
+        ReflectionTestUtils.setField(operation, "saturdayPaid", false);
+        ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.CLOSED);
         ReflectionTestUtils.setField(operation, "holidayOpenTime", null);
         ReflectionTestUtils.setField(operation, "holidayCloseTime", null);
         return operation;

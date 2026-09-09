@@ -30,27 +30,33 @@ public record ParkingLotViewportDetailResponse(
     private static List<ParkingDailyOperationResponse> dailyOperations(ParkingOperation operation) {
         if (operation == null) {
             return List.of(
-                    ParkingDailyOperationResponse.from("WEEKDAY", null, null),
-                    ParkingDailyOperationResponse.from("SATURDAY", null, null),
-                    ParkingDailyOperationResponse.from("HOLIDAY", null, null)
+                    ParkingDailyOperationResponse.from("WEEKDAY", null, null, null, null),
+                    ParkingDailyOperationResponse.from("SATURDAY", null, null, null, null),
+                    ParkingDailyOperationResponse.from("HOLIDAY", null, null, null, null)
             );
         }
 
         return List.of(
                 ParkingDailyOperationResponse.from(
                         "WEEKDAY",
+                        operation.getWeekdayStatus(),
                         operation.getWeekdayOpenTime(),
-                        operation.getWeekdayCloseTime()
+                        operation.getWeekdayCloseTime(),
+                        operation.getWeekdayPaid()
                 ),
                 ParkingDailyOperationResponse.from(
                         "SATURDAY",
+                        operation.getWeekendStatus(),
                         operation.getWeekendOpenTime(),
-                        operation.getWeekendCloseTime()
+                        operation.getWeekendCloseTime(),
+                        operation.getSaturdayPaid()
                 ),
                 ParkingDailyOperationResponse.from(
                         "HOLIDAY",
+                        operation.getHolidayStatus(),
                         operation.getHolidayOpenTime(),
-                        operation.getHolidayCloseTime()
+                        operation.getHolidayCloseTime(),
+                        operation.getHolidayPaid()
                 )
         );
     }

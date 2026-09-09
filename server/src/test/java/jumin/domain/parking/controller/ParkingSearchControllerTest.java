@@ -265,9 +265,9 @@ class ParkingSearchControllerTest {
                         42,
                         new ParkingFeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),
                         List.of(
-                                new ParkingDailyOperationResponse("WEEKDAY", "00:00", "00:00"),
-                                new ParkingDailyOperationResponse("SATURDAY", "09:00", "18:00"),
-                                new ParkingDailyOperationResponse("HOLIDAY", null, null)
+                                new ParkingDailyOperationResponse("WEEKDAY", "OPEN", "00:00", "00:00", true),
+                                new ParkingDailyOperationResponse("SATURDAY", "OPEN", "09:00", "18:00", false),
+                                new ParkingDailyOperationResponse("HOLIDAY", "CLOSED", null, null, null)
                         )
                 )
         );
@@ -282,10 +282,13 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.feeRule.baseFreeMinutes").value(0))
                 .andExpect(jsonPath("$.feeRule.dailyMaxFee").value(30_000))
                 .andExpect(jsonPath("$.dailyOperations[0].day").value("WEEKDAY"))
+                .andExpect(jsonPath("$.dailyOperations[0].status").value("OPEN"))
                 .andExpect(jsonPath("$.dailyOperations[0].openTime").value("00:00"))
                 .andExpect(jsonPath("$.dailyOperations[1].day").value("SATURDAY"))
+                .andExpect(jsonPath("$.dailyOperations[1].paid").value(false))
                 .andExpect(jsonPath("$.dailyOperations[1].closeTime").value("18:00"))
                 .andExpect(jsonPath("$.dailyOperations[2].day").value("HOLIDAY"))
+                .andExpect(jsonPath("$.dailyOperations[2].status").value("CLOSED"))
                 .andExpect(jsonPath("$.dailyOperations[2].openTime").hasJsonPath())
                 .andExpect(jsonPath("$.dailyOperations[2].openTime").value(nullValue()));
     }
@@ -302,9 +305,9 @@ class ParkingSearchControllerTest {
                         10,
                         null,
                         List.of(
-                                new ParkingDailyOperationResponse("WEEKDAY", null, null),
-                                new ParkingDailyOperationResponse("SATURDAY", null, null),
-                                new ParkingDailyOperationResponse("HOLIDAY", null, null)
+                                new ParkingDailyOperationResponse("WEEKDAY", "UNKNOWN", null, null, null),
+                                new ParkingDailyOperationResponse("SATURDAY", "UNKNOWN", null, null, null),
+                                new ParkingDailyOperationResponse("HOLIDAY", "UNKNOWN", null, null, null)
                         )
                 )
         );
@@ -317,7 +320,9 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.dailyOperations[0].openTime").hasJsonPath())
                 .andExpect(jsonPath("$.dailyOperations[0].openTime").value(nullValue()))
                 .andExpect(jsonPath("$.dailyOperations[0].closeTime").hasJsonPath())
-                .andExpect(jsonPath("$.dailyOperations[0].closeTime").value(nullValue()));
+                .andExpect(jsonPath("$.dailyOperations[0].closeTime").value(nullValue()))
+                .andExpect(jsonPath("$.dailyOperations[0].status").value("UNKNOWN"))
+                .andExpect(jsonPath("$.dailyOperations[0].paid").value(nullValue()));
     }
 
     @Test
