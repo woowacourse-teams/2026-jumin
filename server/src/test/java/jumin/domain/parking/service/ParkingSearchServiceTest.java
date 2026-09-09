@@ -309,6 +309,8 @@ class ParkingSearchServiceTest {
 
         // then
         assertThat(result.feeRule()).isNull();
+        assertThat(result.dailyOperations()).extracting("day")
+                .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
         assertThat(result.dailyOperations()).allSatisfy(detail -> {
             assertThat(detail.openTime()).isNull();
             assertThat(detail.closeTime()).isNull();
