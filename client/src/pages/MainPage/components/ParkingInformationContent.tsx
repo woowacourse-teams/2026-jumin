@@ -141,7 +141,7 @@ const sheetContentStyle = css`
 const parkingHeaderStyle = css`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 
   padding: 4px 0 20px;
 `;
