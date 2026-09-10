@@ -80,7 +80,11 @@ secret으로 전달합니다.
 - CloudWatch Logs로 나가는 outbound HTTPS 연결
 - GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
-  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET` secret
+  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
+  `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
+
+`ADMIN_ENV_LABEL`은 workflow가 `dev`로 전달합니다. 관리자 ID와 비밀번호는 운영과
+각각 다르게 설정하고, `ADMIN_TOKEN_SECRET`도 운영과 반드시 다른 값을 사용합니다.
 
 ## 운영 서버 배포
 
@@ -102,8 +106,12 @@ secret으로 전달합니다.
 - 운영 CloudWatch Logs 그룹 `/jumin/prod/backend`
 - GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
-  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET` secret
+  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
+  `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
 - 운영 백엔드 Compose가 생성한 `jumin-prod_default` Docker network
+
+`ADMIN_ENV_LABEL`은 workflow가 `prod`로 전달합니다. 관리자 ID와 비밀번호는 개발과
+각각 다르게 설정하고, `ADMIN_TOKEN_SECRET`도 개발과 반드시 다른 값을 사용합니다.
 
 운영 백엔드 workflow는 Compose project `jumin-prod`로 실행되므로 기본 network
 `jumin-prod_default`를 생성합니다. 운영 proxy Compose는 이 network를 `external`로
