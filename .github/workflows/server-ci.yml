@@ -106,6 +106,10 @@ jobs:
           LOCAL_SEARCH_CLIENT_SECRET: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
+          ADMIN_LOGIN_ID: ci-admin
+          ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
+          ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
+          ADMIN_ENV_LABEL: ci
         run: docker compose --file infra/docker-compose.dev.yml config --quiet
 
       - name: Validate production Docker Compose configuration
@@ -117,6 +121,10 @@ jobs:
           LOCAL_SEARCH_CLIENT_SECRET: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
+          ADMIN_LOGIN_ID: ci-admin
+          ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
+          ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
+          ADMIN_ENV_LABEL: ci
         run: docker compose --file infra/docker-compose.prod.yml config --quiet
 
       - name: Validate development proxy Compose configuration

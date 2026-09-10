@@ -102,6 +102,10 @@ jobs:
           LOCAL_SEARCH_CLIENT_SECRET: ${{ secrets.LOCAL_SEARCH_CLIENT_SECRET }}
           REVERSE_GEOCODING_CLIENT_ID: ${{ secrets.REVERSE_GEOCODING_CLIENT_ID }}
           REVERSE_GEOCODING_CLIENT_SECRET: ${{ secrets.REVERSE_GEOCODING_CLIENT_SECRET }}
+          ADMIN_LOGIN_ID: ${{ secrets.ADMIN_LOGIN_ID }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          ADMIN_TOKEN_SECRET: ${{ secrets.ADMIN_TOKEN_SECRET }}
+          ADMIN_ENV_LABEL: dev
         run: |
           set -Eeuo pipefail
 
@@ -150,6 +154,10 @@ jobs:
             LOCAL_SEARCH_CLIENT_SECRET="${LOCAL_SEARCH_CLIENT_SECRET}" \
             REVERSE_GEOCODING_CLIENT_ID="${REVERSE_GEOCODING_CLIENT_ID}" \
             REVERSE_GEOCODING_CLIENT_SECRET="${REVERSE_GEOCODING_CLIENT_SECRET}" \
+            ADMIN_LOGIN_ID="${ADMIN_LOGIN_ID}" \
+            ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH}" \
+            ADMIN_TOKEN_SECRET="${ADMIN_TOKEN_SECRET}" \
+            ADMIN_ENV_LABEL="${ADMIN_ENV_LABEL}" \
             docker compose \
               --project-name jumin-dev \
               --file "${compose_file}" \
