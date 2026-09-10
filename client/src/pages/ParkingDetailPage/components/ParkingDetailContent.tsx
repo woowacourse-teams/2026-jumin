@@ -22,10 +22,10 @@ interface Props {
 
 const parkingLotMarkerIcon = {
   url: selectedParkingMarkerUrl,
-  width: 74,
-  height: 90,
-  anchorX: 37,
-  anchorY: 73,
+  width: 50,
+  height: 60,
+  anchorX: 25,
+  anchorY: 60,
 };
 
 const formatFee = (fee: number | null) =>

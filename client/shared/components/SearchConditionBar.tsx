@@ -40,7 +40,7 @@ export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) 
 
 const headerStyle = css`
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   right: 16px;
   left: 16px;
   z-index: 10;

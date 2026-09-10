@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildDirectionsLinks } from './deepLink.ts';
+import { buildDirectionsLinks } from '../../../shared/components/Modal/deepLink.ts';
 
 const start = { latitude: 37.4979, longitude: 127.0276 };
 const destination = {

@@ -20,9 +20,18 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }:
       width: 100%;
       max-width: 358px;
       height: 54px;
-      margin: 16px auto 0;
+      margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
       padding: 0 16px;
       box-sizing: border-box;
+
+      @supports (-webkit-touch-callout: none) {
+        @media (display-mode: standalone) {
+          margin-top: max(
+            calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)),
+            clamp(56px, 9dvh, 88px)
+          );
+        }
+      }
 
       border: 1px solid #4356d8;
       border-radius: 16px;

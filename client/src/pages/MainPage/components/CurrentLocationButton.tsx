@@ -10,7 +10,7 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
     className={css`
       position: absolute;
       right: 16px;
-      bottom: calc(102px + env(safe-area-inset-bottom));
+      bottom: calc(102px + env(safe-area-inset-bottom, 0px));
     `}
   >
     <button

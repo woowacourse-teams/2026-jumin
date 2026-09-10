@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
-const PEEK_HEIGHT = 100;
+const PEEK_HEIGHT = 120;
 const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
 const SNAP_THRESHOLD = 80;
 

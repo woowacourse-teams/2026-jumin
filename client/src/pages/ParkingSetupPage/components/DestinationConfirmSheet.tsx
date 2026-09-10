@@ -22,7 +22,7 @@ export const DestinationConfirmSheet = ({
         bottom: 0;
         left: 0;
         z-index: 1;
-        padding: 24px 16px max(20px, env(safe-area-inset-bottom));
+        padding: 24px 16px max(20px, env(safe-area-inset-bottom, 0px));
         border-radius: 28px 28px 0 0;
         background: white;
         box-sizing: border-box;

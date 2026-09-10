@@ -4,6 +4,7 @@ import { css } from '@emotion/css';
 import brandMark from '../../../assets/icons/brandMark_gray.svg';
 import searchIcon from '../../../assets/icons/searchIcon.svg';
 import { HomeQuickNav } from './components/HomeQuickNav';
+import { InstallAppButton } from './components/InstallAppButton';
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export const HomePage = () => {
           </button>
 
           <HomeQuickNav />
+          <InstallAppButton />
         </section>
       </div>
     </main>
@@ -48,7 +50,7 @@ const pageStyle = css`
   overflow: hidden;
 
   color: #101b37;
-  background: #f8faff;
+  background: #fff;
 `;
 
 const contentStyle = css`
@@ -69,7 +71,7 @@ const brandStyle = css`
   align-items: center;
   gap: 12px;
 
-  padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 20px;
   min-height: 42px;
 
   color: white;

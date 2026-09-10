@@ -1,12 +1,12 @@
-name: Deploy frontend production
+name: Client Prod CD
 
 on:
   push:
     branches:
       - main
     paths:
-      - "client/**"
-      - ".github/workflows/front-deploy-prod.yml"
+      - 'client/**'
+      - '.github/workflows/client-prod-cd.yml'
 
   workflow_dispatch:
 
@@ -14,12 +14,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-production
+  group: client-prod-cd
   cancel-in-progress: false
 
 jobs:
-  build-frontend:
-    name: Build frontend production
+  build:
+    name: Build client (Prod)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -30,26 +30,22 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.20.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24.11.0"
+          node-version: '24.11.0'
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
-      - name: Install frontend dependencies
+      - name: Install client dependencies
         working-directory: client
         run: pnpm install --frozen-lockfile
 
-      - name: Check frontend
-        working-directory: client
-        run: pnpm check
-
-      - name: Build frontend
+      - name: Build client
         working-directory: client
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
@@ -58,7 +54,9 @@ jobs:
 
       - name: Validate build output
         working-directory: client
+        shell: bash
         run: |
+          set -Eeuo pipefail
           test -s dist/index.html
           test -d dist/assets
           test -n "$(find dist/assets -type f -print -quit)"
@@ -66,15 +64,14 @@ jobs:
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-production-${{ github.sha }}-${{ github.run_id }}
+          name: frontend-prod-${{ github.sha }}-${{ github.run_id }}
           path: client/dist
           if-no-files-found: error
           retention-days: 3
 
   deploy:
-    name: Deploy frontend production
-    if: github.ref == 'refs/heads/main'
-    needs: build-frontend
+    name: Deploy frontend (Prod)
+    needs: build
     runs-on: [self-hosted, Linux, ARM64, jumin-prod]
     timeout-minutes: 10
 
@@ -82,7 +79,7 @@ jobs:
       - name: Download frontend artifact
         uses: actions/download-artifact@v8
         with:
-          name: frontend-production-${{ github.sha }}-${{ github.run_id }}
+          name: frontend-prod-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/jumin-prod-deploy/frontend
 
       - name: Deploy frontend

@@ -1,10 +1,14 @@
 const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+
+const addToHomescreenDist = path.dirname(require.resolve('pwa-add-to-homescreen'));
 
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
+  const isE2E = env?.e2e === true || env?.e2e === 'true';
 
   return {
     entry: './main.tsx',
@@ -57,6 +61,7 @@ module.exports = (env, argv) => {
     plugins: [
       new webpack.DefinePlugin({
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
+        __PWA_ENABLED__: JSON.stringify(!isDevelopment),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
         __NAVER_MAP_CLIENT_ID__: JSON.stringify(process.env.NAVER_MAP_CLIENT_ID ?? ''),
       }),
@@ -64,6 +69,29 @@ module.exports = (env, argv) => {
         template: './index.html',
         filename: 'index.html',
         inject: true,
+      }),
+      new CopyWebpackPlugin({
+        patterns: [
+          { from: 'public/manifest.webmanifest', to: 'manifest.webmanifest' },
+          { from: 'public/service-worker.js', to: 'service-worker.js' },
+          { from: 'public/icons', to: 'icons' },
+          { from: 'public/splash', to: 'splash' },
+          {
+            from: path.join(addToHomescreenDist, 'add-to-homescreen.min.css'),
+            to: 'vendor/add-to-homescreen/add-to-homescreen.min.css',
+          },
+          {
+            from: path.join(addToHomescreenDist, 'add-to-homescreen_ko.min.js'),
+            to: 'vendor/add-to-homescreen/add-to-homescreen.min.js',
+          },
+          {
+            from: path.join(addToHomescreenDist, 'assets/img'),
+            to: 'vendor/add-to-homescreen/assets/img',
+            globOptions: {
+              ignore: ['**/sample/**', '**/aardvark-*'],
+            },
+          },
+        ],
       }),
     ],
     devServer: {
@@ -78,8 +106,8 @@ module.exports = (env, argv) => {
         },
       ],
       port: 3000,
-      open: true,
-      hot: true,
+      open: !isE2E,
+      hot: !isE2E,
       historyApiFallback: true,
       client: {
         overlay: true,

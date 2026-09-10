@@ -378,7 +378,6 @@ const cardListStyle = css`
   display: flex;
   gap: ${CARD_GAP}px;
 
-  margin: 0;
   padding: 0 calc((100% - ${CARD_WIDTH}px) / 2);
 
   overflow-x: auto;
@@ -417,7 +416,7 @@ const filterStyle = css`
   gap: 8px;
 
   margin-top: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 50px;
 `;
 
 const filterButtonStyle = (isSelected: boolean) => css`
