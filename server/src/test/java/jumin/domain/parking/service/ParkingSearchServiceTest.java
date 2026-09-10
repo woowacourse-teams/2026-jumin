@@ -17,7 +17,9 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import jumin.domain.parking.dto.ParkingLotResponse;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -269,6 +271,72 @@ class ParkingSearchServiceTest {
     }
 
     @Test
+    @DisplayName("지도에서 선택한 주차장의 공통 요금과 일별 운영 정보를 반환한다")
+    void returns_detail_for_viewport_parking_lot() {
+        // given
+        ParkingLot parkingLot = parkingLotWithDetails(1L, 37.5665, 126.9780);
+        ParkingOperation operation = availableOperationWithDetails(1L);
+        when(parkingLotRepository.findActiveById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
+
+        // when
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+
+        // then
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.name()).isEqualTo("주차장 1");
+        assertThat(result.address()).isEqualTo("서울시 주소 1");
+        assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.feeRule().baseFreeMinutes()).isZero();
+        assertThat(result.feeRule().dailyMaxFee()).isEqualTo(30_000);
+        assertThat(result.dailyOperations()).extracting("day")
+                .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
+        assertThat(result.dailyOperations().get(0).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(0).paid()).isTrue();
+        assertThat(result.dailyOperations().get(1).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(1).paid()).isFalse();
+        assertThat(result.dailyOperations().get(2).status()).isEqualTo("CLOSED");
+        assertThat(result.dailyOperations().get(0).openTime()).isEqualTo("00:00");
+        assertThat(result.dailyOperations().get(1).closeTime()).isEqualTo("18:00");
+        assertThat(result.dailyOperations().get(2).openTime()).isNull();
+    }
+
+    @Test
+    @DisplayName("운영 정보가 없는 주차장은 요금과 운영 시간을 null로 반환한다")
+    void returns_null_fields_when_viewport_operation_is_missing() {
+        // given
+        when(parkingLotRepository.findActiveById(1L))
+                .thenReturn(Optional.of(parkingLot(1L, 37.5665, 126.9780)));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // when
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+
+        // then
+        assertThat(result.feeRule()).isNull();
+        assertThat(result.dailyOperations()).extracting("day")
+                .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
+        assertThat(result.dailyOperations()).allSatisfy(detail -> {
+            assertThat(detail.status()).isEqualTo("UNKNOWN");
+            assertThat(detail.openTime()).isNull();
+            assertThat(detail.closeTime()).isNull();
+            assertThat(detail.paid()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("활성 주차장을 찾지 못하면 주차장 미존재 예외를 던진다")
+    void throws_parking_lot_not_found_when_viewport_parking_lot_does_not_exist() {
+        // given
+        when(parkingLotRepository.findActiveById(999L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.getParkingLotDetail(999L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
+    }
+
+    @Test
     @DisplayName("서쪽 경도가 동쪽 경도보다 크면 DB를 호출하지 않고 400 오류를 반환한다")
     void rejects_reversed_longitude_bounds() {
         // given
@@ -352,6 +420,25 @@ class ParkingSearchServiceTest {
         ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.OPEN);
         ReflectionTestUtils.setField(operation, "holidayOpenTime", LocalTime.MIDNIGHT);
         ReflectionTestUtils.setField(operation, "holidayCloseTime", LocalTime.MIDNIGHT);
+        return operation;
+    }
+
+    private ParkingLot parkingLotWithDetails(long id, double latitude, double longitude) {
+        ParkingLot lot = parkingLot(id, latitude, longitude);
+        ReflectionTestUtils.setField(lot, "capacity", 42);
+        return lot;
+    }
+
+    private ParkingOperation availableOperationWithDetails(long parkingLotId) {
+        ParkingOperation operation = availableOperation(parkingLotId);
+        ReflectionTestUtils.setField(operation, "baseFreeMinutes", 0);
+        ReflectionTestUtils.setField(operation, "dailyMaxFee", 30_000);
+        ReflectionTestUtils.setField(operation, "weekendOpenTime", LocalTime.of(9, 0));
+        ReflectionTestUtils.setField(operation, "weekendCloseTime", LocalTime.of(18, 0));
+        ReflectionTestUtils.setField(operation, "saturdayPaid", false);
+        ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.CLOSED);
+        ReflectionTestUtils.setField(operation, "holidayOpenTime", null);
+        ReflectionTestUtils.setField(operation, "holidayCloseTime", null);
         return operation;
     }
 

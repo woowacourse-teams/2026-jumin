@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
@@ -93,6 +94,22 @@ public class ParkingSearchService {
                 .log();
 
         return ParkingLotViewportResponses.from(parkingLots);
+    }
+
+    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId) {
+        ParkingLot parkingLot = parkingLotRepository.findActiveById(parkingLotId)
+                .orElseThrow(() -> {
+                    log.atWarn()
+                            .setMessage("주차장 상세 정보를 찾을 수 없습니다.")
+                            .addKeyValue("parkingLotId", parkingLotId)
+                            .addKeyValue("status", ErrorCode.PARKING_LOT_NOT_FOUND.getHttpStatus().value())
+                            .log();
+                    return new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND);
+                });
+        ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
+                .orElse(null);
+
+        return ParkingLotViewportDetailResponse.from(parkingLot, operation);
     }
 
     private List<ParkingLot> findCandidates(Coordinate destination) {
