@@ -17,6 +17,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
@@ -27,6 +28,8 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,25 +41,31 @@ class ParkingSearchServiceTest {
 
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
+    private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
     private ParkingSearchService service;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-08-13T00:00:00Z"), ZoneOffset.UTC);
-        GeoDistanceCalculator geoDistanceCalculator = new GeoDistanceCalculator();
         service = new ParkingSearchService(
                 parkingLotRepository,
                 parkingOperationRepository,
                 new ParkingSearchQueryValidator(clock),
                 new ParkingOperationEvaluator(),
-                geoDistanceCalculator,
-                new ParkingBalancedScoreCalculator()
+                new ParkingBalancedScoreCalculator(),
+                walkingDistanceService
         );
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenAnswer(invocation -> {
+                    List<ParkingLot> parkingLots = invocation.getArgument(2);
+                    return new WalkingDistanceResult(parkingLots.stream()
+                            .collect(java.util.stream.Collectors.toMap(ParkingLot::getId, ignored -> 500)));
+                });
     }
 
     @Test
-    @DisplayName("직선거리와 요금, 운영 상태, 균형점수를 응답에 매핑한다")
-    void maps_straight_distance_fee_availability_and_balanced_score() {
+    @DisplayName("도보거리와 요금, 운영 상태, 균형점수를 응답에 매핑한다")
+    void maps_walking_distance_fee_availability_and_balanced_score() {
         // given
         ParkingLot first = parkingLot(1L, 37.4982, 127.0280);
         ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
@@ -64,6 +73,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(first, second));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 14, 2L, 28)));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
@@ -80,6 +91,42 @@ class ParkingSearchServiceTest {
     }
 
     @Test
+    @DisplayName("보행망이 있으면 주차장별 도보거리로 후보를 필터링한다")
+    void filters_and_maps_candidates_by_walking_distance_when_network_is_available() {
+        // given
+        ParkingLot first = parkingLot(1L, 37.4982, 127.0280);
+        ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(first, second));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 500, 2L, 650)));
+
+        // when
+        ParkingSearchResponse result = service.search(validQuery());
+
+        // then
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
+        assertThat(result.parkingLots().getFirst().distanceMeters()).isEqualTo(500);
+    }
+
+    @Test
+    @DisplayName("보행망이 준비되지 않으면 직선거리로 대체하지 않고 실패한다")
+    void fails_when_walking_network_is_unavailable() {
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(parkingLot(1L, 37.4982, 127.0280)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
+
+        assertThatThrownBy(() -> service.search(validQuery()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALKING_NETWORK_UNAVAILABLE);
+    }
+
+    @Test
     @DisplayName("거리 재계산 결과가 반경을 벗어나면 후보에서 제외한다")
     void filters_candidates_outside_radius_after_distance_recalculation() {
         // given
@@ -88,6 +135,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(outside));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(3L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(3L, 700)));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
@@ -164,6 +213,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(candidate));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(operation));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(6L, 14)));
 
         // when
         ParkingLotResponse result = service.search(query(
@@ -188,6 +239,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(candidate));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(operation));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(7L, 14)));
 
         // when
         ParkingLotResponse result = service.search(query(
