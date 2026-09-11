@@ -12,11 +12,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
+import jumin.domain.parking.dto.ParkingDailyOperationResponse;
+import jumin.domain.parking.dto.ParkingFeeRuleResponse;
 import jumin.domain.parking.dto.ParkingLotResponse;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -246,6 +251,104 @@ class ParkingSearchControllerTest {
                 126.9900,
                 37.5750
         ));
+    }
+
+    @Test
+    @DisplayName("지도에서 선택한 주차장의 상세 정보를 반환한다")
+    void returns_parking_lot_detail_from_viewport_controller() throws Exception {
+        // given
+        when(parkingSearchService.getParkingLotDetail(1L)).thenReturn(
+                new ParkingLotViewportDetailResponse(
+                        1L,
+                        "역삼문화공원 제1호 공영주차장",
+                        "서울 강남구 테헤란로7길 21",
+                        42,
+                        new ParkingFeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),
+                        List.of(
+                                new ParkingDailyOperationResponse("WEEKDAY", "OPEN", "00:00", "00:00", true),
+                                new ParkingDailyOperationResponse("SATURDAY", "OPEN", "09:00", "18:00", false),
+                                new ParkingDailyOperationResponse("HOLIDAY", "CLOSED", null, null, null)
+                        )
+                )
+        );
+
+        // when & then
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("역삼문화공원 제1호 공영주차장"))
+                .andExpect(jsonPath("$.address").value("서울 강남구 테헤란로7길 21"))
+                .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.feeRule.baseFreeMinutes").value(0))
+                .andExpect(jsonPath("$.feeRule.dailyMaxFee").value(30_000))
+                .andExpect(jsonPath("$.dailyOperations[0].day").value("WEEKDAY"))
+                .andExpect(jsonPath("$.dailyOperations[0].status").value("OPEN"))
+                .andExpect(jsonPath("$.dailyOperations[0].openTime").value("00:00"))
+                .andExpect(jsonPath("$.dailyOperations[1].day").value("SATURDAY"))
+                .andExpect(jsonPath("$.dailyOperations[1].paid").value(false))
+                .andExpect(jsonPath("$.dailyOperations[1].closeTime").value("18:00"))
+                .andExpect(jsonPath("$.dailyOperations[2].day").value("HOLIDAY"))
+                .andExpect(jsonPath("$.dailyOperations[2].status").value("CLOSED"))
+                .andExpect(jsonPath("$.dailyOperations[2].openTime").hasJsonPath())
+                .andExpect(jsonPath("$.dailyOperations[2].openTime").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("운영·요금 정보가 없는 주차장은 해당 정보를 null로 반환한다")
+    void returns_null_fields_when_viewport_parking_operation_is_missing() throws Exception {
+        // given
+        when(parkingSearchService.getParkingLotDetail(1L)).thenReturn(
+                new ParkingLotViewportDetailResponse(
+                        1L,
+                        "주차장",
+                        "서울시 테스트 주소",
+                        10,
+                        null,
+                        List.of(
+                                new ParkingDailyOperationResponse("WEEKDAY", "UNKNOWN", null, null, null),
+                                new ParkingDailyOperationResponse("SATURDAY", "UNKNOWN", null, null, null),
+                                new ParkingDailyOperationResponse("HOLIDAY", "UNKNOWN", null, null, null)
+                        )
+                )
+        );
+
+        // when & then
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.feeRule").hasJsonPath())
+                .andExpect(jsonPath("$.feeRule").value(nullValue()))
+                .andExpect(jsonPath("$.dailyOperations[0].openTime").hasJsonPath())
+                .andExpect(jsonPath("$.dailyOperations[0].openTime").value(nullValue()))
+                .andExpect(jsonPath("$.dailyOperations[0].closeTime").hasJsonPath())
+                .andExpect(jsonPath("$.dailyOperations[0].closeTime").value(nullValue()))
+                .andExpect(jsonPath("$.dailyOperations[0].status").value("UNKNOWN"))
+                .andExpect(jsonPath("$.dailyOperations[0].paid").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("지도에서 선택한 주차장을 찾지 못하면 404를 반환한다")
+    void returns_not_found_when_viewport_parking_lot_does_not_exist() throws Exception {
+        // given
+        when(parkingSearchService.getParkingLotDetail(999L))
+                .thenThrow(new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("지도에서 선택한 주차장 조회 중 DB 예외가 발생하면 500을 반환한다")
+    void returns_internal_server_error_when_viewport_detail_database_fails() throws Exception {
+        // given
+        when(parkingSearchService.getParkingLotDetail(1L))
+                .thenThrow(new IllegalStateException("database unavailable"));
+
+        // when & then
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("요청을 처리하는 중 서버 오류가 발생했습니다."));
     }
 
     @Test

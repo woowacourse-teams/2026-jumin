@@ -1,16 +1,12 @@
-name: Deploy frontend development
+name: Client Dev CD
 
 on:
-  pull_request:
-    branches:
-      - main
-
   push:
     branches:
       - develop
     paths:
       - 'client/**'
-      - '.github/workflows/front-deploy-dev.yml'
+      - '.github/workflows/client-dev-cd.yml'
 
   workflow_dispatch:
 
@@ -18,12 +14,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-development-${{ github.ref }}
+  group: client-dev-cd-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-frontend:
-    name: Frontend checks
+  build:
+    name: Build client (Dev)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -45,15 +41,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
-      - name: Install frontend dependencies
+      - name: Install client dependencies
         working-directory: client
         run: pnpm install --frozen-lockfile
 
-      - name: Check frontend
-        working-directory: client
-        run: pnpm check
-
-      - name: Build frontend
+      - name: Build client
         working-directory: client
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
@@ -62,23 +54,23 @@ jobs:
 
       - name: Validate build output
         working-directory: client
+        shell: bash
         run: |
+          set -Eeuo pipefail
           test -s dist/index.html
           test -d dist/assets
 
       - name: Upload frontend artifact
-        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-development
+          name: frontend-dev-${{ github.sha }}-${{ github.run_id }}
           path: client/dist
           if-no-files-found: error
           retention-days: 1
 
   deploy:
-    name: Deploy frontend development
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
-    needs: build-frontend
+    name: Deploy frontend (Dev)
+    needs: build
     runs-on: [self-hosted, Linux, ARM64, jumin-dev]
     timeout-minutes: 10
 
@@ -86,7 +78,7 @@ jobs:
       - name: Download frontend artifact
         uses: actions/download-artifact@v8
         with:
-          name: frontend-development
+          name: frontend-dev-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/jumin-dev-deploy/frontend
 
       - name: Deploy frontend

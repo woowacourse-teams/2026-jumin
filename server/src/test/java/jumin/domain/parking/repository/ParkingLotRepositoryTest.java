@@ -87,6 +87,20 @@ class ParkingLotRepositoryTest {
     }
 
     @Test
+    @DisplayName("위치 정보가 없어도 활성 주차장을 ID로 조회한다")
+    void finds_active_parking_lot_without_requiring_location() {
+        // given
+        insertParkingLot("detail-active", "상세 주차장", "서울시 테스트 주소", true, null, null);
+        insertParkingLot("detail-inactive", "비활성 상세 주차장", "서울시 테스트 주소", false, null, null);
+        Long activeId = parkingLotId("detail-active");
+        Long inactiveId = parkingLotId("detail-inactive");
+
+        // when & then
+        assertThat(parkingLotRepository.findActiveById(activeId)).isPresent();
+        assertThat(parkingLotRepository.findActiveById(inactiveId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("반경 경계 안쪽은 포함하고 바깥쪽은 제외한다")
     void respects_radius_boundary() {
         // given
