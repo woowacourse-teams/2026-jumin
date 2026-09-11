@@ -7,7 +7,7 @@
 
 | 파일 | 용도 |
 | --- | --- |
-| `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS 실행 |
+| `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS + pgRouting 실행 |
 | `docker-compose.dev.yml` | 개발 서버 백엔드 컨테이너 실행 |
 | `docker-compose.prod.yml` | 운영 서버 백엔드 컨테이너 실행 |
 | `docker-compose.proxy.yml` | 개발 서버 Nginx + Certbot 실행 |
@@ -18,11 +18,14 @@
 | `nginx/jumin.prod.conf` | 운영 HTTPS, 정적 파일, API 프록시 설정 |
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
+| `scripts/import-seoul-walking-network.sh` | 서울시 보행 네트워크 적재 |
 | `.env.example` | 로컬·배포 환경변수 예시 |
 
 ## 로컬 데이터베이스
 
-로컬 개발에서는 PostgreSQL과 PostGIS를 Docker Compose로 실행합니다.
+로컬 개발에서는 PostgreSQL, PostGIS, pgRouting을 Docker Compose로 실행합니다.
+새 데이터 볼륨을 만들 때 `db/init/01-enable-pgrouting.sql`이 pgRouting 확장을
+초기화합니다. 이미 생성된 볼륨에는 초기화 스크립트가 다시 실행되지 않습니다.
 
 ```bash
 docker compose -f infra/docker-compose.local.yml up -d --wait
@@ -53,7 +56,7 @@ docker compose -f infra/docker-compose.local.yml down --volumes
 ```
 
 > [!WARNING]
-> Apple Silicon에서는 현재 PostGIS 이미지가 amd64 기반이므로 실행 명령 앞에
+> Apple Silicon에서는 현재 PostGIS + pgRouting 이미지가 amd64 기반이므로 실행 명령 앞에
 > `DOCKER_DEFAULT_PLATFORM=linux/amd64`를 붙여야 합니다. 자세한 실행·테스트 방법은
 > [서버 README의 아키텍처별 실행](../server/README.md#1-호스트-아키텍처-확인)을 참고하세요.
 
@@ -103,6 +106,8 @@ secret으로 전달합니다.
 - GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET` secret
+- 운영 RDS에 `postgis`와 `pgrouting` 확장이 설치되어 있고, 애플리케이션 DB 사용자가
+  해당 확장을 사용할 수 있는 권한
 - 운영 백엔드 Compose가 생성한 `jumin-prod_default` Docker network
 
 운영 백엔드 workflow는 Compose project `jumin-prod`로 실행되므로 기본 network
