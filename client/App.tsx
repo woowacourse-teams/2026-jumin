@@ -9,9 +9,9 @@ import { HomePage } from './src/pages/HomePage/HomePage';
 
 const App = () => (
   <Routes>
-    <Route path="/" element={<HomePage />} />
-
     <Route element={<MapLayout />}>
+      <Route path="/" element={<HomePage />} />
+
       <Route path="/parkingsetup" element={<ParkingSetupPage />} />
       <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
       <Route path="/parkingDetail" element={<ParkingDetailPage />} />
