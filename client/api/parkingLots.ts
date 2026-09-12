@@ -4,6 +4,7 @@ import type {
   ParkingLotDetailResponse,
   ParkingSearchResponse,
   ValidationErrorResponse,
+  ViewportParkingLotDetailResponse,
 } from './contracts';
 
 export interface ParkingSearchParams {
@@ -93,6 +94,23 @@ export async function getParkingLotDetail(
   });
 
   const response = await fetch(`/api/parking/${parkingLotId}?${searchParams.toString()}`, {
+    signal,
+  });
+
+  if (!response.ok) {
+    const error: ValidationErrorResponse = await response.json();
+    throw new Error(error.message ?? '주차장 상세 정보를 조회하지 못했습니다.');
+  }
+
+  return response.json();
+}
+
+// 홈페이지에서 주차장 상세정보를 가져오는 메서드
+export async function getViewportParkingLotDetail(
+  parkingLotId: number,
+  signal?: AbortSignal,
+): Promise<ViewportParkingLotDetailResponse> {
+  const response = await fetch(`/api/parking/viewport/${parkingLotId}`, {
     signal,
   });
 
