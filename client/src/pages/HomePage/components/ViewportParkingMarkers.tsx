@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
@@ -18,6 +19,7 @@ interface Props {
   viewport: Readonly<ParkingViewportParams>;
   selectedParkingLotId: number | null;
   onSelect: (parkingLotId: number) => void;
+  onSelectedParkingLotMissing: () => void;
 }
 
 export const ViewportParkingMarkers = ({
@@ -25,13 +27,26 @@ export const ViewportParkingMarkers = ({
   viewport,
   selectedParkingLotId,
   onSelect,
+  onSelectedParkingLotMissing,
 }: Props) => {
-  const { data } = useQuery({
+  const { data, isPlaceholderData, isSuccess } = useQuery({
     ...parkingViewportQueryOptions(viewport),
     placeholderData: keepPreviousData,
   });
 
   const parkingMarkers = [...(data?.parkingLots ?? [])];
+
+  useEffect(() => {
+    if (selectedParkingLotId === null || !isSuccess || isPlaceholderData) return;
+
+    const isSelectedParkingLotVisible = data.parkingLots.some(
+      ({ id }) => id === selectedParkingLotId,
+    );
+
+    if (!isSelectedParkingLotVisible) {
+      onSelectedParkingLotMissing();
+    }
+  }, [data, isPlaceholderData, isSuccess, onSelectedParkingLotMissing, selectedParkingLotId]);
 
   return (
     <>

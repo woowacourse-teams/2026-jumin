@@ -6,7 +6,7 @@ import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
-import { useMapViewport } from './hooks/useMapViewport';
+import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
 import BottomSheet, { BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
@@ -21,7 +21,7 @@ const currentLocationIcon = {
   width: 30,
   height: 30,
   anchorX: 15,
-  anchorY: 14,
+  anchorY: 15,
 };
 
 const MIN_PARKING_MARKER_ZOOM = 15;
@@ -34,15 +34,31 @@ interface MapLocation {
 export const HomePage = () => {
   const navigate = useNavigate();
   const map = useOutletContext<naver.maps.Map | null>();
-  const viewport = useMapViewport(map);
-
-  const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 선택된 주차장 ID
   const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
 
   // 바텀시트
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+
+  const clearParkingSelection = useCallback(() => {
+    setSheetSnap('collapsed');
+    setSelectedParkingLotId(null);
+  }, []);
+
+  const handleViewportChange = useCallback(
+    (nextViewport: MapViewport) => {
+      if (nextViewport.zoom < MIN_PARKING_MARKER_ZOOM) {
+        clearParkingSelection();
+      }
+    },
+    [clearParkingSelection],
+  );
+
+  const viewport = useMapViewport(map, { onViewportChange: handleViewportChange });
+
+  /** 현재 뷰포트에서 주차장을 볼 수 있는지 여부 */
+  const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
   const handleParkingMarkerClick = (parkingLotId: number) => {
@@ -92,6 +108,7 @@ export const HomePage = () => {
             viewport={viewport}
             selectedParkingLotId={selectedParkingLotId}
             onSelect={handleParkingMarkerClick}
+            onSelectedParkingLotMissing={clearParkingSelection}
           />
         ) : (
           <p className={zoomGuideStyle} role="status" aria-live="polite">

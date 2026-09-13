@@ -7,7 +7,14 @@ export type MapViewport = Readonly<
   }
 >;
 
-export const useMapViewport = (map: naver.maps.Map | null) => {
+interface UseMapViewportOptions {
+  onViewportChange?: (viewport: MapViewport) => void;
+}
+
+export const useMapViewport = (
+  map: naver.maps.Map | null,
+  { onViewportChange }: UseMapViewportOptions = {},
+) => {
   const [viewport, setViewport] = useState<MapViewport | null>(null);
 
   useEffect(() => {
@@ -19,13 +26,16 @@ export const useMapViewport = (map: naver.maps.Map | null) => {
       const southWest = bounds.getSW();
       const northEast = bounds.getNE();
 
-      setViewport({
+      const nextViewport: MapViewport = {
         zoom: map.getZoom(),
         southLatitude: southWest.lat(),
         westLongitude: southWest.lng(),
         northLatitude: northEast.lat(),
         eastLongitude: northEast.lng(),
-      });
+      };
+
+      setViewport(nextViewport);
+      onViewportChange?.(nextViewport);
     };
 
     updateViewport();
@@ -35,7 +45,7 @@ export const useMapViewport = (map: naver.maps.Map | null) => {
     return () => {
       naver.maps.Event.removeListener(listener);
     };
-  }, [map]);
+  }, [map, onViewportChange]);
 
   return viewport;
 };
