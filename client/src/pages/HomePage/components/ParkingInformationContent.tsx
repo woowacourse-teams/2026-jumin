@@ -7,8 +7,8 @@ import type {
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
-import { useState } from 'react';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { useModal } from '../../../../shared/hooks/useModal';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -53,7 +53,7 @@ const formatPaidStatus = (paid: boolean | null) => {
 };
 
 export const ParkingInformationContent = ({ parkingLot }: Props) => {
-  const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
+  const modal = useModal();
 
   const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
 
@@ -134,18 +134,14 @@ export const ParkingInformationContent = ({ parkingLot }: Props) => {
         </dl>
       </section>
       <div className={sheetFooterStyle}>
-        <button
-          className={navigationButtonStyle}
-          type="button"
-          onClick={() => setIsDeepLinkModalOpen(true)}
-        >
+        <button className={navigationButtonStyle} type="button" onClick={modal.open}>
           길찾기 시작
         </button>
       </div>
 
       <DeepLinkModal
-        isOpen={isDeepLinkModalOpen}
-        onRequestClose={() => setIsDeepLinkModalOpen(false)}
+        isOpen={modal.isOpen}
+        onRequestClose={modal.close}
         destination={{
           name: data.name,
           location: {
