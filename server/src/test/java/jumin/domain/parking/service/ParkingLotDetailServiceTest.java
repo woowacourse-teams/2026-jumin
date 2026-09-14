@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyList;
 
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.Optional;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
@@ -16,6 +19,8 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +34,7 @@ class ParkingLotDetailServiceTest {
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
     private final ParkingSearchQueryValidator queryValidator = mock(ParkingSearchQueryValidator.class);
     private final ParkingOperationEvaluator operationEvaluator = mock(ParkingOperationEvaluator.class);
-    private final GeoDistanceCalculator geoDistanceCalculator = mock(GeoDistanceCalculator.class);
+    private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
     private ParkingLotDetailService service;
 
     @BeforeEach
@@ -39,8 +44,10 @@ class ParkingLotDetailServiceTest {
                 parkingOperationRepository,
                 queryValidator,
                 operationEvaluator,
-                geoDistanceCalculator
+                walkingDistanceService
         );
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of()));
     }
 
     @Test
@@ -52,10 +59,8 @@ class ParkingLotDetailServiceTest {
         ParkingOperation operation = parkingOperation();
         when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
-        when(geoDistanceCalculator.distanceMeters(
-                new Coordinate(37.4981, 127.0279),
-                new Coordinate(37.4990, 127.0290)
-        )).thenReturn(310);
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 540)));
         when(operationEvaluator.evaluate(operation, request.entryAt(), request.exitAt()))
                 .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
 
@@ -69,7 +74,7 @@ class ParkingLotDetailServiceTest {
         assertThat(result.location().latitude()).isEqualTo(37.4990);
         assertThat(result.location().longitude()).isEqualTo(127.0290);
         assertThat(result.capacity()).isEqualTo(42);
-        assertThat(result.distanceMeters()).isEqualTo(310);
+        assertThat(result.distanceMeters()).isEqualTo(540);
         assertThat(result.estimatedFee()).isEqualTo(6_000);
         assertThat(result.feeCalculationStatus()).isEqualTo("CALCULATED");
         assertThat(result.feeRule().baseFreeMinutes()).isZero();
@@ -98,11 +103,8 @@ class ParkingLotDetailServiceTest {
         ParkingLot parkingLot = parkingLot();
         when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
-        when(geoDistanceCalculator.distanceMeters(
-                new Coordinate(37.4981, 127.0279),
-                new Coordinate(37.4990, 127.0290)
-        )).thenReturn(310);
-
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 540)));
         // when
         ParkingLotDetailResponse result = service.getDetail(1L, request);
 
@@ -114,6 +116,37 @@ class ParkingLotDetailServiceTest {
         assertThat(result.operation().weekday().status()).isEqualTo("UNKNOWN");
         assertThat(result.operation().weekday().openTime()).isNull();
         assertThat(result.operation().weekday().paid()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 경로가 없으면 직선거리로 대체하지 않고 404 오류를 반환한다")
+    void fails_when_walking_route_does_not_exist() {
+        ParkingSearchRequest request = request();
+        ParkingLot parkingLot = parkingLot();
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
+        when(operationEvaluator.evaluate(null, request.entryAt(), request.exitAt())).thenReturn(null);
+
+        assertThatThrownBy(() -> service.getDetail(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALKING_ROUTE_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("보행망이 준비되지 않으면 상세 조회도 실패한다")
+    void fails_when_walking_network_is_unavailable() {
+        ParkingSearchRequest request = request();
+        ParkingLot parkingLot = parkingLot();
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
+
+        assertThatThrownBy(() -> service.getDetail(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALKING_NETWORK_UNAVAILABLE);
     }
 
     @Test

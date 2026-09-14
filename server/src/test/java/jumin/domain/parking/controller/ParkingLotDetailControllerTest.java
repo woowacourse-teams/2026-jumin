@@ -92,6 +92,20 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 
+    @Test
+    @DisplayName("도보 경로가 없으면 도보 경로 없음 메시지와 404를 반환한다")
+    void returns_not_found_when_walking_route_does_not_exist() throws Exception {
+        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_ROUTE_NOT_FOUND));
+
+        ResultActions response = mockMvc.perform(validRequest(1L));
+
+        response
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("주차장까지의 도보 경로를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
     private MockHttpServletRequestBuilder validRequest(long id) {
         return get("/api/parking/{parkingLotId}", id)
                 .queryParam("destinationLatitude", "37.4981")
