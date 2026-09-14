@@ -1,7 +1,9 @@
 import { Suspense } from 'react';
 import { screen } from '@testing-library/react';
 
-import { ParkingInformationContent } from '../../src/pages/MainPage/components/ParkingInformationContent';
+import { ParkingInformationContent } from '../../src/pages/HomePage/components/ParkingInformationContent';
+import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
+import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { renderWithProviders } from '../renderWithProviders';
 
 const renderParkingInformation = (parkingLotId = 101) =>
@@ -12,6 +14,12 @@ const renderParkingInformation = (parkingLotId = 101) =>
   );
 
 describe('홈페이지 주차장 상세정보', () => {
+  it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {
+    expect(
+      parkingViewportLots.every(({ id }) => viewportParkingLotDetailFixtures[id] !== undefined),
+    ).toBe(true);
+  });
+
   it('주차장 기본 정보, 요금, 운영 정보와 시설 정보를 표시한다', async () => {
     renderParkingInformation();
 

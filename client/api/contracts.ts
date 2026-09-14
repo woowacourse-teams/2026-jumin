@@ -91,6 +91,17 @@ export interface ParkingLotDetailResponse {
   source?: ParkingInformationSource;
 }
 
+export interface ParkingLotViewport {
+  id: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ParkingLotViewportResponse {
+  totalCount: number;
+  parkingLots: ParkingLotViewport[];
+}
+
 export type DailyOperationsDay = 'WEEKDAY' | 'SATURDAY' | 'HOLIDAY';
 export interface ViewportParkingLotDetailResponse {
   id: number;
