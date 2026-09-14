@@ -3,6 +3,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 
 import type {
   DailyOperationsDay,
+  ParkingLotViewport,
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
@@ -10,11 +11,7 @@ import { useState } from 'react';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 
 interface Props {
-  parkingLotId: number;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
+  parkingLot: ParkingLotViewport;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -55,10 +52,10 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLotId, location }: Props) => {
+export const ParkingInformationContent = ({ parkingLot }: Props) => {
   const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
 
-  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLotId));
+  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
 
   const feeRows = [
     {
@@ -151,7 +148,10 @@ export const ParkingInformationContent = ({ parkingLotId, location }: Props) => 
         onRequestClose={() => setIsDeepLinkModalOpen(false)}
         destination={{
           name: data.name,
-          location,
+          location: {
+            latitude: parkingLot.latitude,
+            longitude: parkingLot.longitude,
+          },
         }}
       />
     </section>

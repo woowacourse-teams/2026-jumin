@@ -9,18 +9,19 @@ import { renderWithProviders } from '../renderWithProviders';
 import userEvent from '@testing-library/user-event';
 import { mockGeolocation } from '../testData';
 
-const renderParkingInformation = (parkingLotId = 101) =>
-  renderWithProviders(
+const renderParkingInformation = (parkingLotId = 101) => {
+  const parkingLot = parkingViewportLots.find(({ id }) => id === parkingLotId);
+
+  if (!parkingLot) {
+    throw new Error(`주차장 ID ${parkingLotId}의 목 데이터가 없습니다.`);
+  }
+
+  return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent
-        parkingLotId={parkingLotId}
-        location={{
-          latitude: 37.499,
-          longitude: 127.029,
-        }}
-      />
+      <ParkingInformationContent parkingLot={parkingLot} />
     </Suspense>,
   );
+};
 
 describe('홈페이지 주차장 상세정보', () => {
   it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {
