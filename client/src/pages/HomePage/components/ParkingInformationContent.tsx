@@ -6,9 +6,15 @@ import type {
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
+import { useState } from 'react';
+import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 
 interface Props {
   parkingLotId: number;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -49,7 +55,9 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLotId }: Props) => {
+export const ParkingInformationContent = ({ parkingLotId, location }: Props) => {
+  const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
+
   const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLotId));
 
   const feeRows = [
@@ -128,6 +136,24 @@ export const ParkingInformationContent = ({ parkingLotId }: Props) => {
           </div>
         </dl>
       </section>
+      <div className={sheetFooterStyle}>
+        <button
+          className={navigationButtonStyle}
+          type="button"
+          onClick={() => setIsDeepLinkModalOpen(true)}
+        >
+          길찾기 시작
+        </button>
+      </div>
+
+      <DeepLinkModal
+        isOpen={isDeepLinkModalOpen}
+        onRequestClose={() => setIsDeepLinkModalOpen(false)}
+        destination={{
+          name: data.name,
+          location,
+        }}
+      />
     </section>
   );
 };
@@ -294,4 +320,40 @@ const detailsStyle = css`
     font-weight: 750;
     text-align: right;
   }
+`;
+
+const navigationButtonStyle = css`
+  width: 100%;
+
+  min-height: 54px;
+
+  color: #fff;
+
+  font-family: inherit;
+
+  font-size: 16px;
+
+  font-weight: 800;
+
+  background: #4356d8;
+
+  border: 0;
+
+  border-radius: 14px;
+
+  cursor: pointer;
+
+  &:active {
+    background: #3548c8;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+
+    outline-offset: 3px;
+  }
+`;
+
+const sheetFooterStyle = css`
+  margin-top: 32px;
 `;

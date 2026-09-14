@@ -15,6 +15,7 @@ import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ParkingLotViewport } from '../../../api/contracts';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -35,6 +36,11 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const map = useOutletContext<naver.maps.Map | null>();
 
+  // 주차장 좌표 상태
+  const [selectedParkingLotLocation, setSelectedParkingLotLocation] = useState<MapLocation | null>(
+    null,
+  );
+
   // 선택된 주차장 ID
   const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
 
@@ -44,6 +50,7 @@ export const HomePage = () => {
   const clearParkingSelection = useCallback(() => {
     setSheetSnap('collapsed');
     setSelectedParkingLotId(null);
+    setSelectedParkingLotLocation(null);
   }, []);
 
   const handleViewportChange = useCallback(
@@ -61,8 +68,12 @@ export const HomePage = () => {
   const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
-  const handleParkingMarkerClick = (parkingLotId: number) => {
-    setSelectedParkingLotId(parkingLotId);
+  const handleParkingMarkerClick = (parkingLot: ParkingLotViewport) => {
+    setSelectedParkingLotId(parkingLot.id);
+    setSelectedParkingLotLocation({
+      latitude: parkingLot.latitude,
+      longitude: parkingLot.longitude,
+    });
     setSheetSnap('expanded');
   };
 
@@ -136,7 +147,7 @@ export const HomePage = () => {
         <BottomNav />
       </footer>
 
-      {selectedParkingLotId !== null && (
+      {selectedParkingLotId !== null && selectedParkingLotLocation !== null && (
         <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
           <QueryErrorResetBoundary>
             {({ reset }) => (
@@ -148,7 +159,10 @@ export const HomePage = () => {
                 )}
               >
                 <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                  <ParkingInformationContent parkingLotId={selectedParkingLotId} />
+                  <ParkingInformationContent
+                    parkingLotId={selectedParkingLotId}
+                    location={selectedParkingLotLocation}
+                  />
                 </Suspense>
               </ErrorBoundary>
             )}
