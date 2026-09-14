@@ -6,12 +6,22 @@ import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { renderWithProviders } from '../renderWithProviders';
 
-const renderParkingInformation = (parkingLotId = 101) =>
-  renderWithProviders(
+import userEvent from '@testing-library/user-event';
+import { mockGeolocation } from '../testData';
+
+const renderParkingInformation = (parkingLotId = 101) => {
+  const parkingLot = parkingViewportLots.find(({ id }) => id === parkingLotId);
+
+  if (!parkingLot) {
+    throw new Error(`주차장 ID ${parkingLotId}의 목 데이터가 없습니다.`);
+  }
+
+  return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent parkingLotId={parkingLotId} />
+      <ParkingInformationContent parkingLot={parkingLot} />
     </Suspense>,
   );
+};
 
 describe('홈페이지 주차장 상세정보', () => {
   it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {
@@ -64,5 +74,24 @@ describe('홈페이지 주차장 상세정보', () => {
     expect(screen.getAllByText('미제공').length).toBeGreaterThan(0);
     expect(screen.getAllByText('운영 정보 없음')).toHaveLength(3);
     expect(screen.getAllByText('유료 여부 미제공')).toHaveLength(3);
+  });
+
+  it('길찾기 버튼을 누르면 길찾기 앱 선택 모달을 연다', async () => {
+    mockGeolocation();
+    const user = userEvent.setup();
+
+    renderParkingInformation();
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: '길찾기 시작',
+      }),
+    );
+
+    expect(
+      screen.getByRole('dialog', {
+        name: '길찾기 앱 선택',
+      }),
+    ).toBeInTheDocument();
   });
 });

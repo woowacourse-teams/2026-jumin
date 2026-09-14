@@ -3,12 +3,15 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 
 import type {
   DailyOperationsDay,
+  ParkingLotViewport,
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
+import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { useModal } from '../../../../shared/hooks/useModal';
 
 interface Props {
-  parkingLotId: number;
+  parkingLot: ParkingLotViewport;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -49,8 +52,10 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLotId }: Props) => {
-  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLotId));
+export const ParkingInformationContent = ({ parkingLot }: Props) => {
+  const modal = useModal();
+
+  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
 
   const feeRows = [
     {
@@ -128,6 +133,23 @@ export const ParkingInformationContent = ({ parkingLotId }: Props) => {
           </div>
         </dl>
       </section>
+      <div className={sheetFooterStyle}>
+        <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+          길찾기 시작
+        </button>
+      </div>
+
+      <DeepLinkModal
+        isOpen={modal.isOpen}
+        onRequestClose={modal.close}
+        destination={{
+          name: data.name,
+          location: {
+            latitude: parkingLot.latitude,
+            longitude: parkingLot.longitude,
+          },
+        }}
+      />
     </section>
   );
 };
@@ -294,4 +316,40 @@ const detailsStyle = css`
     font-weight: 750;
     text-align: right;
   }
+`;
+
+const navigationButtonStyle = css`
+  width: 100%;
+
+  min-height: 54px;
+
+  color: #fff;
+
+  font-family: inherit;
+
+  font-size: 16px;
+
+  font-weight: 800;
+
+  background: #4356d8;
+
+  border: 0;
+
+  border-radius: 14px;
+
+  cursor: pointer;
+
+  &:active {
+    background: #3548c8;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+
+    outline-offset: 3px;
+  }
+`;
+
+const sheetFooterStyle = css`
+  margin-top: 32px;
 `;

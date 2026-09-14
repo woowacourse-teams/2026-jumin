@@ -5,6 +5,7 @@ import { parkingViewportQueryOptions } from '../../../../api/queries/parkingView
 import { ParkingViewportParams } from '../../../../api/parkingLots';
 
 import viewportParkingMarkerUrl from '../../../../assets/icons/markers/viewportParkingMarker.svg';
+import { ParkingLotViewport } from '../../../../api/contracts';
 
 const viewportParkingMarkerIcon = {
   url: viewportParkingMarkerUrl,
@@ -18,7 +19,7 @@ interface Props {
   map: naver.maps.Map;
   viewport: Readonly<ParkingViewportParams>;
   selectedParkingLotId: number | null;
-  onSelect: (parkingLotId: number) => void;
+  onSelect: (parkingLot: ParkingLotViewport) => void;
   onSelectedParkingLotMissing: () => void;
 }
 
@@ -62,7 +63,7 @@ export const ViewportParkingMarkers = ({
             icon={viewportParkingMarkerIcon}
             title="주차장"
             zIndex={isSelected ? 20 : 10}
-            onClick={() => onSelect(parkingLot.id)}
+            onClick={() => onSelect(parkingLot)}
           />
         );
       })}

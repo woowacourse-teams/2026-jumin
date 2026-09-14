@@ -15,6 +15,7 @@ import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ParkingLotViewport } from '../../../api/contracts';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -35,15 +36,14 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const map = useOutletContext<naver.maps.Map | null>();
 
-  // 선택된 주차장 ID
-  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
+  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
 
   // 바텀시트
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
 
   const clearParkingSelection = useCallback(() => {
     setSheetSnap('collapsed');
-    setSelectedParkingLotId(null);
+    setSelectedParkingLot(null);
   }, []);
 
   const handleViewportChange = useCallback(
@@ -61,8 +61,8 @@ export const HomePage = () => {
   const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
-  const handleParkingMarkerClick = (parkingLotId: number) => {
-    setSelectedParkingLotId(parkingLotId);
+  const handleParkingMarkerClick = (parkingLot: ParkingLotViewport) => {
+    setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
   };
 
@@ -106,7 +106,7 @@ export const HomePage = () => {
           <ViewportParkingMarkers
             map={map}
             viewport={viewport}
-            selectedParkingLotId={selectedParkingLotId}
+            selectedParkingLotId={selectedParkingLot?.id ?? null}
             onSelect={handleParkingMarkerClick}
             onSelectedParkingLotMissing={clearParkingSelection}
           />
@@ -136,19 +136,19 @@ export const HomePage = () => {
         <BottomNav />
       </footer>
 
-      {selectedParkingLotId !== null && (
+      {selectedParkingLot !== null && (
         <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
           <QueryErrorResetBoundary>
             {({ reset }) => (
               <ErrorBoundary
                 onReset={reset}
-                resetKeys={[selectedParkingLotId]}
+                resetKeys={[selectedParkingLot]}
                 fallbackRender={({ resetErrorBoundary }) => (
                   <ErrorCard label="주차장 정보를 불러오지 못했어요" onRetry={resetErrorBoundary} />
                 )}
               >
                 <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                  <ParkingInformationContent parkingLotId={selectedParkingLotId} />
+                  <ParkingInformationContent parkingLot={selectedParkingLot} />
                 </Suspense>
               </ErrorBoundary>
             )}
