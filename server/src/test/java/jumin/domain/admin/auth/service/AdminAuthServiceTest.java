@@ -62,10 +62,13 @@ class AdminAuthServiceTest {
     @Test
     @DisplayName("정상 계정으로 로그인하면 2시간 유효한 Bearer 토큰을 반환한다")
     void issuesTwoHourBearerToken() {
-        AdminLoginResponse response = adminAuthService.login(
-                new AdminLoginRequest("  " + LOGIN_ID + "  ", PASSWORD)
-        );
+        // given
+        AdminLoginRequest request = new AdminLoginRequest("  " + LOGIN_ID + "  ", PASSWORD);
 
+        // when
+        AdminLoginResponse response = adminAuthService.login(request);
+
+        // then
         Jwt jwt = jwtDecoder.decode(response.accessToken());
         assertThat(response.tokenType())
                 .isEqualTo("Bearer");
@@ -82,6 +85,7 @@ class AdminAuthServiceTest {
     @Test
     @DisplayName("잘못된 ID와 비밀번호는 동일한 로그인 실패 오류를 반환한다")
     void rejectsInvalidCredentialsWithSameError() {
+        // when & then
         assertLoginFailed(new AdminLoginRequest("wrong-admin", PASSWORD));
         assertLoginFailed(new AdminLoginRequest(LOGIN_ID, "wrong-password"));
     }
@@ -89,11 +93,14 @@ class AdminAuthServiceTest {
     @Test
     @DisplayName("공백을 포함한 비밀번호는 공백까지 일치해야 로그인할 수 있다")
     void preservesSpacesInConfiguredPassword() {
+        // given
         String passwordWithSpaces = " " + PASSWORD + " ";
         configureService(passwordWithSpaces);
 
+        // when
         AdminLoginResponse response = adminAuthService.login(new AdminLoginRequest(LOGIN_ID, passwordWithSpaces));
 
+        // then
         assertThat(response.accessToken())
                 .isNotBlank();
         assertLoginFailed(new AdminLoginRequest(LOGIN_ID, PASSWORD));

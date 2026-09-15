@@ -79,6 +79,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("정상 로그인은 Bearer 토큰과 7200초 만료시간 및 no-store 헤더를 반환한다")
     void returnsAccessTokenForValidCredentials() throws Exception {
+        // when & then
         MvcResult result = login(LOGIN_ID, PASSWORD)
                 .andExpect(status()
                         .isOk())
@@ -103,6 +104,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("잘못된 ID와 비밀번호는 같은 401 응답을 반환한다")
     void returnsSameUnauthorizedResponseForInvalidCredentials() throws Exception {
+        // when & then
         assertLoginFailed("wrong-admin", PASSWORD);
         assertLoginFailed(LOGIN_ID, "wrong-password");
     }
@@ -110,10 +112,12 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("로그인 실패가 반복되어도 차단하지 않고 정상 계정의 로그인을 허용한다")
     void allowsLoginAfterRepeatedFailures() throws Exception {
+        // given
         for (int attempt = 0; attempt < 6; attempt++) {
             assertLoginFailed(LOGIN_ID, "wrong-password");
         }
 
+        // when & then
         login(LOGIN_ID, PASSWORD)
                 .andExpect(status()
                         .isOk());
@@ -122,6 +126,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("ID 앞뒤 공백은 제거하고 비밀번호 공백은 그대로 검증한다")
     void trimsOnlyLoginId() throws Exception {
+        // when & then
         login("  " + LOGIN_ID + "  ", PASSWORD)
                 .andExpect(status()
                         .isOk());
@@ -133,6 +138,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("ID나 비밀번호가 누락되거나 빈 값이면 400을 반환한다")
     void rejectsMissingOrEmptyCredentials() throws Exception {
+        // when & then
         assertValidationError(
                 "{\"password\":\"test-password\"}",
                 "loginId",
@@ -163,6 +169,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("요청 본문이 없거나 JSON 형식이 잘못되면 400을 반환한다")
     void rejectsMissingOrMalformedRequestBody() throws Exception {
+        // when & then
         mockMvc.perform(post(LOGIN_PATH)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status()
@@ -182,6 +189,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("토큰 없이 보호된 어드민 API를 호출하면 공통 401 응답을 반환한다")
     void rejectsProtectedAdminRequestWithoutToken() throws Exception {
+        // when & then
         MvcResult result = mockMvc.perform(post(PROTECTED_PATH))
                 .andExpect(status()
                         .isUnauthorized())
@@ -203,6 +211,7 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("만료된 토큰은 보호된 어드민 API에서 401을 반환한다")
     void rejectsExpiredToken() throws Exception {
+        // given
         Instant now = Instant.now();
         String expiredToken = createToken(
                 jwtEncoder,
@@ -210,12 +219,14 @@ class AdminAuthIntegrationTest {
                 now.minusSeconds(600)
         );
 
+        // when & then
         assertInvalidToken(expiredToken);
     }
 
     @Test
     @DisplayName("만료된 지 1초인 토큰도 시간 오차 허용 없이 401을 반환한다")
     void rejectsTokenExpiredOneSecondAgo() throws Exception {
+        // given
         Instant now = Instant.now();
         String expiredToken = createToken(
                 jwtEncoder,
@@ -223,12 +234,14 @@ class AdminAuthIntegrationTest {
                 now.minusSeconds(1)
         );
 
+        // when & then
         assertInvalidToken(expiredToken);
     }
 
     @Test
     @DisplayName("다른 키로 서명한 토큰은 보호된 어드민 API에서 401을 반환한다")
     void rejectsTokenSignedWithDifferentSecret() throws Exception {
+        // given
         SecretKey wrongSecretKey = new SecretKeySpec(
                 "different-test-token-secret-32-bytes".getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256"
@@ -239,23 +252,28 @@ class AdminAuthIntegrationTest {
         Instant now = Instant.now();
         String invalidToken = createToken(wrongEncoder, now, now.plusSeconds(7_200));
 
+        // when & then
         assertInvalidToken(invalidToken);
     }
 
     @Test
     @DisplayName("같은 키로 서명해도 다른 환경의 issuer인 토큰은 401을 반환한다")
     void rejectsTokenWithDifferentIssuer() throws Exception {
+        // given
         Instant now = Instant.now();
         String invalidToken = createToken(jwtEncoder, now, now.plusSeconds(7_200), "jumin-admin-other");
 
+        // when & then
         assertInvalidToken(invalidToken);
     }
 
     @Test
     @DisplayName("정상 토큰은 어드민 경로의 인증을 통과한다")
     void acceptsValidTokenForProtectedAdminPath() throws Exception {
+        // given
         String accessToken = loginAndReadAccessToken();
 
+        // when & then
         mockMvc.perform(post(PROTECTED_PATH)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status()
@@ -265,9 +283,11 @@ class AdminAuthIntegrationTest {
     @Test
     @DisplayName("기존 사용자 API는 토큰 없이 접근할 수 있다")
     void keepsExistingUserApiPublic() throws Exception {
+        // given
         given(parkingSearchService.search(any(ParkingSearchRequest.class)))
                 .willReturn(ParkingSearchResponse.from(600, List.of()));
 
+        // when & then
         mockMvc.perform(get("/api/parking/search")
                         .queryParam("destinationLatitude", "37.5665")
                         .queryParam("destinationLongitude", "126.9780")
