@@ -91,6 +91,40 @@ export interface ParkingLotDetailResponse {
   source?: ParkingInformationSource;
 }
 
+export interface ParkingLotViewport {
+  id: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ParkingLotViewportResponse {
+  totalCount: number;
+  parkingLots: ParkingLotViewport[];
+}
+
+export type DailyOperationsDay = 'WEEKDAY' | 'SATURDAY' | 'HOLIDAY';
+export interface ViewportParkingLotDetailResponse {
+  id: number;
+  name: string;
+  address: string;
+  capacity: number | null;
+  feeRule: {
+    baseFreeMinutes: number | null;
+    baseMinutes: number | null;
+    baseFee: number | null;
+    additionalMinutes: number | null;
+    additionalFee: number | null;
+    dailyMaxFee: number | null;
+  } | null;
+  dailyOperations: {
+    status: ParkingOperationStatus;
+    day: DailyOperationsDay;
+    openTime: string | null;
+    closeTime: string | null;
+    paid: boolean | null;
+  }[];
+}
+
 export interface FieldError {
   field: string;
   message: string;

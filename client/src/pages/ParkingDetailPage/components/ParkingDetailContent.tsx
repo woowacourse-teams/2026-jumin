@@ -14,6 +14,7 @@ import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
+import { useModal } from '../../../../shared/hooks/useModal';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -64,8 +65,9 @@ const formatCheckedDate = (lastCheckedAt: string) => {
 };
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
-  const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+
+  const modal = useModal();
 
   const { data: parkingLotDetail } = useSuspenseQuery(
     parkingDetailQueryOptions({
@@ -193,11 +195,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
               </p>
             )}
 
-            <button
-              className={navigationButtonStyle}
-              type="button"
-              onClick={() => setIsDeepLinkModalOpen(true)}
-            >
+            <button className={navigationButtonStyle} type="button" onClick={modal.open}>
               길찾기 시작
             </button>
           </div>
@@ -205,8 +203,8 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       </BottomSheet>
 
       <DeepLinkModal
-        isOpen={isDeepLinkModalOpen}
-        onRequestClose={() => setIsDeepLinkModalOpen(false)}
+        isOpen={modal.isOpen}
+        onRequestClose={modal.close}
         onDirectionsStart={() => saveRecentParkingUse(parkingLotDetail)}
         destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
       />
