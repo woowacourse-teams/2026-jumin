@@ -49,7 +49,6 @@ import org.springframework.test.web.servlet.ResultActions;
                 "admin.auth.login-id=test-admin",
                 "admin.auth.password-hash=$2y$10$2CGdlyW93vq30OgJ1NTD.OSCmxr1w9FNTD7E728l2ax58qias8r5a",
                 "admin.auth.token-secret=test-only-admin-token-secret-32-bytes",
-                "admin.auth.token-expiration=2h",
                 "admin.auth.environment=test"
         }
 )

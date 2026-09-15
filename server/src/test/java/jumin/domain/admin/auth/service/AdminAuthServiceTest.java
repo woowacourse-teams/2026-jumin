@@ -44,7 +44,6 @@ class AdminAuthServiceTest {
                 LOGIN_ID,
                 passwordEncoder.encode(password),
                 TOKEN_SECRET,
-                Duration.ofHours(2),
                 "test"
         );
         AdminSecurityConfig securityConfig = new AdminSecurityConfig();

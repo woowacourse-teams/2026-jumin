@@ -1,6 +1,7 @@
 package jumin.domain.admin.auth.service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import jumin.config.AdminAuthProperties;
 import jumin.domain.admin.auth.dto.AdminLoginRequest;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 public class AdminAuthService {
 
     private static final String ADMIN_SUBJECT = "admin";
+    private static final Duration TOKEN_EXPIRATION = Duration.ofHours(2);
 
     private final AdminAuthProperties properties;
     private final PasswordEncoder passwordEncoder;
@@ -39,12 +41,12 @@ public class AdminAuthService {
         }
 
         Jwt token = issueAccessToken();
-        return AdminLoginResponse.from(token.getTokenValue(), properties.tokenExpiration());
+        return AdminLoginResponse.from(token.getTokenValue(), TOKEN_EXPIRATION);
     }
 
     private Jwt issueAccessToken() {
         Instant issuedAt = clock.instant();
-        Instant expiresAt = issuedAt.plus(properties.tokenExpiration());
+        Instant expiresAt = issuedAt.plus(TOKEN_EXPIRATION);
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(ADMIN_SUBJECT)
