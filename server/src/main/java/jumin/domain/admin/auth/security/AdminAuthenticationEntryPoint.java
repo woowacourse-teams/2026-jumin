@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import jumin.global.exception.ErrorCode;
 import jumin.global.response.ApiErrorResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -30,6 +31,7 @@ public class AdminAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         response.setStatus(errorCode.getHttpStatus()
                 .value());
+        response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
