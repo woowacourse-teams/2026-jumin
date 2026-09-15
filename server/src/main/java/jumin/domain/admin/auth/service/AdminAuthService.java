@@ -31,10 +31,8 @@ public class AdminAuthService {
     private final Clock clock;
 
     public AdminLoginResponse login(AdminLoginRequest request) {
-        String loginId = request.loginId()
-                .strip();
-        boolean loginIdMatches = properties.loginId()
-                .equals(loginId);
+        String loginId = request.loginId().strip();
+        boolean loginIdMatches = properties.loginId().equals(loginId);
         boolean passwordMatches = passwordEncoder.matches(request.password(), properties.passwordHash());
         if (!loginIdMatches || !passwordMatches) {
             throw new BusinessException(ErrorCode.ADMIN_LOGIN_FAILED);
