@@ -21,17 +21,15 @@ public class WalkingDistanceRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public List<WalkingDistanceQueryResult> findDistances(
-        double latitude,
-        double longitude,
-        List<Long> parkingLotIds,
-        int maxDistanceMeters,
-        int maxSnapDistanceMeters
+            double latitude,
+            double longitude,
+            List<Long> parkingLotIds,
+            int maxSnapDistanceMeters
     ) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
             .addValue("latitude", latitude)
             .addValue("longitude", longitude)
             .addValue("parkingLotIds", parkingLotIds)
-            .addValue("maxDistanceMeters", maxDistanceMeters)
             .addValue("maxSnapDistanceMeters", maxSnapDistanceMeters);
 
         return jdbcTemplate.query(

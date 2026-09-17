@@ -57,27 +57,35 @@ candidate_nodes AS (
         LIMIT 1
     ) node
 ),
--- 3. 목적지 노드에서 제한 거리 안에 도달할 수 있는 모든 보행 노드를 탐색한다.
+-- 3. 목적지 노드에서 후보 보행 노드까지의 최단 보행로 거리를 계산한다.
 routes AS (
-    SELECT route.node,
+    SELECT destination.id AS node_id,
+           0::double precision AS agg_cost,
+           destination.snap_distance AS destination_snap_distance
+    FROM destination_node destination
+
+    UNION ALL
+
+    SELECT route.end_vid AS node_id,
            route.agg_cost,
            destination.snap_distance AS destination_snap_distance
     FROM destination_node destination
-    CROSS JOIN LATERAL pgr_drivingDistance(
+    CROSS JOIN LATERAL pgr_dijkstraCost(
         'SELECT id, source, target, cost, reverse_cost '
             || 'FROM walking_edges WHERE walkable = true',
         destination.id,
-        GREATEST(:maxDistanceMeters - destination.snap_distance, 0),
+        ARRAY(
+            SELECT DISTINCT candidate.node_id
+            FROM candidate_nodes candidate
+            WHERE candidate.node_id <> destination.id
+        ),
         true
     ) route
 )
--- 4. 보행로 거리와 양 끝의 연결 거리를 합산해 제한 거리 안의 주차장만 반환한다.
+-- 4. 보행로 거리와 양 끝의 연결 거리를 합산해 도보거리를 반환한다.
 SELECT candidate.parking_lot_id,
        ROUND((routes.agg_cost
            + routes.destination_snap_distance
            + candidate.snap_distance)::numeric)::integer AS distance_meters
 FROM candidate_nodes candidate
-JOIN routes ON routes.node = candidate.node_id
-WHERE routes.agg_cost
-    + routes.destination_snap_distance
-    + candidate.snap_distance <= :maxDistanceMeters
+JOIN routes ON routes.node_id = candidate.node_id

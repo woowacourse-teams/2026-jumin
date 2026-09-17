@@ -3,7 +3,6 @@ package jumin.domain.parking.service;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
@@ -156,8 +155,6 @@ public class ParkingSearchService {
                         durationMinutes,
                         walkingDistances
                 ))
-                .filter(Objects::nonNull)
-                .filter(result -> result.distanceMeters() <= SEARCH_RADIUS_METERS)
                 .toList();
     }
 
@@ -182,10 +179,6 @@ public class ParkingSearchService {
         );
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
-        if (distanceMeters == null) {
-            return null;
-        }
-
         Integer estimatedFee = null;
         if (operation != null) {
             estimatedFee = operation.calculateFee(
@@ -194,7 +187,7 @@ public class ParkingSearchService {
             );
         }
 
-        Double balancedScore = balancedScoreCalculator.calculate(
+        Double balancedScore = distanceMeters == null ? null : balancedScoreCalculator.calculate(
                 availabilityStatus,
                 distanceMeters,
                 estimatedFee,

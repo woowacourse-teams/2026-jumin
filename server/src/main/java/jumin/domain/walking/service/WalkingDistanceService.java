@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class WalkingDistanceService {
 
-    private static final int SEARCH_RADIUS_METERS = 600;
     private static final int MAX_SNAP_DISTANCE_METERS = 100;
 
     private final WalkingDistanceRepository walkingDistanceRepository;
@@ -43,7 +42,6 @@ public class WalkingDistanceService {
                 latitude,
                 longitude,
                 parkingLotIds,
-                SEARCH_RADIUS_METERS,
                 MAX_SNAP_DISTANCE_METERS
             ).stream()
             .collect(Collectors.toMap(
