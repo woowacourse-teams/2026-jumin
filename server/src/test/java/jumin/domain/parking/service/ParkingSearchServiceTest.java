@@ -94,8 +94,8 @@ class ParkingSearchServiceTest {
     }
 
     @Test
-    @DisplayName("보행망이 있으면 주차장별 도보거리로 후보를 필터링한다")
-    void filters_and_maps_candidates_by_walking_distance_when_network_is_available() {
+    @DisplayName("직선거리 후보는 도보거리가 600m를 넘어도 반환한다")
+    void returns_candidates_even_when_walking_distance_exceeds_radius() {
         // given
         ParkingLot first = parkingLot(1L, 37.4982, 127.0280);
         ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
@@ -104,15 +104,15 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
-                .thenReturn(new WalkingDistanceResult(Map.of(1L, 500, 2L, 650)));
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 500, 2L, 700)));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
 
         // then
-        assertThat(result.totalCount()).isEqualTo(1);
-        assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
-        assertThat(result.parkingLots().getFirst().distanceMeters()).isEqualTo(500);
+        assertThat(result.totalCount()).isEqualTo(2);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
+                .containsExactlyInAnyOrder(500, 700);
     }
 
     @Test
@@ -130,8 +130,8 @@ class ParkingSearchServiceTest {
     }
 
     @Test
-    @DisplayName("거리 재계산 결과가 반경을 벗어나면 후보에서 제외한다")
-    void filters_candidates_outside_radius_after_distance_recalculation() {
+    @DisplayName("도보 경로가 없는 후보도 직선거리 후보면 반환한다")
+    void returns_candidate_without_walking_route() {
         // given
         ParkingLot outside = parkingLot(3L, 37.5040, 127.0279);
         when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
@@ -139,14 +139,15 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(3L)));
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
-                .thenReturn(new WalkingDistanceResult(Map.of(3L, 700)));
+                .thenReturn(new WalkingDistanceResult(Map.of()));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
 
         // then
-        assertThat(result.totalCount()).isZero();
-        assertThat(result.parkingLots()).isEmpty();
+        assertThat(result.totalCount()).isOne();
+        assertThat(result.parkingLots().getFirst().distanceMeters()).isNull();
+        assertThat(result.parkingLots().getFirst().balancedScore()).isNull();
     }
 
     @Test

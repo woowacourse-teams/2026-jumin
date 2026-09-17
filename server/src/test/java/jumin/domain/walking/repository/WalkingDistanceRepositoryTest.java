@@ -1,6 +1,7 @@
 package jumin.domain.walking.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import jumin.TestcontainersConfiguration;
@@ -30,8 +31,8 @@ class WalkingDistanceRepositoryTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    @DisplayName("목적지에서 모든 후보 노드까지 bounded Dijkstra 거리를 한 번에 계산한다")
-    void finds_all_candidate_distances_within_limit() {
+    @DisplayName("목적지에서 모든 후보 노드까지 거리 제한 없이 최단 도보거리를 계산한다")
+    void finds_all_candidate_distances_without_distance_limit() {
         // given
         insertWalkingGraph();
         long nearParkingLotId = insertParkingLot("near-walking-network");
@@ -42,17 +43,17 @@ class WalkingDistanceRepositoryTest {
                 37.4981,
                 127.0279,
                 List.of(nearParkingLotId, farParkingLotId),
-                600,
                 100
         );
 
         // then
         assertThat(walkingDistanceRepository.hasUsableNetwork()).isTrue();
-        assertThat(results).singleElement()
-                .satisfies(result -> {
-                    assertThat(result.parkingLotId()).isEqualTo(nearParkingLotId);
-                    assertThat(result.distanceMeters()).isEqualTo(31);
-                });
+        assertThat(results)
+                .extracting(WalkingDistanceQueryResult::parkingLotId, WalkingDistanceQueryResult::distanceMeters)
+                .containsExactlyInAnyOrder(
+                        tuple(nearParkingLotId, 31),
+                        tuple(farParkingLotId, 710)
+                );
     }
 
     private void insertWalkingGraph() {
