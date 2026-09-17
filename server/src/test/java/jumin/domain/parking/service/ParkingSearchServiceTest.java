@@ -19,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
@@ -61,7 +62,7 @@ class ParkingSearchServiceTest {
                 .thenAnswer(invocation -> {
                     List<ParkingLot> parkingLots = invocation.getArgument(2);
                     return new WalkingDistanceResult(parkingLots.stream()
-                            .collect(java.util.stream.Collectors.toMap(ParkingLot::getId, ignored -> 500)));
+                            .collect(Collectors.toMap(ParkingLot::getId, ignored -> 500)));
                 });
     }
 

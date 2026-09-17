@@ -3,6 +3,7 @@ package jumin.domain.parking.service;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
@@ -155,7 +156,7 @@ public class ParkingSearchService {
                         durationMinutes,
                         walkingDistances
                 ))
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .filter(result -> result.distanceMeters() <= SEARCH_RADIUS_METERS)
                 .toList();
     }
