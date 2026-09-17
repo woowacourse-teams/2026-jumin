@@ -31,8 +31,8 @@ class WalkingDistanceRepositoryTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    @DisplayName("목적지에서 모든 후보 노드까지 거리 제한 없이 최단 도보거리를 계산한다")
-    void finds_all_candidate_distances_without_distance_limit() {
+    @DisplayName("단절된 가장 가까운 노드 대신 연결된 주변 노드를 경유해 최단 도보거리를 계산한다")
+    void finds_distances_through_connected_nearby_nodes() {
         // given
         insertWalkingGraph();
         long nearParkingLotId = insertParkingLot("near-walking-network");
@@ -51,8 +51,8 @@ class WalkingDistanceRepositoryTest {
         assertThat(results)
                 .extracting(WalkingDistanceQueryResult::parkingLotId, WalkingDistanceQueryResult::distanceMeters)
                 .containsExactlyInAnyOrder(
-                        tuple(nearParkingLotId, 31),
-                        tuple(farParkingLotId, 710)
+                        tuple(nearParkingLotId, 26),
+                        tuple(farParkingLotId, 709)
                 );
     }
 
@@ -63,18 +63,20 @@ class WalkingDistanceRepositoryTest {
                     (2, 'INTERSECTION', ST_SetSRID(ST_MakePoint(127.0280, 37.4981), 4326)),
                     (3, 'PARKING', ST_SetSRID(ST_MakePoint(127.0282, 37.4981), 4326)),
                     (4, 'PARKING', ST_SetSRID(ST_MakePoint(127.0360, 37.4981), 4326)),
-                    (5, 'ISOLATED', ST_SetSRID(ST_MakePoint(127.02819, 37.4981), 4326))
+                    (5, 'DETACHED', ST_SetSRID(ST_MakePoint(127.02819, 37.4981), 4326)),
+                    (6, 'DETACHED', ST_SetSRID(ST_MakePoint(127.02818, 37.4981), 4326))
                 """);
         jdbcTemplate.update("""
                 insert into walking_edges (id, source, target, geom, cost, reverse_cost) values
                     (1, 1, 2, ST_GeomFromText('LINESTRING (127.0279 37.4981, 127.0280 37.4981)', 4326), 10, 10),
                     (2, 2, 3, ST_GeomFromText('LINESTRING (127.0280 37.4981, 127.0282 37.4981)', 4326), 20, 20),
-                    (3, 2, 4, ST_GeomFromText('LINESTRING (127.0280 37.4981, 127.0360 37.4981)', 4326), 700, 700)
+                    (3, 2, 4, ST_GeomFromText('LINESTRING (127.0280 37.4981, 127.0360 37.4981)', 4326), 700, 700),
+                    (4, 5, 6, ST_GeomFromText('LINESTRING (127.02819 37.4981, 127.02818 37.4981)', 4326), 1, 1)
                 """);
         jdbcTemplate.update("""
                 insert into walking_network_metadata (
                     id, status, source, source_row_count, node_count, edge_count, imported_at
-                ) values (1, 'READY', 'TEST', 8, 5, 3, current_timestamp)
+                ) values (1, 'READY', 'TEST', 10, 6, 4, current_timestamp)
                 """);
     }
 

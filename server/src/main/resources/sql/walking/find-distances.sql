@@ -1,5 +1,5 @@
--- 1. 목적지 좌표를 연결 가능한 가장 가까운 보행 노드에 연결한다.
-WITH destination_node AS (
+-- 1. 목적지 좌표를 연결 가능한 주변 보행 노드에 연결한다.
+WITH destination_nodes AS (
     SELECT node.id,
            ST_Distance(
                node.geom::geography,
@@ -17,12 +17,8 @@ WITH destination_node AS (
           WHERE edge.walkable = true
             AND (edge.source = node.id OR edge.target = node.id)
       )
-    ORDER BY node.geom::geography <-> ST_SetSRID(
-        ST_MakePoint(:longitude, :latitude), 4326
-    )::geography
-    LIMIT 1
 ),
--- 2. 각 주차장 좌표를 연결 가능한 가장 가까운 보행 노드에 연결한다.
+-- 2. 각 주차장 좌표를 연결 가능한 주변 보행 노드에 연결한다.
 candidate_nodes AS (
     SELECT parking_lot.id AS parking_lot_id,
            node.id AS node_id,
@@ -51,41 +47,39 @@ candidate_nodes AS (
               WHERE edge.walkable = true
                 AND (edge.source = candidate.id OR edge.target = candidate.id)
           )
-        ORDER BY candidate.geom::geography <-> ST_SetSRID(
-            ST_MakePoint(parking_lot.longitude, parking_lot.latitude), 4326
-        )::geography
-        LIMIT 1
     ) node
 ),
--- 3. 목적지 노드에서 후보 보행 노드까지의 최단 보행로 거리를 계산한다.
+-- 3. 목적지·주차장 노드 조합별 최단 보행로 거리를 계산한다.
 routes AS (
-    SELECT destination.id AS node_id,
+    SELECT destination.id AS destination_node_id,
+           destination.id AS candidate_node_id,
            0::double precision AS agg_cost,
-           destination.snap_distance AS destination_snap_distance
-    FROM destination_node destination
+           destination.snap_distance
+    FROM destination_nodes destination
 
     UNION ALL
 
-    SELECT route.end_vid AS node_id,
+    SELECT route.start_vid AS destination_node_id,
+           route.end_vid AS candidate_node_id,
            route.agg_cost,
-           destination.snap_distance AS destination_snap_distance
-    FROM destination_node destination
-    CROSS JOIN LATERAL pgr_dijkstraCost(
+           destination.snap_distance
+    FROM destination_nodes destination
+    JOIN pgr_dijkstraCost(
         'SELECT id, source, target, cost, reverse_cost '
             || 'FROM walking_edges WHERE walkable = true',
-        destination.id,
+        ARRAY(SELECT DISTINCT node.id FROM destination_nodes node),
         ARRAY(
             SELECT DISTINCT candidate.node_id
             FROM candidate_nodes candidate
-            WHERE candidate.node_id <> destination.id
         ),
         true
-    ) route
+    ) route ON route.start_vid = destination.id
 )
--- 4. 보행로 거리와 양 끝의 연결 거리를 합산해 도보거리를 반환한다.
+-- 4. 연결된 조합 중 총 도보거리가 가장 짧은 값을 주차장별로 반환한다.
 SELECT candidate.parking_lot_id,
-       ROUND((routes.agg_cost
-           + routes.destination_snap_distance
-           + candidate.snap_distance)::numeric)::integer AS distance_meters
+       ROUND(MIN((routes.agg_cost
+           + routes.snap_distance
+           + candidate.snap_distance))::numeric)::integer AS distance_meters
 FROM candidate_nodes candidate
-JOIN routes ON routes.node_id = candidate.node_id
+JOIN routes ON routes.candidate_node_id = candidate.node_id
+GROUP BY candidate.parking_lot_id
