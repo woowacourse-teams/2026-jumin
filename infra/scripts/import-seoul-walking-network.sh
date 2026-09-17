@@ -86,7 +86,7 @@ append_rows() {
       else tostring
       end;
     def copy_value:
-      if . == null then "\\N" else tostring end;
+      if . == null then "" else tostring end;
     .TbTraficWlkNet.row[]?
     | select((.NODE_TYPE // "" | tostring | gsub("\\s"; "") | ascii_upcase) == "NODE")
     | (.NODE_ID | id_value) as $id
@@ -112,7 +112,7 @@ append_rows() {
       else try (tostring | gsub("\\s"; "") | tonumber) catch null
       end;
     def copy_value:
-      if . == null then "\\N" else tostring end;
+      if . == null then "" else tostring end;
     .TbTraficWlkNet.row[]?
     | select((.NODE_TYPE // "" | tostring | gsub("\\s"; "") | ascii_upcase) == "LINK")
     | (.LNKG_ID | id_value) as $id
@@ -198,14 +198,14 @@ SQL
   cat <<'SQL'
 
 COPY import_walking_nodes (id, node_type_code, wkt)
-FROM STDIN WITH (FORMAT csv, DELIMITER E'\t', NULL '\N');
+FROM STDIN WITH (FORMAT text, DELIMITER E'\t', NULL '');
 SQL
   cat "$node_file"
   printf '\\.\n'
   cat <<'SQL'
 
 COPY import_walking_edges (id, source, target, link_type_code, length_m, wkt)
-FROM STDIN WITH (FORMAT csv, DELIMITER E'\t', NULL '\N');
+FROM STDIN WITH (FORMAT text, DELIMITER E'\t', NULL '');
 SQL
   cat "$edge_file"
   printf '\\.\n'
