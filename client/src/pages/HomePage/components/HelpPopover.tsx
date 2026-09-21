@@ -73,6 +73,7 @@ const backdropStyle = css`
   padding: 0;
   background: transparent;
   border: 0;
+  -webkit-tap-highlight-color: transparent;
   cursor: default;
 `;
 
