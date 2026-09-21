@@ -4,6 +4,24 @@ import userEvent from '@testing-library/user-event';
 
 import { HelpMenu } from '../../src/pages/HomePage/components/HelpMenu';
 
+it('첫 방문에 가이드를 자동으로 열고, 닫은 뒤에는 자동으로 다시 열지 않는다', async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<HelpMenu />);
+
+  expect(screen.getByRole('dialog', { name: '주차의민족 이용 가이드' })).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: '건너뛰기' }));
+  expect(localStorage.getItem('jucha-guide-seen-v2')).toBe('true');
+
+  unmount();
+  render(<HelpMenu />);
+  expect(screen.queryByRole('dialog', { name: '주차의민족 이용 가이드' })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: '도움말 메뉴 열기' }));
+  await user.click(screen.getByRole('button', { name: '가이드 보기' }));
+  expect(screen.getByRole('dialog', { name: '주차의민족 이용 가이드' })).toBeInTheDocument();
+});
+
 it('메뉴를 열면 닫기 아이콘으로 바뀌고, 바깥을 누르면 닫힌다', async () => {
   const user = userEvent.setup();
   render(<HelpMenu />);

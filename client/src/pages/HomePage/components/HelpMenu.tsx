@@ -13,10 +13,13 @@ import { HelpPopover } from './HelpPopover';
 
 const FEEDBACK_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSc4g7zOPP50jMT7AIfBj93PW4w80NJURx91v7NXS3_-jDVcTg/viewform?usp=sharing&ouid=114559092958069426550';
+const GUIDE_SEEN_KEY = 'jucha-guide-seen-v2';
 
 export const HelpMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(
+    () => localStorage.getItem(GUIDE_SEEN_KEY) !== 'true',
+  );
   const isInstallAvailable = useSyncExternalStore(
     subscribeToInstallAvailability,
     getInstallAvailability,
@@ -26,6 +29,11 @@ export const HelpMenu = () => {
   useEffect(() => {
     initializeInstallPrompt();
   }, []);
+
+  const closeGuide = () => {
+    localStorage.setItem(GUIDE_SEEN_KEY, 'true');
+    setIsGuideOpen(false);
+  };
 
   return (
     <div className={menuStyle}>
@@ -39,7 +47,7 @@ export const HelpMenu = () => {
           isInstallAvailable={isInstallAvailable}
         />
       )}
-      <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      <GuideModal isOpen={isGuideOpen} onClose={closeGuide} />
     </div>
   );
 };
