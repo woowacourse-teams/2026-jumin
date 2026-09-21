@@ -49,6 +49,7 @@ jobs:
         working-directory: client
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          CLARITY_PROJECT_ID: ${{ vars.CLARITY_DEV_PROJECT_ID }}
           NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
         run: pnpm build
 
