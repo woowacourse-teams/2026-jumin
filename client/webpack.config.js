@@ -63,6 +63,7 @@ module.exports = (env, argv) => {
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
         __PWA_ENABLED__: JSON.stringify(!isDevelopment),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
+        __CLARITY_PROJECT_ID__: JSON.stringify(process.env.CLARITY_PROJECT_ID ?? ''),
         __NAVER_MAP_CLIENT_ID__: JSON.stringify(process.env.NAVER_MAP_CLIENT_ID ?? ''),
       }),
       new HtmlWebpackPlugin({
