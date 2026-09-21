@@ -104,14 +104,14 @@ const overlayStyle = css`
 
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
 
   background: rgb(16 27 55 / 60%);
 `;
 
 const modalStyle = css`
   width: min(100%, 360px);
-  max-height: calc(100dvh - 32px);
+  max-height: 100%;
   padding: 8px 18px 18px;
   overflow-y: auto;
 

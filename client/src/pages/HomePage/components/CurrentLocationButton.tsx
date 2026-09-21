@@ -8,9 +8,8 @@ interface Props {
 export const CurrentLocationButton = ({ onClick }: Props) => (
   <div
     className={css`
-      position: absolute;
-      right: 16px;
-      bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+      width: 54px;
+      height: 54px;
     `}
   >
     <button
@@ -37,6 +36,7 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
           height: 74px;
           pointer-events: none;
           user-select: none;
+          transform: scale(0.9);
         `}
         src={currentLocationButtonIcon}
         alt=""

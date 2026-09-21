@@ -10,11 +10,10 @@ interface Props {
 export const HelpButton = ({ isOpen, onClick }: Props) => (
   <div
     className={css`
-      position: absolute;
-      right: 16px;
-      bottom: calc(164px + env(safe-area-inset-bottom, 0px));
+      position: relative;
       z-index: 4;
-      pointer-events: auto;
+      width: 54px;
+      height: 54px;
     `}
   >
     <button
@@ -51,6 +50,7 @@ const iconStyle = css`
   height: 66px;
   pointer-events: none;
   user-select: none;
+  transform: scale(0.9);
 `;
 
 const closeIconStyle = css`
@@ -58,4 +58,5 @@ const closeIconStyle = css`
   left: 4px;
   width: 54px;
   height: 54px;
+  transform: scale(0.9);
 `;

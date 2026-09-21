@@ -133,8 +133,10 @@ export const HomePage = () => {
         <SearchBar onClick={() => navigate('/search')} />
       </div>
       <footer className={footerStyle}>
-        <HelpMenu />
-        <CurrentLocationButton onClick={requestCurrentLocation} />
+        <div className={floatingControlsStyle}>
+          <HelpMenu />
+          <CurrentLocationButton onClick={requestCurrentLocation} />
+        </div>
         <BottomNav />
       </footer>
 
@@ -178,8 +180,9 @@ const headerStyle = css`
 
 const zoomGuideStyle = css`
   position: absolute;
-  bottom: 100px;
-  left: 50%;
+  right: 78px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  left: 16px;
   z-index: 1;
 
   margin: 0;
@@ -189,12 +192,12 @@ const zoomGuideStyle = css`
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  white-space: nowrap;
+  text-align: center;
+  word-break: keep-all;
 
   background: rgb(255 255 255 / 94%);
   border-radius: 999px;
   box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
-  transform: translateX(-50%);
 `;
 
 const footerStyle = css`
@@ -204,4 +207,16 @@ const footerStyle = css`
   bottom: 0;
   left: 0;
   z-index: 1;
+`;
+
+const floatingControlsStyle = css`
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
 `;

@@ -1,3 +1,4 @@
+import { css } from '@emotion/css';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { GuideModal } from '../../../../shared/components/Modal/GuideModal';
@@ -27,7 +28,7 @@ export const HelpMenu = () => {
   }, []);
 
   return (
-    <>
+    <div className={menuStyle}>
       <HelpButton isOpen={isOpen} onClick={() => setIsOpen((open) => !open)} />
       {isOpen && (
         <HelpPopover
@@ -39,6 +40,12 @@ export const HelpMenu = () => {
         />
       )}
       <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
-    </>
+    </div>
   );
 };
+
+const menuStyle = css`
+  position: relative;
+  width: 54px;
+  height: 54px;
+`;

@@ -78,8 +78,8 @@ const backdropStyle = css`
 
 const popoverStyle = css`
   position: absolute;
-  right: 30px;
-  bottom: calc(226px + env(safe-area-inset-bottom, 0px));
+  right: 0;
+  bottom: calc(100% + 8px);
   z-index: 3;
   pointer-events: auto;
 
@@ -88,6 +88,11 @@ const popoverStyle = css`
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgb(20 33 61 / 18%);
+
+  @media (max-height: 600px) {
+    max-height: calc(100dvh - 240px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+  }
 `;
 
 const itemStyle = css`
@@ -118,6 +123,10 @@ const itemStyle = css`
   &:focus-visible {
     outline: 2px solid #4356d8;
     outline-offset: -2px;
+  }
+
+  @media (max-height: 600px) {
+    min-height: 56px;
   }
 `;
 
