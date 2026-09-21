@@ -15,8 +15,9 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
   >
     <button
       className={css`
-        width: 74px;
-        height: 74px;
+        position: relative;
+        width: 54px;
+        height: 54px;
         padding: 0;
         border: 0;
         background: transparent;
@@ -28,9 +29,12 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
     >
       <img
         className={css`
+          position: absolute;
+          top: -6px;
+          left: -10px;
           display: block;
-          width: 60px;
-          height: 60px;
+          width: 74px;
+          height: 74px;
           pointer-events: none;
           user-select: none;
         `}

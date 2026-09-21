@@ -11,6 +11,7 @@ import BottomSheet, { BottomSheetSnap } from '../../../shared/components/BottomS
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
+import { HelpMenu } from './components/HelpMenu';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
@@ -132,6 +133,7 @@ export const HomePage = () => {
         <SearchBar onClick={() => navigate('/search')} />
       </div>
       <footer className={footerStyle}>
+        <HelpMenu />
         <CurrentLocationButton onClick={requestCurrentLocation} />
         <BottomNav />
       </footer>
