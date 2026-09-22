@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
@@ -16,15 +16,20 @@ import { InfoRow } from './InfoRow';
 import {
   ParkingDetailCondition,
   ParkingSearchCondition,
+  RecommendationType,
+  RecommendView,
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
 
-interface Props {
+type MapOutletContext = {
   map: naver.maps.Map | null;
+  recommendView: RecommendView | null;
+  setRecommendView: (view: RecommendView | null) => void;
+};
+
+interface Props {
   searchCondition: ParkingSearchCondition;
 }
-
-export type RecommendationType = 'PRICE' | 'DISTANCE' | 'BALANCED';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -91,7 +96,7 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
   return itemRect.left + itemRect.width / 2 - (containerRect.left + containerRect.width / 2);
 };
 
-export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
+export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   const navigate = useNavigate();
 
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
@@ -100,11 +105,17 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
   const parkingListRef = useRef<HTMLUListElement>(null);
   const hasTrackedRecommendations = useRef(false);
 
-  const [recommendationType, setRecommendationType] = useState<RecommendationType>('DISTANCE');
+  const { map, recommendView, setRecommendView } = useOutletContext<MapOutletContext>();
 
-  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
+  const [recommendationType, setRecommendationType] = useState<RecommendationType>(
+    recommendView?.recommendationType ?? 'DISTANCE',
+  );
 
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(
+    recommendView?.parkingLotId ?? null,
+  );
+
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>(recommendView?.snap ?? 'collapsed');
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
@@ -194,6 +205,23 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
     });
   }, [recommendationType]);
 
+  useLayoutEffect(() => {
+    if (!recommendView) return;
+
+    const index = recommendedParkingLots.findIndex(
+      (parkingLot) => parkingLot.id === recommendView.parkingLotId,
+    );
+    const cardList = cardListRef.current;
+    const card = index >= 0 ? cardList?.children.item(index) : null;
+
+    if (!cardList || !card) return;
+
+    cardList.scrollBy({
+      left: getHorizontalCenterOffset(cardList, card),
+      behavior: 'auto',
+    });
+  }, [recommendView, recommendedParkingLots]);
+
   useEffect(() => {
     if (hasTrackedRecommendations.current || recommendedParkingLots.length === 0) {
       return;
@@ -253,6 +281,11 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
   };
 
   const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
+    setRecommendView({
+      snap: sheetSnap,
+      parkingLotId: parkingLot.id,
+      recommendationType,
+    });
     const detailCondition: ParkingDetailCondition = {
       parkingLotId: parkingLot.id,
       parkingLotName: parkingLot.name,

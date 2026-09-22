@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { css } from '@emotion/css';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Navigate, useLocation, useOutletContext } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
@@ -20,7 +20,6 @@ export const ParkingRecommendPage = () => {
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const searchCondition = navigationState?.searchCondition;
-  const map = useOutletContext<naver.maps.Map | null>();
 
   if (!searchCondition) {
     return <Navigate to="/parkingsetup" replace />;
@@ -43,7 +42,7 @@ export const ParkingRecommendPage = () => {
             )}
           >
             <Suspense fallback={<ParkingRecommendSkeleton />}>
-              <ParkingRecommendContent map={map} searchCondition={searchCondition} />
+              <ParkingRecommendContent searchCondition={searchCondition} />
             </Suspense>
           </ErrorBoundary>
         )}

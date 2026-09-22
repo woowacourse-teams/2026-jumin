@@ -6,6 +6,7 @@ import { Route, Routes } from 'react-router';
 import { ParkingDetailPage } from '../../src/pages/ParkingDetailPage/ParkingDetailPage';
 import type { RecentParkingUse } from '../../shared/utils/recentParkingUses';
 import { renderWithProviders } from '../renderWithProviders';
+import { TestMapLayout } from '../TestMapLayout';
 import {
   createDetailCondition,
   mockGeolocation,
@@ -16,7 +17,9 @@ import {
 const renderDetailPage = (parkingLotId = 101) =>
   renderWithProviders(
     <Routes>
-      <Route path="/parkingDetail" element={<ParkingDetailPage />} />
+      <Route element={<TestMapLayout />}>
+        <Route path="/parkingDetail" element={<ParkingDetailPage />} />
+      </Route>
     </Routes>,
     {
       initialEntries: [
