@@ -173,8 +173,9 @@ DB_USERNAME=애플리케이션_DB_사용자 DB_PASSWORD=DB_비밀번호 \
 적재하므로, 실제 일방 통행·출입 제한이 있는 구간은 별도 검증이 필요합니다.
 
 로컬 DB 이미지는 pgRouting이 포함된 `pgrouting/pgrouting:18-3.6-3.8`을 사용합니다.
-새 로컬 볼륨은 초기화 스크립트가 pgRouting 확장을 자동으로 생성합니다. 기존 볼륨이나
-운영 DB에서는 보행거리 기능을 활성화하기 전에 DBA 권한으로 확장을 생성해야 합니다.
+새 로컬 볼륨은 초기화 스크립트가 pgRouting 확장을 자동으로 생성합니다. 기존 볼륨과 dev·prod DB에는 Flyway V7이 pgRouting 확장을 생성합니다.
+DB 서버에 pgRouting이 설치되어 있어야 하며, Flyway 계정에는 확장 생성 권한이 필요합니다.
+권한이 없다면 DBA가 사전에 확장을 생성해야 합니다. 확장 생성 실패 시 마이그레이션도 실패합니다.
 확장이 없으면 애플리케이션은 `503 SERVICE_UNAVAILABLE`로 보행거리 계산 실패를 반환합니다.
 
 운영 RDS에서 다음 쿼리로 확인할 수 있습니다.
@@ -186,8 +187,9 @@ FROM pg_available_extensions
 WHERE name IN ('postgis', 'pgrouting');
 ```
 
-`pgrouting`이 조회되면 DBA 권한으로 `CREATE EXTENSION IF NOT EXISTS pgrouting;`을
-실행하고, 애플리케이션 DB 사용자가 해당 확장 함수를 호출할 수 있는지 확인합니다.
+`pgrouting`이 조회되면 V7에서 활성화할 수 있습니다. 애플리케이션 DB 사용자가 해당
+확장 함수를 호출할 수 있는지도 확인합니다. dev·prod 데이터 적재는
+[수동 적재 workflow 운영 절차](../infra/README.md#보행망-수동-적재)를 따릅니다.
 
 ## 종료
 
