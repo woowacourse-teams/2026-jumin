@@ -36,10 +36,10 @@ export const HelpPopover = ({
 
   return (
     <>
-      <button
+      <div
         className={backdropStyle}
-        type="button"
         aria-label="메뉴 바깥 영역"
+        aria-hidden="true"
         onClick={onClose}
       />
       <div className={popoverStyle} role="group" aria-label="도움말 메뉴">
