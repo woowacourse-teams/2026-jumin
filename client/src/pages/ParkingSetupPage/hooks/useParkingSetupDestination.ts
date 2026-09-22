@@ -49,6 +49,11 @@ export const useParkingSetupDestination = ({ destination, map, enabled }: Props)
     };
   }, [map, enabled]);
 
+  useEffect(() => {
+    if (!map) return;
+    map.setOptions('disableKineticPan', false);
+  }, [map]);
+
   const { data, isFetching, isError } = useQuery(
     destinationNameQueryOptions({
       latitude: selectedLocation.latitude,
