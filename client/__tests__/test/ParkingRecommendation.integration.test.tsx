@@ -153,28 +153,53 @@ describe('C. 추천 주차장', () => {
     expect(screen.queryByRole('button', { name: '바텀시트 접기' })).not.toBeInTheDocument();
   });
 
-  it('목록의 상세정보에서 돌아오면 펼친 시트와 정렬, 선택한 주차장을 복원한다', async () => {
-    renderRecommendationPage({
-      snap: 'expanded',
-      parkingLotId: 101,
-      recommendationType: 'PRICE',
+  it('목록의 상세정보에서 돌아오면 펼친 시트와 정렬, 선택한 주차장 위치를 복원한다', async () => {
+    const originalScrollBy = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollBy')!;
+    const scrollBy = jest.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollBy', {
+      configurable: true,
+      value: scrollBy,
     });
-    const user = userEvent.setup();
 
-    const parkingList = await screen.findByRole('region', { name: '주차장 전체 목록' });
-    const row = within(parkingList)
-      .getByRole('heading', { name: '강남대로 공영주차장' })
-      .closest('article');
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    jest.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      if (this.matches('#parking-list-sheet > ul')) {
+        return { top: 0, bottom: 300 } as DOMRect;
+      }
+      if (this.matches('#parking-list-sheet > ul > li:last-child')) {
+        return { top: 800, bottom: 900 } as DOMRect;
+      }
+      return originalGetBoundingClientRect.call(this);
+    });
 
-    expect(row).not.toBeNull();
-    await user.click(within(row!).getByRole('button', { name: '상세보기' }));
-    await user.click(screen.getByRole('button', { name: '뒤로가기' }));
+    try {
+      renderRecommendationPage({
+        snap: 'expanded',
+        parkingLotId: 101,
+        recommendationType: 'PRICE',
+      });
+      const user = userEvent.setup();
 
-    expect(await screen.findByRole('button', { name: '강남대로 공영주차장 선택' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(screen.getByRole('button', { name: '바텀시트 접기' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '가격순' })).toHaveAttribute('aria-selected', 'true');
+      const parkingList = await screen.findByRole('region', { name: '주차장 전체 목록' });
+      const row = within(parkingList)
+        .getByRole('heading', { name: '목록 확인 주차장 7' })
+        .closest('article');
+
+      expect(row).not.toBeNull();
+      await user.click(within(row!).getByRole('button', { name: '상세보기' }));
+      scrollBy.mockClear();
+      await user.click(screen.getByRole('button', { name: '뒤로가기' }));
+
+      expect(
+        await screen.findByRole('button', { name: '목록 확인 주차장 7 선택' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '바텀시트 접기' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: '가격순' })).toHaveAttribute('aria-selected', 'true');
+      expect(scrollBy).toHaveBeenCalledWith({ top: 600, behavior: 'auto' });
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'scrollBy', originalScrollBy);
+    }
   });
 });

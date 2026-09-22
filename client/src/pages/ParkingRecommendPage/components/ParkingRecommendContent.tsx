@@ -236,8 +236,51 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     setSelectedParkingLotId(null);
   };
 
+  useLayoutEffect(() => {
+    if (recommendView?.snap !== 'expanded') return;
+
+    const list = parkingListRef.current;
+    const index = parkingLots.findIndex(({ id }) => id === recommendView.parkingLotId);
+    const row = index >= 0 ? list?.children.item(index) : null;
+
+    if (!list || !row) return;
+
+    const listRect = list.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+
+    const offset =
+      rowRect.top < listRect.top
+        ? rowRect.top - listRect.top
+        : rowRect.bottom > listRect.bottom
+          ? rowRect.bottom - listRect.bottom
+          : 0;
+
+    if (offset !== 0) {
+      list.scrollBy({ top: offset, behavior: 'auto' });
+    }
+  }, [recommendView, parkingLots]);
+
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLotId(parkingLot.id);
+
+    const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
+    const list = parkingListRef.current;
+    const row = index >= 0 ? list?.children.item(index) : null;
+
+    if (list && row) {
+      const listRect = list.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const offset =
+        rowRect.top < listRect.top
+          ? rowRect.top - listRect.top
+          : rowRect.bottom > listRect.bottom
+            ? rowRect.bottom - listRect.bottom
+            : 0;
+
+      if (offset !== 0) {
+        list.scrollBy({ top: offset, behavior: 'smooth' });
+      }
+    }
 
     const recommendationIndex = recommendedParkingLots.findIndex(
       (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
