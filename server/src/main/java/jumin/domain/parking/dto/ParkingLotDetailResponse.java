@@ -9,7 +9,7 @@ public record ParkingLotDetailResponse(
         String address,
         LocationResponse location,
         Integer capacity,
-        Integer distanceMeters,
+        int distanceMeters,
         Integer estimatedFee,
         String feeCalculationStatus,
         ParkingFeeRuleResponse feeRule,

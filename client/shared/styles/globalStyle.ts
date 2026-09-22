@@ -27,6 +27,12 @@ export const applyGlobalStyles = () => injectGlobal`
     overflow: hidden;
   }
 
+  @media (display-mode: standalone) {
+  #root {
+    height: 100vh;
+  }
+}
+
   @media (min-width: 431px) and (hover: hover) and (pointer: fine) {
     #root {
       max-width: 430px;

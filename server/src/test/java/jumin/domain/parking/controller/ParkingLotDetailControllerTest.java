@@ -18,6 +18,7 @@ import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,6 +26,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(ParkingLotDetailController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class ParkingLotDetailControllerTest {
 
     @Autowired
@@ -89,6 +91,20 @@ class ParkingLotDetailControllerTest {
         response
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    @DisplayName("도보 경로가 없으면 도보 경로 없음 메시지와 404를 반환한다")
+    void returns_not_found_when_walking_route_does_not_exist() throws Exception {
+        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_ROUTE_NOT_FOUND));
+
+        ResultActions response = mockMvc.perform(validRequest(1L));
+
+        response
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("주차장까지의 도보 경로를 찾을 수 없습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 

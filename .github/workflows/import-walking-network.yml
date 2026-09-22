@@ -1,0 +1,75 @@
+name: Import walking network
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 기존 보행망 데이터를 교체할 대상 환경
+        required: true
+        type: choice
+        options:
+          - development
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: walking-network-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    # 각 환경에 배포하는 브랜치의 검증된 스크립트만 실행한다.
+    if: >-
+      (inputs.environment == 'development' && github.ref == 'refs/heads/develop') ||
+      (inputs.environment == 'production' && github.ref == 'refs/heads/main')
+    environment: ${{ inputs.environment }}
+    runs-on: [self-hosted, Linux, ARM64, "${{ inputs.environment == 'production' && 'jumin-prod' || 'jumin-dev' }}"]
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Import and verify walking network
+        shell: bash
+        env:
+          DB_TARGET: direct
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SEOUL_OPEN_DATA_API_KEY: ${{ secrets.SEOUL_OPEN_DATA_API_KEY }}
+          PGSSLMODE: require
+          PGCONNECT_TIMEOUT: '10'
+        run: |
+          set -Eeuo pipefail
+          for variable in DB_URL DB_USERNAME DB_PASSWORD SEOUL_OPEN_DATA_API_KEY; do
+            if [[ -z "${!variable}" ]]; then
+              echo "Missing required configuration: ${variable}" >&2
+              exit 1
+            fi
+          done
+          for tool in psql curl jq; do
+            command -v "$tool" >/dev/null
+          done
+
+          source infra/scripts/parse-jdbc-db-url.sh
+          configure_db_from_jdbc_url
+          export PGUSER="$DB_USERNAME" PGPASSWORD="$DB_PASSWORD"
+          # 다운로드 전에 V7 적용과 DB 접속을 확인한다.
+          installed="$(psql -XAt --set ON_ERROR_STOP=1 -c "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgrouting');")"
+          if [[ "$installed" != t ]]; then
+            echo 'Deploy the V7 pgRouting migration before importing.' >&2
+            exit 1
+          fi
+          # runner에 남아 있는 POC 범위 설정을 사용하지 않는다.
+          unset SEOUL_OPEN_DATA_SGG_NM
+          bash infra/scripts/import-seoul-walking-network.sh
+          usable="$(psql -XAt --set ON_ERROR_STOP=1 -f server/src/main/resources/sql/walking/has-usable-network.sql)"
+          if [[ "$usable" != t ]]; then
+            echo 'Walking network readiness verification failed.' >&2
+            exit 1
+          fi
+          echo 'Walking network import and readiness verification succeeded.'
