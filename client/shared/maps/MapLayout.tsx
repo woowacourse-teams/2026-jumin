@@ -9,7 +9,7 @@ export const MapLayout = () => {
 
   return (
     <div className={layoutStyle}>
-      <NaverMap onMapReady={setMap} />
+      <NaverMap latitude={37.4981} longitude={127.0279} onMapReady={setMap} />
       <Outlet context={map} />
     </div>
   );
