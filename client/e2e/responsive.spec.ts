@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('jucha-guide-seen-v2', 'true');
+  });
+});
+
 test.describe('모바일 화면', () => {
   test.use({ hasTouch: true, isMobile: true });
 
