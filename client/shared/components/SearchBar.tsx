@@ -17,21 +17,11 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }:
       align-items: center;
       gap: 10px;
 
-      width: 100%;
-      max-width: 358px;
+      width: min(358px, calc(100% - 32px));
       height: 54px;
       margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
       padding: 0 16px;
       box-sizing: border-box;
-
-      @supports (-webkit-touch-callout: none) {
-        @media (display-mode: standalone) {
-          margin-top: max(
-            calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)),
-            clamp(56px, 9dvh, 88px)
-          );
-        }
-      }
 
       border: 1px solid #4356d8;
       border-radius: 16px;

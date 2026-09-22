@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('jucha-guide-seen-v2', 'true');
+  });
+});
+
 const CURRENT_LOCATION = {
   latitude: 37.4981,
   longitude: 127.0279,
@@ -61,12 +67,13 @@ const requestRecommendation = async (page: Page) => {
 };
 
 const searchDestination = async (page: Page) => {
-  await page.getByRole('button', { name: '목적지 검색하기' }).click();
+  await page.getByRole('textbox', { name: '목적지 검색' }).click();
   await page.getByRole('textbox', { name: '목적지 검색' }).fill('강남역');
   await page
     .getByRole('button', { name: /강남역 11번 출구/ })
     .first()
     .click();
+
   await expect(page.getByRole('region', { name: '선택한 목적지' })).toContainText(
     '강남역 11번 출구',
   );
@@ -119,7 +126,7 @@ test('2. 현재 위치 주변의 주차장을 추천받는다', async ({ page })
   await page.goto('/');
   await captureApiRequests(page);
 
-  await page.getByRole('button', { name: '내 주변 주차장' }).click();
+  await page.getByRole('button', { name: '주변', exact: true }).click();
   await expect(page.getByRole('region', { name: '선택한 목적지' })).toContainText('현재 위치');
 
   await goToParkingTimeStep(page);

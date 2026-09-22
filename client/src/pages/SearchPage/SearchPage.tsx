@@ -21,7 +21,7 @@ export const SearchPage = () => {
           margin-top: auto;
           position: relative;
           flex-shrink: 0;
-          height: calc(86px + env(safe-area-inset-bottom));
+          height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
         `}
       >
         <BottomNav />
