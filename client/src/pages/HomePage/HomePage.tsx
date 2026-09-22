@@ -94,11 +94,6 @@ export const HomePage = () => {
     );
   }, [map]);
 
-  useEffect(() => {
-    if (!map) return;
-    requestCurrentLocation();
-  }, [map, requestCurrentLocation]);
-
   return (
     <main className={pageStyle}>
       {map &&
