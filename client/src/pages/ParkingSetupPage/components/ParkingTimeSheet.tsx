@@ -8,14 +8,14 @@ import { TimePickerField } from './TimePickerField';
 
 import { addDays, addMinutes, format, set, set as setDate } from 'date-fns';
 
-import { validatePeriod } from '../utils/validate';
+import { PeriodValidation } from '../utils/validate';
 import { Calendar } from './Calendar';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { Modal } from '../../../../shared/components/Modal/Modal';
 
 interface Props {
   period: ParkingPeriod;
-  entryTimeError: string | null;
+  validation: PeriodValidation;
   onEntryAtChange: (entryAt: Date) => void;
   onExitAtChange: (exitAt: Date) => void;
   onSubmit: () => void;
@@ -26,7 +26,7 @@ type ActiveTimeField = 'entry' | 'exit' | null;
 
 export const ParkingTimeSheet = ({
   period,
-  entryTimeError,
+  validation,
   onEntryAtChange,
   onExitAtChange,
   onSubmit,
@@ -118,8 +118,6 @@ export const ParkingTimeSheet = ({
     setActiveField(null);
   };
 
-  const isValidPeriod = validatePeriod(period);
-
   return (
     <div className={sheetContentStyle}>
       <header className={headerStyle}>
@@ -186,9 +184,9 @@ export const ParkingTimeSheet = ({
       </div>
 
       <div className={errorMessageAreaStyle} aria-live="polite">
-        {entryTimeError && (
+        {validation.isValid === false && validation.entryTimeError && (
           <p id="entry-time-error" className={errorMessageStyle}>
-            {entryTimeError}
+            {validation.entryTimeError}
           </p>
         )}
       </div>
@@ -196,7 +194,7 @@ export const ParkingTimeSheet = ({
       <button
         className={recommendButtonStyle}
         type="button"
-        disabled={!isValidPeriod}
+        disabled={!validation.isValid}
         onClick={onSubmit}
       >
         추천 받기

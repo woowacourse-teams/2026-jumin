@@ -10,7 +10,7 @@ import { SearchConditionBar } from '../../../../shared/components/SearchConditio
 import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
 import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 import type { ParkingPeriod } from '../model/time';
-import { getEntryTimeError, validatePeriod } from '../utils/validate';
+import { validatePeriod } from '../utils/validate';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { ParkingTimeSheet } from './ParkingTimeSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
@@ -37,7 +37,9 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
     exitAt: null,
   }));
 
-  const [entryTimeError, setEntryTimeError] = useState<string | null>(null);
+  const [validationTime, setValidationTime] = useState(() => new Date());
+
+  const periodValidation = validatePeriod(period, validationTime);
 
   const handleEntryAtChange = (entryAt: Date) => {
     setPeriod((previousPeriod) => ({
@@ -45,8 +47,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
       entryAt,
     }));
 
-    // 입차 시간의 경우 클라이언트 에러 상태까지 업데이트
-    setEntryTimeError(getEntryTimeError(entryAt, new Date()));
+    setValidationTime(new Date());
   };
 
   const handleExitAtChange = (exitAt: Date) => {
@@ -54,22 +55,25 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
       ...previousPeriod,
       exitAt,
     }));
+
+    setValidationTime(new Date());
+  };
+
+  const handleTimeStepOpen = () => {
+    setValidationTime(new Date());
+    setStep('time');
   };
 
   const handleRecommend = () => {
-    // 입차 시간 에러 검증을 위한 결과를
     const now = new Date();
-    const nextEntryTimeError = getEntryTimeError(period.entryAt, now);
+    const nextValidation = validatePeriod(period, now);
 
-    setEntryTimeError(nextEntryTimeError);
+    // 실패하더라도 재렌더링되어 에러 문구가 표시됨
+    setValidationTime(now);
 
-    if (nextEntryTimeError !== null) {
-      return;
-    }
+    if (!nextValidation.isValid) return;
 
-    if (!validatePeriod(period)) return;
-
-    const { entryAt, exitAt } = period;
+    const { entryAt, exitAt } = nextValidation.period;
 
     onRecommend({
       destinationName,
@@ -97,7 +101,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
             address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
             nextDisabled={hasMovedMap && (isFetching || isError)}
             onCancel={onSearch}
-            onNext={() => setStep('time')}
+            onNext={handleTimeStepOpen}
           />
         </>
       ) : (
@@ -107,7 +111,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
           <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
             <ParkingTimeSheet
               period={period}
-              entryTimeError={entryTimeError}
+              validation={periodValidation}
               onEntryAtChange={handleEntryAtChange}
               onExitAtChange={handleExitAtChange}
               onSubmit={handleRecommend}
