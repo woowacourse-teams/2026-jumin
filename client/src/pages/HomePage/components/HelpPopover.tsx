@@ -36,12 +36,7 @@ export const HelpPopover = ({
 
   return (
     <>
-      <div
-        className={backdropStyle}
-        aria-label="메뉴 바깥 영역"
-        aria-hidden="true"
-        onClick={onClose}
-      />
+      <div className={backdropStyle} aria-hidden="true" onClick={onClose} />
       <div className={popoverStyle} role="group" aria-label="도움말 메뉴">
         <button className={itemStyle} type="button" onClick={() => selectAction(onGuideClick)}>
           <img className={iconStyle} src={guideIcon} alt="" />

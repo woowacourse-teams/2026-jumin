@@ -11,7 +11,7 @@ it('메뉴 항목을 선택하거나 바깥쪽과 Escape를 누르면 해당 동
   const onInstallClick = jest.fn();
   const onFeedbackClick = jest.fn();
 
-  render(
+  const { container } = render(
     <HelpPopover
       onClose={onClose}
       onGuideClick={onGuideClick}
@@ -24,7 +24,9 @@ it('메뉴 항목을 선택하거나 바깥쪽과 Escape를 누르면 해당 동
   await user.click(screen.getByRole('button', { name: '가이드 보기' }));
   await user.click(screen.getByRole('button', { name: '앱 설치' }));
   await user.click(screen.getByRole('button', { name: '피드백 작성' }));
-  await user.click(screen.getByRole('button', { name: '메뉴 바깥 영역' }));
+  const backdrop = container.querySelector('div[aria-hidden="true"]');
+  expect(backdrop).not.toBeNull();
+  await user.click(backdrop!);
   await user.keyboard('{Escape}');
 
   expect(onGuideClick).toHaveBeenCalledTimes(1);

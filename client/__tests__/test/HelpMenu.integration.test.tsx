@@ -24,7 +24,7 @@ it('첫 방문에 가이드를 자동으로 열고, 닫은 뒤에는 자동으�
 
 it('메뉴를 열면 닫기 아이콘으로 바뀌고, 바깥을 누르면 닫힌다', async () => {
   const user = userEvent.setup();
-  render(<HelpMenu />);
+  const { container } = render(<HelpMenu />);
 
   const openButton = screen.getByRole('button', { name: '도움말 메뉴 열기' });
   expect(openButton).toHaveAttribute('aria-expanded', 'false');
@@ -36,7 +36,9 @@ it('메뉴를 열면 닫기 아이콘으로 바뀌고, 바깥을 누르면 닫�
   );
   expect(screen.getByRole('button', { name: '가이드 보기' })).toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: '메뉴 바깥 영역' }));
+  const backdrop = container.querySelector('div[aria-hidden="true"]');
+  expect(backdrop).not.toBeNull();
+  await user.click(backdrop!);
   expect(screen.getByRole('button', { name: '도움말 메뉴 열기' })).toHaveAttribute(
     'aria-expanded',
     'false',

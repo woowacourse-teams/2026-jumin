@@ -1,7 +1,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 
