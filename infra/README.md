@@ -392,3 +392,48 @@ EC2에 연결된 IAM Role에는 해당 로그 그룹의 로그 스트림 조회�
 - [Development proxy CD](../.github/workflows/proxy-dev-cd.yml): 개발 Nginx 배포 workflow
 - [Server production CD](../.github/workflows/server-prod-cd.yml): 운영 서버 배포 workflow
 - [Production proxy CD](../.github/workflows/proxy-prod-cd.yml): 운영 Nginx 배포 workflow
+
+
+## 보행망 수동 적재
+
+`Import walking network` workflow는 정기 스케줄이나 서버 배포와 독립적으로 실행합니다.
+최초 적재와 필요할 때의 갱신에 사용하며 기존 보행망 전체를 교체합니다.
+다운로드 및 검증 후 기존 스크립트의 트랜잭션으로 데이터를 교체합니다.
+SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보존합니다.
+
+### 사전 준비
+
+- 서버를 배포하여 Flyway V7까지 적용합니다. RDS가 pgRouting을 지원해야 하며,
+  Flyway DB 계정에 확장 생성 권한이 필요합니다. 권한을 분리하는 환경에서는 DBA가
+  먼저 확장을 생성합니다. V7은 이미 있는 확장은 유지합니다.
+- 서버 배포와 동일한 `DB_URL` Secret을 사용합니다. `DB_HOST`, `DB_NAME`, `DB_PORT`
+  Variables는 추가하지 않습니다. workflow가 JDBC URL에서 접속 정보를 추출하여
+  적재 스크립트와 사전·사후 검증에 동일하게 전달합니다.
+- URL은 `jdbc:postgresql://host[:port]/database` 형식의 단일 호스트를 지원하며,
+  포트 생략 시 5432입니다. 일반 호스트명, IPv4, 대괄호 IPv6와 영문·숫자·밑줄·점·
+  하이픈으로 구성된 DB 이름을 지원합니다. `sslmode` 또는 `ssl=true` 옵션을 전달하며,
+  옵션이 없으면 TLS(`require`)를 사용합니다. 인증서 검증 모드는 runner에 인증서 설정이
+  필요합니다. 그 외 JDBC 옵션, 다중 호스트, URL 인코딩된 DB 이름은 잘못된 대상으로
+  적재하지 않도록 실행 전에 거부합니다.
+- 기존 Secrets `DB_USERNAME`, `DB_PASSWORD`와 `SEOUL_OPEN_DATA_API_KEY`를 사용합니다.
+  API 키는 repository secret으로도 제공할 수 있습니다. 별도 키를 쓰는 환경은
+  environment secret을 설정합니다. 키를 서버 컨테이너에 넣을 필요는 없습니다.
+- 해당 환경의 self-hosted runner(`jumin-dev` / `jumin-prod`)에 `psql`, `curl`, `jq`가
+  있어야 하고, RDS 및 서울시 API에 접속할 수 있어야 합니다. DB 연결은 URL의 SSL 설정을 따르며
+  별도 옵션이 없으면 TLS를 사용합니다.
+- 실행 DB 계정에는 보행망 테이블의 SELECT, INSERT, UPDATE, TRUNCATE 및 임시 테이블
+  생성 권한이 필요합니다.
+
+### 실행 순서
+
+1. GitHub Actions에서 `Import walking network` → `Run workflow`를 선택합니다.
+2. development는 `develop`, production은 `main` 브랜치와 해당 environment를 선택합니다.
+   조합이 다르면 작업은 실행되지 않습니다. workflow가 기본 브랜치에 반영되어야
+   수동 실행 목록에서 사용할 수 있습니다.
+3. 최초에는 환경마다 한 번 실행합니다. 이후 갱신이 필요할 때만 다시 실행합니다.
+4. 성공 로그 `Walking network import and readiness verification succeeded.`를 확인합니다.
+   실제 검색 API와 같은 SQL로 확장, READY 메타데이터, 노드, 보행 가능한 링크를 검증합니다.
+
+동일 환경의 적재는 concurrency로 직렬화하며 진행 중인 적재를 자동 취소하지 않습니다.
+이 workflow는 최초 데이터 적재 전까지 발생하는 검색 503을 배포 헬스 체크로 막지는 않습니다.
+따라서 신규 환경에서는 마이그레이션과 최초 적재를 완료한 후 검색 서비스를 개방합니다.

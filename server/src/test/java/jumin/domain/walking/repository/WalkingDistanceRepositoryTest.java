@@ -31,6 +31,16 @@ class WalkingDistanceRepositoryTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
+    @DisplayName("Flyway가 pgRouting을 활성화해도 보행망 적재 전에는 사용할 수 없다")
+    void requires_import_after_extension_migration() {
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgrouting')",
+                Boolean.class
+        )).isTrue();
+        assertThat(walkingDistanceRepository.hasUsableNetwork()).isFalse();
+    }
+
+    @Test
     @DisplayName("단절된 가장 가까운 노드 대신 연결된 주변 노드를 경유해 최단 도보거리를 계산한다")
     void finds_distances_through_connected_nearby_nodes() {
         // given
