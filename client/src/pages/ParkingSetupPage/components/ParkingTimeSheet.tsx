@@ -230,7 +230,7 @@ const titleStyle = css`
 
   color: #101b37;
   font-family: inherit;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -1.2px;

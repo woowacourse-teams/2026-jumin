@@ -100,7 +100,7 @@ const destinationStyle = css`
   overflow: hidden;
 
   color: #101b37;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
   letter-spacing: -0.5px;
