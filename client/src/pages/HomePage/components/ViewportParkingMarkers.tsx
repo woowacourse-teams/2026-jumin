@@ -4,15 +4,23 @@ import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
 import { ParkingViewportParams } from '../../../../api/parkingLots';
 
-import viewportParkingMarkerUrl from '../../../../assets/icons/markers/viewportParkingMarker.svg';
+import viewportParkingMarkerUrl from '../../../../assets/icons/markers/viewportParkingMarkers.svg';
 import { ParkingLotViewport } from '../../../../api/contracts';
 
 const viewportParkingMarkerIcon = {
   url: viewportParkingMarkerUrl,
-  width: 20,
-  height: 20,
-  anchorX: 10,
-  anchorY: 10,
+  width: 40,
+  height: 40,
+  anchorX: 20,
+  anchorY: 20,
+};
+
+const selectedParkingMarkerIcon = {
+  url: viewportParkingMarkerUrl,
+  width: 48,
+  height: 56,
+  anchorX: 24,
+  anchorY: 56,
 };
 
 interface Props {
@@ -60,7 +68,7 @@ export const ViewportParkingMarkers = ({
             map={map}
             latitude={parkingLot.latitude}
             longitude={parkingLot.longitude}
-            icon={viewportParkingMarkerIcon}
+            icon={isSelected ? selectedParkingMarkerIcon : viewportParkingMarkerIcon}
             title="주차장"
             zIndex={isSelected ? 20 : 10}
             onClick={() => onSelect(parkingLot)}

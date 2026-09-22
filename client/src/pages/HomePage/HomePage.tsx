@@ -1,7 +1,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
-import { Suspense, useCallback, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 
@@ -66,6 +66,30 @@ export const HomePage = () => {
     setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
   };
+
+  // 마커 선택 시 카메라 이동
+  useEffect(() => {
+    if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;
+
+    const sheet = document.querySelector<HTMLElement>('[data-bottom-sheet]');
+    if (!sheet) return;
+
+    const mapHeight = map.getSize().height;
+    const markerY = mapHeight - sheet.offsetHeight - 64;
+    const position = new naver.maps.LatLng(
+      selectedParkingLot.latitude,
+      selectedParkingLot.longitude,
+    );
+
+    const projection = map.getProjection();
+    const markerOffset = projection.fromCoordToOffset(position);
+    const centerOffset = new naver.maps.Point(
+      markerOffset.x,
+      mapHeight / 2 + markerOffset.y - markerY,
+    );
+
+    map.panTo(projection.fromOffsetToCoord(centerOffset), { duration: 300 });
+  }, [map, selectedParkingLot, sheetSnap]);
 
   // GPS로 확인한 실제 내 위치
   // 파란색 현재 위치 마커에 사용
