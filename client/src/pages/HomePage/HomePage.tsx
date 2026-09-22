@@ -199,7 +199,7 @@ const headerStyle = css`
 
 const zoomGuideStyle = css`
   position: absolute;
-  right: 78px;
+  right: 16px;
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
   left: 16px;
   z-index: 1;
@@ -231,7 +231,7 @@ const footerStyle = css`
 const floatingControlsStyle = css`
   position: absolute;
   right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 72px);
   z-index: 2;
 
   display: flex;
