@@ -12,7 +12,7 @@ const viewportParkingMarkerIcon = {
   width: 40,
   height: 40,
   anchorX: 20,
-  anchorY: 20,
+  anchorY: 40,
 };
 
 const selectedParkingMarkerIcon = {
