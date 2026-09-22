@@ -75,6 +75,11 @@ Compose 설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설
 `REVERSE_GEOCODING_CLIENT_ID`와 `REVERSE_GEOCODING_CLIENT_SECRET`을
 각각 실행 환경에 설정해야 합니다.
 
+관리자 인증을 사용하려면 `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`,
+`ADMIN_TOKEN_SECRET`, `ADMIN_ENV_LABEL`도 실행 환경에 설정해야 합니다.
+비밀번호 원문 대신 BCrypt 해시를 사용하고, 토큰 서명 키는 32자 이상의 충분히
+무작위한 값을 사용합니다. 로컬에서는 운영값이 아닌 테스트 전용 값만 사용합니다.
+
 > [!WARNING]
 > `postgres-data` 볼륨이 이미 존재하면 DB 이름·사용자·비밀번호 변경이 기존
 > 데이터베이스에 자동 반영되지 않습니다. 기존 DB에 직접 적용하거나 볼륨을
