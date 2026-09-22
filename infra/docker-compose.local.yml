@@ -2,7 +2,7 @@ name: jumin-local
 
 services:
   postgres:
-    image: postgis/postgis:18-3.6-alpine
+    image: pgrouting/pgrouting:18-3.6-3.8
     environment:
       TZ: Asia/Seoul
       POSTGRES_DB: ${DB_NAME:-jumin}
@@ -13,6 +13,7 @@ services:
       - '127.0.0.1:${DB_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
