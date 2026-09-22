@@ -29,6 +29,9 @@ export const DestinationConfirmSheet = ({
       `}
       aria-label="선택한 목적지"
     >
+      <p className={mapGuideStyle} role="status" aria-live="polite">
+        지도를 움직여 목적지를 확정해주세요
+      </p>
       <button
         className={css`
           position: absolute;
@@ -106,3 +109,27 @@ export const DestinationConfirmSheet = ({
     </section>
   );
 };
+
+const mapGuideStyle = css`
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  z-index: 1;
+
+  margin: 0;
+  padding: 10px 16px;
+
+  color: #101b37;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  word-break: keep-all;
+
+  background: rgb(255 255 255 / 94%);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
+`;
