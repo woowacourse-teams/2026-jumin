@@ -81,27 +81,37 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
   };
 
   return (
-    <section
-      data-bottom-sheet
-      className={sheetStyle}
-      ref={sheetRef}
-      style={{
-        transform: `translate3d(0, ${sheetY}px, 0)`,
-      }}
-    >
-      <div
-        className={handleAreaStyle}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={finishDrag}
-        onPointerCancel={finishDrag}
-        onLostPointerCapture={finishDrag}
+    <>
+      {snap === 'expanded' && (
+        <button
+          type="button"
+          className={overlayStyle}
+          aria-label="바텀시트 접기"
+          onClick={() => onSnapChange('collapsed')}
+        />
+      )}
+      <section
+        data-bottom-sheet
+        className={sheetStyle}
+        ref={sheetRef}
+        style={{
+          transform: `translate3d(0, ${sheetY}px, 0)`,
+        }}
       >
-        <div className={handleStyle} />
-      </div>
+        <div
+          className={handleAreaStyle}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+          onLostPointerCapture={finishDrag}
+        >
+          <div className={handleStyle} />
+        </div>
 
-      <div className={contentStyle}>{children}</div>
-    </section>
+        <div className={contentStyle}>{children}</div>
+      </section>
+    </>
   );
 }
 
@@ -160,4 +170,14 @@ const contentStyle = css`
   padding: 0 24px max(28px, env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
+`;
+
+const overlayStyle = css`
+  position: absolute;
+  inset: 0;
+  z-index: 999; /* 기존 시트의 1000보다 아래 */
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
 `;
