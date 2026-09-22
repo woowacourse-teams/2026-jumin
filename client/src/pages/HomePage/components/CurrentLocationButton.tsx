@@ -8,15 +8,15 @@ interface Props {
 export const CurrentLocationButton = ({ onClick }: Props) => (
   <div
     className={css`
-      position: absolute;
-      right: 16px;
-      bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+      width: 54px;
+      height: 54px;
     `}
   >
     <button
       className={css`
-        width: 74px;
-        height: 74px;
+        position: relative;
+        width: 54px;
+        height: 54px;
         padding: 0;
         border: 0;
         background: transparent;
@@ -28,11 +28,15 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
     >
       <img
         className={css`
+          position: absolute;
+          top: -6px;
+          left: -10px;
           display: block;
-          width: 60px;
-          height: 60px;
+          width: 74px;
+          height: 74px;
           pointer-events: none;
           user-select: none;
+          transform: scale(0.9);
         `}
         src={currentLocationButtonIcon}
         alt=""

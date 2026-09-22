@@ -127,7 +127,7 @@ const timeControlStyle = css`
 
   color: #101b37;
   font-family: inherit;
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -1px;

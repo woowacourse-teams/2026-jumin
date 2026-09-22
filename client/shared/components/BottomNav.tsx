@@ -76,8 +76,8 @@ const navigationStyle = css`
   grid-template-columns: repeat(3, 1fr);
 
   width: 100%;
-  height: calc(86px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 
   background: white;
 `;

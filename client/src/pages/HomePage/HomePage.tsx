@@ -11,6 +11,7 @@ import BottomSheet, { BottomSheetSnap } from '../../../shared/components/BottomS
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
+import { HelpMenu } from './components/HelpMenu';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
@@ -66,6 +67,30 @@ export const HomePage = () => {
     setSheetSnap('expanded');
   };
 
+  // 마커 선택 시 카메라 이동
+  useEffect(() => {
+    if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;
+
+    const sheet = document.querySelector<HTMLElement>('[data-bottom-sheet]');
+    if (!sheet) return;
+
+    const mapHeight = map.getSize().height;
+    const markerY = mapHeight - sheet.offsetHeight - 64;
+    const position = new naver.maps.LatLng(
+      selectedParkingLot.latitude,
+      selectedParkingLot.longitude,
+    );
+
+    const projection = map.getProjection();
+    const markerOffset = projection.fromCoordToOffset(position);
+    const centerOffset = new naver.maps.Point(
+      markerOffset.x,
+      mapHeight / 2 + markerOffset.y - markerY,
+    );
+
+    map.panTo(projection.fromOffsetToCoord(centerOffset), { duration: 300 });
+  }, [map, selectedParkingLot, sheetSnap]);
+
   // GPS로 확인한 실제 내 위치
   // 파란색 현재 위치 마커에 사용
   const [currentLocation, setCurrentLocation] = useState<MapLocation | null>(null);
@@ -92,11 +117,6 @@ export const HomePage = () => {
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
   }, [map]);
-
-  useEffect(() => {
-    if (!map) return;
-    requestCurrentLocation();
-  }, [map, requestCurrentLocation]);
 
   return (
     <main className={pageStyle}>
@@ -132,7 +152,10 @@ export const HomePage = () => {
         <SearchBar onClick={() => navigate('/search')} />
       </div>
       <footer className={footerStyle}>
-        <CurrentLocationButton onClick={requestCurrentLocation} />
+        <div className={floatingControlsStyle}>
+          <HelpMenu />
+          <CurrentLocationButton onClick={requestCurrentLocation} />
+        </div>
         <BottomNav />
       </footer>
 
@@ -176,8 +199,9 @@ const headerStyle = css`
 
 const zoomGuideStyle = css`
   position: absolute;
-  bottom: 100px;
-  left: 50%;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  left: 16px;
   z-index: 1;
 
   margin: 0;
@@ -187,12 +211,12 @@ const zoomGuideStyle = css`
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  white-space: nowrap;
+  text-align: center;
+  word-break: keep-all;
 
   background: rgb(255 255 255 / 94%);
   border-radius: 999px;
   box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
-  transform: translateX(-50%);
 `;
 
 const footerStyle = css`
@@ -202,4 +226,16 @@ const footerStyle = css`
   bottom: 0;
   left: 0;
   z-index: 1;
+`;
+
+const floatingControlsStyle = css`
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 72px);
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
 `;
