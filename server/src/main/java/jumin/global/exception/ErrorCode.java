@@ -21,6 +21,8 @@ public enum ErrorCode {
     DESTINATION_REVERSE_GEOCODING_CLIENT_FAILED(HttpStatus.BAD_GATEWAY, "목적지 위치를 조회하지 못했습니다."),
     ADMIN_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
     ADMIN_AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
+    WALKING_NETWORK_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "보행 네트워크를 사용할 수 없습니다."),
+    WALKING_ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "주차장까지의 도보 경로를 찾을 수 없습니다."),
     ;
 
     private final HttpStatus httpStatus;

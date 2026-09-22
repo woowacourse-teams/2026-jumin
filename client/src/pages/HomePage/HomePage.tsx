@@ -1,7 +1,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 
@@ -11,6 +11,7 @@ import BottomSheet, { BottomSheetSnap } from '../../../shared/components/BottomS
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
+import { HelpMenu } from './components/HelpMenu';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
@@ -93,11 +94,6 @@ export const HomePage = () => {
     );
   }, [map]);
 
-  useEffect(() => {
-    if (!map) return;
-    requestCurrentLocation();
-  }, [map, requestCurrentLocation]);
-
   return (
     <main className={pageStyle}>
       {map &&
@@ -132,7 +128,10 @@ export const HomePage = () => {
         <SearchBar onClick={() => navigate('/search')} />
       </div>
       <footer className={footerStyle}>
-        <CurrentLocationButton onClick={requestCurrentLocation} />
+        <div className={floatingControlsStyle}>
+          <HelpMenu />
+          <CurrentLocationButton onClick={requestCurrentLocation} />
+        </div>
         <BottomNav />
       </footer>
 
@@ -176,8 +175,9 @@ const headerStyle = css`
 
 const zoomGuideStyle = css`
   position: absolute;
-  bottom: 100px;
-  left: 50%;
+  right: 78px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  left: 16px;
   z-index: 1;
 
   margin: 0;
@@ -187,12 +187,12 @@ const zoomGuideStyle = css`
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  white-space: nowrap;
+  text-align: center;
+  word-break: keep-all;
 
   background: rgb(255 255 255 / 94%);
   border-radius: 999px;
   box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
-  transform: translateX(-50%);
 `;
 
 const footerStyle = css`
@@ -202,4 +202,16 @@ const footerStyle = css`
   bottom: 0;
   left: 0;
   z-index: 1;
+`;
+
+const floatingControlsStyle = css`
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
 `;
