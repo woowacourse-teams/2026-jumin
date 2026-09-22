@@ -6,8 +6,10 @@ import { initializeInstallGuide } from './shared/pwa/addToHomeScreen';
 import { initializeInstallPrompt } from './shared/pwa/installPrompt';
 import { applyGlobalStyles } from './shared/styles/globalStyle';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { initClarity } from './shared/clarity';
 
 initAnalytics(__GA_MEASUREMENT_ID__);
+initClarity(__CLARITY_PROJECT_ID__);
 initializeInstallGuide();
 initializeInstallPrompt();
 applyGlobalStyles();
