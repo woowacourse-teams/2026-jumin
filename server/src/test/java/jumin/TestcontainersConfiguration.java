@@ -13,11 +13,12 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     @SuppressWarnings("resource")
     PostgreSQLContainer postgresContainer() {
-        DockerImageName image = DockerImageName.parse("postgis/postgis:18-3.6-alpine")
+        DockerImageName image = DockerImageName.parse("pgrouting/pgrouting:18-3.6-3.8")
                 .asCompatibleSubstituteFor("postgres");
         return new PostgreSQLContainer(image)
                 .withDatabaseName("jumin")
                 .withUsername("jumin")
-                .withPassword("jumin");
+                .withPassword("jumin")
+                .withInitScript("db/init/01-enable-pgrouting.sql");
     }
 }

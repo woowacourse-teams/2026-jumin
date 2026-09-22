@@ -16,6 +16,7 @@ on:
       - 'infra/nginx/bootstrap.prod.conf'
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
@@ -39,6 +40,7 @@ on:
       - 'infra/nginx/bootstrap.prod.conf'
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
+      - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
@@ -67,6 +69,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Validate admin authentication script syntax
+        run: bash -n infra/scripts/validate-admin-auth-env.sh
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -106,6 +111,10 @@ jobs:
           LOCAL_SEARCH_CLIENT_SECRET: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
+          ADMIN_LOGIN_ID: ci-admin
+          ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
+          ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
+          ADMIN_ENV_LABEL: ci
         run: docker compose --file infra/docker-compose.dev.yml config --quiet
 
       - name: Validate production Docker Compose configuration
@@ -117,6 +126,10 @@ jobs:
           LOCAL_SEARCH_CLIENT_SECRET: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
+          ADMIN_LOGIN_ID: ci-admin
+          ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
+          ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
+          ADMIN_ENV_LABEL: ci
         run: docker compose --file infra/docker-compose.prod.yml config --quiet
 
       - name: Validate development proxy Compose configuration
