@@ -107,6 +107,8 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
   const { map, recommendView, setRecommendView } = useOutletContext<MapOutletContext>();
 
+  const restoreViewRef = useRef(recommendView);
+
   const [recommendationType, setRecommendationType] = useState<RecommendationType>(
     recommendView?.recommendationType ?? 'DISTANCE',
   );
@@ -205,23 +207,6 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     });
   }, [recommendationType]);
 
-  useLayoutEffect(() => {
-    if (!recommendView) return;
-
-    const index = recommendedParkingLots.findIndex(
-      (parkingLot) => parkingLot.id === recommendView.parkingLotId,
-    );
-    const cardList = cardListRef.current;
-    const card = index >= 0 ? cardList?.children.item(index) : null;
-
-    if (!cardList || !card) return;
-
-    cardList.scrollBy({
-      left: getHorizontalCenterOffset(cardList, card),
-      behavior: 'auto',
-    });
-  }, [recommendView, recommendedParkingLots]);
-
   useEffect(() => {
     if (hasTrackedRecommendations.current || recommendedParkingLots.length === 0) {
       return;
@@ -237,28 +222,49 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   };
 
   useLayoutEffect(() => {
-    if (recommendView?.snap !== 'expanded') return;
+    const restoreView = restoreViewRef.current;
 
-    const list = parkingListRef.current;
-    const index = parkingLots.findIndex(({ id }) => id === recommendView.parkingLotId);
-    const row = index >= 0 ? list?.children.item(index) : null;
+    if (!restoreView) return;
 
-    if (!list || !row) return;
+    const cardList = cardListRef.current;
+    const cardIndex = recommendedParkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
+    const card = cardIndex >= 0 ? cardList?.children.item(cardIndex) : null;
 
-    const listRect = list.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-
-    const offset =
-      rowRect.top < listRect.top
-        ? rowRect.top - listRect.top
-        : rowRect.bottom > listRect.bottom
-          ? rowRect.bottom - listRect.bottom
-          : 0;
-
-    if (offset !== 0) {
-      list.scrollBy({ top: offset, behavior: 'auto' });
+    if (cardList && card) {
+      cardList.scrollBy({
+        left: getHorizontalCenterOffset(cardList, card),
+        behavior: 'auto',
+      });
     }
-  }, [recommendView, parkingLots]);
+
+    if (restoreView.snap === 'expanded') {
+      const list = parkingListRef.current;
+      const rowIndex = parkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
+      const row = rowIndex >= 0 ? list?.children.item(rowIndex) : null;
+
+      if (list && row) {
+        const listRect = list.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+
+        const offset =
+          rowRect.top < listRect.top
+            ? rowRect.top - listRect.top
+            : rowRect.bottom > listRect.bottom
+              ? rowRect.bottom - listRect.bottom
+              : 0;
+
+        if (offset !== 0) {
+          list.scrollBy({
+            top: offset,
+            behavior: 'auto',
+          });
+        }
+      }
+    }
+
+    restoreViewRef.current = null;
+    setRecommendView(null);
+  }, [recommendedParkingLots, parkingLots, setRecommendView]);
 
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLotId(parkingLot.id);
