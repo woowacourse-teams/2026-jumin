@@ -37,11 +37,17 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
     exitAt: null,
   }));
 
+  const [validationTime, setValidationTime] = useState(() => new Date());
+
+  const periodValidation = validatePeriod(period, validationTime);
+
   const handleEntryAtChange = (entryAt: Date) => {
     setPeriod((previousPeriod) => ({
       ...previousPeriod,
       entryAt,
     }));
+
+    setValidationTime(new Date());
   };
 
   const handleExitAtChange = (exitAt: Date) => {
@@ -49,12 +55,25 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
       ...previousPeriod,
       exitAt,
     }));
+
+    setValidationTime(new Date());
+  };
+
+  const handleTimeStepOpen = () => {
+    setValidationTime(new Date());
+    setStep('time');
   };
 
   const handleRecommend = () => {
-    if (!validatePeriod(period)) return;
+    const now = new Date();
+    const nextValidation = validatePeriod(period, now);
 
-    const { entryAt, exitAt } = period;
+    // 실패하더라도 재렌더링되어 에러 문구가 표시됨
+    setValidationTime(now);
+
+    if (!nextValidation.isValid) return;
+
+    const { entryAt, exitAt } = nextValidation.period;
 
     onRecommend({
       destinationName,
@@ -82,7 +101,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
             address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
             nextDisabled={hasMovedMap && (isFetching || isError)}
             onCancel={onSearch}
-            onNext={() => setStep('time')}
+            onNext={handleTimeStepOpen}
           />
         </>
       ) : (
@@ -92,6 +111,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
           <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
             <ParkingTimeSheet
               period={period}
+              validation={periodValidation}
               onEntryAtChange={handleEntryAtChange}
               onExitAtChange={handleExitAtChange}
               onSubmit={handleRecommend}
