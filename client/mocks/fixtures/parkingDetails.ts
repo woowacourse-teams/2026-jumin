@@ -61,7 +61,8 @@ const createDetailBase = (id: number) => {
     address,
     location,
     distanceMeters,
-    walkingDurationMinutes: Math.ceil((distanceMeters * 60) / 4_000),
+    walkingDurationMinutes:
+      distanceMeters === null ? null : Math.ceil((distanceMeters * 60) / 4_000),
     estimatedFee,
   };
 };

@@ -179,9 +179,9 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
                 {parkingLotDetail.walkingDurationMinutes === null ||
                 parkingLotDetail.distanceMeters === null
                   ? '도보 정보 없음'
-                  : `${parkingLotDetail.walkingDurationMinutes}분 (${parkingLotDetail.distanceMeters.toLocaleString(
+                  : `${parkingLotDetail.distanceMeters.toLocaleString(
                       'ko-KR',
-                    )}m)`}
+                    )}m (${parkingLotDetail.walkingDurationMinutes}분)`}
               </dd>
             </div>
 
