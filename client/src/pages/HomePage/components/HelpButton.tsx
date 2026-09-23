@@ -43,20 +43,18 @@ export const HelpButton = ({ isOpen, onClick }: Props) => (
 
 const iconStyle = css`
   position: absolute;
-  top: -2px;
-  left: -2px;
+  top: 1px;
+  left: 1px;
   display: block;
-  width: 66px;
-  height: 66px;
+  width: 60px;
+  height: 60px;
   pointer-events: none;
   user-select: none;
-  transform: scale(0.9);
 `;
 
 const closeIconStyle = css`
-  top: 4px;
-  left: 4px;
-  width: 54px;
-  height: 54px;
-  transform: scale(0.9);
+  top: 7px;
+  left: 7px;
+  width: 49px;
+  height: 49px;
 `;

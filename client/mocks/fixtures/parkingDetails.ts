@@ -156,3 +156,16 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
     source,
   },
 };
+
+for (const { id } of parkingSearchSuccess.parkingLots) {
+  if (parkingDetailFixtures[id]) continue;
+
+  parkingDetailFixtures[id] = {
+    ...createDetailBase(id),
+    capacity: 30,
+    feeCalculationStatus: 'CALCULATED',
+    feeRule: standardFeeRule,
+    operation: allDayOperation,
+    source,
+  };
+}

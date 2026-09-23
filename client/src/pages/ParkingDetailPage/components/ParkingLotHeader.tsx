@@ -36,7 +36,7 @@ const headerStyle = css`
 
   pointer-events: auto;
 
-  z-index: 2;
+  z-index: 1001;
 
   display: flex;
 

@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
-import { ParkingDetailCondition } from '../../../../shared/types/navigation';
+import type { ParkingDetailCondition, RecommendView } from '../../../../shared/types/navigation';
 import { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
@@ -9,6 +9,7 @@ import BottomSheet, {
   BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
 import { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
@@ -66,6 +67,9 @@ const formatCheckedDate = (lastCheckedAt: string) => {
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+  const { setRecommendView } = useOutletContext<{
+    setRecommendView: (view: RecommendView | null) => void;
+  }>();
 
   const modal = useModal();
 
@@ -205,7 +209,10 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       <DeepLinkModal
         isOpen={modal.isOpen}
         onRequestClose={modal.close}
-        onDirectionsStart={() => saveRecentParkingUse(parkingLotDetail)}
+        onDirectionsStart={() => {
+          setRecommendView(null);
+          saveRecentParkingUse(parkingLotDetail);
+        }}
         destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
       />
     </div>

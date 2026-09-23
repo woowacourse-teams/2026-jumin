@@ -7,6 +7,7 @@ import type { ParkingSearchCondition } from '../../shared/types/navigation';
 import { ParkingSetupPage } from '../../src/pages/ParkingSetupPage/ParkingSetupPage';
 import { ParkingSetupContent } from '../../src/pages/ParkingSetupPage/components/ParkingSetupContent';
 import { renderWithProviders } from '../renderWithProviders';
+import { TestMapLayout } from '../TestMapLayout';
 import { destination } from '../testData';
 
 const renderParkingSetup = () => {
@@ -43,8 +44,10 @@ const RecommendationProbe = () => {
 const renderParkingSetupPage = () =>
   renderWithProviders(
     <Routes>
-      <Route path="/parkingsetup" element={<ParkingSetupPage />} />
-      <Route path="/parkingRecommend" element={<RecommendationProbe />} />
+      <Route element={<TestMapLayout />}>
+        <Route path="/parkingsetup" element={<ParkingSetupPage />} />
+        <Route path="/parkingRecommend" element={<RecommendationProbe />} />
+      </Route>
     </Routes>,
     {
       initialEntries: [
