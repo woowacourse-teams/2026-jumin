@@ -12,11 +12,7 @@ public class WalkingDurationCalculator {
             return null;
         }
 
-        long scaledDistance = distanceMeters * 60L;
-
-        return Math.toIntExact(
-                (scaledDistance + WALKING_SPEED_METERS_PER_HOUR - 1)
-                        / WALKING_SPEED_METERS_PER_HOUR
-        );
+        return (distanceMeters * 60 + WALKING_SPEED_METERS_PER_HOUR - 1)
+                / WALKING_SPEED_METERS_PER_HOUR;
     }
 }

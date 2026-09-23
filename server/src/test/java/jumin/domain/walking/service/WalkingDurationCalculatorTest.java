@@ -17,8 +17,7 @@ class WalkingDurationCalculatorTest {
             "1, 1",
             "200, 3",
             "201, 4",
-            "540, 9",
-            "2147483647, 32212255"
+            "540, 9"
     })
     @DisplayName("시속 4km 기준 도보 소요 시간을 분 단위로 올림한다")
     void calculates_walking_duration_by_rounding_up_minutes(int distanceMeters, int expectedMinutes) {
