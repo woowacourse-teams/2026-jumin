@@ -1,16 +1,12 @@
-name: Deploy frontend development
+name: Client Prod CD
 
 on:
-  pull_request:
-    branches:
-      - main
-
   push:
     branches:
-      - develop
+      - main
     paths:
       - 'client/**'
-      - '.github/workflows/front-deploy-dev.yml'
+      - '.github/workflows/client-prod-cd.yml'
 
   workflow_dispatch:
 
@@ -18,12 +14,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-development-${{ github.ref }}
-  cancel-in-progress: true
+  group: client-prod-cd
+  cancel-in-progress: false
 
 jobs:
-  build-frontend:
-    name: Frontend checks
+  build:
+    name: Build client (Prod)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -45,78 +41,83 @@ jobs:
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
-      - name: Install frontend dependencies
+      - name: Install client dependencies
         working-directory: client
         run: pnpm install --frozen-lockfile
 
-      - name: Check frontend
-        working-directory: client
-        run: pnpm check
-
-      - name: Build frontend
+      - name: Build client
         working-directory: client
         env:
-          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          GA_MEASUREMENT_ID: ${{ vars.GA_PROD_MEASUREMENT_ID }}
+          CLARITY_PROJECT_ID: ${{ vars.CLARITY_PROD_PROJECT_ID }}
           NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
         run: pnpm build
 
       - name: Validate build output
         working-directory: client
+        shell: bash
         run: |
+          set -Eeuo pipefail
           test -s dist/index.html
           test -d dist/assets
+          test -n "$(find dist/assets -type f -print -quit)"
 
       - name: Upload frontend artifact
-        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-development
+          name: frontend-prod-${{ github.sha }}-${{ github.run_id }}
           path: client/dist
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 3
 
   deploy:
-    name: Deploy frontend development
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
-    needs: build-frontend
-    runs-on: [self-hosted, Linux, ARM64, jumin-dev]
+    name: Deploy frontend (Prod)
+    needs: build
+    runs-on: [self-hosted, Linux, ARM64, jumin-prod]
     timeout-minutes: 10
 
     steps:
       - name: Download frontend artifact
         uses: actions/download-artifact@v8
         with:
-          name: frontend-development
-          path: ${{ runner.temp }}/jumin-dev-deploy/frontend
+          name: frontend-prod-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/jumin-prod-deploy/frontend
 
       - name: Deploy frontend
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          release_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          frontend_release="/var/www/jumin-dev/releases/${release_id}"
-          previous_frontend="$(readlink -f /var/www/jumin-dev/current 2>/dev/null || true)"
+          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release_root="/var/www/jumin-prod/releases"
+          frontend_release="${release_root}/${release_id}"
+          current_link="/var/www/jumin-prod/current"
+          previous_frontend="$(readlink -f "${current_link}" 2>/dev/null || true)"
 
           rollback() {
             if [[ -n "${previous_frontend}" && -d "${previous_frontend}" ]]; then
-              ln -sfn "${previous_frontend}" /var/www/jumin-dev/current
-            elif [[ -L /var/www/jumin-dev/current ]]; then
-              unlink /var/www/jumin-dev/current
+              ln -sfn "${previous_frontend}" "${current_link}"
+            elif [[ -L "${current_link}" ]]; then
+              unlink "${current_link}"
             fi
           }
           trap rollback ERR
 
           install -d -m 2755 "${frontend_release}"
-          rsync -a --delete "${RUNNER_TEMP}/jumin-dev-deploy/frontend/" "${frontend_release}/"
-          test -s "${frontend_release}/index.html"
+          rsync -a --delete \
+            "${RUNNER_TEMP}/jumin-prod-deploy/frontend/" \
+            "${frontend_release}/"
 
-          ln -sfn "${frontend_release}" /var/www/jumin-dev/current
+          test -s "${frontend_release}/index.html"
+          test -d "${frontend_release}/assets"
+
+          ln -sfn "${frontend_release}" "${current_link}"
 
           curl --noproxy '*' \
             --fail \
             --silent \
             --show-error \
-            http://127.0.0.1/ >/dev/null
+            --resolve 'jucha.info:443:127.0.0.1' \
+            https://jucha.info/ >/dev/null
 
           trap - ERR

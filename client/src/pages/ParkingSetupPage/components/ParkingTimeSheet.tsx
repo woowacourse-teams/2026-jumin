@@ -8,13 +8,14 @@ import { TimePickerField } from './TimePickerField';
 
 import { addDays, addMinutes, format, set, set as setDate } from 'date-fns';
 
-import { validatePeriod } from '../utils/validate';
+import { PeriodValidation } from '../utils/validate';
 import { Calendar } from './Calendar';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { Modal } from '../../../../shared/components/Modal/Modal';
 
 interface Props {
   period: ParkingPeriod;
+  validation: PeriodValidation;
   onEntryAtChange: (entryAt: Date) => void;
   onExitAtChange: (exitAt: Date) => void;
   onSubmit: () => void;
@@ -23,7 +24,13 @@ interface Props {
 // 입출차 중 선택된 필드 인터페이스
 type ActiveTimeField = 'entry' | 'exit' | null;
 
-export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSubmit }: Props) => {
+export const ParkingTimeSheet = ({
+  period,
+  validation,
+  onEntryAtChange,
+  onExitAtChange,
+  onSubmit,
+}: Props) => {
   const [activeField, setActiveField] = useState<ActiveTimeField>(null);
   const [pendingEntryDate, setPendingEntryDate] = useState(period.entryAt);
 
@@ -111,8 +118,6 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
     setActiveField(null);
   };
 
-  const isValidPeriod = validatePeriod(period);
-
   return (
     <div className={sheetContentStyle}>
       <header className={headerStyle}>
@@ -178,10 +183,18 @@ export const ParkingTimeSheet = ({ period, onEntryAtChange, onExitAtChange, onSu
         </button>
       </div>
 
+      <div className={errorMessageAreaStyle} aria-live="polite">
+        {validation.isValid === false && validation.entryTimeError && (
+          <p id="entry-time-error" className={errorMessageStyle}>
+            {validation.entryTimeError}
+          </p>
+        )}
+      </div>
+
       <button
         className={recommendButtonStyle}
         type="button"
-        disabled={!isValidPeriod}
+        disabled={!validation.isValid}
         onClick={onSubmit}
       >
         추천 받기
@@ -230,7 +243,7 @@ const titleStyle = css`
 
   color: #101b37;
   font-family: inherit;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -1.2px;
@@ -365,4 +378,18 @@ const recommendButtonStyle = css`
     background: #dce0ec;
     cursor: not-allowed;
   }
+`;
+
+const errorMessageAreaStyle = css`
+  min-height: 4px;
+`;
+
+const errorMessageStyle = css`
+  margin: 0;
+
+  color: #d14343;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 `;

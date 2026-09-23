@@ -10,7 +10,12 @@ interface Props {
 }
 
 export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: Props) => {
-  const { name, estimatedFee, distanceMeters } = parkingLot;
+  const { name, estimatedFee, distanceMeters, walkingDurationMinutes } = parkingLot;
+
+  const walkingInformation =
+    walkingDurationMinutes === null || distanceMeters === null
+      ? '도보 정보 없음'
+      : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
 
   return (
     <article
@@ -37,7 +42,7 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
           <strong>
             {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
           </strong>
-          <span>{distanceMeters.toLocaleString('ko-KR')}m</span>
+          <span>{walkingInformation}</span>
         </p>
       </div>
 

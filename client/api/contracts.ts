@@ -29,7 +29,8 @@ export interface ParkingLotSummary {
     latitude: number;
     longitude: number;
   };
-  distanceMeters: number;
+  distanceMeters: number | null;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   balancedScore: number | null;
   availabilityStatus: AvailabilityStatus;
@@ -83,12 +84,47 @@ export interface ParkingLotDetailResponse {
     longitude: number;
   };
   capacity: number | null;
-  distanceMeters: number;
+  distanceMeters: number | null;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   feeCalculationStatus: FeeCalculationStatus;
   feeRule: ParkingFeeRule | null;
   operation: ParkingOperation;
   source?: ParkingInformationSource;
+}
+
+export interface ParkingLotViewport {
+  id: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ParkingLotViewportResponse {
+  totalCount: number;
+  parkingLots: ParkingLotViewport[];
+}
+
+export type DailyOperationsDay = 'WEEKDAY' | 'SATURDAY' | 'HOLIDAY';
+export interface ViewportParkingLotDetailResponse {
+  id: number;
+  name: string;
+  address: string;
+  capacity: number | null;
+  feeRule: {
+    baseFreeMinutes: number | null;
+    baseMinutes: number | null;
+    baseFee: number | null;
+    additionalMinutes: number | null;
+    additionalFee: number | null;
+    dailyMaxFee: number | null;
+  } | null;
+  dailyOperations: {
+    status: ParkingOperationStatus;
+    day: DailyOperationsDay;
+    openTime: string | null;
+    closeTime: string | null;
+    paid: boolean | null;
+  }[];
 }
 
 export interface FieldError {

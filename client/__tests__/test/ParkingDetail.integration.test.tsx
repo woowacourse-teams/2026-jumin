@@ -6,6 +6,7 @@ import { Route, Routes } from 'react-router';
 import { ParkingDetailPage } from '../../src/pages/ParkingDetailPage/ParkingDetailPage';
 import type { RecentParkingUse } from '../../shared/utils/recentParkingUses';
 import { renderWithProviders } from '../renderWithProviders';
+import { TestMapLayout } from '../TestMapLayout';
 import {
   createDetailCondition,
   mockGeolocation,
@@ -16,7 +17,9 @@ import {
 const renderDetailPage = (parkingLotId = 101) =>
   renderWithProviders(
     <Routes>
-      <Route path="/parkingDetail" element={<ParkingDetailPage />} />
+      <Route element={<TestMapLayout />}>
+        <Route path="/parkingDetail" element={<ParkingDetailPage />} />
+      </Route>
     </Routes>,
     {
       initialEntries: [
@@ -37,17 +40,20 @@ const openDirectionsModal = async () => {
 };
 
 describe('D. 주차장 상세정보', () => {
-  it('예상 요금, 거리, 운영시간과 출처를 확인할 수 있다', async () => {
+  it('예상 요금, 도보 거리, 운영시간과 출처를 확인할 수 있다', async () => {
     renderDetailPage();
 
     expect(await screen.findByText('6,000원')).toBeInTheDocument();
-    expect(screen.getByText('직선거리 310m')).toBeInTheDocument();
+    expect(screen.getByText('도보 거리')).toBeInTheDocument();
+    expect(screen.getByText('310m(5분)')).toBeInTheDocument();
     expect(screen.getByText('평일 24시간')).toBeInTheDocument();
     expect(screen.getByText('서울 열린데이터광장 · 2026.8.21 기준')).toBeInTheDocument();
   });
 
   it('제공되지 않은 정보는 미제공으로 표시한다', async () => {
     renderDetailPage(105);
+
+    expect(await screen.findByText('도보 정보 없음')).toBeInTheDocument();
 
     const missingInformation = await screen.findAllByText('미제공');
 
@@ -68,7 +74,7 @@ describe('D. 주차장 상세정보', () => {
     setMockScenario('success');
     await user.click(within(error).getByRole('button', { name: '다시 시도' }));
 
-    expect(await screen.findByText('직선거리 310m')).toBeInTheDocument();
+    expect(await screen.findByText('310m(5분)')).toBeInTheDocument();
   });
 
   it('길찾기 모달을 열고 지도 앱을 선택할 수 있다', async () => {

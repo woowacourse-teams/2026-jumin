@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
@@ -15,6 +16,9 @@ import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +38,9 @@ public class ParkingSearchService {
     private final ParkingOperationRepository parkingOperationRepository;
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
-    private final GeoDistanceCalculator geoDistanceCalculator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
+    private final WalkingDistanceService walkingDistanceService;
+    private final WalkingDurationCalculator walkingDurationCalculator;
 
     public ParkingSearchResponse search(ParkingSearchRequest request) {
         queryValidator.validate(request);
@@ -54,15 +59,20 @@ public class ParkingSearchService {
         }
 
         Map<Long, ParkingOperation> operationsByParkingLotId = findOperationsByParkingLotId(candidates);
+        WalkingDistanceResult walkingDistances = walkingDistanceService.findDistances(
+                destination.latitude(),
+                destination.longitude(),
+                candidates
+        );
 
         int durationMinutes = durationMinutesOf(request);
 
         List<ParkingLotResponse> parkingLots = calculateParkingLots(
                 candidates,
                 operationsByParkingLotId,
-                destination,
                 request,
-                durationMinutes
+                durationMinutes,
+                walkingDistances
         );
 
         log.atInfo()
@@ -95,6 +105,22 @@ public class ParkingSearchService {
         return ParkingLotViewportResponses.from(parkingLots);
     }
 
+    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId) {
+        ParkingLot parkingLot = parkingLotRepository.findActiveById(parkingLotId)
+                .orElseThrow(() -> {
+                    log.atWarn()
+                            .setMessage("주차장 상세 정보를 찾을 수 없습니다.")
+                            .addKeyValue("parkingLotId", parkingLotId)
+                            .addKeyValue("status", ErrorCode.PARKING_LOT_NOT_FOUND.getHttpStatus().value())
+                            .log();
+                    return new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND);
+                });
+        ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
+                .orElse(null);
+
+        return ParkingLotViewportDetailResponse.from(parkingLot, operation);
+    }
+
     private List<ParkingLot> findCandidates(Coordinate destination) {
         return parkingLotRepository.findActiveWithinRadius(
                 destination.latitude(),
@@ -119,19 +145,18 @@ public class ParkingSearchService {
     private List<ParkingLotResponse> calculateParkingLots(
             List<ParkingLot> candidates,
             Map<Long, ParkingOperation> operationsByParkingLotId,
-            Coordinate destination,
             ParkingSearchRequest request,
-            int durationMinutes
+            int durationMinutes,
+            WalkingDistanceResult walkingDistances
     ) {
         return candidates.stream()
                 .map(candidate -> calculateParkingLotResponse(
                         candidate,
                         operationsByParkingLotId.get(candidate.getId()),
-                        destination,
                         request,
-                        durationMinutes
+                        durationMinutes,
+                        walkingDistances
                 ))
-                .filter(result -> result.distanceMeters() <= SEARCH_RADIUS_METERS)
                 .toList();
     }
 
@@ -145,9 +170,9 @@ public class ParkingSearchService {
     private ParkingLotResponse calculateParkingLotResponse(
             ParkingLot parkingLot,
             ParkingOperation operation,
-            Coordinate destination,
             ParkingSearchRequest request,
-            int durationMinutes
+            int durationMinutes,
+            WalkingDistanceResult walkingDistances
     ) {
         ParkingAvailabilityStatus availabilityStatus = operationEvaluator.evaluate(
                 operation,
@@ -155,9 +180,8 @@ public class ParkingSearchService {
                 request.exitAt()
         );
 
-        Coordinate parkingLocation = new Coordinate(parkingLot.getLatitude(), parkingLot.getLongitude());
-        int distanceMeters = geoDistanceCalculator.distanceMeters(destination, parkingLocation);
-
+        Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
+        Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
         Integer estimatedFee = null;
         if (operation != null) {
             estimatedFee = operation.calculateFee(
@@ -166,7 +190,7 @@ public class ParkingSearchService {
             );
         }
 
-        Double balancedScore = balancedScoreCalculator.calculate(
+        Double balancedScore = distanceMeters == null ? null : balancedScoreCalculator.calculate(
                 availabilityStatus,
                 distanceMeters,
                 estimatedFee,
@@ -180,9 +204,11 @@ public class ParkingSearchService {
                 parkingLot.getLatitude(),
                 parkingLot.getLongitude(),
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 balancedScore,
                 availabilityStatus.name()
         );
     }
+
 }

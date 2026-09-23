@@ -17,7 +17,11 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
+import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -27,6 +31,9 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,25 +45,32 @@ class ParkingSearchServiceTest {
 
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
+    private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
     private ParkingSearchService service;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-08-13T00:00:00Z"), ZoneOffset.UTC);
-        GeoDistanceCalculator geoDistanceCalculator = new GeoDistanceCalculator();
         service = new ParkingSearchService(
                 parkingLotRepository,
                 parkingOperationRepository,
                 new ParkingSearchQueryValidator(clock),
                 new ParkingOperationEvaluator(),
-                geoDistanceCalculator,
-                new ParkingBalancedScoreCalculator()
+                new ParkingBalancedScoreCalculator(),
+                walkingDistanceService,
+                new WalkingDurationCalculator()
         );
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenAnswer(invocation -> {
+                    List<ParkingLot> parkingLots = invocation.getArgument(2);
+                    return new WalkingDistanceResult(parkingLots.stream()
+                            .collect(Collectors.toMap(ParkingLot::getId, ignored -> 500)));
+                });
     }
 
     @Test
-    @DisplayName("직선거리와 요금, 운영 상태, 균형점수를 응답에 매핑한다")
-    void maps_straight_distance_fee_availability_and_balanced_score() {
+    @DisplayName("도보거리와 요금, 운영 상태, 균형점수를 응답에 매핑한다")
+    void maps_walking_distance_fee_availability_and_balanced_score() {
         // given
         ParkingLot first = parkingLot(1L, 37.4982, 127.0280);
         ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
@@ -64,6 +78,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(first, second));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 14, 2L, 28)));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
@@ -72,6 +88,8 @@ class ParkingSearchServiceTest {
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
                 .containsExactlyInAnyOrder(14, 28);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::walkingDurationMinutes)
+                .containsExactlyInAnyOrder(1, 1);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::estimatedFee).containsOnly(2_500);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::availabilityStatus).containsOnly("AVAILABLE");
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::balancedScore)
@@ -80,21 +98,63 @@ class ParkingSearchServiceTest {
     }
 
     @Test
-    @DisplayName("거리 재계산 결과가 반경을 벗어나면 후보에서 제외한다")
-    void filters_candidates_outside_radius_after_distance_recalculation() {
+    @DisplayName("직선거리 후보는 도보거리가 600m를 넘어도 반환한다")
+    void returns_candidates_even_when_walking_distance_exceeds_radius() {
+        // given
+        ParkingLot first = parkingLot(1L, 37.4982, 127.0280);
+        ParkingLot second = parkingLot(2L, 37.4983, 127.0281);
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(first, second));
+        when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
+                .thenReturn(List.of(availableOperation(1L), availableOperation(2L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(1L, 500, 2L, 700)));
+
+        // when
+        ParkingSearchResponse result = service.search(validQuery());
+
+        // then
+        assertThat(result.totalCount()).isEqualTo(2);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
+                .containsExactlyInAnyOrder(500, 700);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::walkingDurationMinutes)
+                .containsExactlyInAnyOrder(8, 11);
+    }
+
+    @Test
+    @DisplayName("보행망이 준비되지 않으면 직선거리로 대체하지 않고 실패한다")
+    void fails_when_walking_network_is_unavailable() {
+        when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(parkingLot(1L, 37.4982, 127.0280)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
+
+        assertThatThrownBy(() -> service.search(validQuery()))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.WALKING_NETWORK_UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("도보 경로가 없는 후보도 직선거리 후보면 반환한다")
+    void returns_candidate_without_walking_route() {
         // given
         ParkingLot outside = parkingLot(3L, 37.5040, 127.0279);
         when(parkingLotRepository.findActiveWithinRadius(anyDouble(), anyDouble(), anyInt()))
                 .thenReturn(List.of(outside));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(availableOperation(3L)));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of()));
 
         // when
         ParkingSearchResponse result = service.search(validQuery());
 
         // then
-        assertThat(result.totalCount()).isZero();
-        assertThat(result.parkingLots()).isEmpty();
+        assertThat(result.totalCount()).isOne();
+        assertThat(result.parkingLots().getFirst().distanceMeters()).isNull();
+        assertThat(result.parkingLots().getFirst().walkingDurationMinutes()).isNull();
+        assertThat(result.parkingLots().getFirst().balancedScore()).isNull();
     }
 
     @Test
@@ -164,6 +224,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(candidate));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(operation));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(6L, 14)));
 
         // when
         ParkingLotResponse result = service.search(query(
@@ -188,6 +250,8 @@ class ParkingSearchServiceTest {
                 .thenReturn(List.of(candidate));
         when(parkingOperationRepository.findAllByParkingLotIdIn(anyList()))
                 .thenReturn(List.of(operation));
+        when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
+                .thenReturn(new WalkingDistanceResult(Map.of(7L, 14)));
 
         // when
         ParkingLotResponse result = service.search(query(
@@ -266,6 +330,72 @@ class ParkingSearchServiceTest {
         assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
         assertThat(result.parkingLots().getFirst().latitude()).isEqualTo(37.5665);
         assertThat(result.parkingLots().getFirst().longitude()).isEqualTo(126.9780);
+    }
+
+    @Test
+    @DisplayName("지도에서 선택한 주차장의 공통 요금과 일별 운영 정보를 반환한다")
+    void returns_detail_for_viewport_parking_lot() {
+        // given
+        ParkingLot parkingLot = parkingLotWithDetails(1L, 37.5665, 126.9780);
+        ParkingOperation operation = availableOperationWithDetails(1L);
+        when(parkingLotRepository.findActiveById(1L)).thenReturn(Optional.of(parkingLot));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
+
+        // when
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+
+        // then
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.name()).isEqualTo("주차장 1");
+        assertThat(result.address()).isEqualTo("서울시 주소 1");
+        assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.feeRule().baseFreeMinutes()).isZero();
+        assertThat(result.feeRule().dailyMaxFee()).isEqualTo(30_000);
+        assertThat(result.dailyOperations()).extracting("day")
+                .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
+        assertThat(result.dailyOperations().get(0).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(0).paid()).isTrue();
+        assertThat(result.dailyOperations().get(1).status()).isEqualTo("OPEN");
+        assertThat(result.dailyOperations().get(1).paid()).isFalse();
+        assertThat(result.dailyOperations().get(2).status()).isEqualTo("CLOSED");
+        assertThat(result.dailyOperations().get(0).openTime()).isEqualTo("00:00");
+        assertThat(result.dailyOperations().get(1).closeTime()).isEqualTo("18:00");
+        assertThat(result.dailyOperations().get(2).openTime()).isNull();
+    }
+
+    @Test
+    @DisplayName("운영 정보가 없는 주차장은 요금과 운영 시간을 null로 반환한다")
+    void returns_null_fields_when_viewport_operation_is_missing() {
+        // given
+        when(parkingLotRepository.findActiveById(1L))
+                .thenReturn(Optional.of(parkingLot(1L, 37.5665, 126.9780)));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // when
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+
+        // then
+        assertThat(result.feeRule()).isNull();
+        assertThat(result.dailyOperations()).extracting("day")
+                .containsExactly("WEEKDAY", "SATURDAY", "HOLIDAY");
+        assertThat(result.dailyOperations()).allSatisfy(detail -> {
+            assertThat(detail.status()).isEqualTo("UNKNOWN");
+            assertThat(detail.openTime()).isNull();
+            assertThat(detail.closeTime()).isNull();
+            assertThat(detail.paid()).isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("활성 주차장을 찾지 못하면 주차장 미존재 예외를 던진다")
+    void throws_parking_lot_not_found_when_viewport_parking_lot_does_not_exist() {
+        // given
+        when(parkingLotRepository.findActiveById(999L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> service.getParkingLotDetail(999L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
     }
 
     @Test
@@ -352,6 +482,25 @@ class ParkingSearchServiceTest {
         ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.OPEN);
         ReflectionTestUtils.setField(operation, "holidayOpenTime", LocalTime.MIDNIGHT);
         ReflectionTestUtils.setField(operation, "holidayCloseTime", LocalTime.MIDNIGHT);
+        return operation;
+    }
+
+    private ParkingLot parkingLotWithDetails(long id, double latitude, double longitude) {
+        ParkingLot lot = parkingLot(id, latitude, longitude);
+        ReflectionTestUtils.setField(lot, "capacity", 42);
+        return lot;
+    }
+
+    private ParkingOperation availableOperationWithDetails(long parkingLotId) {
+        ParkingOperation operation = availableOperation(parkingLotId);
+        ReflectionTestUtils.setField(operation, "baseFreeMinutes", 0);
+        ReflectionTestUtils.setField(operation, "dailyMaxFee", 30_000);
+        ReflectionTestUtils.setField(operation, "weekendOpenTime", LocalTime.of(9, 0));
+        ReflectionTestUtils.setField(operation, "weekendCloseTime", LocalTime.of(18, 0));
+        ReflectionTestUtils.setField(operation, "saturdayPaid", false);
+        ReflectionTestUtils.setField(operation, "holidayStatus", ParkingOperationStatus.CLOSED);
+        ReflectionTestUtils.setField(operation, "holidayOpenTime", null);
+        ReflectionTestUtils.setField(operation, "holidayCloseTime", null);
         return operation;
     }
 

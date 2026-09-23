@@ -6,6 +6,7 @@ public record ParkingLotResponse(
         String address,
         LocationResponse location,
         Integer distanceMeters,
+        Integer walkingDurationMinutes,
         Integer estimatedFee,
         Double balancedScore,
         String availabilityStatus
@@ -17,6 +18,7 @@ public record ParkingLotResponse(
             double latitude,
             double longitude,
             Integer distanceMeters,
+            Integer walkingDurationMinutes,
             Integer estimatedFee,
             Double balancedScore,
             String availabilityStatus
@@ -27,6 +29,7 @@ public record ParkingLotResponse(
                 address,
                 new LocationResponse(latitude, longitude),
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 balancedScore,
                 availabilityStatus

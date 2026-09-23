@@ -1,12 +1,16 @@
 package jumin.domain.parking.service;
 
 import java.time.Duration;
+import java.util.List;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +28,8 @@ public class ParkingLotDetailService {
     private final ParkingOperationRepository parkingOperationRepository;
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
-    private final GeoDistanceCalculator geoDistanceCalculator;
+    private final WalkingDistanceService walkingDistanceService;
+    private final WalkingDurationCalculator walkingDurationCalculator;
 
     public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request) {
         queryValidator.validateForDetail(request);
@@ -41,15 +46,19 @@ public class ParkingLotDetailService {
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);
 
-        Coordinate destination = new Coordinate(
+        WalkingDistanceResult walkingDistances = walkingDistanceService.findDistances(
                 request.destinationLatitude(),
-                request.destinationLongitude()
+                request.destinationLongitude(),
+                List.of(parkingLot)
         );
-        Coordinate parkingLocation = new Coordinate(
-                parkingLot.getLatitude(),
-                parkingLot.getLongitude()
-        );
-        int distanceMeters = geoDistanceCalculator.distanceMeters(destination, parkingLocation);
+        Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLotId);
+        if (distanceMeters == null) {
+            log.atWarn()
+                    .setMessage("주차장까지의 도보 경로를 찾을 수 없습니다.")
+                    .addKeyValue("parkingLotId", parkingLotId)
+                    .log();
+        }
+        Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
         int durationMinutes = Math.toIntExact(Duration.between(request.entryAt(), request.exitAt()).toMinutes());
 
         ParkingAvailabilityStatus availabilityStatus = operationEvaluator.evaluate(
@@ -84,6 +93,7 @@ public class ParkingLotDetailService {
                 parkingLot.getLongitude(),
                 parkingLot.getCapacity(),
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 operation,
                 availabilityStatus

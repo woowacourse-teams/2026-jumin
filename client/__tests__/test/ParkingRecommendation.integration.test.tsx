@@ -1,26 +1,37 @@
 import { jest } from '@jest/globals';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes, useLocation } from 'react-router';
+import { Route, Routes, useLocation, useNavigate } from 'react-router';
 
-import type { ParkingDetailCondition } from '../../shared/types/navigation';
+import type { ParkingDetailCondition, RecommendView } from '../../shared/types/navigation';
 import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/ParkingRecommendPage';
+import { TestMapLayout } from '../TestMapLayout';
 import { renderWithProviders } from '../renderWithProviders';
 import { searchCondition, setMockScenario } from '../testData';
 
 const ParkingDetailProbe = () => {
+  const navigate = useNavigate();
   const { state } = useLocation();
   const detailCondition = (state as { detailCondition?: ParkingDetailCondition } | null)
     ?.detailCondition;
 
-  return <h1>주차장 상세: {detailCondition?.parkingLotName}</h1>;
+  return (
+    <>
+      <button type="button" onClick={() => navigate(-1)}>
+        뒤로가기
+      </button>
+      <h1>주차장 상세: {detailCondition?.parkingLotName}</h1>
+    </>
+  );
 };
 
-const renderRecommendationPage = () =>
+const renderRecommendationPage = (initialRecommendView: RecommendView | null = null) =>
   renderWithProviders(
     <Routes>
-      <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
-      <Route path="/parkingDetail" element={<ParkingDetailProbe />} />
+      <Route element={<TestMapLayout initialRecommendView={initialRecommendView} />}>
+        <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
+        <Route path="/parkingDetail" element={<ParkingDetailProbe />} />
+      </Route>
     </Routes>,
     {
       initialEntries: [
@@ -50,6 +61,10 @@ describe('C. 추천 주차장', () => {
       '역삼문화공원 제1호 공영주차장',
       '강남대로 공영주차장',
     ]);
+    expect(within(recommendation).getByText('210m(4분)')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: '주차장 전체 목록' })).getByText('도보 정보 없음'),
+    ).toBeInTheDocument();
   });
 
   it('정렬 기준을 변경하면 추천 순서가 변경된다', async () => {
@@ -119,5 +134,76 @@ describe('C. 추천 주차장', () => {
         name: '주차장 상세: 역삼문화공원 제1호 공영주차장',
       }),
     ).toBeInTheDocument();
+  });
+
+  it('추천 카드의 상세정보에서 돌아오면 접힌 시트와 선택한 주차장을 복원한다', async () => {
+    renderRecommendationPage();
+    const user = userEvent.setup();
+
+    const recommendation = await screen.findByRole('region', {
+      name: '거리순 추천 주차장',
+    });
+    const card = within(recommendation)
+      .getByRole('heading', { name: '역삼문화공원 제1호 공영주차장' })
+      .closest('article');
+
+    expect(card).not.toBeNull();
+    await user.click(within(card!).getByRole('button', { name: '상세정보' }));
+    await user.click(screen.getByRole('button', { name: '뒤로가기' }));
+
+    expect(
+      await screen.findByRole('button', { name: '역삼문화공원 제1호 공영주차장 선택' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: '바텀시트 접기' })).not.toBeInTheDocument();
+  });
+
+  it('목록의 상세정보에서 돌아오면 펼친 시트와 정렬, 선택한 주차장 위치를 복원한다', async () => {
+    const originalScrollBy = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollBy')!;
+    const scrollBy = jest.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollBy', {
+      configurable: true,
+      value: scrollBy,
+    });
+
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    jest.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      if (this.matches('#parking-list-sheet > ul')) {
+        return { top: 0, bottom: 300 } as DOMRect;
+      }
+      if (this.matches('#parking-list-sheet > ul > li:last-child')) {
+        return { top: 800, bottom: 900 } as DOMRect;
+      }
+      return originalGetBoundingClientRect.call(this);
+    });
+
+    try {
+      renderRecommendationPage({
+        snap: 'expanded',
+        parkingLotId: 101,
+        recommendationType: 'PRICE',
+      });
+      const user = userEvent.setup();
+
+      const parkingList = await screen.findByRole('region', { name: '주차장 전체 목록' });
+      const row = within(parkingList)
+        .getByRole('heading', { name: '목록 확인 주차장 7' })
+        .closest('article');
+
+      expect(row).not.toBeNull();
+      await user.click(within(row!).getByRole('button', { name: '상세보기' }));
+      scrollBy.mockClear();
+      await user.click(screen.getByRole('button', { name: '뒤로가기' }));
+
+      expect(
+        await screen.findByRole('button', { name: '목록 확인 주차장 7 선택' }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '바텀시트 접기' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: '가격순' })).toHaveAttribute('aria-selected', 'true');
+      expect(scrollBy).toHaveBeenCalledWith({ top: 600, behavior: 'auto' });
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'scrollBy', originalScrollBy);
+    }
   });
 });

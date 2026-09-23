@@ -42,7 +42,7 @@ const overlayStyle = css`
   display: grid;
   place-items: center;
 
-  padding: 20px;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 
   background: rgb(16 27 55 / 48%);
@@ -52,8 +52,10 @@ const modalStyle = css`
   position: relative;
 
   width: min(100%, 340px);
+  max-height: 100%;
   padding: 26px 20px 18px;
   box-sizing: border-box;
+  overflow-y: auto;
 
   color: #18233d;
   background: #fff;

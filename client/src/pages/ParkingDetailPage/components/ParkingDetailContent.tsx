@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
-import { ParkingDetailCondition } from '../../../../shared/types/navigation';
+import type { ParkingDetailCondition, RecommendView } from '../../../../shared/types/navigation';
 import { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
@@ -9,11 +9,13 @@ import BottomSheet, {
   BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
 import { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
+import { useModal } from '../../../../shared/hooks/useModal';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -64,8 +66,12 @@ const formatCheckedDate = (lastCheckedAt: string) => {
 };
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
-  const [isDeepLinkModalOpen, setIsDeepLinkModalOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+  const { setRecommendView } = useOutletContext<{
+    setRecommendView: (view: RecommendView | null) => void;
+  }>();
+
+  const modal = useModal();
 
   const { data: parkingLotDetail } = useSuspenseQuery(
     parkingDetailQueryOptions({
@@ -167,9 +173,16 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 
           <dl className={detailsStyle}>
             <div>
-              <dt>거리</dt>
+              <dt>도보 거리</dt>
 
-              <dd>직선거리 {parkingLotDetail.distanceMeters.toLocaleString('ko-KR')}m</dd>
+              <dd>
+                {parkingLotDetail.walkingDurationMinutes === null ||
+                parkingLotDetail.distanceMeters === null
+                  ? '도보 정보 없음'
+                  : `${parkingLotDetail.distanceMeters.toLocaleString(
+                      'ko-KR',
+                    )}m(${parkingLotDetail.walkingDurationMinutes}분)`}
+              </dd>
             </div>
 
             <div>
@@ -193,11 +206,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
               </p>
             )}
 
-            <button
-              className={navigationButtonStyle}
-              type="button"
-              onClick={() => setIsDeepLinkModalOpen(true)}
-            >
+            <button className={navigationButtonStyle} type="button" onClick={modal.open}>
               길찾기 시작
             </button>
           </div>
@@ -205,9 +214,12 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       </BottomSheet>
 
       <DeepLinkModal
-        isOpen={isDeepLinkModalOpen}
-        onRequestClose={() => setIsDeepLinkModalOpen(false)}
-        onDirectionsStart={() => saveRecentParkingUse(parkingLotDetail)}
+        isOpen={modal.isOpen}
+        onRequestClose={modal.close}
+        onDirectionsStart={() => {
+          setRecommendView(null);
+          saveRecentParkingUse(parkingLotDetail);
+        }}
         destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
       />
     </div>

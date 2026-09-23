@@ -132,7 +132,7 @@ const titleStyle = css`
 
 const listSectionStyle = css`
   min-height: 0;
-  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   flex: 1;
   overflow-y: auto;
 `;
@@ -159,5 +159,5 @@ const footerStyle = css`
   left: 0;
   z-index: 2;
 
-  height: calc(86px + env(safe-area-inset-bottom, 0px));
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
 `;
