@@ -35,8 +35,7 @@ interface MapLocation {
 
 export const HomePage = () => {
   const navigate = useNavigate();
-  const map = useOutletContext<naver.maps.Map | null>();
-
+  const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
 
   // 바텀시트

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
@@ -16,15 +16,20 @@ import { InfoRow } from './InfoRow';
 import {
   ParkingDetailCondition,
   ParkingSearchCondition,
+  RecommendationType,
+  RecommendView,
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
 
-interface Props {
+type MapOutletContext = {
   map: naver.maps.Map | null;
+  recommendView: RecommendView | null;
+  setRecommendView: (view: RecommendView | null) => void;
+};
+
+interface Props {
   searchCondition: ParkingSearchCondition;
 }
-
-export type RecommendationType = 'PRICE' | 'DISTANCE' | 'BALANCED';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -91,7 +96,7 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
   return itemRect.left + itemRect.width / 2 - (containerRect.left + containerRect.width / 2);
 };
 
-export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
+export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   const navigate = useNavigate();
 
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
@@ -100,11 +105,19 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
   const parkingListRef = useRef<HTMLUListElement>(null);
   const hasTrackedRecommendations = useRef(false);
 
-  const [recommendationType, setRecommendationType] = useState<RecommendationType>('DISTANCE');
+  const { map, recommendView, setRecommendView } = useOutletContext<MapOutletContext>();
 
-  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(null);
+  const restoreViewRef = useRef(recommendView);
 
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+  const [recommendationType, setRecommendationType] = useState<RecommendationType>(
+    recommendView?.recommendationType ?? 'DISTANCE',
+  );
+
+  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(
+    recommendView?.parkingLotId ?? null,
+  );
+
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>(recommendView?.snap ?? 'collapsed');
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
@@ -208,8 +221,72 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
     setSelectedParkingLotId(null);
   };
 
+  useLayoutEffect(() => {
+    const restoreView = restoreViewRef.current;
+
+    if (!restoreView) return;
+
+    const cardList = cardListRef.current;
+    const cardIndex = recommendedParkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
+    const card = cardIndex >= 0 ? cardList?.children.item(cardIndex) : null;
+
+    if (cardList && card) {
+      cardList.scrollBy({
+        left: getHorizontalCenterOffset(cardList, card),
+        behavior: 'auto',
+      });
+    }
+
+    if (restoreView.snap === 'expanded') {
+      const list = parkingListRef.current;
+      const rowIndex = parkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
+      const row = rowIndex >= 0 ? list?.children.item(rowIndex) : null;
+
+      if (list && row) {
+        const listRect = list.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+
+        const offset =
+          rowRect.top < listRect.top
+            ? rowRect.top - listRect.top
+            : rowRect.bottom > listRect.bottom
+              ? rowRect.bottom - listRect.bottom
+              : 0;
+
+        if (offset !== 0) {
+          list.scrollBy({
+            top: offset,
+            behavior: 'auto',
+          });
+        }
+      }
+    }
+
+    restoreViewRef.current = null;
+    setRecommendView(null);
+  }, [recommendedParkingLots, parkingLots, setRecommendView]);
+
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLotId(parkingLot.id);
+
+    const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
+    const list = parkingListRef.current;
+    const row = index >= 0 ? list?.children.item(index) : null;
+
+    if (list && row) {
+      const listRect = list.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const offset =
+        rowRect.top < listRect.top
+          ? rowRect.top - listRect.top
+          : rowRect.bottom > listRect.bottom
+            ? rowRect.bottom - listRect.bottom
+            : 0;
+
+      if (offset !== 0) {
+        list.scrollBy({ top: offset, behavior: 'smooth' });
+      }
+    }
 
     const recommendationIndex = recommendedParkingLots.findIndex(
       (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
@@ -253,6 +330,11 @@ export const ParkingRecommendContent = ({ map, searchCondition }: Props) => {
   };
 
   const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
+    setRecommendView({
+      snap: sheetSnap,
+      parkingLotId: parkingLot.id,
+      recommendationType,
+    });
     const detailCondition: ParkingDetailCondition = {
       parkingLotId: parkingLot.id,
       parkingLotName: parkingLot.name,

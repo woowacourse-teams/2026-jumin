@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
 
 import { HomePage } from '../../src/pages/HomePage/HomePage';
+import { TestMapLayout } from '../TestMapLayout';
 import { renderWithProviders } from '../renderWithProviders';
 
 describe('통합 테스트 환경', () => {
@@ -11,7 +12,9 @@ describe('통합 테스트 환경', () => {
 
     renderWithProviders(
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route element={<TestMapLayout />}>
+          <Route path="/" element={<HomePage />} />
+        </Route>
         <Route path="/search" element={<h1>목적지 검색</h1>} />
       </Routes>,
     );
