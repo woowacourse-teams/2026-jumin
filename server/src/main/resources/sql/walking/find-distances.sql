@@ -65,8 +65,18 @@ routes AS (
            destination.snap_distance
     FROM destination_nodes destination
     JOIN pgr_dijkstraCost(
-        'SELECT id, source, target, cost, reverse_cost '
-            || 'FROM walking_edges WHERE walkable = true',
+        -- geometry 인덱스로 후보 링크를 좁힌 뒤 geography로 실제 미터 거리를 확인한다.
+        -- 75000은 서울 위도에서 800m 원을 포함하도록 잡은 보수적인 도 단위 변환값이다.
+        -- 반경에 일부라도 걸치는 링크는 분할하지 않고 전체를 포함한다.
+        format(
+            'SELECT id, source, target, cost, reverse_cost '
+                || 'FROM walking_edges WHERE walkable = true '
+                || 'AND geom && ST_Expand(ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326), %3$L::double precision / 75000.0) '
+                || 'AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography, %3$L::double precision)',
+            CAST(:longitude AS double precision),
+            CAST(:latitude AS double precision),
+            CAST(:graphSearchRadiusMeters AS double precision)
+        ),
         ARRAY(SELECT DISTINCT node.id FROM destination_nodes node),
         ARRAY(
             SELECT DISTINCT candidate.node_id

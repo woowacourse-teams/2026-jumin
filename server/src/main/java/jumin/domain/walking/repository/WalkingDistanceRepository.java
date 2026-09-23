@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class WalkingDistanceRepository {
 
+    private static final int GRAPH_SEARCH_RADIUS_METERS = 800;
     private static final String FIND_DISTANCES_SQL = loadSql("sql/walking/find-distances.sql");
     private static final String HAS_USABLE_NETWORK_SQL = loadSql("sql/walking/has-usable-network.sql");
 
@@ -30,7 +31,8 @@ public class WalkingDistanceRepository {
             .addValue("latitude", latitude)
             .addValue("longitude", longitude)
             .addValue("parkingLotIds", parkingLotIds)
-            .addValue("maxSnapDistanceMeters", maxSnapDistanceMeters);
+            .addValue("maxSnapDistanceMeters", maxSnapDistanceMeters)
+            .addValue("graphSearchRadiusMeters", GRAPH_SEARCH_RADIUS_METERS);
 
         return jdbcTemplate.query(
             FIND_DISTANCES_SQL,
