@@ -30,6 +30,7 @@ export interface ParkingLotSummary {
     longitude: number;
   };
   distanceMeters: number;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   balancedScore: number | null;
   availabilityStatus: AvailabilityStatus;

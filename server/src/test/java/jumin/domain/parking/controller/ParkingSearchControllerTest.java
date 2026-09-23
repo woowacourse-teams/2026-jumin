@@ -50,7 +50,7 @@ class ParkingSearchControllerTest {
         ParkingSearchResponse result = ParkingSearchResponse.from(600, List.of(
                 ParkingLotResponse.from(
                         1L, "시청 주차장", "서울 중구", 37.5665, 126.9780,
-                        240, 2_000, 0.1250, "AVAILABLE"
+                        240, 4, 2_000, 0.1250, "AVAILABLE"
                 )
         ));
         when(parkingSearchService.search(any(ParkingSearchRequest.class))).thenReturn(result);
@@ -73,6 +73,7 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.parkingLots[0].location.latitude").value(37.5665))
                 .andExpect(jsonPath("$.parkingLots[0].location.longitude").value(126.9780))
                 .andExpect(jsonPath("$.parkingLots[0].distanceMeters").value(240))
+                .andExpect(jsonPath("$.parkingLots[0].walkingDurationMinutes").value(4))
                 .andExpect(jsonPath("$.parkingLots[0].estimatedFee").value(2_000))
                 .andExpect(jsonPath("$.parkingLots[0].balancedScore").value(0.1250))
                 .andExpect(jsonPath("$.parkingLots[0].availabilityStatus").value("AVAILABLE"))
@@ -99,7 +100,7 @@ class ParkingSearchControllerTest {
         ParkingSearchResponse result = ParkingSearchResponse.from(600, List.of(
                 ParkingLotResponse.from(
                         1L, "운영정보 확인 주차장", "서울 중구", 37.5665, 126.9780,
-                        240, null, null, "UNKNOWN"
+                        240, 4, null, null, "UNKNOWN"
                 )
         ));
         when(parkingSearchService.search(any(ParkingSearchRequest.class)))
