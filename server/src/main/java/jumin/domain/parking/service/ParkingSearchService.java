@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingSearchService {
 
     private static final int SEARCH_RADIUS_METERS = 600;
+    private static final int WALKING_SPEED_METERS_PER_HOUR = 4_000;
 
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingOperationRepository parkingOperationRepository;
@@ -179,6 +180,7 @@ public class ParkingSearchService {
         );
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
+        Integer walkingDurationMinutes = walkingDurationMinutesOf(distanceMeters);
         Integer estimatedFee = null;
         if (operation != null) {
             estimatedFee = operation.calculateFee(
@@ -201,9 +203,19 @@ public class ParkingSearchService {
                 parkingLot.getLatitude(),
                 parkingLot.getLongitude(),
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 balancedScore,
                 availabilityStatus.name()
         );
+    }
+
+    private Integer walkingDurationMinutesOf(Integer distanceMeters) {
+        if (distanceMeters == null) {
+            return null;
+        }
+
+        return (distanceMeters * 60 + WALKING_SPEED_METERS_PER_HOUR - 1)
+                / WALKING_SPEED_METERS_PER_HOUR;
     }
 }

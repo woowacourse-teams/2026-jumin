@@ -86,6 +86,8 @@ class ParkingSearchServiceTest {
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
                 .containsExactlyInAnyOrder(14, 28);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::walkingDurationMinutes)
+                .containsExactlyInAnyOrder(1, 1);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::estimatedFee).containsOnly(2_500);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::availabilityStatus).containsOnly("AVAILABLE");
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::balancedScore)
@@ -147,6 +149,7 @@ class ParkingSearchServiceTest {
         // then
         assertThat(result.totalCount()).isOne();
         assertThat(result.parkingLots().getFirst().distanceMeters()).isNull();
+        assertThat(result.parkingLots().getFirst().walkingDurationMinutes()).isNull();
         assertThat(result.parkingLots().getFirst().balancedScore()).isNull();
     }
 
