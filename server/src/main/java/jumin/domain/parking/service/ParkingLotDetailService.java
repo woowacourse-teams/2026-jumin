@@ -51,16 +51,13 @@ public class ParkingLotDetailService {
                 request.destinationLongitude(),
                 List.of(parkingLot)
         );
-        Integer walkingDistance = walkingDistances.distancesByParkingLotId().get(parkingLotId);
-        if (walkingDistance == null) {
+        Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLotId);
+        if (distanceMeters == null) {
             log.atWarn()
                     .setMessage("주차장까지의 도보 경로를 찾을 수 없습니다.")
                     .addKeyValue("parkingLotId", parkingLotId)
-                    .addKeyValue("status", ErrorCode.WALKING_ROUTE_NOT_FOUND.getHttpStatus().value())
                     .log();
-            throw new BusinessException(ErrorCode.WALKING_ROUTE_NOT_FOUND);
         }
-        int distanceMeters = walkingDistance;
         Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
         int durationMinutes = Math.toIntExact(Duration.between(request.entryAt(), request.exitAt()).toMinutes());
 
