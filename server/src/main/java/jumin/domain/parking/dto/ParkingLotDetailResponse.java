@@ -10,6 +10,7 @@ public record ParkingLotDetailResponse(
         LocationResponse location,
         Integer capacity,
         int distanceMeters,
+        Integer walkingDurationMinutes,
         Integer estimatedFee,
         String feeCalculationStatus,
         ParkingFeeRuleResponse feeRule,
@@ -24,6 +25,7 @@ public record ParkingLotDetailResponse(
             double longitude,
             Integer capacity,
             int distanceMeters,
+            Integer walkingDurationMinutes,
             Integer estimatedFee,
             ParkingOperation parkingOperation,
             ParkingAvailabilityStatus availabilityStatus
@@ -35,6 +37,7 @@ public record ParkingLotDetailResponse(
                 new LocationResponse(latitude, longitude),
                 capacity,
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 feeCalculationStatusOf(estimatedFee),
                 ParkingFeeRuleResponse.from(parkingOperation),

@@ -51,6 +51,7 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.capacity").value(42))
                 .andExpect(jsonPath("$.distanceMeters").value(310))
+                .andExpect(jsonPath("$.walkingDurationMinutes").value(5))
                 .andExpect(jsonPath("$.estimatedFee").value(6_000))
                 .andExpect(jsonPath("$.feeCalculationStatus").value("CALCULATED"))
                 .andExpect(jsonPath("$.feeRule.baseFreeMinutes").value(0))
@@ -124,6 +125,7 @@ class ParkingLotDetailControllerTest {
                 new LocationResponse(37.4990, 127.0290),
                 42,
                 310,
+                5,
                 6_000,
                 "CALCULATED",
                 new ParkingFeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),

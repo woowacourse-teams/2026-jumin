@@ -18,6 +18,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingSearchService {
 
     private static final int SEARCH_RADIUS_METERS = 600;
-    private static final int WALKING_SPEED_METERS_PER_HOUR = 4_000;
 
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingOperationRepository parkingOperationRepository;
@@ -40,6 +40,7 @@ public class ParkingSearchService {
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
     private final WalkingDistanceService walkingDistanceService;
+    private final WalkingDurationCalculator walkingDurationCalculator;
 
     public ParkingSearchResponse search(ParkingSearchRequest request) {
         queryValidator.validate(request);
@@ -180,7 +181,7 @@ public class ParkingSearchService {
         );
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
-        Integer walkingDurationMinutes = walkingDurationMinutesOf(distanceMeters);
+        Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
         Integer estimatedFee = null;
         if (operation != null) {
             estimatedFee = operation.calculateFee(
@@ -210,12 +211,4 @@ public class ParkingSearchService {
         );
     }
 
-    private Integer walkingDurationMinutesOf(Integer distanceMeters) {
-        if (distanceMeters == null) {
-            return null;
-        }
-
-        return (distanceMeters * 60 + WALKING_SPEED_METERS_PER_HOUR - 1)
-                / WALKING_SPEED_METERS_PER_HOUR;
-    }
 }
