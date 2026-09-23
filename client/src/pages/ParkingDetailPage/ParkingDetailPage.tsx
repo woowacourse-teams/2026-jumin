@@ -21,7 +21,7 @@ export const ParkingDetailPage = () => {
   const navigationState = state as NavigationState | null;
   const detailCondition = navigationState?.detailCondition;
 
-  const map = useOutletContext<naver.maps.Map | null>();
+  const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
 
   if (!detailCondition) {
     return <Navigate to="/parkingsetup" replace />;

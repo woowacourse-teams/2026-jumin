@@ -66,6 +66,38 @@ class WalkingDistanceRepositoryTest {
                 );
     }
 
+    @Test
+    @DisplayName("목적지 800m 밖의 링크를 통해서만 도달하는 주차장은 반환하지 않는다")
+    void excludes_routes_requiring_edges_outside_graph_radius() {
+        insertWalkingGraph();
+        long parkingLotId = insertParkingLot("outside-network");
+        jdbcTemplate.update("""
+                insert into walking_nodes (id, geom) values
+                    (7, ST_SetSRID(ST_MakePoint(127.0400, 37.4981), 4326)),
+                    (8, ST_SetSRID(ST_MakePoint(127.0430, 37.4981), 4326))
+                """);
+        jdbcTemplate.update("""
+                insert into walking_edges (id, source, target, geom, cost, reverse_cost) values
+                    (5, 4, 7, ST_GeomFromText('LINESTRING (127.0360 37.4981, 127.0400 37.4981)', 4326), 360, 360),
+                    (6, 7, 8, ST_GeomFromText('LINESTRING (127.0400 37.4981, 127.0430 37.4981)', 4326), 270, 270)
+                """);
+        jdbcTemplate.update("update parking_lots set longitude = 127.0400 where id = ?", parkingLotId);
+        assertThat(walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        )).hasSize(1);
+
+        jdbcTemplate.update("update parking_lots set longitude = 127.0430 where id = ?", parkingLotId);
+
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from pgr_dijkstraCost(
+                    'select id, source, target, cost, reverse_cost from walking_edges where walkable',
+                    1::bigint, 8::bigint, true)
+                """, Integer.class)).isEqualTo(1);
+        assertThat(walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        )).isEmpty();
+    }
+
     private void insertWalkingGraph() {
         jdbcTemplate.update("""
                 insert into walking_nodes (id, node_type_code, geom) values

@@ -29,14 +29,13 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
       <img
         className={css`
           position: absolute;
-          top: -6px;
-          left: -10px;
+          top: -2px;
+          left: -6px;
           display: block;
-          width: 74px;
-          height: 74px;
+          width: 67px;
+          height: 67px;
           pointer-events: none;
           user-select: none;
-          transform: scale(0.9);
         `}
         src={currentLocationButtonIcon}
         alt=""
