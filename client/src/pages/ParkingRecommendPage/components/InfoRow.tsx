@@ -15,7 +15,7 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
   const walkingInformation =
     walkingDurationMinutes === null || distanceMeters === null
       ? '도보 정보 없음'
-      : `${distanceMeters.toLocaleString('ko-KR')}m (${walkingDurationMinutes}분)`;
+      : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
 
   return (
     <article

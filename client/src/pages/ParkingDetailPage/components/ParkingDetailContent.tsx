@@ -181,7 +181,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
                   ? '도보 정보 없음'
                   : `${parkingLotDetail.distanceMeters.toLocaleString(
                       'ko-KR',
-                    )}m (${parkingLotDetail.walkingDurationMinutes}분)`}
+                    )}m(${parkingLotDetail.walkingDurationMinutes}분)`}
               </dd>
             </div>
 
