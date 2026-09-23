@@ -81,7 +81,6 @@ class WalkingDistanceRepositoryTest {
                     (5, 4, 7, ST_GeomFromText('LINESTRING (127.0360 37.4981, 127.0400 37.4981)', 4326), 360, 360),
                     (6, 7, 8, ST_GeomFromText('LINESTRING (127.0400 37.4981, 127.0430 37.4981)', 4326), 270, 270)
                 """);
-        // 4→7 링크는 반경 경계를 가로지르므로 끝점이 800m 밖이어도 포함된다.
         jdbcTemplate.update("update parking_lots set longitude = 127.0400 where id = ?", parkingLotId);
         assertThat(walkingDistanceRepository.findDistances(
                 37.4981, 127.0279, List.of(parkingLotId), 100
@@ -89,7 +88,6 @@ class WalkingDistanceRepositoryTest {
 
         jdbcTemplate.update("update parking_lots set longitude = 127.0430 where id = ?", parkingLotId);
 
-        // 전체 그래프에서는 연결되어 있지만 7→8 링크는 목적지 반경 밖이다.
         assertThat(jdbcTemplate.queryForObject("""
                 select count(*) from pgr_dijkstraCost(
                     'select id, source, target, cost, reverse_cost from walking_edges where walkable',
