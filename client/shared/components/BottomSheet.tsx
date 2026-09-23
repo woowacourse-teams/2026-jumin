@@ -179,5 +179,6 @@ const overlayStyle = css`
   border: 0;
   background: transparent;
   pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 `;
