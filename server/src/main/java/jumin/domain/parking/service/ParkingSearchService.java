@@ -18,6 +18,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.domain.walking.service.WalkingDistanceService;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class ParkingSearchService {
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
     private final WalkingDistanceService walkingDistanceService;
+    private final WalkingDurationCalculator walkingDurationCalculator;
 
     public ParkingSearchResponse search(ParkingSearchRequest request) {
         queryValidator.validate(request);
@@ -179,6 +181,7 @@ public class ParkingSearchService {
         );
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
+        Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
         Integer estimatedFee = null;
         if (operation != null) {
             estimatedFee = operation.calculateFee(
@@ -201,9 +204,11 @@ public class ParkingSearchService {
                 parkingLot.getLatitude(),
                 parkingLot.getLongitude(),
                 distanceMeters,
+                walkingDurationMinutes,
                 estimatedFee,
                 balancedScore,
                 availabilityStatus.name()
         );
     }
+
 }

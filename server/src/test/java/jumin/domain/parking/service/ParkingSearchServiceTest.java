@@ -33,6 +33,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +57,8 @@ class ParkingSearchServiceTest {
                 new ParkingSearchQueryValidator(clock),
                 new ParkingOperationEvaluator(),
                 new ParkingBalancedScoreCalculator(),
-                walkingDistanceService
+                walkingDistanceService,
+                new WalkingDurationCalculator()
         );
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenAnswer(invocation -> {
@@ -86,6 +88,8 @@ class ParkingSearchServiceTest {
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
                 .containsExactlyInAnyOrder(14, 28);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::walkingDurationMinutes)
+                .containsExactlyInAnyOrder(1, 1);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::estimatedFee).containsOnly(2_500);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::availabilityStatus).containsOnly("AVAILABLE");
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::balancedScore)
@@ -113,6 +117,8 @@ class ParkingSearchServiceTest {
         assertThat(result.totalCount()).isEqualTo(2);
         assertThat(result.parkingLots()).extracting(ParkingLotResponse::distanceMeters)
                 .containsExactlyInAnyOrder(500, 700);
+        assertThat(result.parkingLots()).extracting(ParkingLotResponse::walkingDurationMinutes)
+                .containsExactlyInAnyOrder(8, 11);
     }
 
     @Test
@@ -147,6 +153,7 @@ class ParkingSearchServiceTest {
         // then
         assertThat(result.totalCount()).isOne();
         assertThat(result.parkingLots().getFirst().distanceMeters()).isNull();
+        assertThat(result.parkingLots().getFirst().walkingDurationMinutes()).isNull();
         assertThat(result.parkingLots().getFirst().balancedScore()).isNull();
     }
 

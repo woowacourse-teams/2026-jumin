@@ -1,5 +1,6 @@
 package jumin.domain.parking.controller;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -40,7 +41,7 @@ class ParkingLotDetailControllerTest {
     void returns_parking_lot_detail_response() throws Exception {
         // given
         when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
-                .thenReturn(detailResponse());
+                .thenReturn(detailResponse(310, 5));
 
         // when
         ResultActions response = mockMvc.perform(validRequest(1L));
@@ -51,6 +52,7 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.capacity").value(42))
                 .andExpect(jsonPath("$.distanceMeters").value(310))
+                .andExpect(jsonPath("$.walkingDurationMinutes").value(5))
                 .andExpect(jsonPath("$.estimatedFee").value(6_000))
                 .andExpect(jsonPath("$.feeCalculationStatus").value("CALCULATED"))
                 .andExpect(jsonPath("$.feeRule.baseFreeMinutes").value(0))
@@ -95,16 +97,45 @@ class ParkingLotDetailControllerTest {
     }
 
     @Test
-    @DisplayName("도보 경로가 없으면 도보 경로 없음 메시지와 404를 반환한다")
-    void returns_not_found_when_walking_route_does_not_exist() throws Exception {
+    @DisplayName("도보 경로가 없어도 거리와 소요 시간이 null인 상세 응답과 200을 반환한다")
+    void returns_detail_with_null_distance_and_duration_when_walking_route_does_not_exist() throws Exception {
+        // given
         when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
-                .thenThrow(new BusinessException(ErrorCode.WALKING_ROUTE_NOT_FOUND));
+                .thenReturn(detailResponse(null, null));
 
+        // when
         ResultActions response = mockMvc.perform(validRequest(1L));
 
+        // then
         response
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("주차장까지의 도보 경로를 찾을 수 없습니다."))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("역삼문화공원 제1호 공영주차장"))
+                .andExpect(jsonPath("$.distanceMeters").hasJsonPath())
+                .andExpect(jsonPath("$.distanceMeters").value(nullValue()))
+                .andExpect(jsonPath("$.walkingDurationMinutes").hasJsonPath())
+                .andExpect(jsonPath("$.walkingDurationMinutes").value(nullValue()))
+                .andExpect(jsonPath("$.estimatedFee").value(6_000))
+                .andExpect(jsonPath("$.feeCalculationStatus").value("CALCULATED"))
+                .andExpect(jsonPath("$.feeRule.baseFee").value(3_000))
+                .andExpect(jsonPath("$.operation.availabilityStatus").value("AVAILABLE"))
+                .andExpect(jsonPath("$.operation.weekday.openTime").value("00:00"));
+    }
+
+    @Test
+    @DisplayName("보행망이 준비되지 않으면 보행 네트워크 사용 불가 메시지와 503을 반환한다")
+    void returns_service_unavailable_when_walking_network_is_unavailable() throws Exception {
+        // given
+        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+                .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
+
+        // when
+        ResultActions response = mockMvc.perform(validRequest(1L));
+
+        // then
+        response
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("보행 네트워크를 사용할 수 없습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 
@@ -116,14 +147,15 @@ class ParkingLotDetailControllerTest {
                 .queryParam("exitAt", "2026-08-21T20:00:00+09:00");
     }
 
-    private ParkingLotDetailResponse detailResponse() {
+    private ParkingLotDetailResponse detailResponse(Integer distanceMeters, Integer walkingDurationMinutes) {
         return new ParkingLotDetailResponse(
                 1L,
                 "역삼문화공원 제1호 공영주차장",
                 "서울 강남구 테헤란로7길 21",
                 new LocationResponse(37.4990, 127.0290),
                 42,
-                310,
+                distanceMeters,
+                walkingDurationMinutes,
                 6_000,
                 "CALCULATED",
                 new ParkingFeeRuleResponse(0, 30, 3_000, 10, 1_000, 30_000),

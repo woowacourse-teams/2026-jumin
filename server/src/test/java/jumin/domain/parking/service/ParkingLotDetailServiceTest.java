@@ -21,6 +21,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,15 +45,16 @@ class ParkingLotDetailServiceTest {
                 parkingOperationRepository,
                 queryValidator,
                 operationEvaluator,
-                walkingDistanceService
+                walkingDistanceService,
+                new WalkingDurationCalculator()
         );
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenReturn(new WalkingDistanceResult(Map.of()));
     }
 
     @Test
-    @DisplayName("주차장 상세 정보와 거리, 예상 요금, 운영 정보를 반환한다")
-    void returns_parking_lot_detail_with_distance_fee_and_operation() {
+    @DisplayName("주차장 상세 정보와 거리, 도보 소요 시간, 예상 요금, 운영 정보를 반환한다")
+    void returns_parking_lot_detail_with_distance_walking_duration_fee_and_operation() {
         // given
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
@@ -75,6 +77,7 @@ class ParkingLotDetailServiceTest {
         assertThat(result.location().longitude()).isEqualTo(127.0290);
         assertThat(result.capacity()).isEqualTo(42);
         assertThat(result.distanceMeters()).isEqualTo(540);
+        assertThat(result.walkingDurationMinutes()).isEqualTo(9);
         assertThat(result.estimatedFee()).isEqualTo(6_000);
         assertThat(result.feeCalculationStatus()).isEqualTo("CALCULATED");
         assertThat(result.feeRule().baseFreeMinutes()).isZero();
@@ -119,23 +122,58 @@ class ParkingLotDetailServiceTest {
     }
 
     @Test
-    @DisplayName("상세 경로가 없으면 직선거리로 대체하지 않고 404 오류를 반환한다")
-    void fails_when_walking_route_does_not_exist() {
+    @DisplayName("도보 경로가 없어도 거리와 소요 시간을 null로 반환하고 주차장과 요금, 운영 정보를 제공한다")
+    void returns_detail_with_null_distance_and_duration_when_walking_route_does_not_exist() {
+        // given
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
+        ParkingOperation operation = parkingOperation();
         when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
-        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
-        when(operationEvaluator.evaluate(null, request.entryAt(), request.exitAt())).thenReturn(null);
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
+        when(operationEvaluator.evaluate(operation, request.entryAt(), request.exitAt()))
+                .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
 
-        assertThatThrownBy(() -> service.getDetail(1L, request))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.WALKING_ROUTE_NOT_FOUND);
+        // when
+        ParkingLotDetailResponse result = service.getDetail(1L, request);
+
+        // then
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.name()).isEqualTo("역삼문화공원 제1호 공영주차장");
+        assertThat(result.distanceMeters()).isNull();
+        assertThat(result.walkingDurationMinutes()).isNull();
+        assertThat(result.estimatedFee()).isEqualTo(6_000);
+        assertThat(result.feeCalculationStatus()).isEqualTo("CALCULATED");
+        assertThat(result.feeRule().baseFee()).isEqualTo(3_000);
+        assertThat(result.operation().availabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(result.operation().weekday().status()).isEqualTo("OPEN");
+        assertThat(result.operation().weekday().openTime()).isEqualTo("00:00");
+    }
+
+    @Test
+    @DisplayName("도보 경로와 운영 정보가 모두 없어도 주차장 상세 정보를 반환한다")
+    void returns_detail_when_walking_route_and_operation_are_missing() {
+        // given
+        ParkingSearchRequest request = request();
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot()));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // when
+        ParkingLotDetailResponse result = service.getDetail(1L, request);
+
+        // then
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.distanceMeters()).isNull();
+        assertThat(result.walkingDurationMinutes()).isNull();
+        assertThat(result.estimatedFee()).isNull();
+        assertThat(result.feeCalculationStatus()).isEqualTo("UNAVAILABLE");
+        assertThat(result.feeRule()).isNull();
+        assertThat(result.operation().availabilityStatus()).isEqualTo("UNKNOWN");
     }
 
     @Test
     @DisplayName("보행망이 준비되지 않으면 상세 조회도 실패한다")
     void fails_when_walking_network_is_unavailable() {
+        // given
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
         when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot));
@@ -143,6 +181,7 @@ class ParkingLotDetailServiceTest {
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
 
+        // when & then
         assertThatThrownBy(() -> service.getDetail(1L, request))
                 .isInstanceOf(BusinessException.class)
                 .extracting(exception -> ((BusinessException) exception).getErrorCode())
