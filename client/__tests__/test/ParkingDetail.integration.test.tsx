@@ -40,17 +40,20 @@ const openDirectionsModal = async () => {
 };
 
 describe('D. 주차장 상세정보', () => {
-  it('예상 요금, 거리, 운영시간과 출처를 확인할 수 있다', async () => {
+  it('예상 요금, 도보 거리, 운영시간과 출처를 확인할 수 있다', async () => {
     renderDetailPage();
 
     expect(await screen.findByText('6,000원')).toBeInTheDocument();
-    expect(screen.getByText('직선거리 310m')).toBeInTheDocument();
+    expect(screen.getByText('도보 거리')).toBeInTheDocument();
+    expect(screen.getByText('5분 (310m)')).toBeInTheDocument();
     expect(screen.getByText('평일 24시간')).toBeInTheDocument();
     expect(screen.getByText('서울 열린데이터광장 · 2026.8.21 기준')).toBeInTheDocument();
   });
 
   it('제공되지 않은 정보는 미제공으로 표시한다', async () => {
     renderDetailPage(105);
+
+    expect(await screen.findByText('도보 정보 없음')).toBeInTheDocument();
 
     const missingInformation = await screen.findAllByText('미제공');
 
@@ -71,7 +74,7 @@ describe('D. 주차장 상세정보', () => {
     setMockScenario('success');
     await user.click(within(error).getByRole('button', { name: '다시 시도' }));
 
-    expect(await screen.findByText('직선거리 310m')).toBeInTheDocument();
+    expect(await screen.findByText('5분 (310m)')).toBeInTheDocument();
   });
 
   it('길찾기 모달을 열고 지도 앱을 선택할 수 있다', async () => {

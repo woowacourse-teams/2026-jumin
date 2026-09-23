@@ -55,7 +55,15 @@ const getSearchParkingLot = (id: number) => {
 const createDetailBase = (id: number) => {
   const { name, address, location, distanceMeters, estimatedFee } = getSearchParkingLot(id);
 
-  return { id, name, address, location, distanceMeters, estimatedFee };
+  return {
+    id,
+    name,
+    address,
+    location,
+    distanceMeters,
+    walkingDurationMinutes: Math.ceil((distanceMeters * 60) / 4_000),
+    estimatedFee,
+  };
 };
 
 export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
@@ -129,6 +137,8 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
   },
   105: {
     ...createDetailBase(105),
+    distanceMeters: null,
+    walkingDurationMinutes: null,
     capacity: null,
     feeCalculationStatus: 'UNAVAILABLE',
     feeRule: null,

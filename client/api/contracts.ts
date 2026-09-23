@@ -83,7 +83,8 @@ export interface ParkingLotDetailResponse {
     longitude: number;
   };
   capacity: number | null;
-  distanceMeters: number;
+  distanceMeters: number | null;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   feeCalculationStatus: FeeCalculationStatus;
   feeRule: ParkingFeeRule | null;
