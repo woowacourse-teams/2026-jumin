@@ -21,6 +21,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
+import jumin.domain.walking.service.WalkingDurationCalculator;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,15 +45,16 @@ class ParkingLotDetailServiceTest {
                 parkingOperationRepository,
                 queryValidator,
                 operationEvaluator,
-                walkingDistanceService
+                walkingDistanceService,
+                new WalkingDurationCalculator()
         );
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenReturn(new WalkingDistanceResult(Map.of()));
     }
 
     @Test
-    @DisplayName("주차장 상세 정보와 거리, 예상 요금, 운영 정보를 반환한다")
-    void returns_parking_lot_detail_with_distance_fee_and_operation() {
+    @DisplayName("주차장 상세 정보와 거리, 도보 소요 시간, 예상 요금, 운영 정보를 반환한다")
+    void returns_parking_lot_detail_with_distance_walking_duration_fee_and_operation() {
         // given
         ParkingSearchRequest request = request();
         ParkingLot parkingLot = parkingLot();
@@ -75,6 +77,7 @@ class ParkingLotDetailServiceTest {
         assertThat(result.location().longitude()).isEqualTo(127.0290);
         assertThat(result.capacity()).isEqualTo(42);
         assertThat(result.distanceMeters()).isEqualTo(540);
+        assertThat(result.walkingDurationMinutes()).isEqualTo(9);
         assertThat(result.estimatedFee()).isEqualTo(6_000);
         assertThat(result.feeCalculationStatus()).isEqualTo("CALCULATED");
         assertThat(result.feeRule().baseFreeMinutes()).isZero();
