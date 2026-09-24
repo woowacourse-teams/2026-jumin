@@ -269,6 +269,12 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLotId(parkingLot.id);
 
+    const isRecommended = recommendedParkingLots.some(({ id }) => id === parkingLot.id);
+
+    if (!isRecommended) {
+      setSheetSnap('expanded');
+    }
+
     const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
     const list = parkingListRef.current;
     const row = index >= 0 ? list?.children.item(index) : null;
