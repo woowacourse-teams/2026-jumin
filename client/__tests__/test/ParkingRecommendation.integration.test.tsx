@@ -61,6 +61,10 @@ describe('C. 추천 주차장', () => {
       '역삼문화공원 제1호 공영주차장',
       '강남대로 공영주차장',
     ]);
+    expect(within(recommendation).getByText('210m(4분)')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: '주차장 전체 목록' })).getByText('도보 정보 없음'),
+    ).toBeInTheDocument();
   });
 
   it('정렬 기준을 변경하면 추천 순서가 변경된다', async () => {
