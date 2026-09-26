@@ -100,7 +100,7 @@ jobs:
           cp "${jar_file}" "${RUNNER_TEMP}/jumin-backend-image-context/app.jar"
 
       - name: Validate backend Docker image build
-        run: docker build --file server/Dockerfile --tag jumin-backend:ci "${RUNNER_TEMP}/jumin-backend-image-context"
+        run: docker build --file server/Dockerfile --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" --tag jumin-backend:ci "${RUNNER_TEMP}/jumin-backend-image-context"
 
       - name: Validate Docker Compose configuration
         env:

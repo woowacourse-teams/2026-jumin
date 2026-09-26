@@ -148,6 +148,7 @@ jobs:
           ln -sfn "${release_dir}" "${current_link}"
           docker build \
             --file "${repository_root}/server/Dockerfile" \
+            --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" \
             --tag "${image_name}:${release_id}" \
             "${release_dir}"
 
