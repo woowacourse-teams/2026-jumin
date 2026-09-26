@@ -382,6 +382,10 @@ docker logs --tail 100 jumin-nginx-dev
 EC2에 연결된 IAM Role에는 해당 로그 그룹의 로그 스트림 조회·생성·기록 권한만
 부여합니다. 로그 수집 설정을 변경하면 backend 컨테이너를 재생성해야 반영됩니다.
 운영 환경의 로그 수집·검색·알림도 CloudWatch Logs를 사용합니다.
+Nginx 프록시 로그도 backend와 같은 그룹(`/jumin/dev/backend`, `/jumin/prod/backend`)
+전송합니다. 정상 요청은 제외하고 5xx만 `event=proxy_5xx`인 JSON으로 남기며,
+URI와 query string은 기록하지 않습니다. 오류 로그는 `crit` 이상만 기록합니다.
+배포 후 CloudWatch Logs에서 해당 그룹의 `proxy_5xx`를 검색해 확인합니다.
 
 ## 관련 문서
 

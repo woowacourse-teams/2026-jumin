@@ -5,6 +5,14 @@ services:
     image: nginx:1.30.4-alpine
     container_name: jumin-nginx-dev
     restart: unless-stopped
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-northeast-2
+        awslogs-group: /jumin/dev/backend
+        awslogs-create-group: "false"
+        mode: non-blocking
+        max-buffer-size: 10m
     ports:
       - '80:80'
       - '443:443'
