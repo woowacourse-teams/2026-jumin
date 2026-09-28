@@ -67,14 +67,12 @@ const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationT
     .filter((parkingLot) => parkingLot.availabilityStatus === 'AVAILABLE')
     .sort((first, second) => {
       const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
-
       const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
 
-      return (
-        firstValue - secondValue ||
-        first.distanceMeters - second.distanceMeters ||
-        first.id - second.id
-      );
+      const firstDistance = first.distanceMeters ?? Number.POSITIVE_INFINITY;
+      const secondDistance = second.distanceMeters ?? Number.POSITIVE_INFINITY;
+
+      return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
     });
 
 const getRecommendationMessage = (type: RecommendationType, rank: number) => {
@@ -268,6 +266,12 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLotId(parkingLot.id);
+
+    const isRecommended = recommendedParkingLots.some(({ id }) => id === parkingLot.id);
+
+    if (!isRecommended) {
+      setSheetSnap('expanded');
+    }
 
     const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
     const list = parkingListRef.current;

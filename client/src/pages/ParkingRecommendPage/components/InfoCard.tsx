@@ -10,19 +10,22 @@ interface Props {
 }
 
 export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Props) => {
-  const { name, estimatedFee, distanceMeters } = parkingLot;
+  const { name, estimatedFee, distanceMeters, walkingDurationMinutes } = parkingLot;
+
+  const walkingInformation =
+    walkingDurationMinutes === null || distanceMeters === null
+      ? '도보 정보 없음'
+      : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
 
   return (
     <article className={cardStyle(isActive)} draggable={false}>
       <h2 className={nameStyle}>{name}</h2>
-
       <p className={descriptionStyle}>{description}</p>
-
       <strong className={priceStyle}>
         {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
       </strong>
 
-      <p className={distanceStyle}>{distanceMeters.toLocaleString('ko-KR')}m</p>
+      <p className={distanceStyle}>{walkingInformation}</p>
 
       <button className={navigateButtonStyle} type="button" onClick={() => onNavigate(parkingLot)}>
         상세정보

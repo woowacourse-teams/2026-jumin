@@ -29,7 +29,8 @@ export interface ParkingLotSummary {
     latitude: number;
     longitude: number;
   };
-  distanceMeters: number;
+  distanceMeters: number | null;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   balancedScore: number | null;
   availabilityStatus: AvailabilityStatus;
@@ -83,7 +84,8 @@ export interface ParkingLotDetailResponse {
     longitude: number;
   };
   capacity: number | null;
-  distanceMeters: number;
+  distanceMeters: number | null;
+  walkingDurationMinutes: number | null;
   estimatedFee: number | null;
   feeCalculationStatus: FeeCalculationStatus;
   feeRule: ParkingFeeRule | null;
