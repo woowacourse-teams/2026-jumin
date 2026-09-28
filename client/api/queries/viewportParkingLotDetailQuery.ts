@@ -6,6 +6,11 @@ export const viewportParkingLotDetailQueryOptions = (parkingLotId: number) =>
     queryKey: ['parking-lots', 'viewport-detail', parkingLotId],
     queryFn: ({ signal }) => getViewportParkingLotDetail(parkingLotId, signal),
 
+    meta: {
+      feature: 'parking-map',
+      operation: 'get-viewport-parking-lot-detail',
+    },
+
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

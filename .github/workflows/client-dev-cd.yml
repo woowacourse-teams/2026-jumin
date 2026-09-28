@@ -48,6 +48,8 @@ jobs:
       - name: Build client
         working-directory: client
         env:
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: development
           GA_MEASUREMENT_ID: ${{ vars.GA_DEV_MEASUREMENT_ID }}
           CLARITY_PROJECT_ID: ${{ vars.CLARITY_DEV_PROJECT_ID }}
           NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}

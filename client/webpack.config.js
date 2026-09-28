@@ -60,6 +60,9 @@ module.exports = (env, argv) => {
     },
     plugins: [
       new webpack.DefinePlugin({
+        __SENTRY_DSN__: JSON.stringify(process.env.SENTRY_DSN ?? ''),
+        __SENTRY_ENVIRONMENT__: JSON.stringify(process.env.SENTRY_ENVIRONMENT ?? 'local'),
+
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
         __PWA_ENABLED__: JSON.stringify(!isDevelopment),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
