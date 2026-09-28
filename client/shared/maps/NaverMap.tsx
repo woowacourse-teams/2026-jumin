@@ -2,6 +2,8 @@ import { css } from '@emotion/css';
 import { useEffect, useRef } from 'react';
 import { loadNaverMaps } from './loadNaverMaps';
 
+import * as Sentry from '@sentry/react';
+
 interface Props {
   latitude?: number;
   longitude?: number;
@@ -44,9 +46,14 @@ export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) 
         mapRef.current = map;
         onMapReady?.(map);
       } catch (error) {
-        // 컴포넌트가 살아 있을 때만 오류를 출력한다.
+        // 지도 초기화 시 에러 수집을 위한 Sentry.captureException
         if (!isCancelled) {
-          console.error(error);
+          Sentry.captureException(error, {
+            tags: {
+              feature: 'naver-map',
+              operation: 'initialize-map',
+            },
+          });
         }
       }
     };

@@ -11,6 +11,11 @@ export const parkingViewportQueryOptions = (viewport: ParkingViewportQueryKeyPar
 
     queryFn: ({ signal }) => getParkingLotsInViewport(normalizedViewport, signal),
 
+    meta: {
+      feature: 'parking-map',
+      operation: 'get-parking-lots-in-viewport',
+    },
+
     staleTime: 30 * 1000,
     retry: 1,
   });
