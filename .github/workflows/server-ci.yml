@@ -19,6 +19,7 @@ on:
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
+      - 'infra/scripts/tests/test-nginx-health.sh'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
@@ -43,6 +44,7 @@ on:
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
+      - 'infra/scripts/tests/test-nginx-health.sh'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
       - '.github/workflows/server-dev-cd.yml'
@@ -137,3 +139,6 @@ jobs:
 
       - name: Validate production proxy Compose configuration
         run: docker compose --file infra/docker-compose.proxy.prod.yml config --quiet
+
+      - name: Test public backend health routes
+        run: infra/scripts/tests/test-nginx-health.sh
