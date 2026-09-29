@@ -27,6 +27,11 @@ export const parkingSearchQueryOptions = (key: ParkingSearchQueryKeyParams) =>
         signal,
       ),
 
+    meta: {
+      feature: 'parking-recommendation',
+      operation: 'search-parking-lots',
+    },
+
     staleTime: 60 * 1000,
     retry: 1,
   });

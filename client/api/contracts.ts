@@ -1,144 +1,53 @@
-export type DestinationProvider = 'NAVER';
+import z from 'zod';
+import {
+  availabilityStatusSchema,
+  dailyOperationsDaySchema,
+  destinationNameSchema,
+  destinationSchema,
+  destinationSearchSchema,
+  feeCalculationStatusSchema,
+  parkingFeeRuleSchema,
+  parkingInformationSourceSchema,
+  parkingLotDetailSchema,
+  parkingLotSummarySchema,
+  parkingLotViewportResponseSchema,
+  parkingLotViewportSchema,
+  parkingOperationPeriodSchema,
+  parkingOperationSchema,
+  parkingOperationStatusSchema,
+  parkingSearchSchema,
+  viewportParkingLotDetailSchema,
+} from './parkingLotsSchema';
 
-export interface Destination {
-  destinationId: string;
-  name: string;
-  address: string;
-  roadAddress: string | null;
-  latitude: number;
-  longitude: number;
-  provider: DestinationProvider;
-}
+// 공통 타입
+export type AvailabilityStatus = z.infer<typeof availabilityStatusSchema>;
+export type FeeCalculationStatus = z.infer<typeof feeCalculationStatusSchema>;
+export type ParkingOperationStatus = z.infer<typeof parkingOperationStatusSchema>;
+export type DailyOperationsDay = z.infer<typeof dailyOperationsDaySchema>;
+export type ParkingFeeRule = z.infer<typeof parkingFeeRuleSchema>;
 
-export interface DestinationSearchResponse {
-  query: string;
-  destinations: Destination[];
-}
+// 목적지
+export type Destination = z.infer<typeof destinationSchema>;
 
-export interface DestinationNameResponse {
-  displayName: string;
-}
+// 1. 목적지 검색 후보 응답
+export type DestinationSearchResponse = z.infer<typeof destinationSearchSchema>;
 
-export type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'UNKNOWN';
+// 2. 목적지 재설정 응답
+export type DestinationNameResponse = z.infer<typeof destinationNameSchema>;
 
-export interface ParkingLotSummary {
-  id: number;
-  name: string;
-  address: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  distanceMeters: number | null;
-  walkingDurationMinutes: number | null;
-  estimatedFee: number | null;
-  balancedScore: number | null;
-  availabilityStatus: AvailabilityStatus;
-}
+// 3. 목적지 근처 주차장 응답
+export type ParkingLotSummary = z.infer<typeof parkingLotSummarySchema>;
+export type ParkingSearchResponse = z.infer<typeof parkingSearchSchema>;
 
-export interface ParkingSearchResponse {
-  searchRadiusMeters: 600;
-  totalCount: number;
-  parkingLots: ParkingLotSummary[];
-}
+// 4. 목적지 근처 주차장 상세정보 응답
+export type ParkingOperationPeriod = z.infer<typeof parkingOperationPeriodSchema>;
+export type ParkingOperation = z.infer<typeof parkingOperationSchema>;
+export type ParkingInformationSource = z.infer<typeof parkingInformationSourceSchema>;
+export type ParkingLotDetailResponse = z.infer<typeof parkingLotDetailSchema>;
 
-export type FeeCalculationStatus = 'CALCULATED' | 'UNAVAILABLE';
-export type ParkingOperationStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
+// 5. 뷰포트 내 주차장 응답
+export type ParkingLotViewport = z.infer<typeof parkingLotViewportSchema>;
+export type ParkingLotViewportResponse = z.infer<typeof parkingLotViewportResponseSchema>;
 
-export interface ParkingFeeRule {
-  baseFreeMinutes: number | null;
-  baseMinutes: number | null;
-  baseFee: number | null;
-  additionalMinutes: number | null;
-  additionalFee: number | null;
-  dailyMaxFee: number | null;
-  monthlyFee: number | null;
-}
-
-export interface ParkingOperationPeriod {
-  status: ParkingOperationStatus;
-  openTime: string | null;
-  closeTime: string | null;
-  paid: boolean | null;
-}
-
-export interface ParkingOperation {
-  availabilityStatus: AvailabilityStatus;
-  weekday: ParkingOperationPeriod;
-  weekend: ParkingOperationPeriod;
-  holiday: ParkingOperationPeriod;
-}
-
-export interface ParkingInformationSource {
-  name: string;
-  url: string | null;
-  lastCheckedAt: string;
-}
-
-export interface ParkingLotDetailResponse {
-  id: number;
-  name: string;
-  address: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  capacity: number | null;
-  distanceMeters: number | null;
-  walkingDurationMinutes: number | null;
-  estimatedFee: number | null;
-  feeCalculationStatus: FeeCalculationStatus;
-  feeRule: ParkingFeeRule | null;
-  operation: ParkingOperation;
-  source?: ParkingInformationSource;
-}
-
-export interface ParkingLotViewport {
-  id: number;
-  latitude: number;
-  longitude: number;
-}
-
-export interface ParkingLotViewportResponse {
-  totalCount: number;
-  parkingLots: ParkingLotViewport[];
-}
-
-export type DailyOperationsDay = 'WEEKDAY' | 'SATURDAY' | 'HOLIDAY';
-export interface ViewportParkingLotDetailResponse {
-  id: number;
-  name: string;
-  address: string;
-  capacity: number | null;
-  feeRule: {
-    baseFreeMinutes: number | null;
-    baseMinutes: number | null;
-    baseFee: number | null;
-    additionalMinutes: number | null;
-    additionalFee: number | null;
-    dailyMaxFee: number | null;
-  } | null;
-  dailyOperations: {
-    status: ParkingOperationStatus;
-    day: DailyOperationsDay;
-    openTime: string | null;
-    closeTime: string | null;
-    paid: boolean | null;
-  }[];
-}
-
-export interface FieldError {
-  field: string;
-  message: string;
-}
-
-export interface ValidationErrorResponse {
-  message: string;
-  errors: FieldError[];
-}
-
-export interface ApiErrorResponse {
-  code: string;
-  message: string;
-  traceId: string | null;
-}
+// 6. 뷰포트 내 주차장 상세정보 응답
+export type ViewportParkingLotDetailResponse = z.infer<typeof viewportParkingLotDetailSchema>;
