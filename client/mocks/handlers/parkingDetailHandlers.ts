@@ -1,8 +1,8 @@
 import { delay, http, HttpResponse } from 'msw';
 
-import type { FieldError } from '../../api/contracts';
 import { parkingDetailFixtures } from '../fixtures/parkingDetails';
 import { getMockScenario } from '../scenario';
+import type { FieldError } from '../types/validationError';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 

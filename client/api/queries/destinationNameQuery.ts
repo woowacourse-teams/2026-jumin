@@ -24,6 +24,11 @@ export const destinationNameQueryOptions = (params: DestinationNameQueryParams) 
       return getDestinationName(params.latitude, params.longitude, signal);
     },
 
+    meta: {
+      feature: 'parking-setup',
+      operation: 'get-destination-name',
+    },
+
     // 현재 요청을 보낼지
 
     enabled: params.enabled,

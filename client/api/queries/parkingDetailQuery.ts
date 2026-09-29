@@ -31,6 +31,11 @@ export const parkingDetailQueryOptions = (key: ParkingDetailQueryKeyParams) =>
         signal,
       ),
 
+    meta: {
+      feature: 'parking-detail',
+      operation: 'get-parking-lot-detail',
+    },
+
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

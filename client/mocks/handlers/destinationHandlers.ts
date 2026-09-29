@@ -1,11 +1,8 @@
 import { delay, http, HttpResponse } from 'msw';
-import type {
-  ApiErrorResponse,
-  DestinationNameResponse,
-  DestinationSearchResponse,
-} from '../../api/contracts';
+import type { DestinationNameResponse, DestinationSearchResponse } from '../../api/contracts';
 import { destinationFixtures } from '../fixtures/destinations';
 import { getMockScenario } from '../scenario';
+import type { ApiErrorResponse } from '../types/validationError';
 
 export const destinationHandlers = [
   http.get('/api/destinations/search', async ({ request }) => {

@@ -1,7 +1,7 @@
 import { delay, http, HttpResponse } from 'msw';
 
-import type { ValidationErrorResponse } from '../../api/contracts';
 import { viewportParkingLotDetailFixtures } from '../fixtures/viewportParkingLotDetails';
+import type { ValidationErrorResponse } from '../types/validationError';
 
 const createErrorResponse = (message: string, status: 404 | 500) =>
   HttpResponse.json<ValidationErrorResponse>({ message, errors: [] }, { status });
