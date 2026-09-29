@@ -106,14 +106,23 @@ expect_status() {
     return 1
   }
 }
+expect_body() {
+  local expected="$1"; shift
+  local actual
+  actual="$(curl "${curl_options[@]}" "$@")"
+  [[ "${actual}" == "${expected}" ]] || {
+    echo "Expected upstream response '${expected}', received '${actual}'." >&2
+    return 1
+  }
+}
 expect_status 404 "${base_url}/loki/api/v1/query"
 expect_status 404 "${base_url}/prometheus/api/v1/query"
 expect_status 401 --request POST "${base_url}/loki/api/v1/push"
 expect_status 401 --request POST "${base_url}/prometheus/api/v1/write"
-[[ "$(curl "${curl_options[@]}" --user 'alloy:test-password' --request POST \
-  "${base_url}/loki/api/v1/push")" == '/loki/api/v1/push' ]]
-[[ "$(curl "${curl_options[@]}" --user 'alloy:test-password' --request POST \
-  "${base_url}/prometheus/api/v1/write")" == '/api/v1/write' ]]
+expect_body '/loki/api/v1/push' --user 'alloy:test-password' --request POST \
+  "${base_url}/loki/api/v1/push"
+expect_body '/api/v1/write' --user 'alloy:test-password' --request POST \
+  "${base_url}/prometheus/api/v1/write"
 docker run --rm -v "${stack_dir}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   --entrypoint /bin/promtool prom/prometheus:v3.15.0 check config /etc/prometheus/prometheus.yml
 docker run --rm -v "${stack_dir}/loki/config.yml:/etc/loki/config.yml:ro" \
