@@ -88,7 +88,8 @@ secret으로 전달합니다.
 - Docker의 `journald` logging driver와 systemd journal
 - journald의 persistent storage 및 크기·회전 상한 설정. Alloy 수집을 붙이기 전까지 journal에만 로그가 남습니다.
 - GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
-  `https://grafana.jucha.info:443`로 나가는 연결. 서버 workflow가 Alloy를 함께 배포합니다.
+  data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
+  서버 workflow가 Alloy를 함께 배포합니다.
 - GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
@@ -118,7 +119,8 @@ secret으로 전달합니다.
 - Docker의 `journald` logging driver와 systemd journal
 - journald의 persistent storage 및 크기·회전 상한 설정
 - GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
-  `https://grafana.jucha.info:443`로 나가는 연결. 서버 workflow가 Alloy를 함께 배포합니다.
+  data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
+  서버 workflow가 Alloy를 함께 배포합니다.
 - GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
@@ -393,7 +395,7 @@ Grafana 로그인과 수집용 HTTPS Basic Auth를 사용합니다. Loki·Promet
 
 50 GiB 용량은 시작 가정이며 실측이 필요합니다. 백업·복구는 구성하지 않았습니다. `environment`는 접근 권한 경계가 아니며 dev/prod가 같은 수집 비밀번호를 사용합니다.
 
-GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`는 수집 인증에 사용하고, `observability` Environment secrets `GRAFANA_ADMIN_PASSWORD`와 `DISCORD_WEBHOOK_URL`은 관리자 로그인과 알림에 사용합니다. 관측성 workflow는 설정을 검증하고 `main`에서 중앙 스택을 배포합니다. dev/prod 배포 workflow는 backend 배포 후 Alloy를 배포합니다.
+GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`는 수집 인증에 사용하고, `observability` Environment secrets `GRAFANA_ADMIN_PASSWORD`와 `DISCORD_WEBHOOK_URL`은 관리자 로그인과 알림에 사용합니다. 관측성 workflow는 설정을 검증하고 `main`에서 중앙 스택을 배포합니다. 새 중앙 release의 HTTP 준비 검사가 실패하면 이전 release를 다시 실행하고 같은 검사를 수행합니다. 복구가 성공해도 새 배포는 실패로 기록합니다. 첫 배포에는 복구할 이전 release가 없으며, 실패 시 일부 컨테이너가 남아 있을 수 있어 운영자 확인이 필요합니다. dev/prod 배포 workflow는 backend 배포 후 Alloy를 배포합니다.
 
 중앙 EC2에는 GitHub runner, Docker Compose, DNS, EBS mount와 최초 HTTPS 인증서 발급이 필요합니다. 구성 검증 명령은 `bash infra/observability/scripts/validate-stack.sh`입니다. 이 검증은 실제 배포나 데이터 수신까지 확인하지 않습니다.
 
