@@ -6,6 +6,7 @@ import { destinationSearchQueryOptions } from '../../../../api/queries/destinati
 import { SearchBar } from '../../../../shared/components/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
+import { recentSearchesSchema } from '../../../../api/parkingLotsSchema';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;
@@ -19,8 +20,10 @@ const loadRecentSearches = (): Destination[] => {
     const storedRecentSearches = localStorage.getItem(RECENT_SEARCHES_KEY);
     if (!storedRecentSearches) return [];
 
-    const parsedRecentSearches: unknown = JSON.parse(storedRecentSearches);
-    return Array.isArray(parsedRecentSearches) ? (parsedRecentSearches as Destination[]) : [];
+    const data: unknown = JSON.parse(storedRecentSearches);
+    const result = recentSearchesSchema.safeParse(data);
+
+    return result.success ? result.data : [];
   } catch {
     return [];
   }
