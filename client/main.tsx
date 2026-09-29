@@ -51,8 +51,23 @@ const queryClient = new QueryClient({
 
 const renderApp = () => {
   createRoot(document.getElementById('root')!, {
-    onUncaughtError: Sentry.reactErrorHandler(),
-    onRecoverableError: Sentry.reactErrorHandler(),
+    onUncaughtError(error, errorInfo) {
+      Sentry.withScope((scope) => {
+        scope.setTag('react_error_type', 'uncaught');
+        scope.setLevel('fatal');
+
+        Sentry.reactErrorHandler()(error, errorInfo);
+      });
+    },
+
+    onRecoverableError(error, errorInfo) {
+      Sentry.withScope((scope) => {
+        scope.setTag('react_error_type', 'recoverable');
+        scope.setLevel('warning');
+
+        Sentry.reactErrorHandler()(error, errorInfo);
+      });
+    },
   }).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
