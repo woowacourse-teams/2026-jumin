@@ -1,0 +1,26 @@
+name: jumin-alloy
+
+services:
+  alloy:
+    image: grafana/alloy:v1.20.0
+    command: run --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+    restart: unless-stopped
+    user: "0:0"
+    network_mode: host
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /opt/jumin-alloy/ingest_password:/run/secrets/ingest_password:ro
+      - /opt/jumin-alloy/data:/var/lib/alloy
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    logging:
+      driver: local
+      options: {max-size: 10m, max-file: "3"}

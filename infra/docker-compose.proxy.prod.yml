@@ -6,13 +6,9 @@ services:
     container_name: jumin-nginx-prod
     restart: unless-stopped
     logging:
-      driver: awslogs
+      driver: journald
       options:
-        awslogs-region: ap-northeast-2
-        awslogs-group: /jumin/prod/backend
-        awslogs-create-group: "false"
-        mode: non-blocking
-        max-buffer-size: 10m
+        tag: jumin-prod/{{.Name}}
     ports:
       - '80:80'
       - '443:443'

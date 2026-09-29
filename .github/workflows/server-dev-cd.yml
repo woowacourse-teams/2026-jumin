@@ -9,6 +9,9 @@ on:
       - 'infra/docker-compose.dev.yml'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'
+      - 'infra/observability/alloy/**'
+      - 'infra/observability/scripts/deploy-alloy.sh'
+      - 'infra/observability/scripts/install-credentials.sh'
       - '.github/workflows/server-dev-cd.yml'
 
   workflow_dispatch:
@@ -202,3 +205,10 @@ jobs:
           fi
 
           exit 1
+
+      - name: Deploy Alloy collector
+        env:
+          OBSERVABILITY_INGEST_PASSWORD: ${{ secrets.OBSERVABILITY_INGEST_PASSWORD }}
+        run: |
+          bash infra/observability/scripts/install-credentials.sh collector /opt/jumin-alloy
+          bash infra/observability/scripts/deploy-alloy.sh dev
