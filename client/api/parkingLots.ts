@@ -4,9 +4,17 @@ import type {
   ParkingLotDetailResponse,
   ParkingLotViewportResponse,
   ParkingSearchResponse,
-  ValidationErrorResponse,
   ViewportParkingLotDetailResponse,
 } from './contracts';
+import {
+  destinationNameSchema,
+  destinationSearchSchema,
+  parkingLotDetailSchema,
+  parkingLotViewportResponseSchema,
+  parkingSearchSchema,
+  viewportParkingLotDetailSchema,
+} from './parkingLotsSchema';
+import { parseApiResponse } from './parseApiResponse';
 
 export interface ParkingSearchParams {
   destinationLatitude: number;
@@ -38,13 +46,11 @@ export const searchDestinations = async (
     signal,
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-
-    throw new Error(error?.message ?? '목적지 검색 결과를 불러오지 못했습니다.');
-  }
-
-  return response.json();
+  return parseApiResponse(
+    response,
+    destinationSearchSchema,
+    '목적지 검색 결과를 불러오지 못했습니다.',
+  );
 };
 
 export const getDestinationName = async (
@@ -57,12 +63,7 @@ export const getDestinationName = async (
     { signal },
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-
-    throw new Error(error?.message ?? '목적지를 다시 설정해주세요.');
-  }
-  return response.json();
+  return parseApiResponse(response, destinationNameSchema, '목적지를 다시 설정해주세요.');
 };
 
 // 주차장 목록을 가져오는 메서드
@@ -79,13 +80,7 @@ export async function searchParkingLots(
 
   const response = await fetch(`/api/parking/search?${searchParams.toString()}`, { signal });
 
-  if (!response.ok) {
-    const error = await response.json();
-
-    throw new Error(error.message ?? '주차장을 조회하지 못했습니다.');
-  }
-
-  return response.json();
+  return parseApiResponse(response, parkingSearchSchema, '주차장을 조회하지 못했습니다.');
 }
 
 // 주차장 상세정보를 가져오는 메서드
@@ -105,29 +100,11 @@ export async function getParkingLotDetail(
     signal,
   });
 
-  if (!response.ok) {
-    const error: ValidationErrorResponse = await response.json();
-    throw new Error(error.message ?? '주차장 상세 정보를 조회하지 못했습니다.');
-  }
-
-  return response.json();
-}
-
-// 홈페이지에서 주차장 상세정보를 가져오는 메서드
-export async function getViewportParkingLotDetail(
-  parkingLotId: number,
-  signal?: AbortSignal,
-): Promise<ViewportParkingLotDetailResponse> {
-  const response = await fetch(`/api/parking/viewport/${parkingLotId}`, {
-    signal,
-  });
-
-  if (!response.ok) {
-    const error: ValidationErrorResponse = await response.json();
-    throw new Error(error.message ?? '주차장 상세 정보를 조회하지 못했습니다.');
-  }
-
-  return response.json();
+  return parseApiResponse(
+    response,
+    parkingLotDetailSchema,
+    '주차장 상세 정보를 조회하지 못했습니다.',
+  );
 }
 
 // 현재 뷰포트 내 주차장 목록을 가져오는 메서드
@@ -144,11 +121,25 @@ export const getParkingLotsInViewport = async (
 
   const response = await fetch(`/api/parking/viewport?${searchParams}`, { signal });
 
-  if (!response.ok) {
-    const error = await response.json();
-
-    throw new Error(error.message ?? '현재 지도 영역의 주차장을 불러오지 못했습니다.');
-  }
-
-  return response.json();
+  return parseApiResponse(
+    response,
+    parkingLotViewportResponseSchema,
+    '현재 지도 영역의 주차장을 불러오지 못했습니다.',
+  );
 };
+
+// 홈페이지에서 주차장 상세정보를 가져오는 메서드
+export async function getViewportParkingLotDetail(
+  parkingLotId: number,
+  signal?: AbortSignal,
+): Promise<ViewportParkingLotDetailResponse> {
+  const response = await fetch(`/api/parking/viewport/${parkingLotId}`, {
+    signal,
+  });
+
+  return parseApiResponse(
+    response,
+    viewportParkingLotDetailSchema,
+    '주차장 상세 정보를 조회하지 못했습니다.',
+  );
+}
