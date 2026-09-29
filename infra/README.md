@@ -1,7 +1,7 @@
 # 인프라
 
-`infra/`는 로컬 데이터베이스와 개발·운영 서버 배포에 필요한 설정을 관리합니다.
-애플리케이션 실행과 테스트 방법은 [서버 README](../server/README.md)를 참고하세요.
+`infra/`는 로컬 데이터베이스, 개발·운영 서버 배포, Grafana 관측성 구성에 필요한 설정을 관리합니다.
+이 문서는 인프라 구성과 운영 흐름을 설명합니다. 애플리케이션 실행과 테스트 방법은 [서버 README](../server/README.md)를 참고하세요.
 
 ## 구성
 
@@ -19,6 +19,11 @@
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/import-seoul-walking-network.sh` | 서울시 보행 네트워크 적재 |
+| `observability/compose.yml` | 중앙 Grafana·Loki·Prometheus·Nginx 실행 |
+| `observability/alloy/` | dev/prod EC2에서 로그와 지표를 수집하는 Alloy 설정 |
+| `observability/grafana/`, `observability/loki/`, `observability/prometheus/`, `observability/nginx/` | 대시보드·데이터 소스·저장·접근 경계 설정 |
+| `observability/scripts/` | 인증 정보 설치, 배포, 인증서 갱신, 설정 검증 |
+| `.github/workflows/observability.yml` | 중앙 관측성 설정 검증과 배포 |
 | `.env.example` | 로컬·배포 환경변수 예시 |
 
 ## 로컬 데이터베이스
@@ -69,6 +74,7 @@ docker compose -f infra/docker-compose.local.yml down --volumes
 2. 개발 서버용 Docker image 빌드
 3. `jumin-dev` ARM64 self-hosted runner에서 백엔드 컨테이너 실행
 4. `/actuator/health` 확인
+5. 백엔드가 정상 배포되면 Alloy를 개발 EC2에 배포
 
 개발 서버는 AWS RDS를 사용하므로 PostgreSQL 컨테이너와 `postgres-data` 볼륨을
 사용하지 않습니다. RDS와 외부 API 접속 정보는 GitHub `development` Environment의
@@ -79,8 +85,10 @@ secret으로 전달합니다.
 - Docker Engine과 Docker Compose plugin
 - `jumin-dev` self-hosted runner
 - EC2에서 RDS로 연결할 수 있는 네트워크 권한
-- EC2에 연결된 IAM Role의 `/jumin/dev/backend` 로그 기록 권한
-- CloudWatch Logs로 나가는 outbound HTTPS 연결
+- Docker의 `journald` logging driver와 systemd journal
+- journald의 persistent storage 및 크기·회전 상한 설정. Alloy 수집을 붙이기 전까지 journal에만 로그가 남습니다.
+- GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
+  `https://grafana.jucha.info:443`로 나가는 연결. 서버 workflow가 Alloy를 함께 배포합니다.
 - GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
@@ -99,6 +107,7 @@ secret으로 전달합니다.
 3. `jumin-prod` ARM64 self-hosted runner에서 백엔드 컨테이너 실행
 4. `/actuator/health` 확인
 5. health check 실패 시 이전 Docker image와 release symlink 복구
+6. 백엔드가 정상 배포되면 Alloy를 운영 EC2에 배포
 
 운영 배포 전에 다음 인프라가 준비되어 있어야 합니다.
 
@@ -106,7 +115,10 @@ secret으로 전달합니다.
 - 운영 EC2의 `/opt/jumin-prod/backend` 쓰기 권한
 - EC2에서 운영 RDS로 연결할 수 있는 네트워크 권한
 - Docker Engine, Docker Compose plugin, `curl`, `rsync`
-- 운영 CloudWatch Logs 그룹 `/jumin/prod/backend`
+- Docker의 `journald` logging driver와 systemd journal
+- journald의 persistent storage 및 크기·회전 상한 설정
+- GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
+  `https://grafana.jucha.info:443`로 나가는 연결. 서버 workflow가 Alloy를 함께 배포합니다.
 - GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
   `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
@@ -363,29 +375,29 @@ sudo tail -n 100 /var/log/jumin-certbot.log
 docker logs --tail 100 jumin-nginx-dev
 ```
 
-## 로그
+## 로그와 Grafana 관측성
 
-로컬은 애플리케이션의 stdout/stderr를 콘솔에서 확인합니다. 개발 서버의
-`jumin-backend-dev` 컨테이너는 Docker `awslogs` logging driver로 stdout/stderr를
-서울 리전(`ap-northeast-2`)의 `/jumin/dev/backend` CloudWatch Logs 그룹에 전송합니다.
-로그 그룹은 배포 전에 생성하며 Docker가 자동으로 만들지 않습니다.
+dev/prod의 애플리케이션 로그와 EC2 지표를 관측성 EC2 한 대에 모읍니다. 통합 화면은 [`https://grafana.jucha.info`](https://grafana.jucha.info)이며, RDS 서비스 지표는 AWS RDS 콘솔에서 확인합니다.
 
-개발 서버의 CloudWatch 로그 설정은 다음을 사용합니다.
+- **로그:** Docker journald → Alloy → Nginx → Loki
+- **지표:** Spring Actuator와 Alloy 호스트 수집기 → Nginx → Prometheus
+- **조회:** Grafana에서 로그와 지표를 확인하고 `environment`로 dev/prod를 전환합니다.
 
-```text
-로그 클래스: Standard
-보존 기간: 7일
-전송 방식: non-blocking
-버퍼 크기: 10m
-```
+Grafana 로그인과 수집용 HTTPS Basic Auth를 사용합니다. Loki·Prometheus 직접 접근은 공개하지 않으며, 고정된 `project-public` 보안 그룹은 변경하지 않습니다. 앱 Nginx는 `/health`를 backend 상태에 연결하고 공개 `/actuator/` 요청은 차단합니다.
 
-EC2에 연결된 IAM Role에는 해당 로그 그룹의 로그 스트림 조회·생성·기록 권한만
-부여합니다. 로그 수집 설정을 변경하면 backend 컨테이너를 재생성해야 반영됩니다.
-운영 환경의 로그 수집·검색·알림도 CloudWatch Logs를 사용합니다.
-Nginx 프록시 로그도 backend와 같은 그룹(`/jumin/dev/backend`, `/jumin/prod/backend`)
-전송합니다. 정상 요청은 제외하고 5xx만 `event=proxy_5xx`인 JSON으로 남기며,
-URI와 query string은 기록하지 않습니다. 오류 로그는 `crit` 이상만 기록합니다.
-배포 후 CloudWatch Logs에서 해당 그룹의 `proxy_5xx`를 검색해 확인합니다.
+| 데이터 | 저장 위치와 보존 기간 |
+| --- | --- |
+| Loki 로그 | 50 GiB EBS `/mnt/jumin-loki`; dev 7일, prod 30일 |
+| Prometheus 지표 | 관측성 EC2 root EBS; 15일·4 GB 중 먼저 도달할 때까지 |
+| Grafana 설정 | 관측성 EC2 root EBS |
+
+50 GiB 용량은 시작 가정이며 실측이 필요합니다. 백업·복구는 구성하지 않았습니다. `environment`는 접근 권한 경계가 아니며 dev/prod가 같은 수집 비밀번호를 사용합니다.
+
+GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`는 수집 인증에 사용하고, `observability` Environment secrets `GRAFANA_ADMIN_PASSWORD`와 `DISCORD_WEBHOOK_URL`은 관리자 로그인과 알림에 사용합니다. 관측성 workflow는 설정을 검증하고 `main`에서 중앙 스택을 배포합니다. dev/prod 배포 workflow는 backend 배포 후 Alloy를 배포합니다.
+
+중앙 EC2에는 GitHub runner, Docker Compose, DNS, EBS mount와 최초 HTTPS 인증서 발급이 필요합니다. 구성 검증 명령은 `bash infra/observability/scripts/validate-stack.sh`입니다. 이 검증은 실제 배포나 데이터 수신까지 확인하지 않습니다.
+
+Grafana 경보 9개는 [rules.yml](observability/grafana/provisioning/alerting/rules.yml)에 정의합니다: dev/prod backend 수집 중단, dev/prod 호스트 지표 수집 중단, backend 5xx 비율 5% 초과, Nginx proxy 5xx, backend p95 지연 5초 초과, CPU·메모리 사용률 90% 초과입니다. 요청량이 적을 때의 오탐을 줄이도록 5xx 비율과 p95 경보는 최근 5분간 요청이 10건 이상일 때 평가합니다. 알림은 [notifications.yml](observability/grafana/provisioning/alerting/notifications.yml)의 Discord contact point로 전달하며, 실제 경보 발생과 Discord 수신은 아직 확인되지 않았습니다.
 
 ## 관련 문서
 

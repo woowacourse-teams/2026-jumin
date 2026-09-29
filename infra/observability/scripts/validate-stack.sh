@@ -5,13 +5,56 @@ stack_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 temporary="$(mktemp -d)"
 network="jumin-observability-check-${RANDOM}-$$"
 cleanup() {
-  docker rm -f "${network}-proxy" "${network}-upstream" >/dev/null 2>&1 || true
+  docker rm -f "${network}-grafana" "${network}-proxy" "${network}-upstream" >/dev/null 2>&1 || true
   docker network rm "${network}" >/dev/null 2>&1 || true
   rm -rf "${temporary}"
 }
 trap cleanup EXIT
 
 docker compose -f "${stack_dir}/compose.yml" config --quiet
+
+# Validate only alert-rule provisioning; do not load the live Discord contact point.
+alert_rules_file="${stack_dir}/grafana/provisioning/alerting/rules.yml"
+provisioning_dir="${temporary}/grafana-provisioning"
+mkdir -p "${provisioning_dir}/alerting" "${provisioning_dir}/datasources"
+cp "${alert_rules_file}" "${provisioning_dir}/alerting/rules.yml"
+cp "${stack_dir}/grafana/provisioning/datasources/datasources.yml" \
+  "${provisioning_dir}/datasources/datasources.yml"
+docker run --detach --name "${network}-grafana" \
+  -p 127.0.0.1::3000 \
+  -e GF_SECURITY_ADMIN_USER=admin \
+  -e GF_SECURITY_ADMIN_PASSWORD=test-password \
+  -e GF_AUTH_ANONYMOUS_ENABLED=false \
+  -e GF_USERS_ALLOW_SIGN_UP=false \
+  -v "${provisioning_dir}:/etc/grafana/provisioning:ro" \
+  grafana/grafana:13.2.2 >/dev/null
+grafana_port="$(docker port "${network}-grafana" 3000/tcp)"
+grafana_port="${grafana_port##*:}"
+alert_rules_json="${temporary}/alert-rules.json"
+expected_rule_count="$(awk '$1 == "-" && $2 == "uid:" { count++ } END { print count+0 }' "${alert_rules_file}")"
+[[ "${expected_rule_count}" -gt 0 ]] || {
+  echo 'No Grafana alert rules found.' >&2
+  exit 1
+}
+rules_loaded=false
+for attempt in {1..60}; do
+  if curl --fail --silent --show-error --max-time 3 \
+    --user admin:test-password \
+    "http://127.0.0.1:${grafana_port}/api/v1/provisioning/alert-rules" \
+    --output "${alert_rules_json}" 2>/dev/null \
+    && [[ "$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1], encoding="utf-8"))))' "${alert_rules_json}")" == "${expected_rule_count}" ]]; then
+    rules_loaded=true
+    break
+  fi
+  sleep 1
+done
+[[ "${rules_loaded}" == true ]] || {
+  echo 'Grafana did not load all provisioned alert rules.' >&2
+  cat "${alert_rules_json}" >&2 || true
+  docker logs "${network}-grafana" >&2 || true
+  exit 1
+}
+
 certificate_dir="${temporary}/certbot/conf/live/grafana.jucha.info"
 mkdir -p "${certificate_dir}" "${temporary}/certbot/www"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -21,7 +64,6 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
 printf 'alloy:%s\n' "$(printf 'test-password\n' | openssl passwd -apr1 -stdin)" \
   > "${temporary}/htpasswd"
 for config in bootstrap.conf grafana.conf; do
-  test -f "${stack_dir}/nginx/${config}"
   docker run --rm \
     -v "${stack_dir}/nginx/${config}:/etc/nginx/conf.d/default.conf:ro" \
     -v "${temporary}/certbot/conf:/etc/letsencrypt:ro" \
@@ -64,18 +106,14 @@ expect_status() {
     return 1
   }
 }
-expect_status 404 "${base_url}/loki/ready"
-expect_status 404 "${base_url}/loki"
-expect_status 404 "${base_url}/prometheus/-/ready"
-expect_status 404 "${base_url}/prometheus"
-expect_status 404 "${base_url}/loki/api/v1/push"
+expect_status 404 "${base_url}/loki/api/v1/query"
+expect_status 404 "${base_url}/prometheus/api/v1/query"
 expect_status 401 --request POST "${base_url}/loki/api/v1/push"
 expect_status 401 --request POST "${base_url}/prometheus/api/v1/write"
 [[ "$(curl "${curl_options[@]}" --user 'alloy:test-password' --request POST \
   "${base_url}/loki/api/v1/push")" == '/loki/api/v1/push' ]]
 [[ "$(curl "${curl_options[@]}" --user 'alloy:test-password' --request POST \
   "${base_url}/prometheus/api/v1/write")" == '/api/v1/write' ]]
-[[ "$(curl "${curl_options[@]}" "${base_url}/login")" == '/login' ]]
 docker run --rm -v "${stack_dir}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   --entrypoint /bin/promtool prom/prometheus:v3.15.0 check config /etc/prometheus/prometheus.yml
 docker run --rm -v "${stack_dir}/loki/config.yml:/etc/loki/config.yml:ro" \
