@@ -1,7 +1,10 @@
 FROM eclipse-temurin:21-jre-jammy
 
+ARG APP_COMMIT_SHA=unknown
+
 ENV TZ=Asia/Seoul \
-    JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Seoul"
+    JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Seoul" \
+    APP_COMMIT_SHA=${APP_COMMIT_SHA}
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends curl \

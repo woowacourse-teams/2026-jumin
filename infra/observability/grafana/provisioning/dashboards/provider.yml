@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: Jumin
+    type: file
+    disableDeletion: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

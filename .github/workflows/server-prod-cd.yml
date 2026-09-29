@@ -9,6 +9,9 @@ on:
       - 'infra/docker-compose.prod.yml'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'
+      - 'infra/observability/alloy/**'
+      - 'infra/observability/scripts/deploy-alloy.sh'
+      - 'infra/observability/scripts/install-credentials.sh'
       - '.github/workflows/server-prod-cd.yml'
 
   workflow_dispatch:
@@ -221,6 +224,7 @@ jobs:
           ln -sfn "${release_dir}" "${current_link}"
           docker build \
             --file "${repository_root}/server/Dockerfile" \
+            --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" \
             --tag "${image_name}:${release_id}" \
             "${release_dir}"
 
@@ -244,3 +248,10 @@ jobs:
             --file "${compose_file}" \
             logs --tail=80 backend >&2 || true
           rollback 1
+
+      - name: Deploy Alloy collector
+        env:
+          OBSERVABILITY_INGEST_PASSWORD: ${{ secrets.OBSERVABILITY_INGEST_PASSWORD }}
+        run: |
+          bash infra/observability/scripts/install-credentials.sh collector /opt/jumin-alloy
+          bash infra/observability/scripts/deploy-alloy.sh prod

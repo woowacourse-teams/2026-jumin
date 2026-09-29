@@ -1,0 +1,24 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: Jumin Discord
+    receivers:
+      - uid: jumin-discord
+        type: discord
+        settings:
+          url: $__file{/run/secrets/discord_webhook_url}
+          use_discord_username: false
+          message: '{{ template "default.message" . }}'
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: Jumin Discord
+    group_by:
+      - alertname
+      - environment
+      - service
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
