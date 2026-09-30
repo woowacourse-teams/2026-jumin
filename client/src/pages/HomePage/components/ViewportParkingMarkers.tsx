@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
-import { ParkingViewportParams } from '../../../../api/parkingLots';
+import type { ParkingViewportParams } from '../../../../api/parkingLots';
 
 import viewportParkingMarkerUrl from '../../../../assets/icons/markers/viewportParkingMarkers.svg';
-import { ParkingLotViewport } from '../../../../api/contracts';
+import type { ParkingLotViewport } from '../../../../api/contracts';
 
 const viewportParkingMarkerIcon = {
   url: viewportParkingMarkerUrl,

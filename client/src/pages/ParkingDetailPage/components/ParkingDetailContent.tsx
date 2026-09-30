@@ -1,12 +1,12 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
 import type { ParkingDetailCondition, RecommendView } from '../../../../shared/types/navigation';
-import { ParkingOperationPeriod } from '../../../../api/contracts';
+import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
-  BottomSheetSnap,
+  type BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router';
