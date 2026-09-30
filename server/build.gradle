@@ -29,6 +29,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation "io.github.openfeign.querydsl:querydsl-jpa:${querydslVersion}"
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.apache.commons:commons-csv:1.14.1'
+	implementation 'commons-io:commons-io:2.20.0'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
