@@ -19,7 +19,6 @@ const standardFeeRule: ParkingFeeRule = {
   additionalMinutes: 10,
   additionalFee: 1000,
   dailyMaxFee: 30000,
-  monthlyFee: 150000,
 };
 
 const allDayOperation: ParkingOperation = {
@@ -93,7 +92,6 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
       ...standardFeeRule,
       baseFee: 3500,
       additionalFee: 800,
-      monthlyFee: null,
     },
     operation: {
       ...allDayOperation,
@@ -114,7 +112,6 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
       ...standardFeeRule,
       baseFreeMinutes: 10,
       dailyMaxFee: 25000,
-      monthlyFee: 120000,
     },
     operation: allDayOperation,
     source,
