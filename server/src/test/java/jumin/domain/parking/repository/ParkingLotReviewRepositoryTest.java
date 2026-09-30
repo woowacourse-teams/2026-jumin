@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManager;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import jumin.TestcontainersConfiguration;
 import jumin.config.JpaAuditingConfig;
 import jumin.domain.parking.entity.ParkingLot;
@@ -69,6 +71,38 @@ class ParkingLotReviewRepositoryTest {
                 "delete from parking_lots where id = ?",
                 parkingLot.getId()
         )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("제보를 생성일 내림차순으로 주차장 정보와 함께 조회한다")
+    void finds_all_reviews_ordered_by_created_at_desc() {
+        // given
+        ParkingLot parkingLot = parkingLot();
+        ParkingLotReview olderReview = parkingLotReviewRepository.saveAndFlush(
+                new ParkingLotReview(parkingLot, "오래된 제보")
+        );
+        ParkingLotReview newerReview = parkingLotReviewRepository.saveAndFlush(
+                new ParkingLotReview(parkingLot, "최근 제보")
+        );
+        jdbcTemplate.update(
+                "update parking_reviews set created_at = ? where id = ?",
+                Timestamp.valueOf(LocalDateTime.of(2026, 1, 1, 0, 0)),
+                olderReview.getId()
+        );
+        jdbcTemplate.update(
+                "update parking_reviews set created_at = ? where id = ?",
+                Timestamp.valueOf(LocalDateTime.of(2026, 1, 2, 0, 0)),
+                newerReview.getId()
+        );
+        entityManager.clear();
+
+        // when
+        var reviews = parkingLotReviewRepository.findAllByOrderByCreatedAtDesc();
+
+        // then
+        assertThat(reviews).extracting(ParkingLotReview::getId)
+                .containsExactly(newerReview.getId(), olderReview.getId());
+        assertThat(reviews.get(0).getParkingLot().getName()).isEqualTo("제보 테스트 주차장");
     }
 
     private ParkingLot parkingLot() {
