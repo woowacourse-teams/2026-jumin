@@ -2,6 +2,7 @@ package jumin.global.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
+import jumin.domain.admin.parking.exception.ParkingCsvException;
 import jumin.global.response.ApiErrorResponse;
 import jumin.global.response.ValidationErrorField;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +16,32 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler(ParkingCsvException.class)
+    public ResponseEntity<Object> handleParkingCsvException(ParkingCsvException exception) {
+        if (exception.getStatus().is5xxServerError()) {
+            log.atError()
+                    .setMessage("주차장 CSV 처리 중 서버 예외가 발생했습니다.")
+                    .addKeyValue("status", exception.getStatus().value())
+                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log();
+        }
+
+        return ResponseEntity.status(exception.getStatus())
+                .body(ApiErrorResponse.of(exception.getMessage(), exception.getErrors()));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<Object> handleMultipartException() {
+        return createResponse(ErrorCode.INVALID_INPUT);
+    }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Object> handleBusinessException(BusinessException exception) {
@@ -174,6 +196,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             case 400 -> ErrorCode.INVALID_INPUT.getMessage();
             case 404 -> ErrorCode.RESOURCE_NOT_FOUND.getMessage();
             case 405 -> ErrorCode.METHOD_NOT_ALLOWED.getMessage();
+            case 413 -> ErrorCode.CONTENT_TOO_LARGE.getMessage();
             case 415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE.getMessage();
             default -> "요청을 처리할 수 없습니다.";
         };

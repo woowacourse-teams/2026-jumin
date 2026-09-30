@@ -7,7 +7,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
-import BottomSheet, { BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
@@ -16,7 +16,7 @@ import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
-import { ParkingLotViewport } from '../../../api/contracts';
+import type { ParkingLotViewport } from '../../../api/contracts';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,

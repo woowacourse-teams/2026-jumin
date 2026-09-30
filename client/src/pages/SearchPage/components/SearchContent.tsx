@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
-import { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../../api/contracts';
 import { useEffect, useState } from 'react';
 import { destinationSearchQueryOptions } from '../../../../api/queries/destinationSearchQuery';
 import { SearchBar } from '../../../../shared/components/SearchBar';

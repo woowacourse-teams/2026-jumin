@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import { getParkingLotsInViewport } from '../parkingLots';
-import { ParkingViewportQueryKeyParams } from '../../shared/types/queryKeys';
+import type { ParkingViewportQueryKeyParams } from '../../shared/types/queryKeys';
 import { normalizeViewport } from '../../src/pages/HomePage/utils/normalizeViewport';
 
 export const parkingViewportQueryOptions = (viewport: ParkingViewportQueryKeyParams) => {
