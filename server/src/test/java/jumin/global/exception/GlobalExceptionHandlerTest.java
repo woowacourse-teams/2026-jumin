@@ -1,5 +1,6 @@
 package jumin.global.exception;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,6 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.io.IOException;
+import java.util.List;
+import jumin.domain.admin.parking.exception.ParkingCsvException;
+import jumin.global.response.ValidationErrorField;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +26,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(GlobalExceptionHandlerTest.ExceptionTestController.class)
@@ -38,6 +45,49 @@ class GlobalExceptionHandlerTest {
 
     @MockitoBean
     private ExceptionTestService exceptionTestService;
+
+    @Test
+    @DisplayName("CSV 서버 오류는 500으로 응답하고 내부 원인을 노출하지 않는다")
+    void csvServerErrorReturns500WithoutExposingCause() throws Exception {
+        // given
+        IOException cause = new IOException("test storage read failed");
+        ParkingCsvException exception = new ParkingCsvException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "업로드한 파일을 읽을 수 없습니다.",
+                cause
+        );
+        given(exceptionTestService.business()).willThrow(exception);
+
+        // when
+        ResultActions result = mockMvc.perform(get("/test/business"));
+
+        // then
+        result.andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("업로드한 파일을 읽을 수 없습니다."))
+                .andExpect(jsonPath("$.errors").isEmpty())
+                .andExpect(jsonPath("$.cause").doesNotExist());
+        assertThat(result.andReturn().getResponse().getContentAsString())
+                .doesNotContain(cause.getMessage());
+    }
+
+    @Test
+    @DisplayName("CSV 검증 오류는 필드 오류를 포함해 422로 응답한다")
+    void csvValidationErrorReturns422WithFieldErrors() throws Exception {
+        // given
+        ParkingCsvException exception = ParkingCsvException.invalid(List.of(
+                ValidationErrorField.of("rows[2].name", "주차장명은 필수입니다.")
+        ));
+        given(exceptionTestService.business()).willThrow(exception);
+
+        // when
+        ResultActions result = mockMvc.perform(get("/test/business"));
+
+        // then
+        result.andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value("CSV 파일의 형식이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.errors[0].field").value("rows[2].name"))
+                .andExpect(jsonPath("$.errors[0].message").value("주차장명은 필수입니다."));
+    }
 
     @Test
     @DisplayName("비즈니스 예외는 정의된 HTTP 상태와 메시지로 응답한다")
@@ -100,6 +150,21 @@ class GlobalExceptionHandlerTest {
                 .andExpect(header().string(HttpHeaders.ALLOW, "GET"))
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.message").value("허용되지 않은 HTTP 메서드입니다."));
+    }
+
+    @Test
+    @DisplayName("업로드 크기 제한 초과는 파일, 요청 공통 안내와 413으로 응답한다")
+    void uploadSizeExceededReturnsPayloadTooLarge() throws Exception {
+        // given
+        given(exceptionTestService.business())
+                .willThrow(new MaxUploadSizeExceededException(2048));
+
+        // when & then
+        mockMvc.perform(get("/test/business"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").doesNotExist())
+                .andExpect(jsonPath("$.message").value("업로드 파일 또는 요청 크기가 허용 한도를 초과했습니다."))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     @Test
