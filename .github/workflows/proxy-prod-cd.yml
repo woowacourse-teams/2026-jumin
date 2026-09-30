@@ -125,7 +125,16 @@ jobs:
               --connect-timeout 2 \
               --max-time 5 \
               --resolve 'jucha.info:443:127.0.0.1' \
-              https://jucha.info/ >/dev/null; then
+              https://jucha.info/ >/dev/null &&
+              curl --noproxy '*' \
+                --fail \
+                --silent \
+                --show-error \
+                --connect-timeout 2 \
+                --max-time 5 \
+                --resolve 'jucha.info:443:127.0.0.1' \
+                https://jucha.info/health |
+                grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
               trap - ERR
               echo "Production proxy deployment succeeded: ${release_id}"
               exit 0

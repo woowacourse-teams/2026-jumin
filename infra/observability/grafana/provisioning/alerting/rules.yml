@@ -1,0 +1,371 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: jumin-service-alerts
+    folder: Jumin Observability
+    interval: 30s
+    rules:
+      - uid: jumin-backend-down-dev
+        title: Backend unavailable (dev)
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 180, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: '(up{environment="dev", job="backend"} == bool 0) or absent_over_time(up{environment="dev", job="backend"}[3m])'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "dev backend is unavailable"
+          description: "Backend scrape is failing or no backend scrape data has arrived for 3 minutes."
+        labels: {environment: dev, service: backend, severity: critical}
+        isPaused: false
+
+      - uid: jumin-backend-down-prod
+        title: Backend unavailable (prod)
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 180, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: '(up{environment="prod", job="backend"} == bool 0) or absent_over_time(up{environment="prod", job="backend"}[3m])'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "prod backend is unavailable"
+          description: "Backend scrape is failing or no backend scrape data has arrived for 3 minutes."
+        labels: {environment: prod, service: backend, severity: critical}
+        isPaused: false
+
+      - uid: jumin-host-telemetry-missing-dev
+        title: Host telemetry missing (dev)
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 360, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: 'absent_over_time(node_memory_MemTotal_bytes{environment="dev"}[5m])'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "dev host metrics stopped arriving"
+          description: "No host memory metric has arrived from dev for 5 minutes. Check Alloy and the central Prometheus remote-write path."
+        labels: {environment: dev, service: host, severity: critical}
+        isPaused: false
+
+      - uid: jumin-host-telemetry-missing-prod
+        title: Host telemetry missing (prod)
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 360, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: 'absent_over_time(node_memory_MemTotal_bytes{environment="prod"}[5m])'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "prod host metrics stopped arriving"
+          description: "No host memory metric has arrived from prod for 5 minutes. Check Alloy and the central Prometheus remote-write path."
+        labels: {environment: prod, service: host, severity: critical}
+        isPaused: false
+
+      - uid: jumin-backend-5xx-rate
+        title: Backend 5xx ratio above 5%
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: >-
+                (
+                  100 * sum by (environment) (increase(http_server_requests_seconds_count{environment=~"dev|prod",status=~"5..",uri!~"/actuator/.*"}[5m]))
+                  / clamp_min(sum by (environment) (increase(http_server_requests_seconds_count{environment=~"dev|prod",uri!~"/actuator/.*"}[5m])), 1)
+                )
+                and on (environment)
+                sum by (environment) (increase(http_server_requests_seconds_count{environment=~"dev|prod",uri!~"/actuator/.*"}[5m])) >= 10
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [5], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Backend 5xx ratio is above 5%"
+          description: "At least 10 non-health-check requests were observed in 5 minutes, and more than 5% returned 5xx for 5 minutes."
+        labels: {service: backend, severity: critical}
+        isPaused: false
+
+      - uid: jumin-proxy-5xx
+        title: Nginx returned 5xx responses
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: jumin-loki
+            model:
+              datasource: {type: loki, uid: jumin-loki}
+              editorMode: code
+              expr: 'sum by (environment) (count_over_time({environment=~"dev|prod", service="nginx"} | json | event="proxy_5xx" [5m]))'
+              queryType: instant
+              intervalMs: 1000
+              maxDataPoints: 43200
+              maxLines: 1000
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [0], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "Nginx logged one or more proxy 5xx responses"
+          description: "At least one proxy 5xx event was logged in the last 5 minutes. Check the Nginx and backend logs for the affected environment."
+        labels: {service: nginx, severity: warning}
+        isPaused: false
+
+      - uid: jumin-backend-p95-latency
+        title: Backend p95 latency above 5 seconds
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: >-
+                histogram_quantile(
+                  0.95,
+                  sum by (environment, le) (rate(http_server_requests_seconds_bucket{environment=~"dev|prod",uri!~"/actuator/.*"}[5m]))
+                )
+                and on (environment)
+                sum by (environment) (increase(http_server_requests_seconds_count{environment=~"dev|prod",uri!~"/actuator/.*"}[5m])) >= 10
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [5], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Backend p95 latency is above 5 seconds"
+          description: "At least 10 non-health-check requests were observed in 5 minutes. The p95 latency remained above 5 seconds for 5 minutes."
+        labels: {service: backend, severity: warning}
+        isPaused: false
+
+      - uid: jumin-host-cpu-high
+        title: Host CPU above 90%
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: 'max by (environment) (100 * (1 - avg by (environment) (rate(node_cpu_seconds_total{environment=~"dev|prod",mode="idle"}[5m]))))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [90], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          summary: "Host CPU usage is above 90%"
+          description: "The average host CPU usage remained above 90% for 10 minutes."
+        labels: {service: host, severity: warning}
+        isPaused: false
+
+      - uid: jumin-host-memory-high
+        title: Host memory above 90%
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 600, to: 0}
+            datasourceUid: jumin-prometheus
+            model:
+              datasource: {type: prometheus, uid: jumin-prometheus}
+              editorMode: code
+              expr: 'max by (environment) (100 * (1 - node_memory_MemAvailable_bytes{environment=~"dev|prod"} / node_memory_MemTotal_bytes{environment=~"dev|prod"}))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator: {params: [90], type: gt}
+                  operator: {type: and}
+                  query: {params: [A]}
+                  reducer: {params: [], type: last}
+                  type: query
+              datasource: {type: __expr__, uid: __expr__}
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        annotations:
+          summary: "Host memory usage is above 90%"
+          description: "The host memory usage remained above 90% for 10 minutes."
+        labels: {service: host, severity: warning}
+        isPaused: false

@@ -17,6 +17,11 @@ export const destinationSearchQueryOptions = (key: DestinationSearchQueryKeyPara
 
     queryFn: ({ signal }) => searchDestinations(normalizedQuery, signal),
 
+    meta: {
+      feature: 'destination-search',
+      operation: 'search-destinations',
+    },
+
     enabled: normalizedQuery.length >= 2,
 
     staleTime: 5 * 60 * 1000,
