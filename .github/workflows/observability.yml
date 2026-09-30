@@ -1,0 +1,55 @@
+name: Validate and deploy observability
+
+on:
+  pull_request:
+    paths: ['infra/observability/**', '.github/workflows/observability.yml']
+  push:
+    branches: [develop, main]
+    paths: ['infra/observability/**', '.github/workflows/observability.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - run: bash infra/observability/scripts/validate-stack.sh
+      - run: bash infra/observability/scripts/tests/test-deploy-current-symlink.sh
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate
+    concurrency:
+      group: jumin-observability-deploy
+      cancel-in-progress: false
+    environment: observability
+    runs-on: [self-hosted, Linux, ARM64, jumin-observability]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Check current main revision
+        id: revision
+        shell: bash
+        run: |
+          if [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]; then
+            echo 'current=true' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'Current main has advanced; skipping this deployment.'
+            echo 'current=false' >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Install credentials and deploy
+        if: steps.revision.outputs.current == 'true'
+        env:
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          OBSERVABILITY_INGEST_PASSWORD: ${{ secrets.OBSERVABILITY_INGEST_PASSWORD }}
+        run: |
+          bash infra/observability/scripts/install-credentials.sh central /opt/jumin-observability/secrets
+          bash infra/observability/scripts/deploy.sh

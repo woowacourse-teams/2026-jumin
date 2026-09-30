@@ -1,0 +1,65 @@
+name: jumin-observability
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.2
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.jucha.info/
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+    volumes:
+      - /opt/jumin-observability/data/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - /opt/jumin-observability/secrets/admin_password:/run/secrets/admin_password:ro
+      - /opt/jumin-observability/secrets/discord_webhook_url:/run/secrets/discord_webhook_url:ro
+    logging: &rotated_logs
+      driver: local
+      options: {max-size: 10m, max-file: "3"}
+
+  loki:
+    image: grafana/loki:3.7.7
+    command: -config.file=/etc/loki/config.yml
+    restart: unless-stopped
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - /mnt/jumin-loki:/loki
+    logging: *rotated_logs
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=4GB
+      - --web.enable-remote-write-receiver
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/jumin-observability/data/prometheus:/prometheus
+    logging: *rotated_logs
+
+  nginx:
+    image: nginx:1.30.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - '${NGINX_CONF_FILE:-./nginx/grafana.conf}:/etc/nginx/conf.d/default.conf:ro'
+      - /opt/jumin-observability/secrets/ingest_htpasswd:/etc/nginx/htpasswd:ro
+      - /opt/jumin-observability/certbot/www:/var/www/certbot:ro
+      - /opt/jumin-observability/certbot/conf:/etc/letsencrypt:ro
+    logging: *rotated_logs
+
+  certbot:
+    image: certbot/certbot:v5.7.0
+    profiles: [certificate]
+    volumes:
+      - /opt/jumin-observability/certbot/www:/var/www/certbot
+      - /opt/jumin-observability/certbot/conf:/etc/letsencrypt
+    logging: *rotated_logs

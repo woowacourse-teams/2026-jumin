@@ -1,11 +1,8 @@
 import { delay, http, HttpResponse } from 'msw';
 
-import type {
-  FieldError,
-  ParkingLotViewportResponse,
-  ValidationErrorResponse,
-} from '../../api/contracts';
+import type { ParkingLotViewportResponse } from '../../api/contracts';
 import { parkingViewportLots } from '../fixtures/parkingViewport';
+import type { FieldError, ValidationErrorResponse } from '../types/validationError';
 
 type ViewportField = 'southLatitude' | 'westLongitude' | 'northLatitude' | 'eastLongitude';
 

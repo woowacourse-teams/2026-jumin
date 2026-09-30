@@ -1,0 +1,50 @@
+loki.source.journal "backend" {
+  matches    = "CONTAINER_NAME=jumin-backend-__ENV__"
+  labels     = { environment = "__ENV__", service = "backend" }
+  forward_to = [loki.write.central.receiver]
+}
+
+loki.source.journal "nginx" {
+  matches    = "CONTAINER_NAME=jumin-nginx-__ENV__"
+  labels     = { environment = "__ENV__", service = "nginx" }
+  forward_to = [loki.write.central.receiver]
+}
+
+loki.write "central" {
+  endpoint {
+    url = "https://grafana.jucha.info/loki/api/v1/push"
+    basic_auth {
+      username      = "alloy"
+      password_file = "/run/secrets/ingest_password"
+    }
+  }
+}
+
+prometheus.scrape "backend" {
+  targets         = [{ __address__ = "127.0.0.1:8080", __metrics_path__ = "/actuator/prometheus", job = "backend" }]
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.central.receiver]
+}
+
+prometheus.exporter.unix "host" {
+  rootfs_path = "/host/root"
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.central.receiver]
+}
+
+prometheus.remote_write "central" {
+  external_labels = { environment = "__ENV__" }
+  endpoint {
+    url = "https://grafana.jucha.info/prometheus/api/v1/write"
+    basic_auth {
+      username      = "alloy"
+      password_file = "/run/secrets/ingest_password"
+    }
+  }
+}

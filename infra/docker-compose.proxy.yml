@@ -5,6 +5,10 @@ services:
     image: nginx:1.30.4-alpine
     container_name: jumin-nginx-dev
     restart: unless-stopped
+    logging:
+      driver: journald
+      options:
+        tag: jumin-dev/{{.Name}}
     ports:
       - '80:80'
       - '443:443'
