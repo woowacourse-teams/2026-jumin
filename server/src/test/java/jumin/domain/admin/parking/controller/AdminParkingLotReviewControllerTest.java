@@ -40,6 +40,7 @@ class AdminParkingLotReviewControllerTest {
                                 101L,
                                 4L,
                                 "주민 주차장",
+                                "행당로123",
                                 "가격이 틀렸어요.",
                                 createdAt
                         )
@@ -52,6 +53,7 @@ class AdminParkingLotReviewControllerTest {
                 .andExpect(jsonPath("$.reviews[0].reviewId").value(101))
                 .andExpect(jsonPath("$.reviews[0].parkingLotId").value(4))
                 .andExpect(jsonPath("$.reviews[0].parkingLotName").value("주민 주차장"))
+                .andExpect(jsonPath("$.reviews[0].parkingLotAddress").value("행당로123"))
                 .andExpect(jsonPath("$.reviews[0].detail").value("가격이 틀렸어요."))
                 .andExpect(jsonPath("$.reviews[0].createdAt").value("2026-10-01T12:34:56"));
 

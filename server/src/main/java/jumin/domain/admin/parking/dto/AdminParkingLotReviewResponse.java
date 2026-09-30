@@ -7,6 +7,7 @@ public record AdminParkingLotReviewResponse(
         Long reviewId,
         Long parkingLotId,
         String parkingLotName,
+        String parkingLotAddress,
         String detail,
         LocalDateTime createdAt
 ) {
@@ -16,6 +17,7 @@ public record AdminParkingLotReviewResponse(
                 review.getId(),
                 review.getParkingLot().getId(),
                 review.getParkingLot().getName(),
+                review.getParkingLot().getAddress(),
                 review.getDetail(),
                 review.getCreatedAt()
         );

@@ -27,19 +27,20 @@ class AdminParkingLotReviewServiceTest {
         ParkingLot parkingLot = mock(ParkingLot.class);
         ParkingLotReview review = mock(ParkingLotReview.class);
         LocalDateTime createdAt = LocalDateTime.of(2026, 10, 1, 12, 34, 56);
-        when(parkingLotReviewRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(review));
+        when(parkingLotReviewRepository.findAllWithParkingLotOrderByCreatedAtDesc()).thenReturn(List.of(review));
         when(review.getId()).thenReturn(101L);
         when(review.getParkingLot()).thenReturn(parkingLot);
         when(parkingLot.getId()).thenReturn(4L);
         when(parkingLot.getName()).thenReturn("주민 주차장");
+        when(parkingLot.getAddress()).thenReturn("행당로123");
         when(review.getDetail()).thenReturn(null);
         when(review.getCreatedAt()).thenReturn(createdAt);
 
         AdminParkingLotReviewsResponse response = adminParkingLotReviewService.getReviews();
 
         assertThat(response.reviews()).containsExactly(
-                new AdminParkingLotReviewResponse(101L, 4L, "주민 주차장", null, createdAt)
+                new AdminParkingLotReviewResponse(101L, 4L, "주민 주차장", "행당로123", null, createdAt)
         );
-        verify(parkingLotReviewRepository).findAllByOrderByCreatedAtDesc();
+        verify(parkingLotReviewRepository).findAllWithParkingLotOrderByCreatedAtDesc();
     }
 }

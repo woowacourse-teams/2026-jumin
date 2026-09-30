@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.List;
 import jumin.TestcontainersConfiguration;
 import jumin.config.JpaAuditingConfig;
 import jumin.domain.parking.entity.ParkingLot;
@@ -97,7 +98,7 @@ class ParkingLotReviewRepositoryTest {
         entityManager.clear();
 
         // when
-        var reviews = parkingLotReviewRepository.findAllByOrderByCreatedAtDesc();
+        List<ParkingLotReview> reviews = parkingLotReviewRepository.findAllWithParkingLotOrderByCreatedAtDesc();
 
         // then
         assertThat(reviews).extracting(ParkingLotReview::getId)
@@ -108,10 +109,10 @@ class ParkingLotReviewRepositoryTest {
     private ParkingLot parkingLot() {
         Long parkingLotId = jdbcTemplate.queryForObject("""
                 insert into parking_lots (
-                    source, source_external_id, name, active,
+                    source, source_external_id, name, address, active,
                     source_checked_at, created_at, updated_at
                 ) values (
-                    'DATA_GO_KR', 'review-test', '제보 테스트 주차장', true,
+                    'DATA_GO_KR', 'review-test', '제보 테스트 주차장', '행당로123', true,
                     current_timestamp, current_timestamp, current_timestamp
                 )
                 returning id

@@ -16,7 +16,7 @@ public class AdminParkingLotReviewService {
     private final ParkingLotReviewRepository parkingLotReviewRepository;
 
     public AdminParkingLotReviewsResponse getReviews() {
-        List<ParkingLotReview> reviews = parkingLotReviewRepository.findAllByOrderByCreatedAtDesc();
+        List<ParkingLotReview> reviews = parkingLotReviewRepository.findAllWithParkingLotOrderByCreatedAtDesc();
         return AdminParkingLotReviewsResponse.from(reviews);
     }
 }
