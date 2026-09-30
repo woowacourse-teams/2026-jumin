@@ -2,7 +2,7 @@ package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
 import jumin.domain.parking.dto.ParkingReviewRequest;
-import jumin.domain.parking.service.ParkingReviewService;
+import jumin.domain.parking.service.ParkingLotReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/parking/review")
-public class ParkingReviewController {
+public class ParkingLotReviewController {
 
-    private final ParkingReviewService parkingReviewService;
+    private final ParkingLotReviewService parkingLotReviewService;
 
     @PostMapping
     public ResponseEntity<Void> create(@Valid @RequestBody ParkingReviewRequest request) {
-        parkingReviewService.create(request);
+        parkingLotReviewService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
