@@ -39,12 +39,15 @@ class ParkingLotReviewRepositoryTest {
     @Test
     @DisplayName("제보 내용이 없어도 리뷰와 감사 시각을 DB에 저장한다")
     void saves_review_without_optional_detail() {
+        // given
         ParkingLot parkingLot = parkingLot();
 
+        // when
         ParkingLotReview review = parkingLotReviewRepository.saveAndFlush(
                 new ParkingLotReview(parkingLot, null)
         );
 
+        // then
         assertThat(review.getId()).isNotNull();
         assertThat(review.getDetail()).isNull();
         assertThat(review.getCreatedAt()).isNotNull();
