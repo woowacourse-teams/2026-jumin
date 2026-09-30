@@ -22,10 +22,10 @@ public class ParkingReviewService {
     @Transactional
     public void create(@Valid ParkingReviewRequest request) {
         var parkingLot = parkingLotRepository.findActiveById(request.parkingLotId())
-            .orElseThrow(() -> new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
         ParkingLotReview review = new ParkingLotReview(
-            parkingLot,
-            request.detail()
+                parkingLot,
+                request.detail()
         );
         parkingLotReviewRepository.save(review);
     }

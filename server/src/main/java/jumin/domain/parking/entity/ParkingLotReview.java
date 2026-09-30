@@ -29,9 +29,9 @@ public class ParkingLotReview extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
-        name = "parking_lot_id",
-        nullable = false,
-        foreignKey = @ForeignKey(name = "fk_parking_reviews_parking_lot")
+            name = "parking_lot_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_parking_reviews_parking_lot")
     )
     private ParkingLot parkingLot;
 
