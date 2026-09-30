@@ -5,9 +5,22 @@ stack_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 temporary="$(mktemp -d)"
 network="jumin-observability-check-${RANDOM}-$$"
 cleanup() {
+  local exit_status=$?
+  if (( exit_status != 0 )); then
+    for container in "${network}-grafana" "${network}-proxy" "${network}-upstream"; do
+      if docker inspect "${container}" >/dev/null 2>&1; then
+        echo "=== ${container} state ===" >&2
+        docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}' \
+          "${container}" >&2 || true
+        echo "=== ${container} logs ===" >&2
+        docker logs "${container}" >&2 || true
+      fi
+    done
+  fi
   docker rm -f "${network}-grafana" "${network}-proxy" "${network}-upstream" >/dev/null 2>&1 || true
   docker network rm "${network}" >/dev/null 2>&1 || true
   rm -rf "${temporary}"
+  exit "${exit_status}"
 }
 trap cleanup EXIT
 
@@ -106,6 +119,27 @@ expect_status() {
     return 1
   }
 }
+wait_for_proxy() {
+  local actual=''
+  local curl_error="${temporary}/proxy-readiness-curl-error.log"
+  for _ in {1..20}; do
+    if actual="$(curl "${curl_options[@]}" --output /dev/null --write-out '%{http_code}' \
+      "${base_url}/loki/api/v1/query" 2>"${curl_error}")"; then
+      [[ "${actual}" == 404 ]] || {
+        echo "Expected HTTP 404 from the Nginx readiness probe, received ${actual}." >&2
+        return 1
+      }
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo 'Nginx HTTPS proxy did not become ready after 20 attempts.' >&2
+  if [[ -s "${curl_error}" ]]; then
+    cat "${curl_error}" >&2
+  fi
+  return 1
+}
 expect_body() {
   local expected="$1"; shift
   local actual
@@ -115,6 +149,7 @@ expect_body() {
     return 1
   }
 }
+wait_for_proxy
 expect_status 404 "${base_url}/loki/api/v1/query"
 expect_status 404 "${base_url}/prometheus/api/v1/query"
 expect_status 401 --request POST "${base_url}/loki/api/v1/push"
