@@ -7,7 +7,7 @@ import { Navigate, useLocation } from 'react-router';
 
 import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
-import { ParkingSearchCondition } from '../../../shared/types/navigation';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 

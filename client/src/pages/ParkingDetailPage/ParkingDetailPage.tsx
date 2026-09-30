@@ -4,7 +4,7 @@ import { css } from '@emotion/css';
 
 import { Navigate, useLocation, useOutletContext } from 'react-router';
 
-import { ParkingDetailCondition } from '../../../shared/types/navigation';
+import type { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
 import { ParkingLotHeader } from './components/ParkingLotHeader';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';

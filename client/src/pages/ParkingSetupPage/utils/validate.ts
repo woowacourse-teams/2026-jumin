@@ -1,4 +1,4 @@
-import { CompleteParkingPeriod, ParkingPeriod } from '../model/time';
+import type { CompleteParkingPeriod, ParkingPeriod } from '../model/time';
 
 export type PeriodValidation =
   | {
