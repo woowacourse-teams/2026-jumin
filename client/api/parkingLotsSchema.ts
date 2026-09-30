@@ -24,7 +24,6 @@ export const parkingFeeRuleSchema = z.object({
   additionalMinutes: z.number().nullable(),
   additionalFee: z.number().nullable(),
   dailyMaxFee: z.number().nullable(),
-  monthlyFee: z.number().nullable(),
 });
 
 /**
@@ -132,10 +131,6 @@ export const parkingLotViewportResponseSchema = z.object({
 /**
  * 6. 뷰포트 내 주차장 상세정보 응답
  */
-export const viewportParkingFeeRuleSchema = parkingFeeRuleSchema.omit({
-  monthlyFee: true,
-});
-
 export const dailyOperationSchema = z.object({
   status: parkingOperationStatusSchema,
   day: dailyOperationsDaySchema,
@@ -149,7 +144,7 @@ export const viewportParkingLotDetailSchema = z.object({
   name: z.string(),
   address: z.string(),
   capacity: z.number().nullable(),
-  feeRule: viewportParkingFeeRuleSchema.nullable(),
+  feeRule: parkingFeeRuleSchema.nullable(),
   dailyOperations: z.array(dailyOperationSchema),
 });
 
