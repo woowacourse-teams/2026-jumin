@@ -89,11 +89,7 @@ public class ParkingCsvParser {
     }
 
     private String decode(byte[] bytes) {
-        try (BOMInputStream input = BOMInputStream.builder()
-                .setInputStream(new ByteArrayInputStream(bytes))
-                .setByteOrderMarks(ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE,
-                        ByteOrderMark.UTF_32LE, ByteOrderMark.UTF_32BE)
-                .get()) {
+        try (BOMInputStream input = createBomInputStream(bytes)) {
             if (input.hasBOM() && !input.hasBOM(ByteOrderMark.UTF_8)) {
                 throw unsupportedEncoding();
             }
@@ -107,6 +103,14 @@ public class ParkingCsvParser {
         } catch (IOException exception) {
             throw new ParkingCsvException(HttpStatus.INTERNAL_SERVER_ERROR, "업로드한 파일을 읽을 수 없습니다.", exception);
         }
+    }
+
+    private BOMInputStream createBomInputStream(byte[] bytes) throws IOException {
+        return BOMInputStream.builder()
+                .setInputStream(new ByteArrayInputStream(bytes))
+                .setByteOrderMarks(ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_16BE,
+                        ByteOrderMark.UTF_32LE, ByteOrderMark.UTF_32BE)
+                .get();
     }
 
     private List<ParkingCsvRow> readRows(String content) {
