@@ -49,7 +49,7 @@ candidate_nodes AS (
           )
     ) node
 ),
--- 3. 목적지·주차장 노드 조합별 최단 보행로 거리를 계산한다.
+-- 3. 주차장 → 목적지 방향의 최단 보행로 거리를 계산한다.
 routes AS (
     SELECT destination.id AS destination_node_id,
            destination.id AS candidate_node_id,
@@ -65,11 +65,14 @@ routes AS (
            destination.snap_distance
     FROM destination_nodes destination
     JOIN pgr_dijkstraCost(
+        -- 조회용 그래프는 간선 양 끝을 교환하고 각 방향의 비용은 그대로 유지한다.
+        -- 뒤집힌 그래프의 목적지 → 주차장 거리는 원래 그래프의 주차장 → 목적지 거리와 같다.
+        -- 목적지 노드를 시작점으로 유지해 주차장마다 최단경로 탐색을 반복하지 않는다.
         -- geometry 인덱스로 후보 링크를 좁힌 뒤 geography로 실제 미터 거리를 확인한다.
         -- 75000은 서울 위도에서 800m 원을 포함하도록 잡은 보수적인 도 단위 변환값이다.
         -- 반경에 일부라도 걸치는 링크는 분할하지 않고 전체를 포함한다.
         format(
-            'SELECT id, source, target, cost, reverse_cost '
+            'SELECT id, target AS source, source AS target, cost, reverse_cost '
                 || 'FROM walking_edges WHERE walkable = true '
                 || 'AND geom && ST_Expand(ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326), %3$L::double precision / 75000.0) '
                 || 'AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography, %3$L::double precision)',

@@ -18,7 +18,8 @@
 | `nginx/jumin.prod.conf` | 운영 HTTPS, 정적 파일, API 프록시 설정 |
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
-| `scripts/import-seoul-walking-network.sh` | 서울시 보행 네트워크 적재 |
+| `scripts/import-osm-walking-network.sh` | OSM 전국 보행 네트워크 적재 |
+| `scripts/build-osm-walking-poc.py` | OSM 전국 적재용 CSV 변환·검증 ([사용법](../server/README.md#osm-보행-네트워크-적재)) |
 | `observability/compose.yml` | 중앙 Grafana·Loki·Prometheus·Nginx 실행 |
 | `observability/alloy/` | dev/prod EC2에서 로그와 지표를 수집하는 Alloy 설정 |
 | `observability/grafana/`, `observability/loki/`, `observability/prometheus/`, `observability/nginx/` | 대시보드·데이터 소스·저장·접근 경계 설정 |
@@ -423,7 +424,7 @@ SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보�
 
 - 서버를 배포하여 Flyway V7까지 적용합니다. RDS가 pgRouting을 지원해야 하며,
   Flyway DB 계정에 확장 생성 권한이 필요합니다. 권한을 분리하는 환경에서는 DBA가
-  먼저 확장을 생성합니다. V7은 이미 있는 확장은 유지합니다.
+  먼저 확장을 생성합니다. V7은 이미 있는 확장은 유지합니다. OSM 적재는 기존 보행망 스키마를 사용합니다.
 - 서버 배포와 동일한 `DB_URL` Secret을 사용합니다. `DB_HOST`, `DB_NAME`, `DB_PORT`
   Variables는 추가하지 않습니다. workflow가 JDBC URL에서 접속 정보를 추출하여
   적재 스크립트와 사전·사후 검증에 동일하게 전달합니다.
@@ -433,11 +434,10 @@ SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보�
   옵션이 없으면 TLS(`require`)를 사용합니다. 인증서 검증 모드는 runner에 인증서 설정이
   필요합니다. 그 외 JDBC 옵션, 다중 호스트, URL 인코딩된 DB 이름은 잘못된 대상으로
   적재하지 않도록 실행 전에 거부합니다.
-- 기존 Secrets `DB_USERNAME`, `DB_PASSWORD`와 `SEOUL_OPEN_DATA_API_KEY`를 사용합니다.
-  API 키는 repository secret으로도 제공할 수 있습니다. 별도 키를 쓰는 환경은
-  environment secret을 설정합니다. 키를 서버 컨테이너에 넣을 필요는 없습니다.
-- 해당 환경의 self-hosted runner(`jumin-dev` / `jumin-prod`)에 `psql`, `curl`, `jq`가
-  있어야 하고, RDS 및 서울시 API에 접속할 수 있어야 합니다. DB 연결은 URL의 SSL 설정을 따르며
+- 기존 Secrets `DB_USERNAME`, `DB_PASSWORD`를 사용합니다. 서울시 API 키는 필요하지 않습니다.
+  다운로드 URL은 적재 스크립트의 고정 상수이며, 별도 환경변수나 Actions 입력은 없습니다.
+- 해당 환경의 self-hosted runner(`jumin-dev` / `jumin-prod`)에 `psql`, `curl`,
+  Python 3.9 이상·venv가 있어야 하고, RDS 및 Geofabrik·PyPI에 접속할 수 있어야 합니다. DB 연결은 URL의 SSL 설정을 따르며
   별도 옵션이 없으면 TLS를 사용합니다.
 - 실행 DB 계정에는 보행망 테이블의 SELECT, INSERT, UPDATE, TRUNCATE 및 임시 테이블
   생성 권한이 필요합니다.
@@ -448,7 +448,8 @@ SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보�
 2. development는 `develop`, production은 `main` 브랜치와 해당 environment를 선택합니다.
    조합이 다르면 작업은 실행되지 않습니다. workflow가 기본 브랜치에 반영되어야
    수동 실행 목록에서 사용할 수 있습니다.
-3. 최초에는 환경마다 한 번 실행합니다. 이후 갱신이 필요할 때만 다시 실행합니다.
+3. 최초에는 환경마다 한 번 실행하고 이후 필요할 때 갱신합니다. 한국 최신 PBF를 고정 주소에서 다운로드합니다.
+   workflow는 Python 환경을 임시로 준비하며 전체 스냅샷을 변환합니다. 충분한 디스크와 실행 시간을 확보합니다.
 4. 성공 로그 `Walking network import and readiness verification succeeded.`를 확인합니다.
    실제 검색 API와 같은 SQL로 확장, READY 메타데이터, 노드, 보행 가능한 링크를 검증합니다.
 

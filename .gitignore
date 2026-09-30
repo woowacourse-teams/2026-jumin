@@ -2,6 +2,8 @@
 node_modules/
 .pnpm-store/
 .gradle/
+__pycache__/
+*.pyc
 
 # 빌드 산출물
 dist/

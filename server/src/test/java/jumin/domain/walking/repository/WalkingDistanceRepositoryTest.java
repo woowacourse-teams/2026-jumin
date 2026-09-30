@@ -98,6 +98,63 @@ class WalkingDistanceRepositoryTest {
         )).isEmpty();
     }
 
+    @Test
+    @DisplayName("주차장 → 목적지 방향의 단방향 경로만 반환한다")
+    void respects_one_way_route_from_parking_to_destination() {
+        // given
+        insertWalkingGraph();
+        long parkingLotId = insertParkingLot("near-walking-network");
+        jdbcTemplate.update("update parking_lots set longitude = 127.0282 where id = ?", parkingLotId);
+        jdbcTemplate.update("update walking_edges set reverse_cost = -1 where id in (1, 2)");
+
+        // when
+        List<WalkingDistanceQueryResult> unavailableResults = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 0
+        );
+
+        // then
+        // 목적지 → 주차장으로만 갈 수 있으면 주차 후 목적지행 경로는 없다.
+        assertThat(unavailableResults).isEmpty();
+
+        // given
+        jdbcTemplate.update("""
+                update walking_edges
+                set source = target, target = source, geom = ST_Reverse(geom)
+                where id in (1, 2)
+                """);
+
+        // when
+        List<WalkingDistanceQueryResult> availableResults = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 0
+        );
+
+        // then
+        assertThat(availableResults)
+                .extracting(WalkingDistanceQueryResult::parkingLotId, WalkingDistanceQueryResult::distanceMeters)
+                .containsExactly(tuple(parkingLotId, 30));
+    }
+
+    @Test
+    @DisplayName("양방향 비용이 다르면 주차장 → 목적지의 비용을 사용한다")
+    void uses_parking_to_destination_cost_for_asymmetric_edges() {
+        // given
+        insertWalkingGraph();
+        long parkingLotId = insertParkingLot("near-walking-network");
+        jdbcTemplate.update("update parking_lots set longitude = 127.0282 where id = ?", parkingLotId);
+        jdbcTemplate.update("update walking_edges set reverse_cost = 30 where id = 1");
+        jdbcTemplate.update("update walking_edges set reverse_cost = 70 where id = 2");
+
+        // when
+        List<WalkingDistanceQueryResult> results = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 0
+        );
+
+        // then
+        assertThat(results)
+                .extracting(WalkingDistanceQueryResult::parkingLotId, WalkingDistanceQueryResult::distanceMeters)
+                .containsExactly(tuple(parkingLotId, 100));
+    }
+
     private void insertWalkingGraph() {
         jdbcTemplate.update("""
                 insert into walking_nodes (id, node_type_code, geom) values
