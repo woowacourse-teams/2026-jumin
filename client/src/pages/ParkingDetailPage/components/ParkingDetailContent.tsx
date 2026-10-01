@@ -16,7 +16,7 @@ import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedR
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
-import { ParkingReportModal } from './ParkingReportModal';
+import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -58,14 +58,6 @@ const formatWeekdayHours = ({ status, openTime, closeTime }: ParkingOperationPer
   return `평일 ${openTime} – ${closeTime}`;
 };
 
-const formatCheckedDate = (lastCheckedAt: string) => {
-  const [year, month, day] = lastCheckedAt.slice(0, 10).split('-').map(Number);
-
-  if (!year || !month || !day) return null;
-
-  return `${year}.${month}.${day}`;
-};
-
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
   const { setRecommendView } = useOutletContext<{
@@ -73,7 +65,6 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   }>();
 
   const deepLinkModal = useModal();
-  const reportModal = useModal();
 
   const { data: parkingLotDetail } = useSuspenseQuery(
     parkingDetailQueryOptions({
@@ -87,8 +78,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     }),
   );
 
-  const { feeRule, operation, source } = parkingLotDetail;
-  const checkedDate = source ? formatCheckedDate(source.lastCheckedAt) : null;
+  const { feeRule, operation } = parkingLotDetail;
   const durationLabel = formatDuration(detailCondition.entryAt, detailCondition.exitAt);
 
   useEffect(() => {
@@ -201,21 +191,9 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
           </dl>
 
           <div className={sheetFooterStyle}>
-            {source && (
-              <div className={sourceRowStyle}>
-                <p className={sourceStyle}>
-                  {source.name}
-                  {checkedDate && ` · ${checkedDate} 기준`}
-                </p>
-                <div className={reportActionStyle}>
-                  <span>주차장 정보가 다른가요?</span>
-
-                  <button type="button" className={reportButtonStyle} onClick={reportModal.open}>
-                    신고하기
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className={reportRowStyle}>
+              <ParkingReportAction parkingLotId={parkingLotDetail.id} />
+            </div>
 
             <button className={navigationButtonStyle} type="button" onClick={deepLinkModal.open}>
               길찾기 시작
@@ -233,10 +211,6 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
           }}
           destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
         />
-      )}
-
-      {reportModal.isOpen && (
-        <ParkingReportModal parkingLotId={parkingLotDetail.id} onClose={reportModal.close} />
       )}
     </div>
   );
@@ -352,23 +326,6 @@ const detailsStyle = css`
   }
 `;
 
-const sourceStyle = css`
-  min-width: 0;
-  margin: 0;
-
-  overflow: hidden;
-
-  color: #9aa3b4;
-
-  font-size: 11px;
-
-  line-height: 1.4;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-`;
-
 const navigationButtonStyle = css`
   width: 100%;
 
@@ -405,49 +362,11 @@ const sheetFooterStyle = css`
   margin-top: auto;
 `;
 
-const sourceRowStyle = css`
+const reportRowStyle = css`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-end;
 
-  margin: 24px 0 18px;
-`;
-
-const reportActionStyle = css`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-
-  color: #7f8a9f;
-  font-size: 11px;
-`;
-
-const reportButtonStyle = css`
-  flex-shrink: 0;
-  min-height: 32px;
-  padding: 0;
-
-  color: #7f8a9f;
-  font-family: inherit;
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: right;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-
-  background: none;
-  border: 0;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    color: #4356d8;
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-    outline-offset: 3px;
-  }
+  margin-top: 24px;
+  margin-bottom: 12px;
 `;
