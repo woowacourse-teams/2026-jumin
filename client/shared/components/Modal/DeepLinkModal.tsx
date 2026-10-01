@@ -12,7 +12,6 @@ if (typeof document !== 'undefined') {
 }
 
 interface Props {
-  isOpen: boolean;
   onRequestClose: () => void;
   onDirectionsStart?: (provider: DirectionsProvider) => void;
   destination: {
@@ -32,18 +31,11 @@ const providers: Array<{ provider: DirectionsProvider; label: string; mark: stri
   { provider: 'TMAP', label: '티맵', mark: 'T' },
 ];
 
-export const DeepLinkModal = ({
-  isOpen,
-  onRequestClose,
-  onDirectionsStart,
-  destination,
-}: Props) => {
+export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }: Props) => {
   const [locationState, setLocationState] = useState<LocationState>({ status: 'LOADING' });
   const [requestToken, setRequestToken] = useState(0);
 
   useEffect(() => {
-    if (!isOpen) return;
-
     let isCancelled = false;
 
     if (!navigator.geolocation) {
@@ -84,7 +76,7 @@ export const DeepLinkModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, requestToken]);
+  }, [requestToken]);
 
   const handleProviderClick = (provider: DirectionsProvider) => {
     if (locationState.status !== 'READY') return;
@@ -134,7 +126,7 @@ export const DeepLinkModal = ({
 
   return (
     <Modal
-      isOpen={isOpen}
+      isOpen
       onRequestClose={onRequestClose}
       overlayClassName={overlayStyle}
       className={modalStyle}

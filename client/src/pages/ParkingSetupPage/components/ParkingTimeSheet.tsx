@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 import { css } from '@emotion/css';
 
-import { ParkingPeriod } from '../model/time';
+import type { ParkingPeriod } from '../model/time';
 import { formatMonthDay } from '../utils/timeFormat';
 import { TimePickerField } from './TimePickerField';
 
 import { addDays, addMinutes, format, set, set as setDate } from 'date-fns';
 
-import { PeriodValidation } from '../utils/validate';
+import type { PeriodValidation } from '../utils/validate';
 import { Calendar } from './Calendar';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { Modal } from '../../../../shared/components/Modal/Modal';
@@ -201,7 +201,7 @@ export const ParkingTimeSheet = ({
       </button>
 
       {modal.isOpen && (
-        <Modal isOpen={modal.isOpen} onClose={modal.close} label="주차할 날짜를 선택하세요">
+        <Modal onClose={modal.close} label="주차할 날짜를 선택하세요">
           <Calendar selectedDate={pendingEntryDate} onSelect={setPendingEntryDate} />
 
           <button type="button" className={recommendButtonStyle} onClick={handleCalendarConfirm}>

@@ -2,8 +2,11 @@ import { jest } from '@jest/globals';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
+import { http, HttpResponse } from 'msw';
 
 import { ParkingDetailPage } from '../../src/pages/ParkingDetailPage/ParkingDetailPage';
+import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
+import { server } from '../msw/server';
 import type { RecentParkingUse } from '../../shared/utils/recentParkingUses';
 import { renderWithProviders } from '../renderWithProviders';
 import { TestMapLayout } from '../TestMapLayout';
@@ -40,14 +43,13 @@ const openDirectionsModal = async () => {
 };
 
 describe('D. 주차장 상세정보', () => {
-  it('예상 요금, 도보 거리, 운영시간과 출처를 확인할 수 있다', async () => {
+  it('예상 요금, 도보 거리와 운영시간을 확인할 수 있다', async () => {
     renderDetailPage();
 
     expect(await screen.findByText('6,000원')).toBeInTheDocument();
     expect(screen.getByText('도보 거리')).toBeInTheDocument();
     expect(screen.getByText('310m(5분)')).toBeInTheDocument();
     expect(screen.getByText('평일 24시간')).toBeInTheDocument();
-    expect(screen.getByText('서울 열린데이터광장 · 2026.8.21 기준')).toBeInTheDocument();
   });
 
   it('제공되지 않은 정보는 미제공으로 표시한다', async () => {
@@ -58,6 +60,53 @@ describe('D. 주차장 상세정보', () => {
     const missingInformation = await screen.findAllByText('미제공');
 
     expect(missingInformation.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('오른쪽에 신고 버튼을 배치하고 신고 모달을 열고 닫을 수 있다', async () => {
+    renderDetailPage();
+    const user = userEvent.setup();
+    const reportButton = await screen.findByRole('button', { name: '신고하기' });
+    const reportPrompt = screen.getByText('주차장 정보가 다른가요?');
+
+    expect(reportButton.parentElement).toContainElement(reportPrompt);
+    expect(reportButton.parentElement?.parentElement).toHaveStyle({
+      display: 'flex',
+      justifyContent: 'flex-end',
+    });
+    expect(reportButton).not.toContainElement(reportPrompt);
+    await user.click(reportPrompt);
+    expect(screen.queryByRole('dialog', { name: '주차장 정보 신고' })).not.toBeInTheDocument();
+
+    await user.click(reportButton);
+    const dialog = screen.getByRole('dialog', { name: '주차장 정보 신고' });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: '신고 내용' }),
+      '요금 정보가 달라요.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: '주차장 정보 신고 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: '주차장 정보 신고' })).not.toBeInTheDocument();
+
+    await user.click(reportButton);
+    expect(screen.getByRole('textbox', { name: '신고 내용' })).toHaveValue('');
+  });
+
+  it('출처가 없어도 오른쪽에 신고 버튼을 표시하고 모달을 열 수 있다', async () => {
+    server.use(
+      http.get('/api/parking/101', () =>
+        HttpResponse.json({ ...parkingDetailFixtures[101], source: undefined }),
+      ),
+    );
+    renderDetailPage();
+    const user = userEvent.setup();
+    const reportButton = await screen.findByRole('button', { name: '신고하기' });
+    const reportRow = reportButton.parentElement?.parentElement;
+
+    expect(screen.queryByText(/서울 열린데이터광장/)).not.toBeInTheDocument();
+    expect(reportRow).toHaveStyle({ display: 'flex', justifyContent: 'flex-end' });
+
+    await user.click(reportButton);
+    expect(screen.getByRole('dialog', { name: '주차장 정보 신고' })).toBeInTheDocument();
   });
 
   it('상세 조회 실패 후 다시 시도하면 정보를 표시한다', async () => {

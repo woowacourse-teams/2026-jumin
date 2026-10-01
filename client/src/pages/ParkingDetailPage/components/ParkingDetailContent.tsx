@@ -1,12 +1,12 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
 import type { ParkingDetailCondition, RecommendView } from '../../../../shared/types/navigation';
-import { ParkingOperationPeriod } from '../../../../api/contracts';
+import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
-  BottomSheetSnap,
+  type BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router';
@@ -16,6 +16,7 @@ import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedR
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -57,21 +58,13 @@ const formatWeekdayHours = ({ status, openTime, closeTime }: ParkingOperationPer
   return `평일 ${openTime} – ${closeTime}`;
 };
 
-const formatCheckedDate = (lastCheckedAt: string) => {
-  const [year, month, day] = lastCheckedAt.slice(0, 10).split('-').map(Number);
-
-  if (!year || !month || !day) return null;
-
-  return `${year}.${month}.${day}`;
-};
-
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
   const { setRecommendView } = useOutletContext<{
     setRecommendView: (view: RecommendView | null) => void;
   }>();
 
-  const modal = useModal();
+  const deepLinkModal = useModal();
 
   const { data: parkingLotDetail } = useSuspenseQuery(
     parkingDetailQueryOptions({
@@ -85,8 +78,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     }),
   );
 
-  const { feeRule, operation, source } = parkingLotDetail;
-  const checkedDate = source ? formatCheckedDate(source.lastCheckedAt) : null;
+  const { feeRule, operation } = parkingLotDetail;
   const durationLabel = formatDuration(detailCondition.entryAt, detailCondition.exitAt);
 
   useEffect(() => {
@@ -199,29 +191,27 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
           </dl>
 
           <div className={sheetFooterStyle}>
-            {source && (
-              <p className={sourceStyle}>
-                {source.name}
-                {checkedDate && ` · ${checkedDate} 기준`}
-              </p>
-            )}
+            <div className={reportRowStyle}>
+              <ParkingReportAction parkingLotId={parkingLotDetail.id} />
+            </div>
 
-            <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+            <button className={navigationButtonStyle} type="button" onClick={deepLinkModal.open}>
               길찾기 시작
             </button>
           </div>
         </section>
       </BottomSheet>
 
-      <DeepLinkModal
-        isOpen={modal.isOpen}
-        onRequestClose={modal.close}
-        onDirectionsStart={() => {
-          setRecommendView(null);
-          saveRecentParkingUse(parkingLotDetail);
-        }}
-        destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
-      />
+      {deepLinkModal.isOpen && (
+        <DeepLinkModal
+          onRequestClose={deepLinkModal.close}
+          onDirectionsStart={() => {
+            setRecommendView(null);
+            saveRecentParkingUse(parkingLotDetail);
+          }}
+          destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
+        />
+      )}
     </div>
   );
 };
@@ -336,22 +326,6 @@ const detailsStyle = css`
   }
 `;
 
-const sourceStyle = css`
-  margin: 24px 0 18px;
-
-  overflow: hidden;
-
-  color: #9aa3b4;
-
-  font-size: 11px;
-
-  line-height: 1.4;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-`;
-
 const navigationButtonStyle = css`
   width: 100%;
 
@@ -386,4 +360,13 @@ const navigationButtonStyle = css`
 
 const sheetFooterStyle = css`
   margin-top: auto;
+`;
+
+const reportRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  margin-top: 24px;
+  margin-bottom: 12px;
 `;

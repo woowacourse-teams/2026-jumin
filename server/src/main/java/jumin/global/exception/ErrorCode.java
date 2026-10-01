@@ -11,6 +11,7 @@ public enum ErrorCode {
     PARKING_LOT_NOT_FOUND(HttpStatus.NOT_FOUND, "주차장 정보를 찾을 수 없습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않은 HTTP 메서드입니다."),
+    CONTENT_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "업로드 파일 또는 요청 크기가 허용 한도를 초과했습니다."),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 미디어 타입입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "요청을 처리하는 중 서버 오류가 발생했습니다."),
     INVALID_QUERY(HttpStatus.BAD_REQUEST, "검색어는 2자 이상 입력해 주세요."),

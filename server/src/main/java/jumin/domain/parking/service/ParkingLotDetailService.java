@@ -54,7 +54,7 @@ public class ParkingLotDetailService {
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLotId);
         if (distanceMeters == null) {
             log.atWarn()
-                    .setMessage("주차장까지의 도보 경로를 찾을 수 없습니다.")
+                    .setMessage("주차장에서 목적지까지의 도보 경로를 찾을 수 없습니다.")
                     .addKeyValue("parkingLotId", parkingLotId)
                     .log();
         }

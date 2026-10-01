@@ -13,7 +13,7 @@ import BottomSheet, {
 } from '../../../../shared/components/BottomSheet';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
-import {
+import type {
   ParkingDetailCondition,
   ParkingSearchCondition,
   RecommendationType,

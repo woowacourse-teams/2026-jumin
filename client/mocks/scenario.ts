@@ -9,7 +9,10 @@ export type MockScenario =
   | 'parking-network-error'
   | 'parking-detail-slow'
   | 'parking-detail-not-found'
-  | 'parking-detail-server-error';
+  | 'parking-detail-server-error'
+  | 'parking-report-slow'
+  | 'parking-report-server-error'
+  | 'parking-report-network-error';
 
 const scenarios = new Set<MockScenario>([
   'success',
@@ -23,6 +26,9 @@ const scenarios = new Set<MockScenario>([
   'parking-detail-slow',
   'parking-detail-not-found',
   'parking-detail-server-error',
+  'parking-report-slow',
+  'parking-report-server-error',
+  'parking-report-network-error',
 ]);
 
 export const getMockScenario = (): MockScenario => {

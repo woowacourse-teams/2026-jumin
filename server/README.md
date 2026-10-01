@@ -126,46 +126,71 @@ docker exec "$container_id" \
 
 정상적으로 실행되면 `postgis`와 `pgrouting`의 버전이 출력됩니다.
 
-## 서울시 보행 네트워크 적재
+## OSM 보행 네트워크 적재
 
-도보거리 계산은 서울시 보행 네트워크와 PostgreSQL의 pgRouting을 사용합니다.
-서울시 열린데이터광장에서 Open API 인증키를 발급받은 뒤 다음처럼 적재합니다.
-
-```bash
-export SEOUL_OPEN_DATA_API_KEY=발급받은_인증키
-../infra/scripts/import-seoul-walking-network.sh
-```
-
-특정 자치구로 POC를 할 때만 아래처럼 범위를 제한할 수 있습니다. 운영용 전체 적재에는
-`SEOUL_OPEN_DATA_SGG_NM`을 지정하지 않습니다. 자치구 경계를 넘는 링크는 POC 그래프에서
-제외되므로, 이 데이터는 해당 자치구의 경로 정확도 검증용으로만 사용해야 합니다.
+도보거리 계산은 OSM 보행 그래프와 PostgreSQL의 pgRouting을 사용합니다.
+Flyway V7까지 적용한 기존 스키마를 사용합니다. 저장소 루트에서 Python 환경을 준비하고 적재합니다.
 
 ```bash
-SEOUL_OPEN_DATA_SGG_NM=종로구 \
-../infra/scripts/import-seoul-walking-network.sh
+python3 -m venv build/osm-poc/venv
+build/osm-poc/venv/bin/python -m pip install -r infra/scripts/osm_walking_poc/requirements.txt
+OSM_PYTHON="$PWD/build/osm-poc/venv/bin/python" \
+  bash infra/scripts/import-osm-walking-network.sh
 ```
 
-운영 RDS에 직접 적재할 때는 로컬 Docker 대신 `DB_TARGET=direct`를 사용합니다.
-`psql`이 실행 가능한 환경에서 DB 접속 정보를 환경변수로 설정합니다.
+기본 실행은 Geofabrik 한국 전국 PBF를 받아 보행 태그와 방향·장벽을 반영합니다.
+서울시 API 인증키와 다운로드 URL 환경변수는 필요하지 않습니다. 다운로드 주소는 스크립트의
+고정 상수이며, `OSM_PBF_FILE`로 이미 받은 파일을 사용할 수 있습니다. 전국 변환의 좌표 캐시와 노드
+중복 제거는 디스크를 사용하므로 실행 호스트에 원본·CSV·임시 파일을 저장할 공간이 필요합니다.
 
 ```bash
-DB_TARGET=direct \
-DB_HOST=RDS_HOST DB_PORT=5432 DB_NAME=jumin \
-DB_USERNAME=애플리케이션_DB_사용자 DB_PASSWORD=DB_비밀번호 \
-../infra/scripts/import-seoul-walking-network.sh
+DB_TARGET=direct DB_HOST=RDS_HOST DB_PORT=5432 DB_NAME=jumin \
+DB_USERNAME=DB_사용자 DB_PASSWORD=DB_비밀번호 PGSSLMODE=require \
+OSM_PYTHON="$PWD/build/osm-poc/venv/bin/python" \
+OSM_PBF_FILE="$PWD/build/osm-poc/input/south-korea-260929.osm.pbf" \
+  bash infra/scripts/import-osm-walking-network.sh
 ```
 
-`TbTraficWlkNet`은 `NODE`와 `LINK` 행이 섞여 반환됩니다. 스크립트는 각 유형을
-분리하고, 소수점으로 표현되는 ID를 정수로 정규화한 뒤 적재합니다. 서울시 Sheet
-화면에서는 전체 CSV도 내려받을 수 있지만, 자동 갱신에는 Open API를 사용합니다.
+스크립트는 CSV 체크섬·행 수·참조·geometry를 검증한 뒤 트랜잭션으로 보행 노드·간선과
+READY 메타데이터를 함께 교체합니다. 교체 중 오류는 롤백됩니다. 노드의 `source`는
+`OSM`으로 명시하고 기존 간선·메타데이터 컬럼에 적재합니다. 원본 way ID·세그먼트 번호는
+CSV에, 원천 해시·스냅샷 시각·정책 버전·범위는 `summary.json`에 기록합니다.
+기본 적재에서 생성한 임시 파일은 종료 시 삭제합니다. 기록을 보관하려면 `export`로
+미리 생성한 파일을 `OSM_GRAPH_DIR`로 지정합니다. 외부에 OSM 파생 데이터를 제공할 때는 ODbL과 출처 표시를 처리합니다.
 
-스크립트는 `TbTraficWlkNet` 데이터를 내려받아 `walking_nodes`와
-`walking_edges`에 적재합니다. 서울시 API 인증키는 애플리케이션의 검색 요청마다
-사용하지 않고, 보행 네트워크를 갱신할 때만 필요합니다.
+전국 변환과 적재만 지원합니다. `OSM_GRAPH_DIR`를 지정하면 미리 생성한 CSV를 적재합니다.
+저장소 루트에서 다음 명령으로 CSV를 생성할 수 있습니다.
+
+```bash
+build/osm-poc/venv/bin/python infra/scripts/build-osm-walking-poc.py export \
+  --input build/osm-poc/input/south-korea-260929.osm.pbf \
+  --output build/osm-poc/national-export
+
+OSM_PYTHON="$PWD/build/osm-poc/venv/bin/python" \
+OSM_GRAPH_DIR="$PWD/build/osm-poc/national-export" \
+  bash infra/scripts/import-osm-walking-network.sh
+```
+
+출력은 `nodes.csv`, `edges.csv`, `excluded-ways.ndjson`, `summary.json`입니다.
+연속 OSM 노드마다 간선을 만들고 차량 일방통행은 일반 보행 방향으로 사용하지 않습니다.
+보행 역방향 전용 구간은 source/target과 geometry를 뒤집어 기존 양수 cost 제약을 만족합니다.
+선형 장벽은 같은 층의 교차를 차단하고, 공유하는 허용 출입구 노드가 있으면 통과합니다.
+노드 장벽의 기본 허용값은 `bollard`, `block`, `kerb`이며 나머지는 명시 접근 허용이 필요합니다.
+연석(`kerb`)은 선형 장벽으로 표시돼도 일반 보행을 허용하며, 명시 접근 제한·잠금·해석하지 못한 조건은 유지합니다.
+보행 회전 제한은 관련 도로를 제외합니다. CSV는 입력 전체를 변환한 결과만 적재할 수 있습니다.
+
+변환·검증·적재·롤백의 기능 및 E2E 테스트는 저장소 루트에서 실행합니다.
+별도 Docker DB를 생성하며 테스트 종료 시 삭제합니다.
+
+```bash
+build/osm-poc/venv/bin/python -m unittest discover -s infra/scripts/osm_walking_poc/tests -v
+```
 
 검색 시 PostgreSQL의 `ST_DWithin`으로 직선거리 600m 이내 후보만 조회해 추천 결과로
 반환합니다. 목적지와 주차장 좌표를 반경 100m 이내의 연결 가능한 보행 노드들에 연결하고,
-연결된 조합 중 가장 짧은 경로를 `pgr_dijkstraCost`로 계산합니다. 도보거리가
+연결된 조합 중 주차장 → 목적지 방향의 가장 짧은 경로를 `pgr_dijkstraCost`로 계산합니다.
+조회할 때만 간선 양 끝을 교환하고 비용은 유지한 그래프에서 목적지 노드를 시작점으로 탐색합니다. 저장된 그래프의
+보행 방향은 유지하며, 검색과 상세 조회에 같은 기준을 적용합니다. 도보거리가
 600m를 넘어도 결과에는 유지합니다. 보행망에 연결되지 않아 경로를 찾지 못한 주차장은
 검색과 상세 조회 모두 `distanceMeters`와 `walkingDurationMinutes`를 `null`로 반환합니다.
 상세 조회는 이 경우에도 200 응답으로 주차장의 요금과 운영 정보를 제공합니다.
@@ -175,8 +200,10 @@ DB_USERNAME=애플리케이션_DB_사용자 DB_PASSWORD=DB_비밀번호 \
 현재 구현은 좌표를 가장 가까운 보행 링크의 임의 지점이 아니라 반경 내 보행 노드 후보에
 연결합니다. 따라서 주차장 보행자 출입구 좌표와 보행망 노드가 크게 어긋나는 경우에는
 적재 전에 좌표를 보정하거나 `MAX_SNAP_DISTANCE_METERS` 기준을 조정해야 합니다.
-서울시 원본에 방향성 정보가 확인되지 않는 링크는 양방향(`reverse_cost = cost`)으로
-적재하므로, 실제 일방 통행·출입 제한이 있는 구간은 별도 검증이 필요합니다.
+OSM의 보행 방향 태그를 반영하며 계단은 포함합니다. 휠체어 태그는 제외 기준으로 사용하지
+않습니다. 바퀴 있는 차량의 통행성을 나타내는 `smoothness=impassable`도 보행 제외 기준으로
+사용하지 않습니다. 소속을 확인하지 못한 고객·목적지 제한 통로와 해석하지 못한 조건은 제외합니다.
+현재 좌표 접속은 출입구·담장 확인을 하지 않으므로 실제 경로 표본 확인이 필요합니다.
 
 로컬 DB 이미지는 pgRouting이 포함된 `pgrouting/pgrouting:18-3.6-3.8`을 사용합니다.
 새 로컬 볼륨은 초기화 스크립트가 pgRouting 확장을 자동으로 생성합니다. 기존 볼륨과 dev·prod DB에는 Flyway V7이 pgRouting 확장을 생성합니다.
