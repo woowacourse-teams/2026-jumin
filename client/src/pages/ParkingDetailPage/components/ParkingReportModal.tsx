@@ -1,86 +1,61 @@
-import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { css } from '@emotion/css';
 import { Modal } from '../../../../shared/components/Modal/Modal';
-import { useMutation } from '@tanstack/react-query';
-import { submitParkingReport } from '../../../../api/reportParkingData';
+import type { ParkingReport } from '../../../../shared/hooks/useParkingReport';
 
 interface Props {
-  parkingLotId: number;
-  onClose: () => void;
+  report: ParkingReport;
 }
 
-export const ParkingReportModal = ({ parkingLotId, onClose }: Props) => {
-  const [content, setContent] = useState('');
-
-  const reportMutation = useMutation({
-    mutationFn: (reportContent: string) => submitParkingReport(parkingLotId, reportContent),
-    retry: false,
-  });
-
-  const canSubmit = content.trim().length > 0 && content.length <= 400 && !reportMutation.isPending;
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+export const ParkingReportModal = ({ report }: Props) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (!canSubmit) return;
-
-    reportMutation.mutate(content.trim());
-  };
-
-  // 요청 중에는 닫기 버튼·배경 클릭·Escape로 닫히지 않도록 처리
-  const handleClose = () => {
-    if (reportMutation.isPending) return;
-
-    onClose();
+    report.submit();
   };
 
   return (
     <Modal
-      onClose={handleClose}
+      onClose={report.close}
       label="주차장 정보 신고"
-      description={
-        reportMutation.isSuccess ? '알려주셔서 감사합니다.' : '어떤 정보가 다른지 알려주세요.'
-      }
+      description={report.isSuccess ? '알려주셔서 감사합니다.' : '어떤 정보가 다른지 알려주세요.'}
     >
-      {reportMutation.isSuccess ? (
+      {report.isSuccess ? (
         <div className={successStyle}>
           <p className={successMessageStyle} role="status">
             신고가 접수됐어요.
           </p>
-          <button className={submitButtonStyle} type="button" onClick={onClose}>
+          <button className={submitButtonStyle} type="button" onClick={report.close}>
             확인
           </button>
         </div>
       ) : (
-        <form className={formStyle} onSubmit={handleSubmit} aria-busy={reportMutation.isPending}>
+        <form className={formStyle} onSubmit={handleSubmit} aria-busy={report.isPending}>
           <textarea
             className={textareaStyle}
             id="parking-report-content"
             aria-label="신고 내용"
             placeholder="예: 주말에는 무료인데 유료라고 되어 있어요."
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
+            value={report.content}
+            onChange={(event) => report.setContent(event.target.value)}
             maxLength={400}
-            disabled={reportMutation.isPending}
+            disabled={report.isPending}
             aria-describedby={
-              reportMutation.isError
-                ? 'parking-report-count parking-report-error'
-                : 'parking-report-count'
+              report.error ? 'parking-report-count parking-report-error' : 'parking-report-count'
             }
           />
 
           <p className={countStyle} id="parking-report-count">
-            {content.length} / 400
+            {report.content.length} / 400
           </p>
 
-          {reportMutation.isError && (
+          {report.error && (
             <p className={errorStyle} id="parking-report-error" role="alert">
-              {reportMutation.error.message}
+              {report.errorMessage}
             </p>
           )}
 
-          <button className={submitButtonStyle} type="submit" disabled={!canSubmit}>
-            {reportMutation.isPending ? '전송 중…' : '신고 보내기'}
+          <button className={submitButtonStyle} type="submit" disabled={!report.canSubmit}>
+            {report.isPending ? '전송 중…' : '신고 보내기'}
           </button>
         </form>
       )}
