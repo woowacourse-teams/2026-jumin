@@ -20,6 +20,9 @@ import jumin.config.AdminSecurityConfig;
 import jumin.domain.admin.auth.controller.AdminAuthController;
 import jumin.domain.admin.auth.security.AdminAuthenticationEntryPoint;
 import jumin.domain.admin.auth.service.AdminAuthService;
+import jumin.domain.admin.parking.controller.AdminParkingLotReviewController;
+import jumin.domain.admin.parking.dto.AdminParkingLotReviewsResponse;
+import jumin.domain.admin.parking.service.AdminParkingLotReviewService;
 import jumin.domain.parking.controller.ParkingSearchController;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
@@ -44,7 +47,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(
-        controllers = {AdminAuthController.class, ParkingSearchController.class},
+        controllers = {
+                AdminAuthController.class,
+                AdminParkingLotReviewController.class,
+                ParkingSearchController.class
+        },
         properties = {
                 "admin.auth.login-id=test-admin",
                 "admin.auth.password-hash=$2y$10$2CGdlyW93vq30OgJ1NTD.OSCmxr1w9FNTD7E728l2ax58qias8r5a",
@@ -62,6 +69,7 @@ class AdminAuthIntegrationTest {
 
     private static final String LOGIN_PATH = "/api/admin/auth/login";
     private static final String PROTECTED_PATH = "/api/admin/parking/csv/preview";
+    private static final String PARKING_LOT_REVIEW_PATH = "/api/admin/parking/review";
     private static final String LOGIN_ID = "test-admin";
     private static final String PASSWORD = "test-password";
     private static final String LOGIN_FAILED_MESSAGE = "아이디 또는 비밀번호가 올바르지 않습니다.";
@@ -75,6 +83,9 @@ class AdminAuthIntegrationTest {
 
     @MockitoBean
     private ParkingSearchService parkingSearchService;
+
+    @MockitoBean
+    private AdminParkingLotReviewService adminParkingLotReviewService;
 
     @Test
     @DisplayName("정상 로그인은 Bearer 토큰과 7200초 만료시간 및 no-store 헤더를 반환한다")
@@ -209,6 +220,21 @@ class AdminAuthIntegrationTest {
     }
 
     @Test
+    @DisplayName("주차장 제보 조회 API는 토큰 없이 호출하면 401을 반환한다")
+    void rejectsParkingLotReviewRequestWithoutToken() throws Exception {
+        // when & then
+        mockMvc.perform(get(PARKING_LOT_REVIEW_PATH))
+                .andExpect(status()
+                        .isUnauthorized())
+                .andExpect(header()
+                        .string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+                .andExpect(jsonPath("$.message")
+                        .value(AUTHENTICATION_REQUIRED_MESSAGE))
+                .andExpect(jsonPath("$.errors")
+                        .isEmpty());
+    }
+
+    @Test
     @DisplayName("만료된 토큰은 보호된 어드민 API에서 401을 반환한다")
     void rejectsExpiredToken() throws Exception {
         // given
@@ -278,6 +304,23 @@ class AdminAuthIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status()
                         .isNotFound());
+    }
+
+    @Test
+    @DisplayName("정상 토큰은 주차장 제보 조회 API 인증을 통과한다")
+    void acceptsValidTokenForParkingLotReviewPath() throws Exception {
+        // given
+        String accessToken = loginAndReadAccessToken();
+        given(adminParkingLotReviewService.getReviews())
+                .willReturn(new AdminParkingLotReviewsResponse(List.of()));
+
+        // when & then
+        mockMvc.perform(get(PARKING_LOT_REVIEW_PATH)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status()
+                        .isOk())
+                .andExpect(jsonPath("$.reviews")
+                        .isEmpty());
     }
 
     @Test

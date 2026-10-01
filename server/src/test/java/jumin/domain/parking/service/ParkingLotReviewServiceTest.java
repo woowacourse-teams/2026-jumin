@@ -20,15 +20,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class ParkingReviewServiceTest {
+class ParkingLotReviewServiceTest {
 
     private final ParkingLotReviewRepository parkingLotReviewRepository = mock(ParkingLotReviewRepository.class);
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
-    private ParkingReviewService parkingReviewService;
+    private ParkingLotReviewService parkingLotReviewService;
 
     @BeforeEach
     void setUp() {
-        parkingReviewService = new ParkingReviewService(parkingLotReviewRepository, parkingLotRepository);
+        parkingLotReviewService = new ParkingLotReviewService(parkingLotReviewRepository, parkingLotRepository);
     }
 
     @Test
@@ -37,7 +37,7 @@ class ParkingReviewServiceTest {
         ParkingLot parkingLot = mock(ParkingLot.class);
         when(parkingLotRepository.findActiveById(123L)).thenReturn(Optional.of(parkingLot));
 
-        parkingReviewService.create(new ParkingReviewRequest(123L, null));
+        parkingLotReviewService.create(new ParkingReviewRequest(123L, null));
 
         ArgumentCaptor<ParkingLotReview> reviewCaptor = ArgumentCaptor.forClass(ParkingLotReview.class);
         verify(parkingLotReviewRepository).save(reviewCaptor.capture());
@@ -50,7 +50,7 @@ class ParkingReviewServiceTest {
     void does_not_save_review_when_parking_lot_is_not_active() {
         when(parkingLotRepository.findActiveById(123L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> parkingReviewService.create(new ParkingReviewRequest(123L, null)))
+        assertThatThrownBy(() -> parkingLotReviewService.create(new ParkingReviewRequest(123L, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PARKING_LOT_NOT_FOUND);
         verify(parkingLotReviewRepository, never()).save(org.mockito.ArgumentMatchers.any());

@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jumin.domain.parking.dto.ParkingReviewRequest;
-import jumin.domain.parking.service.ParkingReviewService;
+import jumin.domain.parking.service.ParkingLotReviewService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,15 +15,15 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(ParkingReviewController.class)
+@WebMvcTest(ParkingLotReviewController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class ParkingReviewControllerTest {
+class ParkingLotReviewControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ParkingReviewService parkingReviewService;
+    private ParkingLotReviewService parkingLotReviewService;
 
     @Test
     @DisplayName("제보 내용을 생략해도 주차장 제보를 생성한다")
@@ -33,7 +33,7 @@ class ParkingReviewControllerTest {
                         .content("{\"parkingLotId\":123}"))
                 .andExpect(status().isCreated());
 
-        verify(parkingReviewService).create(new ParkingReviewRequest(123L, null));
+        verify(parkingLotReviewService).create(new ParkingReviewRequest(123L, null));
     }
 
     @Test
@@ -44,7 +44,7 @@ class ParkingReviewControllerTest {
                         .content("{\"parkingLotId\":123,\"detail\":\"주말에는 무료예요.\"}"))
                 .andExpect(status().isCreated());
 
-        verify(parkingReviewService).create(new ParkingReviewRequest(123L, "주말에는 무료예요."));
+        verify(parkingLotReviewService).create(new ParkingReviewRequest(123L, "주말에는 무료예요."));
     }
 
     @Test
