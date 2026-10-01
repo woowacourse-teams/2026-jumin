@@ -36,7 +36,6 @@ export const ParkingReportModal = ({ parkingLotId, onClose }: Props) => {
 
   return (
     <Modal
-      isOpen
       onClose={handleClose}
       label="주차장 정보 신고"
       description={

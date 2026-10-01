@@ -2,17 +2,16 @@ import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
 
 interface Props {
-  isOpen: boolean;
   onClose: () => void;
   label: string;
   description?: string;
   children: React.ReactNode;
 }
 
-export const Modal = ({ isOpen, onClose, label, description, children }: Props) => {
+export const Modal = ({ onClose, label, description, children }: Props) => {
   return (
     <ReactModal
-      isOpen={isOpen}
+      isOpen
       onRequestClose={onClose}
       contentLabel={label}
       overlayClassName={overlayStyle}

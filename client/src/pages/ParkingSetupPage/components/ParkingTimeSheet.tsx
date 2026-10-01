@@ -201,7 +201,7 @@ export const ParkingTimeSheet = ({
       </button>
 
       {modal.isOpen && (
-        <Modal isOpen={modal.isOpen} onClose={modal.close} label="주차할 날짜를 선택하세요">
+        <Modal onClose={modal.close} label="주차할 날짜를 선택하세요">
           <Calendar selectedDate={pendingEntryDate} onSelect={setPendingEntryDate} />
 
           <button type="button" className={recommendButtonStyle} onClick={handleCalendarConfirm}>

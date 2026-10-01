@@ -139,17 +139,18 @@ export const ParkingInformationContent = ({ parkingLot }: Props) => {
         </button>
       </div>
 
-      <DeepLinkModal
-        isOpen={modal.isOpen}
-        onRequestClose={modal.close}
-        destination={{
-          name: data.name,
-          location: {
-            latitude: parkingLot.latitude,
-            longitude: parkingLot.longitude,
-          },
-        }}
-      />
+      {modal.isOpen && (
+        <DeepLinkModal
+          onRequestClose={modal.close}
+          destination={{
+            name: data.name,
+            location: {
+              latitude: parkingLot.latitude,
+              longitude: parkingLot.longitude,
+            },
+          }}
+        />
+      )}
     </section>
   );
 };
