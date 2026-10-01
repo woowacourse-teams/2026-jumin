@@ -1,14 +1,15 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   label: string;
+  description?: string;
   children: React.ReactNode;
 }
 
-export const Modal = ({ isOpen, onClose, label, children }: Props) => {
+export const Modal = ({ isOpen, onClose, label, description, children }: Props) => {
   return (
     <ReactModal
       isOpen={isOpen}
@@ -18,7 +19,8 @@ export const Modal = ({ isOpen, onClose, label, children }: Props) => {
       className={modalStyle}
       shouldCloseOnOverlayClick
     >
-      <h2 className={labelStyle}>{label}</h2>
+      <h2 className={cx(labelStyle, description && labelWithDescriptionStyle)}>{label}</h2>
+      {description && <p className={descriptionStyle}>{description}</p>}
 
       <button
         type="button"
@@ -26,7 +28,7 @@ export const Modal = ({ isOpen, onClose, label, children }: Props) => {
         aria-label={`${label} 닫기`}
         onClick={onClose}
       >
-        x
+        ×
       </button>
 
       <section className={contentStyle}>{children}</section>
@@ -119,4 +121,19 @@ const contentStyle = css`
   display: flex;
   flex-direction: column;
   align-items: center;
+`;
+
+const labelWithDescriptionStyle = css`
+  margin: 0 40px 6px 0;
+  color: #18233d;
+  line-height: 1.35;
+  letter-spacing: -0.5px;
+`;
+
+const descriptionStyle = css`
+  margin: 0 0 14px;
+
+  color: #8a94a8;
+  font-size: 12px;
+  line-height: 1.5;
 `;
