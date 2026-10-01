@@ -6,6 +6,7 @@ import { ParkingSetupPage } from './src/pages/ParkingSetupPage/ParkingSetupPage'
 import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRecommendPage';
 import { MapLayout } from './shared/maps/MapLayout';
 import { HomePage } from './src/pages/HomePage/HomePage';
+import { AdminPage } from './src/pages/AdminPage/AdminPage';
 
 const App = () => (
   <Routes>
@@ -19,6 +20,7 @@ const App = () => (
 
     <Route path="/search" element={<SearchPage />} />
     <Route path="/recent" element={<RecentUsePage />} />
+    <Route path="/admin" element={<AdminPage />} />
   </Routes>
 );
 
