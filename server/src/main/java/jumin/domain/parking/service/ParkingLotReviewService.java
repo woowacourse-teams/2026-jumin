@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class ParkingReviewService {
+public class ParkingLotReviewService {
 
     private final ParkingLotReviewRepository parkingLotReviewRepository;
     private final ParkingLotRepository parkingLotRepository;

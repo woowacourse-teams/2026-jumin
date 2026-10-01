@@ -9,6 +9,7 @@ import type {
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -133,23 +134,28 @@ export const ParkingInformationContent = ({ parkingLot }: Props) => {
           </div>
         </dl>
       </section>
+
       <div className={sheetFooterStyle}>
+        <section className={reportRowStyle}>
+          <ParkingReportAction parkingLotId={data.id} />
+        </section>
         <button className={navigationButtonStyle} type="button" onClick={modal.open}>
           길찾기 시작
         </button>
       </div>
 
-      <DeepLinkModal
-        isOpen={modal.isOpen}
-        onRequestClose={modal.close}
-        destination={{
-          name: data.name,
-          location: {
-            latitude: parkingLot.latitude,
-            longitude: parkingLot.longitude,
-          },
-        }}
-      />
+      {modal.isOpen && (
+        <DeepLinkModal
+          onRequestClose={modal.close}
+          destination={{
+            name: data.name,
+            location: {
+              latitude: parkingLot.latitude,
+              longitude: parkingLot.longitude,
+            },
+          }}
+        />
+      )}
     </section>
   );
 };
@@ -286,6 +292,15 @@ const subValueStyle = css`
   font-weight: 500;
 `;
 
+const reportRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  margin-top: 24px;
+  margin-bottom: 12px;
+`;
+
 const detailsStyle = css`
   display: grid;
   gap: 12px;
@@ -351,5 +366,5 @@ const navigationButtonStyle = css`
 `;
 
 const sheetFooterStyle = css`
-  margin-top: 32px;
+  margin-top: auto;
 `;

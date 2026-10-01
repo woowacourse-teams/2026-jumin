@@ -68,7 +68,6 @@ export const RecentUsePage = () => {
 
       {selectedParkingLot && (
         <DeepLinkModal
-          isOpen
           onRequestClose={() => setSelectedParkingLot(null)}
           onDirectionsStart={handleDirectionsStart}
           destination={{ name: selectedParkingLot.name, location: selectedParkingLot.location }}
