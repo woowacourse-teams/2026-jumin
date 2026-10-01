@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { searchParkingLots } from '../parkingLots';
-import { ParkingSearchQueryKeyParams } from '../../shared/types/queryKeys';
+import type { ParkingSearchQueryKeyParams } from '../../shared/types/queryKeys';
 
 export const parkingSearchQueryOptions = (key: ParkingSearchQueryKeyParams) =>
   queryOptions({

@@ -1,4 +1,4 @@
-import { ParkingViewportParams } from '../../../../api/parkingLots';
+import type { ParkingViewportParams } from '../../../../api/parkingLots';
 
 /** 좌표값을 소수점 4자리까지 만들기 위한 상수값 */
 const VIEWPORT_PRECISION = 10_000;
