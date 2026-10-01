@@ -224,15 +224,16 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
         </section>
       </BottomSheet>
 
-      <DeepLinkModal
-        isOpen={deepLinkModal.isOpen}
-        onRequestClose={deepLinkModal.close}
-        onDirectionsStart={() => {
-          setRecommendView(null);
-          saveRecentParkingUse(parkingLotDetail);
-        }}
-        destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
-      />
+      {deepLinkModal.isOpen && (
+        <DeepLinkModal
+          onRequestClose={deepLinkModal.close}
+          onDirectionsStart={() => {
+            setRecommendView(null);
+            saveRecentParkingUse(parkingLotDetail);
+          }}
+          destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
+        />
+      )}
 
       {reportModal.isOpen && (
         <ParkingReportModal parkingLotId={parkingLotDetail.id} onClose={reportModal.close} />
