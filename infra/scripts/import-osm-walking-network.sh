@@ -9,7 +9,7 @@ db_username="${DB_USERNAME:-jumin}"
 compose_file="${COMPOSE_FILE:-$repo_dir/infra/docker-compose.local.yml}"
 db_service="${DB_SERVICE:-postgres}"
 python_bin="${OSM_PYTHON:-python3}"
-readonly osm_download_url='https://download.geofabrik.de/asia/south-korea-latest.osm.pbf'
+readonly osm_download_base_url='https://download.geofabrik.de/asia'
 work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -52,11 +52,17 @@ SQL
 graph_dir="${OSM_GRAPH_DIR:-}"
 if [[ -z "$graph_dir" ]]; then
   pbf_file="${OSM_PBF_FILE:-}"
-  source_url="$osm_download_url"
   if [[ -z "$pbf_file" ]]; then
+    osm_pbf_date="${OSM_PBF_DATE:-}"
+    if [[ ! "$osm_pbf_date" =~ ^[0-9]{6}$ ]]; then
+      echo 'OSM_PBF_DATE must be a Geofabrik snapshot date in YYMMDD format.' >&2
+      exit 1
+    fi
     command -v curl >/dev/null
     pbf_file="$work_dir/south-korea.osm.pbf"
-    curl --fail --location --retry 3 --connect-timeout 20 --proto '=https' \
+    source_url="$osm_download_base_url/south-korea-$osm_pbf_date.osm.pbf"
+    curl --fail --show-error --location --max-redirs 5 --retry 3 \
+      --connect-timeout 20 --proto '=https' --proto-redir '=https' \
       --output "$pbf_file.part" "$source_url"
     mv "$pbf_file.part" "$pbf_file"
   else

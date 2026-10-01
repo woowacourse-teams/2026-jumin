@@ -435,7 +435,9 @@ SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보�
   필요합니다. 그 외 JDBC 옵션, 다중 호스트, URL 인코딩된 DB 이름은 잘못된 대상으로
   적재하지 않도록 실행 전에 거부합니다.
 - 기존 Secrets `DB_USERNAME`, `DB_PASSWORD`를 사용합니다. 서울시 API 키는 필요하지 않습니다.
-  다운로드 URL은 적재 스크립트의 고정 상수이며, 별도 환경변수나 Actions 입력은 없습니다.
+  Geofabrik의 `latest` 별칭은 서버에서 리다이렉트 루프를 일으켜 사용하지 않습니다.
+  Actions 실행 시 Geofabrik 한국 PBF의 날짜를 `YYMMDD` 형식으로 입력하면 해당 날짜의
+  버전 URL에서 직접 받습니다. 최신 날짜는 [Geofabrik 한국 다운로드 페이지](https://download.geofabrik.de/asia/south-korea.html)에서 확인합니다.
 - 해당 환경의 self-hosted runner(`jumin-dev` / `jumin-prod`)에 `psql`, `curl`,
   Python 3.9 이상·venv가 있어야 하고, RDS 및 Geofabrik·PyPI에 접속할 수 있어야 합니다. DB 연결은 URL의 SSL 설정을 따르며
   별도 옵션이 없으면 TLS를 사용합니다.
@@ -448,7 +450,9 @@ SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보�
 2. development는 `develop`, production은 `main` 브랜치와 해당 environment를 선택합니다.
    조합이 다르면 작업은 실행되지 않습니다. workflow가 기본 브랜치에 반영되어야
    수동 실행 목록에서 사용할 수 있습니다.
-3. 최초에는 환경마다 한 번 실행하고 이후 필요할 때 갱신합니다. 한국 최신 PBF를 고정 주소에서 다운로드합니다.
+3. 최초에는 환경마다 한 번 실행하고 이후 필요할 때 갱신합니다. `snapshot_date`에
+   Geofabrik 한국 다운로드 페이지에 표시된 최신 PBF 날짜(예: `260929`)를 입력합니다.
+   날짜가 포함된 버전 URL을 사용해 리다이렉트 루프를 피합니다.
    workflow는 Python 환경을 임시로 준비하며 전체 스냅샷을 변환합니다. 충분한 디스크와 실행 시간을 확보합니다.
 4. 성공 로그 `Walking network import and readiness verification succeeded.`를 확인합니다.
    실제 검색 API와 같은 SQL로 확장, READY 메타데이터, 노드, 보행 가능한 링크를 검증합니다.

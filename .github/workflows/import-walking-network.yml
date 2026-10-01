@@ -10,6 +10,10 @@ on:
         options:
           - development
           - production
+      snapshot_date:
+        description: Geofabrik 최신 한국 PBF 날짜 (YYMMDD, 예: 260929)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -48,6 +52,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           PGSSLMODE: require
           PGCONNECT_TIMEOUT: "10"
+          OSM_PBF_DATE: ${{ inputs.snapshot_date }}
         run: |
           set -Eeuo pipefail
           for variable in DB_URL DB_USERNAME DB_PASSWORD; do
@@ -59,6 +64,10 @@ jobs:
           for tool in psql curl python3; do
             command -v "$tool" >/dev/null
           done
+          if [[ ! "$OSM_PBF_DATE" =~ ^[0-9]{6}$ ]]; then
+            echo 'snapshot_date must be a Geofabrik date in YYMMDD format.' >&2
+            exit 1
+          fi
 
           source infra/scripts/parse-jdbc-db-url.sh
           configure_db_from_jdbc_url
