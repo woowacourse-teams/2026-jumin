@@ -60,6 +60,33 @@ describe('D. 주차장 상세정보', () => {
     expect(missingInformation.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('출처와 신고 버튼을 같은 행에 배치하고 신고 모달을 열고 닫을 수 있다', async () => {
+    renderDetailPage();
+    const user = userEvent.setup();
+    const source = await screen.findByText('서울 열린데이터광장 · 2026.8.21 기준');
+    const reportButton = screen.getByRole('button', { name: '신고하기' });
+    const reportPrompt = screen.getByText('주차장 정보가 다른가요?');
+
+    expect(source.parentElement).toContainElement(reportButton);
+    expect(source.parentElement).toContainElement(reportPrompt);
+    expect(reportButton).not.toContainElement(reportPrompt);
+    await user.click(reportPrompt);
+    expect(screen.queryByRole('dialog', { name: '주차장 정보 신고' })).not.toBeInTheDocument();
+
+    await user.click(reportButton);
+    const dialog = screen.getByRole('dialog', { name: '주차장 정보 신고' });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: '신고 내용' }),
+      '요금 정보가 달라요.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: '주차장 정보 신고 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: '주차장 정보 신고' })).not.toBeInTheDocument();
+
+    await user.click(reportButton);
+    expect(screen.getByRole('textbox', { name: '신고 내용' })).toHaveValue('');
+  });
+
   it('상세 조회 실패 후 다시 시도하면 정보를 표시한다', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     setMockScenario('parking-detail-server-error');

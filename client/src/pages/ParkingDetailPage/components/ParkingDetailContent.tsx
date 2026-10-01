@@ -16,6 +16,7 @@ import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedR
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingReportModal } from './ParkingReportModal';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -71,7 +72,8 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     setRecommendView: (view: RecommendView | null) => void;
   }>();
 
-  const modal = useModal();
+  const deepLinkModal = useModal();
+  const reportModal = useModal();
 
   const { data: parkingLotDetail } = useSuspenseQuery(
     parkingDetailQueryOptions({
@@ -200,28 +202,42 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 
           <div className={sheetFooterStyle}>
             {source && (
-              <p className={sourceStyle}>
-                {source.name}
-                {checkedDate && ` · ${checkedDate} 기준`}
-              </p>
+              <div className={sourceRowStyle}>
+                <p className={sourceStyle}>
+                  {source.name}
+                  {checkedDate && ` · ${checkedDate} 기준`}
+                </p>
+                <div className={reportActionStyle}>
+                  <span>주차장 정보가 다른가요?</span>
+
+                  <button type="button" className={reportButtonStyle} onClick={reportModal.open}>
+                    신고하기
+                  </button>
+                </div>
+              </div>
             )}
 
-            <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+            <button className={navigationButtonStyle} type="button" onClick={deepLinkModal.open}>
               길찾기 시작
             </button>
           </div>
         </section>
       </BottomSheet>
 
-      <DeepLinkModal
-        isOpen={modal.isOpen}
-        onRequestClose={modal.close}
-        onDirectionsStart={() => {
-          setRecommendView(null);
-          saveRecentParkingUse(parkingLotDetail);
-        }}
-        destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
-      />
+      {deepLinkModal.isOpen && (
+        <DeepLinkModal
+          onRequestClose={deepLinkModal.close}
+          onDirectionsStart={() => {
+            setRecommendView(null);
+            saveRecentParkingUse(parkingLotDetail);
+          }}
+          destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}
+        />
+      )}
+
+      {reportModal.isOpen && (
+        <ParkingReportModal parkingLotId={parkingLotDetail.id} onClose={reportModal.close} />
+      )}
     </div>
   );
 };
@@ -337,7 +353,8 @@ const detailsStyle = css`
 `;
 
 const sourceStyle = css`
-  margin: 24px 0 18px;
+  min-width: 0;
+  margin: 0;
 
   overflow: hidden;
 
@@ -386,4 +403,51 @@ const navigationButtonStyle = css`
 
 const sheetFooterStyle = css`
   margin-top: auto;
+`;
+
+const sourceRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  margin: 24px 0 18px;
+`;
+
+const reportActionStyle = css`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+
+  color: #7f8a9f;
+  font-size: 11px;
+`;
+
+const reportButtonStyle = css`
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0;
+
+  color: #7f8a9f;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    color: #4356d8;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 3px;
+  }
 `;

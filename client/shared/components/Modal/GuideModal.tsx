@@ -7,7 +7,6 @@ import guide2Image from '../../../assets/guideImage/guide2.png';
 import guide3Image from '../../../assets/guideImage/guide3.png';
 
 interface Props {
-  isOpen: boolean;
   onClose: () => void;
 }
 
@@ -32,16 +31,15 @@ const slides = [
   },
 ];
 
-export const GuideModal = ({ isOpen, onClose }: Props) => {
+export const GuideModal = ({ onClose }: Props) => {
   const [step, setStep] = useState(0);
   const slide = slides[step]!;
   const isLast = step === slides.length - 1;
 
   return (
     <ReactModal
-      isOpen={isOpen}
+      isOpen
       onRequestClose={onClose}
-      onAfterClose={() => setStep(0)}
       contentLabel="주차의민족 이용 가이드"
       overlayClassName={overlayStyle}
       className={modalStyle}

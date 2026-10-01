@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { GuideModal } from '../../../../shared/components/Modal/GuideModal';
+import { useModal } from '../../../../shared/hooks/useModal';
 import {
   getInstallAvailability,
   initializeInstallPrompt,
@@ -17,9 +18,7 @@ const GUIDE_SEEN_KEY = 'jucha-guide-seen-v2';
 
 export const HelpMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isGuideOpen, setIsGuideOpen] = useState(
-    () => localStorage.getItem(GUIDE_SEEN_KEY) !== 'true',
-  );
+  const guideModal = useModal(() => localStorage.getItem(GUIDE_SEEN_KEY) !== 'true');
   const isInstallAvailable = useSyncExternalStore(
     subscribeToInstallAvailability,
     getInstallAvailability,
@@ -32,7 +31,7 @@ export const HelpMenu = () => {
 
   const closeGuide = () => {
     localStorage.setItem(GUIDE_SEEN_KEY, 'true');
-    setIsGuideOpen(false);
+    guideModal.close();
   };
 
   return (
@@ -41,13 +40,13 @@ export const HelpMenu = () => {
       {isOpen && (
         <HelpPopover
           onClose={() => setIsOpen(false)}
-          onGuideClick={() => setIsGuideOpen(true)}
+          onGuideClick={guideModal.open}
           onInstallClick={() => void requestPwaInstall()}
           onFeedbackClick={() => window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer')}
           isInstallAvailable={isInstallAvailable}
         />
       )}
-      <GuideModal isOpen={isGuideOpen} onClose={closeGuide} />
+      {guideModal.isOpen && <GuideModal onClose={closeGuide} />}
     </div>
   );
 };

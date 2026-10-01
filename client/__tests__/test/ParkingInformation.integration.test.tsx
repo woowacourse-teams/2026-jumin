@@ -77,10 +77,13 @@ describe('홈페이지 주차장 상세정보', () => {
   });
 
   it('길찾기 버튼을 누르면 길찾기 앱 선택 모달을 연다', async () => {
-    mockGeolocation();
+    const getCurrentPosition = mockGeolocation();
     const user = userEvent.setup();
 
     renderParkingInformation();
+
+    expect(screen.queryByRole('dialog', { name: '길찾기 앱 선택' })).not.toBeInTheDocument();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
 
     await user.click(
       await screen.findByRole('button', {
@@ -93,5 +96,6 @@ describe('홈페이지 주차장 상세정보', () => {
         name: '길찾기 앱 선택',
       }),
     ).toBeInTheDocument();
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
   });
 });
