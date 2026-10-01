@@ -11,7 +11,7 @@ on:
           - development
           - production
       snapshot_date:
-        description: Geofabrik 최신 한국 PBF 날짜 (YYMMDD, 예: 260929)
+        description: "Geofabrik 최신 한국 PBF 날짜 (YYMMDD, 예: 260929)"
         required: true
         type: string
 
