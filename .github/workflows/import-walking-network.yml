@@ -33,6 +33,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test Geofabrik snapshot resolver
+        run: python3 -m unittest discover --start-directory infra/scripts/tests --pattern 'test_geofabrik_snapshot_resolver.py' --verbose
+
       - name: Resolve latest Geofabrik snapshot
         id: resolve
         shell: bash

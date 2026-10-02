@@ -19,8 +19,11 @@ on:
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
+      - 'infra/scripts/resolve-geofabrik-osm-snapshot.py'
+      - 'infra/scripts/tests/test_geofabrik_snapshot_resolver.py'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
+      - '.github/workflows/import-walking-network.yml'
       - '.github/workflows/server-dev-cd.yml'
       - '.github/workflows/server-prod-cd.yml'
       - '.github/workflows/proxy-dev-cd.yml'
@@ -43,8 +46,11 @@ on:
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
+      - 'infra/scripts/resolve-geofabrik-osm-snapshot.py'
+      - 'infra/scripts/tests/test_geofabrik_snapshot_resolver.py'
       - 'server/Dockerfile'
       - '.github/workflows/server-ci.yml'
+      - '.github/workflows/import-walking-network.yml'
       - '.github/workflows/server-dev-cd.yml'
       - '.github/workflows/server-prod-cd.yml'
       - '.github/workflows/proxy-dev-cd.yml'
@@ -69,6 +75,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Test Geofabrik snapshot resolver
+        run: python3 -m unittest discover --start-directory infra/scripts/tests --pattern 'test_geofabrik_snapshot_resolver.py' --verbose
 
       - name: Validate admin authentication script syntax
         run: bash -n infra/scripts/validate-admin-auth-env.sh
