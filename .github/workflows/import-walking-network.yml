@@ -10,10 +10,6 @@ on:
         options:
           - development
           - production
-      snapshot_date:
-        description: "Geofabrik 최신 한국 PBF 날짜 (YYMMDD, 예: 260929)"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -23,7 +19,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve-snapshot:
+    if: >-
+      (inputs.environment == 'development' && github.ref == 'refs/heads/develop') ||
+      (inputs.environment == 'production' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      snapshot_date: ${{ steps.resolve.outputs.snapshot_date }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve latest Geofabrik snapshot
+        id: resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          snapshot_date="$(python3 infra/scripts/resolve-geofabrik-osm-snapshot.py)"
+          if [[ ! "$snapshot_date" =~ ^[0-9]{6}$ ]]; then
+            echo 'Geofabrik resolver returned an invalid snapshot date.' >&2
+            exit 1
+          fi
+          echo "snapshot_date=$snapshot_date" >> "$GITHUB_OUTPUT"
+          echo "Resolved latest Geofabrik snapshot: $snapshot_date"
+
   import:
+    needs: resolve-snapshot
     # 각 환경에 배포하는 브랜치의 검증된 스크립트만 실행한다.
     if: >-
       (inputs.environment == 'development' && github.ref == 'refs/heads/develop') ||
@@ -52,7 +76,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           PGSSLMODE: require
           PGCONNECT_TIMEOUT: "10"
-          OSM_PBF_DATE: ${{ inputs.snapshot_date }}
+          OSM_PBF_DATE: ${{ needs.resolve-snapshot.outputs.snapshot_date }}
         run: |
           set -Eeuo pipefail
           for variable in DB_URL DB_USERNAME DB_PASSWORD; do
@@ -65,7 +89,7 @@ jobs:
             command -v "$tool" >/dev/null
           done
           if [[ ! "$OSM_PBF_DATE" =~ ^[0-9]{6}$ ]]; then
-            echo 'snapshot_date must be a Geofabrik date in YYMMDD format.' >&2
+            echo 'Resolved snapshot date from Geofabrik is invalid.' >&2
             exit 1
           fi
 

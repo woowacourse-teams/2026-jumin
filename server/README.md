@@ -142,8 +142,9 @@ OSM_PYTHON="$PWD/build/osm-poc/venv/bin/python" \
 기본 실행은 Geofabrik 한국 전국 PBF를 받아 보행 태그와 방향·장벽을 반영합니다.
 서울시 API 인증키는 필요하지 않습니다. 다운로드할 스냅샷 날짜를 `OSM_PBF_DATE`에
 `YYMMDD` 형식으로 지정합니다. `OSM_PBF_FILE`로 이미 받은 파일을 사용할 수도 있습니다.
-전국 변환의 좌표 캐시와 노드
-중복 제거는 디스크를 사용하므로 실행 호스트에 원본·CSV·임시 파일을 저장할 공간이 필요합니다.
+전국 변환의 좌표 캐시와 노드 중복 제거는 디스크를 사용하므로 실행 호스트에 원본·CSV·임시
+파일을 저장할 공간이 필요합니다. GitHub Actions는 Geofabrik 최신 날짜를 자동으로 찾습니다.
+로컬 실행은 `OSM_PBF_DATE`를 지정하고, 임시 파일을 둘 디렉터리는 필요하면 `OSM_TEMP_DIR`로 지정합니다.
 
 ```bash
 DB_TARGET=direct DB_HOST=RDS_HOST DB_PORT=5432 DB_NAME=jumin \
