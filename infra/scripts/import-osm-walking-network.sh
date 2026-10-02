@@ -10,7 +10,9 @@ compose_file="${COMPOSE_FILE:-$repo_dir/infra/docker-compose.local.yml}"
 db_service="${DB_SERVICE:-postgres}"
 python_bin="${OSM_PYTHON:-python3}"
 readonly osm_download_base_url='https://download.geofabrik.de/asia'
-work_dir="$(mktemp -d)"
+temp_root="${OSM_TEMP_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}}"
+work_dir="$(mktemp -d "${temp_root%/}/osm-walking-network.XXXXXX")"
+export TMPDIR="$work_dir"
 trap 'rm -rf "$work_dir"' EXIT
 
 case "$db_target" in
