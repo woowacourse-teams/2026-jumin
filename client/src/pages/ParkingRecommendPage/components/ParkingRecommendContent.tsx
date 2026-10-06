@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -116,6 +116,20 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   );
 
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>(recommendView?.snap ?? 'collapsed');
+
+  const collapseBottomSheet = useCallback(() => {
+    setSheetSnap('collapsed');
+  }, []);
+
+  useEffect(() => {
+    if (!map || sheetSnap !== 'expanded') return;
+
+    const listener = naver.maps.Event.addListener(map, 'click', collapseBottomSheet);
+
+    return () => {
+      naver.maps.Event.removeListener(listener);
+    };
+  }, [map, sheetSnap, collapseBottomSheet]);
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
@@ -397,7 +411,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
         )}
       </section>
 
-      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap} showOverlay={false}>
         <section
           id="parking-list-sheet"
           className={sheetContentStyle}

@@ -13,7 +13,7 @@ interface Props {
   children: ReactNode;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
-  showOverlay: boolean;
+  showOverlay?: boolean;
 }
 
 export default function BottomSheet({ children, snap, onSnapChange, showOverlay = true }: Props) {
