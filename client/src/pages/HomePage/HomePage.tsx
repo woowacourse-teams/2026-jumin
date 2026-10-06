@@ -46,6 +46,10 @@ export const HomePage = () => {
     setSelectedParkingLot(null);
   }, []);
 
+  const collapseBottomSheet = useCallback(() => {
+    setSheetSnap('collapsed');
+  }, []);
+
   const handleViewportChange = useCallback(
     (nextViewport: MapViewport) => {
       if (nextViewport.zoom < MIN_PARKING_MARKER_ZOOM) {
@@ -65,6 +69,17 @@ export const HomePage = () => {
     setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
   };
+
+  // 빈 지도 영역 클릭시 바텀시트 닫기
+  useEffect(() => {
+    if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;
+
+    const listener = naver.maps.Event.addListener(map, 'click', collapseBottomSheet);
+
+    return () => {
+      naver.maps.Event.removeListener(listener);
+    };
+  }, [map, selectedParkingLot, sheetSnap, collapseBottomSheet]);
 
   // 마커 선택 시 카메라 이동
   useEffect(() => {
@@ -159,7 +174,7 @@ export const HomePage = () => {
       </footer>
 
       {selectedParkingLot !== null && (
-        <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
+        <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap} showOverlay={false}>
           <QueryErrorResetBoundary>
             {({ reset }) => (
               <ErrorBoundary
@@ -170,7 +185,10 @@ export const HomePage = () => {
                 )}
               >
                 <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                  <ParkingInformationContent parkingLot={selectedParkingLot} />
+                  <ParkingInformationContent
+                    parkingLot={selectedParkingLot}
+                    onRequestClose={clearParkingSelection}
+                  />
                 </Suspense>
               </ErrorBoundary>
             )}

@@ -13,6 +13,7 @@ import { ParkingReportAction } from '../../../../shared/components/ParkingReport
 
 interface Props {
   parkingLot: ParkingLotViewport;
+  onRequestClose: () => void;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -53,7 +54,7 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLot }: Props) => {
+export const ParkingInformationContent = ({ parkingLot, onRequestClose }: Props) => {
   const modal = useModal();
 
   const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
@@ -88,90 +89,113 @@ export const ParkingInformationContent = ({ parkingLot }: Props) => {
   return (
     <section className={sheetContentStyle}>
       <header className={parkingHeaderStyle}>
-        <h2 className={parkingNameStyle}>{data.name}</h2>
-        <p className={addressStyle}>{data.address}</p>
+        <div>
+          <h2 className={parkingNameStyle}>{data.name}</h2>
+          <p className={addressStyle}>{data.address}</p>
+        </div>
+        <button
+          type="button"
+          className={closeButtonStyle}
+          aria-label={`주차장 정보 닫기`}
+          onClick={onRequestClose}
+        >
+          ×
+        </button>
       </header>
+      <div className={scrollContentStyle}>
+        <section aria-label="요금 정보">
+          <h3 className={sectionTitleStyle}>요금 정보</h3>
 
-      <section aria-label="요금 정보">
-        <h3 className={sectionTitleStyle}>요금 정보</h3>
+          <div className={feeCardStyle}>
+            <dl className={feeRuleListStyle}>
+              {feeRows.map(({ label, value }) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
 
-        <div className={feeCardStyle}>
-          <dl className={feeRuleListStyle}>
-            {feeRows.map(({ label, value }) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+        <section className={sectionStyle} aria-label="운영 정보">
+          <h3 className={sectionTitleStyle}>운영 정보</h3>
+
+          <dl className={operationListStyle}>
+            {data.dailyOperations.map((operation) => (
+              <div key={operation.day}>
+                <dt>{operationDayLabel[operation.day]}</dt>
+
+                <dd>
+                  <span>{formatOperationTime(operation)}</span>
+                  <span className={subValueStyle}>{formatPaidStatus(operation.paid)}</span>
+                </dd>
               </div>
             ))}
           </dl>
-        </div>
-      </section>
-
-      <section className={sectionStyle} aria-label="운영 정보">
-        <h3 className={sectionTitleStyle}>운영 정보</h3>
-
-        <dl className={operationListStyle}>
-          {data.dailyOperations.map((operation) => (
-            <div key={operation.day}>
-              <dt>{operationDayLabel[operation.day]}</dt>
-
-              <dd>
-                <span>{formatOperationTime(operation)}</span>
-                <span className={subValueStyle}>{formatPaidStatus(operation.paid)}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      <section className={sectionStyle} aria-label="시설 정보">
-        <h3 className={sectionTitleStyle}>시설 정보</h3>
-
-        <dl className={detailsStyle}>
-          <div>
-            <dt>총 주차면 수</dt>
-            <dd>{formatCapacity(data.capacity)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <div className={sheetFooterStyle}>
-        <section className={reportRowStyle}>
-          <ParkingReportAction parkingLotId={data.id} />
         </section>
-        <button className={navigationButtonStyle} type="button" onClick={modal.open}>
-          길찾기 시작
-        </button>
-      </div>
 
-      {modal.isOpen && (
-        <DeepLinkModal
-          onRequestClose={modal.close}
-          destination={{
-            name: data.name,
-            location: {
-              latitude: parkingLot.latitude,
-              longitude: parkingLot.longitude,
-            },
-          }}
-        />
-      )}
+        <section className={sectionStyle} aria-label="시설 정보">
+          <h3 className={sectionTitleStyle}>시설 정보</h3>
+
+          <dl className={detailsStyle}>
+            <div>
+              <dt>총 주차면 수</dt>
+              <dd>{formatCapacity(data.capacity)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <div className={sheetFooterStyle}>
+          <section className={reportRowStyle}>
+            <ParkingReportAction parkingLotId={data.id} />
+          </section>
+          <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+            길찾기 시작
+          </button>
+        </div>
+
+        {modal.isOpen && (
+          <DeepLinkModal
+            onRequestClose={modal.close}
+            destination={{
+              name: data.name,
+              location: {
+                latitude: parkingLot.latitude,
+                longitude: parkingLot.longitude,
+              },
+            }}
+          />
+        )}
+      </div>
     </section>
   );
 };
-
 const sheetContentStyle = css`
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+
+  height: 100%;
+  min-height: 0;
 `;
 
 const parkingHeaderStyle = css`
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 
   padding: 4px 0 20px;
+`;
+
+const scrollContentStyle = css`
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+  padding-inline-end: 15px;
+  overscroll-behavior: contain;
 `;
 
 const parkingNameStyle = css`
@@ -367,4 +391,40 @@ const navigationButtonStyle = css`
 
 const sheetFooterStyle = css`
   margin-top: auto;
+`;
+
+const closeButtonStyle = css`
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  color: #7f8a9f;
+  font-family: inherit;
+  font-size: 26px;
+  line-height: 1;
+
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    color: #18233d;
+    background: #f5f6fb;
+  }
+
+  &:active {
+    background: #e9ecf4;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+  }
 `;

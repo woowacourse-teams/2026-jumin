@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
-const PEEK_HEIGHT = 120;
+const PEEK_HEIGHT = 110;
 const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
 const SNAP_THRESHOLD = 80;
 
@@ -13,9 +13,10 @@ interface Props {
   children: ReactNode;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
+  showOverlay: boolean;
 }
 
-export default function BottomSheet({ children, snap, onSnapChange }: Props) {
+export default function BottomSheet({ children, snap, onSnapChange, showOverlay = true }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
   const sheetY = snap === 'expanded' ? 0 : COLLAPSED_Y;
@@ -82,7 +83,7 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 
   return (
     <>
-      {snap === 'expanded' && (
+      {snap === 'expanded' && showOverlay && (
         <button
           type="button"
           className={overlayStyle}
@@ -168,8 +169,7 @@ const contentStyle = css`
   min-height: 0;
 
   padding: 0 24px max(28px, env(safe-area-inset-bottom));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 `;
 
 const overlayStyle = css`
