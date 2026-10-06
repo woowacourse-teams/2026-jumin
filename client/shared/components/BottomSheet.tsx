@@ -82,14 +82,6 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 
   return (
     <>
-      {snap === 'expanded' && (
-        <button
-          type="button"
-          className={overlayStyle}
-          aria-label="바텀시트 접기"
-          onClick={() => onSnapChange('collapsed')}
-        />
-      )}
       <section
         data-bottom-sheet
         className={sheetStyle}
