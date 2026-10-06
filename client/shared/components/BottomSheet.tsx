@@ -162,14 +162,3 @@ const contentStyle = css`
   padding: 0 24px max(28px, env(safe-area-inset-bottom));
   overflow: hidden;
 `;
-
-const overlayStyle = css`
-  position: absolute;
-  inset: 0;
-  z-index: 999; /* 기존 시트의 1000보다 아래 */
-  border: 0;
-  background: transparent;
-  pointer-events: auto;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-`;
