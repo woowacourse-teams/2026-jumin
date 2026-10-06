@@ -13,10 +13,9 @@ interface Props {
   children: ReactNode;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
-  showOverlay?: boolean;
 }
 
-export default function BottomSheet({ children, snap, onSnapChange, showOverlay = true }: Props) {
+export default function BottomSheet({ children, snap, onSnapChange }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
   const sheetY = snap === 'expanded' ? 0 : COLLAPSED_Y;
@@ -83,7 +82,7 @@ export default function BottomSheet({ children, snap, onSnapChange, showOverlay 
 
   return (
     <>
-      {snap === 'expanded' && showOverlay && (
+      {snap === 'expanded' && (
         <button
           type="button"
           className={overlayStyle}

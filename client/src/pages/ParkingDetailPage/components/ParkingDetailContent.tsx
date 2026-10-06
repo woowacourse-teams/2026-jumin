@@ -122,7 +122,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
         title={parkingLotDetail.name}
         zIndex={30}
       />
-      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap} showOverlay={false}>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section className={sheetContentStyle}>
           <div className={feeCardStyle}>
             <div className={totalFeeStyle}>

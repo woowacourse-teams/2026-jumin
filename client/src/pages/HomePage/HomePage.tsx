@@ -174,7 +174,7 @@ export const HomePage = () => {
       </footer>
 
       {selectedParkingLot !== null && (
-        <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap} showOverlay={false}>
+        <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
           <QueryErrorResetBoundary>
             {({ reset }) => (
               <ErrorBoundary

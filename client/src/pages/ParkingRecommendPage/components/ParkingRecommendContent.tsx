@@ -411,7 +411,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
         )}
       </section>
 
-      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap} showOverlay={false}>
+      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section
           id="parking-list-sheet"
           className={sheetContentStyle}
