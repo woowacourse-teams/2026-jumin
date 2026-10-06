@@ -17,6 +17,7 @@ import { SearchBar } from '../../../shared/components/SearchBar';
 import { ParkingInformationContent } from './components/ParkingInformationContent';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import type { ParkingLotViewport } from '../../../api/contracts';
+import { useMapClick } from '../../../shared/hooks/useMapClick';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -71,16 +72,11 @@ export const HomePage = () => {
   };
 
   // 빈 지도 영역 클릭시 바텀시트 닫기
-  useEffect(() => {
-    if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;
-
-    const listener = naver.maps.Event.addListener(map, 'click', collapseBottomSheet);
-
-    return () => {
-      naver.maps.Event.removeListener(listener);
-    };
-  }, [map, selectedParkingLot, sheetSnap, collapseBottomSheet]);
-
+  useMapClick({
+    map,
+    enabled: selectedParkingLot !== null && sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
   // 마커 선택 시 카메라 이동
   useEffect(() => {
     if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;

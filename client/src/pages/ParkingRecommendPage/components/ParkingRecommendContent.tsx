@@ -20,6 +20,7 @@ import type {
   RecommendView,
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
+import { useMapClick } from '../../../../shared/hooks/useMapClick';
 
 type MapOutletContext = {
   map: naver.maps.Map | null;
@@ -121,15 +122,11 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     setSheetSnap('collapsed');
   }, []);
 
-  useEffect(() => {
-    if (!map || sheetSnap !== 'expanded') return;
-
-    const listener = naver.maps.Event.addListener(map, 'click', collapseBottomSheet);
-
-    return () => {
-      naver.maps.Event.removeListener(listener);
-    };
-  }, [map, sheetSnap, collapseBottomSheet]);
+  useMapClick({
+    map,
+    enabled: sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
