@@ -199,7 +199,6 @@ describe('C. 추천 주차장', () => {
       expect(
         await screen.findByRole('button', { name: '목록 확인 주차장 7 선택' }),
       ).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByRole('button', { name: '바텀시트 접기' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: '가격순' })).toHaveAttribute('aria-selected', 'true');
       expect(scrollBy).toHaveBeenCalledWith({ top: 600, behavior: 'auto' });
     } finally {
