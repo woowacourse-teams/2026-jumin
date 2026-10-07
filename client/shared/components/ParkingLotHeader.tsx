@@ -3,10 +3,11 @@ import { css } from '@emotion/css';
 
 interface Props {
   parkingLotName: string;
+  parkingLotAddress: string;
   onBack?: () => void;
 }
 
-export const ParkingLotHeader = ({ parkingLotName, onBack }: Props) => {
+export const ParkingLotHeader = ({ parkingLotName, parkingLotAddress, onBack }: Props) => {
   const navigate = useNavigate();
 
   const handleBack = onBack ?? (() => navigate(-1));
@@ -21,8 +22,10 @@ export const ParkingLotHeader = ({ parkingLotName, onBack }: Props) => {
       >
         <BackIcon />
       </button>
-
-      <h1 className={parkingNameStyle}>{parkingLotName}</h1>
+      <div className={headerContentStyle}>
+        <h1 className={parkingNameStyle}>{parkingLotName}</h1>
+        <p className={addressStyle}>{parkingLotAddress}</p>
+      </div>
     </header>
   );
 };
@@ -37,22 +40,31 @@ function BackIcon() {
 
 const headerStyle = css`
   position: relative;
-
   pointer-events: auto;
-
   z-index: 1001;
-
   display: flex;
-
   align-items: center;
-
   height: calc(60px + env(safe-area-inset-top, 0px));
-
   padding: calc(0px + env(safe-area-inset-top, 0px)) 18px 0;
-
   box-sizing: border-box;
-
   background: #fff;
+`;
+
+const headerContentStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  min-width: 0;
+`;
+
+const addressStyle = css`
+  margin: 0;
+
+  color: #768197;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
 `;
 
 const backButtonStyle = css`

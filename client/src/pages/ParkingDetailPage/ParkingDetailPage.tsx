@@ -29,7 +29,10 @@ export const ParkingDetailPage = () => {
 
   return (
     <main className={pageStyle}>
-      <ParkingLotHeader parkingLotName={detailCondition.parkingLotName} />
+      <ParkingLotHeader
+        parkingLotName={detailCondition.parkingLotName}
+        parkingLotAddress={detailCondition.destinationName}
+      />
 
       <QueryErrorResetBoundary>
         {({ reset }) => (

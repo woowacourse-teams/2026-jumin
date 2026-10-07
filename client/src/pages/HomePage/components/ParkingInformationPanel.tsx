@@ -8,6 +8,7 @@ import { ErrorCard } from '../../../../shared/components/ErrorCard';
 import { ParkingLotHeader } from '../../../../shared/components/ParkingLotHeader';
 import { ParkingDetailSkeleton } from '../../ParkingDetailPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
+import { css } from '@emotion/css';
 
 const MARKER_GAP = 64;
 
@@ -74,10 +75,10 @@ export const ParkingInformationPanel = ({
   return (
     <>
       <ParkingLotHeader
-        parkingLotName={detailQuery.data?.name ?? '주차장 상세정보'}
+        parkingLotName={detailQuery.data?.name ?? '주차장 이름'}
+        parkingLotAddress={detailQuery.data?.address ?? '주차장 주소'}
         onBack={onClose}
       />
-
       <BottomSheet snap={snap} onSnapChange={onSnapChange}>
         {renderContent()}
       </BottomSheet>
