@@ -16,9 +16,15 @@ const renderParkingInformation = (parkingLotId = 101) => {
     throw new Error(`주차장 ID ${parkingLotId}의 목 데이터가 없습니다.`);
   }
 
+  const detail = viewportParkingLotDetailFixtures[parkingLot.id];
+
+  if (!detail) {
+    throw new Error(`주차장 ID ${parkingLotId}의 상세 목 데이터가 없습니다.`);
+  }
+
   return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent parkingLot={parkingLot} />
+      <ParkingInformationContent parkingLot={parkingLot} data={detail} />
     </Suspense>,
   );
 };
@@ -30,15 +36,8 @@ describe('홈페이지 주차장 상세정보', () => {
     ).toBe(true);
   });
 
-  it('주차장 기본 정보, 요금, 운영 정보와 시설 정보를 표시한다', async () => {
+  it('요금, 운영 정보와 시설 정보를 표시한다', () => {
     renderParkingInformation();
-
-    expect(
-      await screen.findByRole('heading', {
-        name: '역삼문화공원 제1호 공영주차장',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('서울 강남구 테헤란로7길 21')).toBeInTheDocument();
 
     expect(screen.getByText('기본 무료시간')).toBeInTheDocument();
     expect(screen.getByText('0분')).toBeInTheDocument();
@@ -63,13 +62,9 @@ describe('홈페이지 주차장 상세정보', () => {
     expect(screen.getByText('42면')).toBeInTheDocument();
   });
 
-  it('요금과 운영 정보가 없으면 미제공 상태를 표시한다', async () => {
+  it('요금과 운영 정보가 없으면 미제공 상태를 표시한다', () => {
     renderParkingInformation(105);
 
-    expect(
-      await screen.findByRole('heading', { name: '운영정보 확인 주차장' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('서울 강남구 역삼동')).toBeInTheDocument();
     expect(screen.getByText('총 주차면 수')).toBeInTheDocument();
     expect(screen.getAllByText('미제공').length).toBeGreaterThan(0);
     expect(screen.getAllByText('운영 정보 없음')).toHaveLength(3);

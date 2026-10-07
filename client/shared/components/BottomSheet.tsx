@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
-const PEEK_HEIGHT = 120;
+const PEEK_HEIGHT = 110;
 const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
 const SNAP_THRESHOLD = 80;
 
@@ -82,14 +82,6 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
 
   return (
     <>
-      {snap === 'expanded' && (
-        <button
-          type="button"
-          className={overlayStyle}
-          aria-label="바텀시트 접기"
-          onClick={() => onSnapChange('collapsed')}
-        />
-      )}
       <section
         data-bottom-sheet
         className={sheetStyle}
@@ -168,17 +160,5 @@ const contentStyle = css`
   min-height: 0;
 
   padding: 0 24px max(28px, env(safe-area-inset-bottom));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-`;
-
-const overlayStyle = css`
-  position: absolute;
-  inset: 0;
-  z-index: 999; /* 기존 시트의 1000보다 아래 */
-  border: 0;
-  background: transparent;
-  pointer-events: auto;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
+  overflow: hidden;
 `;

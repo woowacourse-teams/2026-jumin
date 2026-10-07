@@ -1,22 +1,19 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
-import { QueryErrorResetBoundary } from '@tanstack/react-query';
-import { ErrorBoundary } from 'react-error-boundary';
-
+import { useCallback, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
-import BottomSheet, { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
 import { HelpMenu } from './components/HelpMenu';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
-import { ParkingInformationContent } from './components/ParkingInformationContent';
-import { ErrorCard } from '../../../shared/components/ErrorCard';
 import type { ParkingLotViewport } from '../../../api/contracts';
+import { useMapClick } from '../../../shared/hooks/useMapClick';
+import { ParkingInformationPanel } from './components/ParkingInformationPanel';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -46,6 +43,10 @@ export const HomePage = () => {
     setSelectedParkingLot(null);
   }, []);
 
+  const collapseBottomSheet = useCallback(() => {
+    setSheetSnap('collapsed');
+  }, []);
+
   const handleViewportChange = useCallback(
     (nextViewport: MapViewport) => {
       if (nextViewport.zoom < MIN_PARKING_MARKER_ZOOM) {
@@ -66,29 +67,12 @@ export const HomePage = () => {
     setSheetSnap('expanded');
   };
 
-  // 마커 선택 시 카메라 이동
-  useEffect(() => {
-    if (!map || !selectedParkingLot || sheetSnap !== 'expanded') return;
-
-    const sheet = document.querySelector<HTMLElement>('[data-bottom-sheet]');
-    if (!sheet) return;
-
-    const mapHeight = map.getSize().height;
-    const markerY = mapHeight - sheet.offsetHeight - 64;
-    const position = new naver.maps.LatLng(
-      selectedParkingLot.latitude,
-      selectedParkingLot.longitude,
-    );
-
-    const projection = map.getProjection();
-    const markerOffset = projection.fromCoordToOffset(position);
-    const centerOffset = new naver.maps.Point(
-      markerOffset.x,
-      mapHeight / 2 + markerOffset.y - markerY,
-    );
-
-    map.panTo(projection.fromOffsetToCoord(centerOffset), { duration: 300 });
-  }, [map, selectedParkingLot, sheetSnap]);
+  // 빈 지도 영역 클릭시 바텀시트 닫기
+  useMapClick({
+    map,
+    enabled: selectedParkingLot !== null && sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
 
   // GPS로 확인한 실제 내 위치
   // 파란색 현재 위치 마커에 사용
@@ -147,9 +131,11 @@ export const HomePage = () => {
           />
         </>
       )}
-      <div className={headerStyle}>
-        <SearchBar onClick={() => navigate('/search')} />
-      </div>
+      {selectedParkingLot === null && (
+        <div className={headerStyle}>
+          <SearchBar onClick={() => navigate('/search')} />
+        </div>
+      )}
       <footer className={footerStyle}>
         <div className={floatingControlsStyle}>
           <HelpMenu />
@@ -159,23 +145,13 @@ export const HomePage = () => {
       </footer>
 
       {selectedParkingLot !== null && (
-        <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
-          <QueryErrorResetBoundary>
-            {({ reset }) => (
-              <ErrorBoundary
-                onReset={reset}
-                resetKeys={[selectedParkingLot]}
-                fallbackRender={({ resetErrorBoundary }) => (
-                  <ErrorCard label="주차장 정보를 불러오지 못했어요" onRetry={resetErrorBoundary} />
-                )}
-              >
-                <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                  <ParkingInformationContent parkingLot={selectedParkingLot} />
-                </Suspense>
-              </ErrorBoundary>
-            )}
-          </QueryErrorResetBoundary>
-        </BottomSheet>
+        <ParkingInformationPanel
+          map={map}
+          parkingLot={selectedParkingLot}
+          snap={sheetSnap}
+          onSnapChange={setSheetSnap}
+          onClose={clearParkingSelection}
+        />
       )}
     </main>
   );

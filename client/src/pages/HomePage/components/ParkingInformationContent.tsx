@@ -1,18 +1,18 @@
 import { css } from '@emotion/css';
-import { useSuspenseQuery } from '@tanstack/react-query';
 
 import type {
   DailyOperationsDay,
   ParkingLotViewport,
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 interface Props {
   parkingLot: ParkingLotViewport;
+  data: ViewportParkingLotDetailResponse;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -53,10 +53,18 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLot }: Props) => {
+export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   const modal = useModal();
 
-  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
+  const recentParkingLot = {
+    id: data.id,
+    name: data.name,
+    address: data.address,
+    location: {
+      latitude: parkingLot.latitude,
+      longitude: parkingLot.longitude,
+    },
+  };
 
   const feeRows = [
     {
@@ -87,110 +95,93 @@ export const ParkingInformationContent = ({ parkingLot }: Props) => {
 
   return (
     <section className={sheetContentStyle}>
-      <header className={parkingHeaderStyle}>
-        <h2 className={parkingNameStyle}>{data.name}</h2>
-        <p className={addressStyle}>{data.address}</p>
-      </header>
+      <div className={scrollContentStyle}>
+        <section aria-label="요금 정보">
+          <h3 className={sectionTitleStyle}>요금 정보</h3>
 
-      <section aria-label="요금 정보">
-        <h3 className={sectionTitleStyle}>요금 정보</h3>
+          <div className={feeCardStyle}>
+            <dl className={feeRuleListStyle}>
+              {feeRows.map(({ label, value }) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
 
-        <div className={feeCardStyle}>
-          <dl className={feeRuleListStyle}>
-            {feeRows.map(({ label, value }) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+        <section className={sectionStyle} aria-label="운영 정보">
+          <h3 className={sectionTitleStyle}>운영 정보</h3>
+
+          <dl className={operationListStyle}>
+            {data.dailyOperations.map((operation) => (
+              <div key={operation.day}>
+                <dt>{operationDayLabel[operation.day]}</dt>
+
+                <dd>
+                  <span>{formatOperationTime(operation)}</span>
+                  <span className={subValueStyle}>{formatPaidStatus(operation.paid)}</span>
+                </dd>
               </div>
             ))}
           </dl>
-        </div>
-      </section>
-
-      <section className={sectionStyle} aria-label="운영 정보">
-        <h3 className={sectionTitleStyle}>운영 정보</h3>
-
-        <dl className={operationListStyle}>
-          {data.dailyOperations.map((operation) => (
-            <div key={operation.day}>
-              <dt>{operationDayLabel[operation.day]}</dt>
-
-              <dd>
-                <span>{formatOperationTime(operation)}</span>
-                <span className={subValueStyle}>{formatPaidStatus(operation.paid)}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      <section className={sectionStyle} aria-label="시설 정보">
-        <h3 className={sectionTitleStyle}>시설 정보</h3>
-
-        <dl className={detailsStyle}>
-          <div>
-            <dt>총 주차면 수</dt>
-            <dd>{formatCapacity(data.capacity)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <div className={sheetFooterStyle}>
-        <section className={reportRowStyle}>
-          <ParkingReportAction parkingLotId={data.id} />
         </section>
-        <button className={navigationButtonStyle} type="button" onClick={modal.open}>
-          길찾기 시작
-        </button>
-      </div>
 
-      {modal.isOpen && (
-        <DeepLinkModal
-          onRequestClose={modal.close}
-          destination={{
-            name: data.name,
-            location: {
-              latitude: parkingLot.latitude,
-              longitude: parkingLot.longitude,
-            },
-          }}
-        />
-      )}
+        <section className={sectionStyle} aria-label="시설 정보">
+          <h3 className={sectionTitleStyle}>시설 정보</h3>
+
+          <dl className={detailsStyle}>
+            <div>
+              <dt>총 주차면 수</dt>
+              <dd>{formatCapacity(data.capacity)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <div className={sheetFooterStyle}>
+          <section className={reportRowStyle}>
+            <ParkingReportAction parkingLotId={data.id} />
+          </section>
+          <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+            길찾기 시작
+          </button>
+        </div>
+
+        {modal.isOpen && (
+          <DeepLinkModal
+            onRequestClose={modal.close}
+            onDirectionsStart={() => {
+              saveRecentParkingUse(recentParkingLot);
+            }}
+            destination={{
+              name: data.name,
+              location: {
+                latitude: parkingLot.latitude,
+                longitude: parkingLot.longitude,
+              },
+            }}
+          />
+        )}
+      </div>
     </section>
   );
 };
-
 const sheetContentStyle = css`
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+
+  height: 100%;
+  min-height: 0;
 `;
 
-const parkingHeaderStyle = css`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+const scrollContentStyle = css`
+  flex: 1;
+  min-height: 0;
 
-  padding: 4px 0 20px;
-`;
-
-const parkingNameStyle = css`
-  margin: 0;
-
-  color: #18233d;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.35;
-  letter-spacing: -0.6px;
-`;
-
-const addressStyle = css`
-  margin: 0;
-
-  color: #768197;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
+  overflow-y: auto;
+  padding-inline-end: 15px;
+  overscroll-behavior: contain;
 `;
 
 const sectionStyle = css`

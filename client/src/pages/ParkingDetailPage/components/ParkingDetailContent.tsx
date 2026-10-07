@@ -8,7 +8,7 @@ import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
   type BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
@@ -17,6 +17,7 @@ import { DestinationMapOverlay } from '../../../../shared/components/Destination
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { useMapClick } from '../../../../shared/hooks/useMapClick';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -104,6 +105,16 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 
     map.panBy(new naver.maps.Point(0, 100));
   }, [map, parkingLotDetail, detailCondition, sheetSnap]);
+
+  const collapseBottomSheet = useCallback(() => {
+    setSheetSnap('collapsed');
+  }, []);
+
+  useMapClick({
+    map,
+    enabled: sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
 
   return (
     <div>

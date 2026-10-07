@@ -3,19 +3,22 @@ import { Suspense } from 'react';
 import { css } from '@emotion/css';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Navigate, useLocation } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 
-import { SearchConditionBar } from '../../../shared/components/SearchConditionBar';
+import { ConditionBar } from '../../../shared/components/ConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
 import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
+import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 
 interface NavigationState {
   searchCondition?: ParkingSearchCondition;
 }
 
 export const ParkingRecommendPage = () => {
+  const navigate = useNavigate();
+
   // state 가져오기
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
@@ -27,10 +30,10 @@ export const ParkingRecommendPage = () => {
 
   return (
     <main className={pageStyle}>
-      <SearchConditionBar
-        destinationName={searchCondition.destinationName}
-        entryAt={searchCondition.entryAt}
-        exitAt={searchCondition.exitAt}
+      <ConditionBar
+        title={searchCondition.destinationName}
+        description={`${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`}
+        onBack={() => navigate(-1)}
       />
 
       <QueryErrorResetBoundary>

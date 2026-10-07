@@ -1,38 +1,31 @@
 import { css } from '@emotion/css';
 import backIcon from '../../assets/icons/backIcon.svg';
-import { formatIsoDateTime } from '../utils/formatTime';
 import { useNavigate } from 'react-router';
 
 interface Props {
-  destinationName: string;
-  entryAt?: string;
-  exitAt?: string;
+  title: string;
+  description?: string;
+  onBack: () => void;
 }
 
-export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) => {
+export const ConditionBar = ({ title, description, onBack }: Props) => {
   const navigate = useNavigate(); // 뒤로가기 기능을 위한 navigate
-
+  const handleBack = onBack ?? (() => navigate(-1));
   return (
     <header className={headerStyle} aria-label="검색 조건">
       <button
         className={backButtonStyle}
         type="button"
         aria-label="이전 화면으로 이동"
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
       >
         <img className={backIconStyle} src={backIcon} alt="" draggable={false} />
       </button>
 
       <div className={conditionStyle}>
-        <h1 className={destinationStyle}>{destinationName}</h1>
+        <h1 className={destinationStyle}>{title}</h1>
 
-        {entryAt && exitAt && (
-          <p className={timeRangeStyle}>
-            <time dateTime={entryAt}>{formatIsoDateTime(entryAt)}</time>
-            <span aria-hidden="true"> – </span>
-            <time dateTime={exitAt}>{formatIsoDateTime(exitAt)}</time>
-          </p>
-        )}
+        {description && <p className={descriptionStyle}>{description}</p>}
       </div>
     </header>
   );
@@ -108,7 +101,7 @@ const destinationStyle = css`
   white-space: nowrap;
 `;
 
-const timeRangeStyle = css`
+const descriptionStyle = css`
   margin: 2px 0 0;
 
   color: #697386;
