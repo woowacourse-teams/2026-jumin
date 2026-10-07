@@ -171,24 +171,38 @@ export const HomePage = () => {
 
       {selectedParkingLot !== null && (
         <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
-          <QueryErrorResetBoundary>
-            {({ reset }) => (
-              <ErrorBoundary
-                onReset={reset}
-                resetKeys={[selectedParkingLot]}
-                fallbackRender={({ resetErrorBoundary }) => (
-                  <ErrorCard label="주차장 정보를 불러오지 못했어요" onRetry={resetErrorBoundary} />
-                )}
-              >
-                <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                  <ParkingInformationContent
-                    parkingLot={selectedParkingLot}
-                    onRequestClose={clearParkingSelection}
-                  />
-                </Suspense>
-              </ErrorBoundary>
-            )}
-          </QueryErrorResetBoundary>
+          <div className={sheetWrapperStyle}>
+            <button
+              type="button"
+              aria-label="주차장 정보 닫기"
+              className={closeButtonStyle}
+              onClick={clearParkingSelection}
+            >
+              ×
+            </button>
+
+            <QueryErrorResetBoundary>
+              {({ reset }) => (
+                <ErrorBoundary
+                  onReset={reset}
+                  resetKeys={[selectedParkingLot]}
+                  fallbackRender={({ resetErrorBoundary }) => (
+                    <ErrorCard
+                      label="주차장 정보를 불러오지 못했어요"
+                      onRetry={resetErrorBoundary}
+                    />
+                  )}
+                >
+                  <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
+                    <ParkingInformationContent
+                      parkingLot={selectedParkingLot}
+                      onRequestClose={clearParkingSelection}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+            </QueryErrorResetBoundary>
+          </div>
         </BottomSheet>
       )}
     </main>
@@ -251,4 +265,35 @@ const floatingControlsStyle = css`
   flex-direction: column;
   gap: 8px;
   pointer-events: auto;
+`;
+
+const sheetWrapperStyle = css`
+  position: relative;
+
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+`;
+
+const closeButtonStyle = css`
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+
+  display: grid;
+  place-items: center;
+
+  width: 36px;
+  height: 36px;
+  padding: 0;
+
+  color: #7f8a9f;
+  font-size: 26px;
+  line-height: 1;
+
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
 `;

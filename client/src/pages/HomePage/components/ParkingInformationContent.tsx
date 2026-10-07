@@ -55,7 +55,7 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLot, onRequestClose }: Props) => {
+export const ParkingInformationContent = ({ parkingLot }: Props) => {
   const modal = useModal();
 
   const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
@@ -103,14 +103,6 @@ export const ParkingInformationContent = ({ parkingLot, onRequestClose }: Props)
           <h2 className={parkingNameStyle}>{data.name}</h2>
           <p className={addressStyle}>{data.address}</p>
         </div>
-        <button
-          type="button"
-          className={closeButtonStyle}
-          aria-label={`주차장 정보 닫기`}
-          onClick={onRequestClose}
-        >
-          ×
-        </button>
       </header>
       <div className={scrollContentStyle}>
         <section aria-label="요금 정보">
@@ -404,40 +396,4 @@ const navigationButtonStyle = css`
 
 const sheetFooterStyle = css`
   margin-top: auto;
-`;
-
-const closeButtonStyle = css`
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-
-  width: 36px;
-  height: 36px;
-  padding: 0;
-
-  color: #7f8a9f;
-  font-family: inherit;
-  font-size: 26px;
-  line-height: 1;
-
-  background: transparent;
-  border: 0;
-  border-radius: 10px;
-  cursor: pointer;
-
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-
-  &:hover {
-    color: #18233d;
-    background: #f5f6fb;
-  }
-
-  &:active {
-    background: #e9ecf4;
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-  }
 `;
