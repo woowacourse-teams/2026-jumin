@@ -3,17 +3,21 @@ import { css } from '@emotion/css';
 
 interface Props {
   parkingLotName: string;
+  onBack?: () => void;
 }
 
-export const ParkingLotHeader = ({ parkingLotName }: Props) => {
+export const ParkingLotHeader = ({ parkingLotName, onBack }: Props) => {
   const navigate = useNavigate();
+
+  const handleBack = onBack ?? (() => navigate(-1));
+
   return (
     <header className={headerStyle}>
       <button
         className={backButtonStyle}
         type="button"
         aria-label="이전 화면으로 이동"
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
       >
         <BackIcon />
       </button>

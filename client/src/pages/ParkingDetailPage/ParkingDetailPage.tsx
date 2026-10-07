@@ -6,7 +6,7 @@ import { Navigate, useLocation, useOutletContext } from 'react-router';
 
 import type { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
-import { ParkingLotHeader } from './components/ParkingLotHeader';
+import { ParkingLotHeader } from '../../../shared/components/ParkingLotHeader';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorCard } from '../../../shared/components/ErrorCard';

@@ -16,9 +16,15 @@ const renderParkingInformation = (parkingLotId = 101) => {
     throw new Error(`주차장 ID ${parkingLotId}의 목 데이터가 없습니다.`);
   }
 
+  const detail = viewportParkingLotDetailFixtures[parkingLot.id];
+
+  if (!detail) {
+    throw new Error(`주차장 ID ${parkingLotId}의 상세 목 데이터가 없습니다.`);
+  }
+
   return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent parkingLot={parkingLot} />
+      <ParkingInformationContent parkingLot={parkingLot} data={detail} />
     </Suspense>,
   );
 };

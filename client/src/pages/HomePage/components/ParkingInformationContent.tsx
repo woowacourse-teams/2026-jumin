@@ -1,12 +1,10 @@
 import { css } from '@emotion/css';
-import { useSuspenseQuery } from '@tanstack/react-query';
 
 import type {
   DailyOperationsDay,
   ParkingLotViewport,
   ViewportParkingLotDetailResponse,
 } from '../../../../api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
@@ -14,6 +12,7 @@ import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses
 
 interface Props {
   parkingLot: ParkingLotViewport;
+  data: ViewportParkingLotDetailResponse;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
@@ -54,10 +53,9 @@ const formatPaidStatus = (paid: boolean | null) => {
   return paid ? '유료' : '무료';
 };
 
-export const ParkingInformationContent = ({ parkingLot }: Props) => {
+export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   const modal = useModal();
 
-  const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
   const recentParkingLot = {
     id: data.id,
     name: data.name,
