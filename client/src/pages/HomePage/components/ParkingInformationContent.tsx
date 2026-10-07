@@ -10,6 +10,7 @@ import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/vi
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -58,6 +59,15 @@ export const ParkingInformationContent = ({ parkingLot, onRequestClose }: Props)
   const modal = useModal();
 
   const { data } = useSuspenseQuery(viewportParkingLotDetailQueryOptions(parkingLot.id));
+  const recentParkingLot = {
+    id: data.id,
+    name: data.name,
+    address: data.address,
+    location: {
+      latitude: parkingLot.latitude,
+      longitude: parkingLot.longitude,
+    },
+  };
 
   const feeRows = [
     {
@@ -158,6 +168,9 @@ export const ParkingInformationContent = ({ parkingLot, onRequestClose }: Props)
         {modal.isOpen && (
           <DeepLinkModal
             onRequestClose={modal.close}
+            onDirectionsStart={() => {
+              saveRecentParkingUse(recentParkingLot);
+            }}
             destination={{
               name: data.name,
               location: {
