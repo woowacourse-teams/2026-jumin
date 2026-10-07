@@ -167,21 +167,20 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
     // 바텀시트가 펼쳐졌을 때 실제로 지도가 보이는 영역을 계산하기 위해
     // 상단 검색 조건 바의 DOM 요소를 가져온다.
-    const searchConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+    const ConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
 
-    if (!searchConditionBar) return;
+    if (!ConditionBar) return;
 
     // 검색 조건 바의 아래쪽 위치를 지도 상단 기준의 좌표로 변환한다.
     const mapRect = map.getElement().getBoundingClientRect();
-    const searchConditionBarBottom =
-      searchConditionBar.getBoundingClientRect().bottom - mapRect.top;
+    const ConditionBarBottom = ConditionBar.getBoundingClientRect().bottom - mapRect.top;
 
     // 전체 지도 높이에서 바텀시트 높이를 빼서
     // 바텀시트가 시작되는 세로 위치를 구한다.
     const bottomSheetTop = map.getSize().height - BOTTOM_SHEET_HEIGHT;
 
     // 검색 조건 바와 바텀시트 사이에서 실제로 보이는 지도 영역의 중앙을 구한다.
-    const visibleAreaCenter = (searchConditionBarBottom + bottomSheetTop) / 2;
+    const visibleAreaCenter = (ConditionBarBottom + bottomSheetTop) / 2;
 
     // 위·경도 좌표와 화면상의 픽셀 좌표를 서로 변환하기 위한 객체다.
     const projection = map.getProjection();

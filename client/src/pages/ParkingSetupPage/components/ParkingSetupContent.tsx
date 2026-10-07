@@ -6,7 +6,7 @@ import type { Destination } from '../../../../api/contracts';
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
 import BottomSheet, { type BottomSheetSnap } from '../../../../shared/components/BottomSheet';
 import { SearchBar } from '../../../../shared/components/SearchBar';
-import { SearchConditionBar } from '../../../../shared/components/SearchConditionBar';
+import { ConditionBar } from '../../../../shared/components/ConditionBar';
 import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
 import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 import type { ParkingPeriod } from '../model/time';
@@ -14,6 +14,7 @@ import { validatePeriod } from '../utils/validate';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { ParkingTimeSheet } from './ParkingTimeSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
+import { useNavigate } from 'react-router';
 
 type ParkingSetupStep = 'destination' | 'time';
 
@@ -25,6 +26,8 @@ interface Props {
 }
 
 export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }: Props) => {
+  const navigate = useNavigate();
+
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
 
   const [step, setStep] = useState<ParkingSetupStep>('destination');
@@ -106,7 +109,7 @@ export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }:
         </>
       ) : (
         <>
-          <SearchConditionBar destinationName={destinationName} />
+          <ConditionBar title={destinationName} onBack={() => navigate(-1)} />
 
           <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
             <ParkingTimeSheet

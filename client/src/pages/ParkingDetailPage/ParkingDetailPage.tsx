@@ -2,21 +2,22 @@ import { Suspense } from 'react';
 
 import { css } from '@emotion/css';
 
-import { Navigate, useLocation, useOutletContext } from 'react-router';
+import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
-import { ParkingLotHeader } from '../../../shared/components/ParkingLotHeader';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
+import { ConditionBar } from '../../../shared/components/ConditionBar';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
 }
 
 export const ParkingDetailPage = () => {
+  const navigate = useNavigate();
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const detailCondition = navigationState?.detailCondition;
@@ -29,9 +30,10 @@ export const ParkingDetailPage = () => {
 
   return (
     <main className={pageStyle}>
-      <ParkingLotHeader
-        parkingLotName={detailCondition.parkingLotName}
-        parkingLotAddress={detailCondition.destinationName}
+      <ConditionBar
+        title={detailCondition.parkingLotName}
+        description={detailCondition.destinationName}
+        onBack={() => navigate(-1)}
       />
 
       <QueryErrorResetBoundary>
