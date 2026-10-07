@@ -95,7 +95,6 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
 
   return (
     <section className={sheetContentStyle}>
-      <header className={parkingHeaderStyle}></header>
       <div className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>
@@ -176,16 +175,6 @@ const sheetContentStyle = css`
   min-height: 0;
 `;
 
-const parkingHeaderStyle = css`
-  display: flex;
-  flex-shrink: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-
-  padding: 4px 0 20px;
-`;
-
 const scrollContentStyle = css`
   flex: 1;
   min-height: 0;
@@ -193,15 +182,6 @@ const scrollContentStyle = css`
   overflow-y: auto;
   padding-inline-end: 15px;
   overscroll-behavior: contain;
-`;
-
-const addressStyle = css`
-  margin: 0;
-
-  color: #768197;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
 `;
 
 const sectionStyle = css`

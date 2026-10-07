@@ -8,7 +8,6 @@ import { ErrorCard } from '../../../../shared/components/ErrorCard';
 import { ParkingLotHeader } from '../../../../shared/components/ParkingLotHeader';
 import { ParkingDetailSkeleton } from '../../ParkingDetailPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
-import { css } from '@emotion/css';
 
 const MARKER_GAP = 64;
 
