@@ -18,7 +18,7 @@ const renderParkingInformation = (parkingLotId = 101) => {
 
   return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent parkingLot={parkingLot} onRequestClose={() => undefined} />
+      <ParkingInformationContent parkingLot={parkingLot} />
     </Suspense>,
   );
 };

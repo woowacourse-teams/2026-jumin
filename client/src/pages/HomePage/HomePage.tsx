@@ -194,10 +194,7 @@ export const HomePage = () => {
                   )}
                 >
                   <Suspense fallback={<p>주차장 정보를 불러오는 중이에요.</p>}>
-                    <ParkingInformationContent
-                      parkingLot={selectedParkingLot}
-                      onRequestClose={clearParkingSelection}
-                    />
+                    <ParkingInformationContent parkingLot={selectedParkingLot} />
                   </Suspense>
                 </ErrorBoundary>
               )}

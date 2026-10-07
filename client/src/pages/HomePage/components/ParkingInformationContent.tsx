@@ -14,7 +14,6 @@ import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses
 
 interface Props {
   parkingLot: ParkingLotViewport;
-  onRequestClose: () => void;
 }
 
 type DailyOperation = ViewportParkingLotDetailResponse['dailyOperations'][number];
