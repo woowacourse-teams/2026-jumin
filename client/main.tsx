@@ -17,8 +17,22 @@ import * as Sentry from '@sentry/react';
 import { initSentry } from './shared/sentry/initSentry';
 
 initSentry();
-initAnalytics(__GA_MEASUREMENT_ID__);
-initClarity(__CLARITY_PROJECT_ID__);
+
+const url = new URL(window.location.href);
+const analyticsSetting = url.searchParams.get('analytics_opt_out');
+
+if (analyticsSetting === 'on' || analyticsSetting === 'off') {
+  localStorage.setItem('analytics_opt_out', String(analyticsSetting === 'on'));
+
+  url.searchParams.delete('analytics_opt_out');
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+const isAnalyticsExcluded = localStorage.getItem('analytics_opt_out') === 'true';
+if (!isAnalyticsExcluded) {
+  initAnalytics(__GA_MEASUREMENT_ID__);
+  initClarity(__CLARITY_PROJECT_ID__);
+}
 initializeInstallGuide();
 initializeInstallPrompt();
 applyGlobalStyles();
