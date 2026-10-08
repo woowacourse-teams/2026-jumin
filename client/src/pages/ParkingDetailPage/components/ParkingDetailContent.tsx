@@ -18,6 +18,7 @@ import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
+import { trackEvent } from '../../../../shared/analytics';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -116,6 +117,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     onMapClick: collapseBottomSheet,
   });
 
+  const handleRecommendDirectionButtonClick = () => {
+    trackEvent('recommend_directions_button_clicked');
+    deepLinkModal.open();
+  };
+
   return (
     <div>
       <DestinationMapOverlay
@@ -206,7 +212,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
               <ParkingReportAction parkingLotId={parkingLotDetail.id} />
             </div>
 
-            <button className={navigationButtonStyle} type="button" onClick={deepLinkModal.open}>
+            <button
+              className={navigationButtonStyle}
+              type="button"
+              onClick={handleRecommendDirectionButtonClick}
+            >
               길찾기 시작
             </button>
           </div>
