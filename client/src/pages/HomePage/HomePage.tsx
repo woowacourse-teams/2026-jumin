@@ -14,6 +14,8 @@ import { SearchBar } from '../../../shared/components/SearchBar';
 import type { ParkingLotViewport } from '../../../api/contracts';
 import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
+import { trackEvent } from '../../../shared/analytics';
+import { eventName } from '../../../shared/monitoring/constants';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -63,6 +65,7 @@ export const HomePage = () => {
 
   // 주차장 마커 클릭 핸들러
   const handleParkingMarkerClick = (parkingLot: ParkingLotViewport) => {
+    trackEvent(eventName.HOME_PAGE_MARKER);
     setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
   };
@@ -101,6 +104,11 @@ export const HomePage = () => {
     );
   }, [map]);
 
+  const handleSearchBarClick = () => {
+    trackEvent(eventName.DESTINATION_SEARCH_BAR);
+    navigate('/search');
+  };
+
   return (
     <main className={pageStyle}>
       {map &&
@@ -133,7 +141,7 @@ export const HomePage = () => {
       )}
       {selectedParkingLot === null && (
         <div className={headerStyle}>
-          <SearchBar onClick={() => navigate('/search')} />
+          <SearchBar onClick={handleSearchBarClick} />
         </div>
       )}
       <footer className={footerStyle}>
