@@ -14,3 +14,5 @@ export const eventName = {
   /**추천 주차장 상세정보 길찾기 버튼 */
   RECOMMEND_DIRECTIONS_BUTTON: 'recommend_directions_button_clicked',
 };
+
+export const ANALYTICS_OPT_OUT_KEY = 'analytics_opt_out';
