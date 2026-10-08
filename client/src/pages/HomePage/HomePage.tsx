@@ -14,6 +14,7 @@ import { SearchBar } from '../../../shared/components/SearchBar';
 import type { ParkingLotViewport } from '../../../api/contracts';
 import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
+import { trackEvent } from '../../../shared/analytics';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -63,6 +64,7 @@ export const HomePage = () => {
 
   // 주차장 마커 클릭 핸들러
   const handleParkingMarkerClick = (parkingLot: ParkingLotViewport) => {
+    trackEvent('home_parking_marker_clicked');
     setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
   };
