@@ -9,6 +9,7 @@ import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
+import { trackEvent } from '../../../../shared/analytics';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -93,6 +94,11 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
     },
   ];
 
+  const handleDirectionButtonClick = () => {
+    trackEvent('home_directions_button_clicked');
+    modal.open();
+  };
+
   return (
     <section className={sheetContentStyle}>
       <div className={scrollContentStyle}>
@@ -143,7 +149,11 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
           <section className={reportRowStyle}>
             <ParkingReportAction parkingLotId={data.id} />
           </section>
-          <button className={navigationButtonStyle} type="button" onClick={modal.open}>
+          <button
+            className={navigationButtonStyle}
+            type="button"
+            onClick={handleDirectionButtonClick}
+          >
             길찾기 시작
           </button>
         </div>
