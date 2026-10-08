@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { trackEvent } from '../../../../shared/analytics';
+import { eventName } from '../../../../shared/monitoring/constants';
 
 interface Props {
   parkingLot: ParkingLotSummary;
@@ -19,7 +20,7 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
       : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
 
   const handleDetailButtonClick = () => {
-    trackEvent('recommended_parking_detail_clicked');
+    trackEvent(eventName.RECOMMENDED_PARKING_DETAIL);
     onNavigate(parkingLot);
   };
   return (

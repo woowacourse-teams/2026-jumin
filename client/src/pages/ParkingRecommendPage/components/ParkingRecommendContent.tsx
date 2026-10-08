@@ -21,6 +21,7 @@ import type {
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
+import { eventName } from '../../../../shared/monitoring/constants';
 
 type MapOutletContext = {
   map: naver.maps.Map | null;
@@ -221,7 +222,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     }
 
     hasTrackedRecommendations.current = true;
-    trackEvent('parking_recommendations_viewed');
+    trackEvent(eventName.PARKING_RECOMMENDATION_VIEWED);
   }, [recommendedParkingLots.length]);
 
   const handleRecommendationTypeChange = (type: RecommendationType) => {

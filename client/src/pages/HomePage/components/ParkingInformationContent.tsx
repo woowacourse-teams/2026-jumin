@@ -10,6 +10,7 @@ import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { trackEvent } from '../../../../shared/analytics';
+import { eventName } from '../../../../shared/monitoring/constants';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -95,7 +96,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   ];
 
   const handleDirectionButtonClick = () => {
-    trackEvent('home_directions_button_clicked');
+    trackEvent(eventName.HOME_DIRECTIONS_BUTTON);
     modal.open();
   };
 
