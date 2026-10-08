@@ -15,8 +15,7 @@ import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { ParkingTimeSheet } from './ParkingTimeSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { useNavigate } from 'react-router';
-
-type ParkingSetupStep = 'destination' | 'time';
+import { addHours } from 'date-fns';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -26,102 +25,87 @@ interface Props {
 }
 
 export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }: Props) => {
-  const navigate = useNavigate();
-
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
-
-  const [step, setStep] = useState<ParkingSetupStep>('destination');
-  const enabled = step === 'destination' ? true : false;
   const { selectedLocation, destinationName, hasMovedMap, isFetching, isError } =
-    useParkingSetupDestination({ destination, map, enabled });
+    useParkingSetupDestination({ destination, map });
 
-  const [period, setPeriod] = useState<ParkingPeriod>(() => ({
-    entryAt: createRoundedCurrentDate(),
-    exitAt: null,
-  }));
+  // const [period, setPeriod] = useState<ParkingPeriod>(() => ({
+  //   entryAt: createRoundedCurrentDate(),
+  //   exitAt: null,
+  // }));
 
-  const [validationTime, setValidationTime] = useState(() => new Date());
+  // const [validationTime, setValidationTime] = useState(() => new Date());
 
-  const periodValidation = validatePeriod(period, validationTime);
+  // const periodValidation = validatePeriod(period, validationTime);
 
-  const handleEntryAtChange = (entryAt: Date) => {
-    setPeriod((previousPeriod) => ({
-      ...previousPeriod,
-      entryAt,
-    }));
+  // const handleEntryAtChange = (entryAt: Date) => {
+  //   setPeriod((previousPeriod) => ({
+  //     ...previousPeriod,
+  //     entryAt,
+  //   }));
 
-    setValidationTime(new Date());
-  };
+  //   setValidationTime(new Date());
+  // };
 
-  const handleExitAtChange = (exitAt: Date) => {
-    setPeriod((previousPeriod) => ({
-      ...previousPeriod,
-      exitAt,
-    }));
+  // const handleExitAtChange = (exitAt: Date) => {
+  //   setPeriod((previousPeriod) => ({
+  //     ...previousPeriod,
+  //     exitAt,
+  //   }));
 
-    setValidationTime(new Date());
-  };
+  //   setValidationTime(new Date());
+  // };
 
-  const handleTimeStepOpen = () => {
-    setValidationTime(new Date());
-    setStep('time');
-  };
+  // const handleTimeStepOpen = () => {
+  //   setValidationTime(new Date());
+  // };
+
+  // const handleRecommend = () => {
+  //   const now = new Date();
+  //   const nextValidation = validatePeriod(period, now);
+
+  //   // 실패하더라도 재렌더링되어 에러 문구가 표시됨
+  //   setValidationTime(now);
+
+  //   if (!nextValidation.isValid) return;
+
+  //   const { entryAt, exitAt } = nextValidation.period;
+
+  //   onRecommend({
+  //     destinationName,
+  //     destinationLatitude: selectedLocation.latitude,
+  //     destinationLongitude: selectedLocation.longitude,
+  //     entryAt: formatOffsetDateTime(entryAt),
+  //     exitAt: formatOffsetDateTime(exitAt),
+  //   });
+  // };
 
   const handleRecommend = () => {
-    const now = new Date();
-    const nextValidation = validatePeriod(period, now);
-
-    // 실패하더라도 재렌더링되어 에러 문구가 표시됨
-    setValidationTime(now);
-
-    if (!nextValidation.isValid) return;
-
-    const { entryAt, exitAt } = nextValidation.period;
+    const entryAt = createRoundedCurrentDate();
 
     onRecommend({
       destinationName,
       destinationLatitude: selectedLocation.latitude,
       destinationLongitude: selectedLocation.longitude,
       entryAt: formatOffsetDateTime(entryAt),
-      exitAt: formatOffsetDateTime(exitAt),
+      exitAt: formatOffsetDateTime(addHours(entryAt, 1)),
     });
   };
 
   return (
     <main>
-      {step === 'destination' && (
-        <img className={fixedPinStyle} src={destinationMarkerUrl} alt="" draggable={false} />
-      )}
+      <img className={fixedPinStyle} src={destinationMarkerUrl} alt="" draggable={false} />
 
-      {step === 'destination' ? (
-        <>
-          <div className={searchBarWrapperStyle}>
-            <SearchBar onClick={onSearch} />
-          </div>
+      <div className={searchBarWrapperStyle}>
+        <SearchBar onClick={onSearch} />
+      </div>
 
-          <DestinationConfirmSheet
-            name={destinationName}
-            address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
-            nextDisabled={hasMovedMap && (isFetching || isError)}
-            onCancel={onSearch}
-            onNext={handleTimeStepOpen}
-          />
-        </>
-      ) : (
-        <>
-          <ConditionBar title={destinationName} onBack={() => navigate(-1)} />
-
-          <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
-            <ParkingTimeSheet
-              period={period}
-              validation={periodValidation}
-              onEntryAtChange={handleEntryAtChange}
-              onExitAtChange={handleExitAtChange}
-              onSubmit={handleRecommend}
-            />
-          </BottomSheet>
-        </>
-      )}
+      <DestinationConfirmSheet
+        name={destinationName}
+        address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
+        nextDisabled={hasMovedMap && (isFetching || isError)}
+        onCancel={onSearch}
+        onComfirm={handleRecommend}
+      />
     </main>
   );
 };

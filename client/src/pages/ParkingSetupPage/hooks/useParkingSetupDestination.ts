@@ -6,7 +6,6 @@ import { destinationNameQueryOptions } from '../../../../api/queries/destination
 interface Props {
   destination: Destination;
   map: naver.maps.Map | null;
-  enabled: boolean;
 }
 
 interface MapLocation {
@@ -14,7 +13,7 @@ interface MapLocation {
   longitude: number;
 }
 
-export const useParkingSetupDestination = ({ destination, map, enabled }: Props) => {
+export const useParkingSetupDestination = ({ destination, map }: Props) => {
   const [selectedLocation, setSelectedLocation] = useState<MapLocation>(() => ({
     latitude: destination.latitude,
     longitude: destination.longitude,
@@ -31,7 +30,7 @@ export const useParkingSetupDestination = ({ destination, map, enabled }: Props)
 
   // 목적지 확인 단계에서 지도 드래그가 끝나면 중앙 좌표를 저장한다.
   useEffect(() => {
-    if (!map || !enabled) return;
+    if (!map) return;
 
     const listener = naver.maps.Event.addListener(map, 'dragend', () => {
       const center = map.getCenter() as naver.maps.LatLng;
@@ -47,7 +46,7 @@ export const useParkingSetupDestination = ({ destination, map, enabled }: Props)
     return () => {
       naver.maps.Event.removeListener(listener);
     };
-  }, [map, enabled]);
+  }, [map]);
 
   useEffect(() => {
     if (!map) return;
@@ -58,7 +57,7 @@ export const useParkingSetupDestination = ({ destination, map, enabled }: Props)
     destinationNameQueryOptions({
       latitude: selectedLocation.latitude,
       longitude: selectedLocation.longitude,
-      enabled: hasMovedMap && enabled,
+      enabled: hasMovedMap,
     }),
   );
 

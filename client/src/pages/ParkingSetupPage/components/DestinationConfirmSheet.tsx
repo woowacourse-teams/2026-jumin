@@ -4,7 +4,7 @@ interface Props {
   address?: string;
   nextDisabled?: boolean;
   onCancel: () => void;
-  onNext: () => void;
+  onComfirm: () => void;
 }
 
 export const DestinationConfirmSheet = ({
@@ -12,7 +12,7 @@ export const DestinationConfirmSheet = ({
   address,
   nextDisabled,
   onCancel,
-  onNext,
+  onComfirm,
 }: Props) => {
   return (
     <section
@@ -102,7 +102,7 @@ export const DestinationConfirmSheet = ({
         `}
         type="button"
         disabled={nextDisabled}
-        onClick={onNext}
+        onClick={onComfirm}
       >
         다음
       </button>
