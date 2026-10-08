@@ -103,6 +103,11 @@ export const HomePage = () => {
     );
   }, [map]);
 
+  const handleSearchBarClick = () => {
+    trackEvent('destination_search_bar_clicked');
+    navigate('/search');
+  };
+
   return (
     <main className={pageStyle}>
       {map &&
@@ -135,7 +140,7 @@ export const HomePage = () => {
       )}
       {selectedParkingLot === null && (
         <div className={headerStyle}>
-          <SearchBar onClick={() => navigate('/search')} />
+          <SearchBar onClick={handleSearchBarClick} />
         </div>
       )}
       <footer className={footerStyle}>
