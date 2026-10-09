@@ -3,7 +3,7 @@ import { css } from '@emotion/css';
 import type { Destination } from '../../../../api/contracts';
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
 import { SearchBar } from '../../../../shared/components/SearchBar';
-import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
+import type { ParkingSearchCondition, ParkingSetupView } from '../../../../shared/types/navigation';
 import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
@@ -12,13 +12,22 @@ import { addHours } from 'date-fns';
 interface Props {
   map: naver.maps.Map | null;
   destination: Destination;
+  setupView?: ParkingSetupView;
+  onSetupViewChange: (view: ParkingSetupView) => void;
   onSearch: () => void;
   onRecommend: (searchCondition: ParkingSearchCondition) => void;
 }
 
-export const ParkingSetupContent = ({ map, destination, onSearch, onRecommend }: Props) => {
+export const ParkingSetupContent = ({
+  map,
+  destination,
+  setupView,
+  onSetupViewChange,
+  onSearch,
+  onRecommend,
+}: Props) => {
   const { selectedLocation, destinationName, hasMovedMap, isFetching, isError } =
-    useParkingSetupDestination({ destination, map });
+    useParkingSetupDestination({ destination, map, setupView, onSetupViewChange });
 
   const handleRecommend = () => {
     const entryAt = createRoundedCurrentDate();

@@ -1,32 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { Destination } from '../../../../api/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { destinationNameQueryOptions } from '../../../../api/queries/destinationNameQuery';
+import type { ParkingSetupView } from '../../../../shared/types/navigation';
 
 interface Props {
   destination: Destination;
   map: naver.maps.Map | null;
+  setupView?: ParkingSetupView;
+  onSetupViewChange: (view: ParkingSetupView) => void;
 }
 
-interface MapLocation {
-  latitude: number;
-  longitude: number;
-}
+export const useParkingSetupDestination = ({
+  destination,
+  map,
+  setupView,
+  onSetupViewChange,
+}: Props) => {
+  // 저장된 값이 없으면 검색 결과 좌표를 사용한다.
+  const latitude = setupView?.selectedLocation.latitude ?? destination.latitude;
+  const longitude = setupView?.selectedLocation.longitude ?? destination.longitude;
 
-export const useParkingSetupDestination = ({ destination, map }: Props) => {
-  const [selectedLocation, setSelectedLocation] = useState<MapLocation>(() => ({
-    latitude: destination.latitude,
-    longitude: destination.longitude,
-  }));
+  const selectedLocation = { latitude, longitude };
+  const hasMovedMap = setupView?.hasMovedMap ?? false;
 
-  const [hasMovedMap, setHasMovedMap] = useState(false);
-
-  // 처음 진입했을 때 검색 페이지에서 선택한 목적지로 지도를 이동한다.
+  // 검색 좌표 또는 이전에 이동한 좌표로 지도를 맞춘다.
   useEffect(() => {
     if (!map) return;
 
-    map.panTo(new naver.maps.LatLng(destination.latitude, destination.longitude));
-  }, [map, destination]);
+    const center = map.getCenter() as naver.maps.LatLng;
+
+    if (center.lat() === latitude && center.lng() === longitude) return;
+
+    map.setCenter(new naver.maps.LatLng(latitude, longitude));
+  }, [map, latitude, longitude]);
 
   // 목적지 확인 단계에서 지도 드래그가 끝나면 중앙 좌표를 저장한다.
   useEffect(() => {
@@ -35,18 +42,19 @@ export const useParkingSetupDestination = ({ destination, map }: Props) => {
     const listener = naver.maps.Event.addListener(map, 'dragend', () => {
       const center = map.getCenter() as naver.maps.LatLng;
 
-      setSelectedLocation({
-        latitude: center.lat(),
-        longitude: center.lng(),
+      onSetupViewChange({
+        selectedLocation: {
+          latitude: center.lat(),
+          longitude: center.lng(),
+        },
+        hasMovedMap: true,
       });
-
-      setHasMovedMap(true);
     });
 
     return () => {
       naver.maps.Event.removeListener(listener);
     };
-  }, [map]);
+  }, [map, onSetupViewChange]);
 
   useEffect(() => {
     if (!map) return;
