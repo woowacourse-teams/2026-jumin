@@ -54,7 +54,7 @@ export const ParkingSetupContent = ({
         address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
         nextDisabled={hasMovedMap && (isFetching || isError)}
         onCancel={onSearch}
-        onComfirm={handleRecommend}
+        onNext={handleRecommend}
       />
     </main>
   );
