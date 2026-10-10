@@ -17,6 +17,7 @@ const renderParkingSetup = () => {
     <ParkingSetupContent
       map={null}
       destination={destination}
+      onSetupViewChange={jest.fn()}
       onSearch={jest.fn()}
       onRecommend={onRecommend}
     />,
@@ -25,7 +26,7 @@ const renderParkingSetup = () => {
   return onRecommend;
 };
 
-const moveToTimeStep = async () => {
+const confirmDestination = async () => {
   const user = userEvent.setup();
 
   await user.click(screen.getByRole('button', { name: '다음' }));
@@ -60,30 +61,38 @@ const renderParkingSetupPage = () =>
   );
 
 describe('B. 주차 조건 설정', () => {
-  it('목적지를 확인하면 시간 설정 단계로 이동한다', async () => {
-    renderParkingSetup();
-
-    await moveToTimeStep();
-
-    expect(screen.getByRole('heading', { name: '언제 주차하세요?' })).toBeInTheDocument();
-  });
-
-  it('출차 시간이 없으면 추천을 요청할 수 없다', async () => {
+  it('목적지를 확인하면 선택한 좌표로 바로 추천을 요청한다', async () => {
     const onRecommend = renderParkingSetup();
 
-    await moveToTimeStep();
-    const recommendButton = screen.getByRole('button', { name: '추천 받기' });
+    await confirmDestination();
 
-    expect(recommendButton).toBeDisabled();
-    expect(onRecommend).not.toHaveBeenCalled();
+    expect(onRecommend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationName: destination.name,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
+      }),
+    );
   });
 
-  it('유효한 시간을 설정하면 추천 화면으로 이동한다', async () => {
-    renderParkingSetupPage();
-    const user = await moveToTimeStep();
+  it('추천 요청에는 10분 단위의 입차 시간과 1시간 뒤 출차 시간을 전달한다', async () => {
+    const onRecommend = renderParkingSetup();
 
-    await user.click(screen.getByRole('button', { name: '+1시간' }));
-    await user.click(screen.getByRole('button', { name: '추천 받기' }));
+    await confirmDestination();
+
+    const condition = onRecommend.mock.calls[0]![0];
+    const entryAt = new Date(condition.entryAt);
+    const exitAt = new Date(condition.exitAt);
+
+    expect(entryAt.getMinutes() % 10).toBe(0);
+    expect(entryAt.getSeconds()).toBe(0);
+    expect(entryAt.getMilliseconds()).toBe(0);
+    expect(exitAt.getTime() - entryAt.getTime()).toBe(60 * 60 * 1000);
+  });
+
+  it('목적지를 확인하면 추천 화면으로 이동한다', async () => {
+    renderParkingSetupPage();
+    await confirmDestination();
 
     expect(
       screen.getByRole('heading', { name: `추천 화면: ${destination.name}` }),

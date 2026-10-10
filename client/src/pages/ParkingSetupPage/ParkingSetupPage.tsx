@@ -1,16 +1,19 @@
+import { useCallback } from 'react';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type { Destination } from '../../../api/contracts';
-import type { RecommendView } from '../../../shared/types/navigation';
+import type { ParkingSetupView, RecommendView } from '../../../shared/types/navigation';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
 
 interface NavigationState {
   destination?: Destination;
+  setupView?: ParkingSetupView;
 }
 
 export const ParkingSetupPage = () => {
   const { state } = useLocation();
-  const destination = (state as NavigationState | null)?.destination;
+  const navigationState = state as NavigationState | null;
+  const destination = navigationState?.destination;
 
   const { map, setRecommendView } = useOutletContext<{
     map: naver.maps.Map | null;
@@ -18,6 +21,19 @@ export const ParkingSetupPage = () => {
   }>();
 
   const navigate = useNavigate();
+
+  const handleSetupViewChange = useCallback(
+    (setupView: ParkingSetupView) => {
+      navigate('/parkingsetup', {
+        replace: true,
+        state: {
+          ...navigationState,
+          setupView,
+        },
+      });
+    },
+    [navigate, navigationState],
+  );
 
   if (!destination) {
     return <Navigate to="/search" replace />;
@@ -27,6 +43,8 @@ export const ParkingSetupPage = () => {
     <ParkingSetupContent
       map={map}
       destination={destination}
+      setupView={navigationState?.setupView}
+      onSetupViewChange={handleSetupViewChange}
       onSearch={() => navigate('/search')}
       onRecommend={(searchCondition) => {
         setRecommendView(null);

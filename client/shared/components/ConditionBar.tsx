@@ -1,14 +1,16 @@
 import { css } from '@emotion/css';
 import backIcon from '../../assets/icons/backIcon.svg';
 import { useNavigate } from 'react-router';
+import type { ReactNode } from 'react';
 
 interface Props {
   title: string;
   description?: string;
   onBack: () => void;
+  action?: ReactNode;
 }
 
-export const ConditionBar = ({ title, description, onBack }: Props) => {
+export const ConditionBar = ({ title, description, onBack, action }: Props) => {
   const navigate = useNavigate(); // 뒤로가기 기능을 위한 navigate
   const handleBack = onBack ?? (() => navigate(-1));
   return (
@@ -25,7 +27,12 @@ export const ConditionBar = ({ title, description, onBack }: Props) => {
       <div className={conditionStyle}>
         <h1 className={destinationStyle}>{title}</h1>
 
-        {description && <p className={descriptionStyle}>{description}</p>}
+        {(description || action) && (
+          <div className={descriptionRowStyle}>
+            {description && <p className={descriptionStyle}>{description}</p>}
+            {action && <div className={actionStyle}>{action}</div>}
+          </div>
+        )}
       </div>
     </header>
   );
@@ -102,10 +109,25 @@ const destinationStyle = css`
 `;
 
 const descriptionStyle = css`
-  margin: 2px 0 0;
+  min-width: 0;
+  margin: 0;
 
   color: #697386;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.4;
+`;
+
+const descriptionRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-top: 2px;
+`;
+
+const actionStyle = css`
+  flex-shrink: 0;
+  margin-left: auto;
 `;
