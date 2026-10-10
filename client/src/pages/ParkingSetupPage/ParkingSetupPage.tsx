@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type { Destination } from '../../../api/contracts';
-import type { ParkingSetupView, RecommendView } from '../../../shared/types/navigation';
+import type { ParkingSetupView } from '../../../shared/types/navigation';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
 
 interface NavigationState {
@@ -15,9 +15,8 @@ export const ParkingSetupPage = () => {
   const navigationState = state as NavigationState | null;
   const destination = navigationState?.destination;
 
-  const { map, setRecommendView } = useOutletContext<{
+  const { map } = useOutletContext<{
     map: naver.maps.Map | null;
-    setRecommendView: (view: RecommendView | null) => void;
   }>();
 
   const navigate = useNavigate();
@@ -47,7 +46,6 @@ export const ParkingSetupPage = () => {
       onSetupViewChange={handleSetupViewChange}
       onSearch={() => navigate('/search')}
       onRecommend={(searchCondition) => {
-        setRecommendView(null);
         navigate('/parkingRecommend', {
           state: { searchCondition },
         });

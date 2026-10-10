@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
 import { NaverMap } from './NaverMap';
-import type { ParkingSetupView, RecommendView } from '../types/navigation';
+import type { ParkingSetupView } from '../types/navigation';
 import type { Destination } from '../../api/contracts';
 
 const DEFAULT_MAP_CENTER = {
@@ -40,7 +40,6 @@ export const MapLayout = () => {
   });
 
   const [map, setMap] = useState<naver.maps.Map | null>(null);
-  const [recommendView, setRecommendView] = useState<RecommendView | null>(null);
 
   return (
     <div className={layoutStyle}>
@@ -49,7 +48,7 @@ export const MapLayout = () => {
         longitude={initialCenter.longitude}
         onMapReady={setMap}
       />
-      <Outlet context={{ map, recommendView, setRecommendView }} />
+      <Outlet context={{ map }} />
     </div>
   );
 };
