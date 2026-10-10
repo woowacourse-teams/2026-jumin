@@ -8,6 +8,7 @@ import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shar
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
+import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -26,10 +27,26 @@ export const ParkingSetupContent = ({
   onSearch,
   onRecommend,
 }: Props) => {
-  const { selectedLocation, destinationName, hasMovedMap, isFetching, isError } =
-    useParkingSetupDestination({ destination, map, setupView, onSetupViewChange });
+  const selectedLocation = setupView?.selectedLocation ?? {
+    latitude: destination.latitude,
+    longitude: destination.longitude,
+  };
+  const hasMovedMap = setupView?.hasMovedMap ?? false;
+
+  useParkingSetupMap({
+    map,
+    selectedLocation,
+    onSetupViewChange,
+  });
+
+  const { destinationName, isFetching, isError } = useParkingSetupDestination({
+    initialName: destination.name,
+    selectedLocation,
+    hasMovedMap,
+  });
 
   const handleRecommend = () => {
+    // 입차 시간을 현재 시각에서 가까운 10분단위 시각으로 설정 (출차는 +1시간)
     const entryAt = createRoundedCurrentDate();
 
     onRecommend({
