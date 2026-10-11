@@ -7,14 +7,15 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { ConditionBar } from '../../../shared/components/ConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
-import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import { PeriodChangeControl } from './components/PeriodChangeControl';
+import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';
 
-interface NavigationState {
-  searchCondition?: ParkingSearchCondition;
+export interface NavigationState {
+  searchCondition: ParkingSearchCondition;
+  recommendView?: RecommendView;
 }
 
 export const ParkingRecommendPage = () => {
