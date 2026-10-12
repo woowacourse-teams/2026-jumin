@@ -11,7 +11,7 @@ import {
   initializeInstallPrompt,
   requestPwaInstall,
 } from '../../../shared/pwa/installPrompt';
-import parkingHero from './assets/parking-hero.jpg';
+import parkingHero from '../../../assets/parking-hero.jpg';
 
 const features = [
   {
