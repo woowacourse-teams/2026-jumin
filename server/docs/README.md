@@ -18,3 +18,4 @@
 
 | 문서 | 결정 주제 | 상태 |
 | ---- | --------- | ---- |
+| [2026-10-12-osm-import-outside-github-actions.md](decisions/2026-10-12-osm-import-outside-github-actions.md) | OSM 전국 보행망 적재는 충분한 자원을 가진 호스트에서 수동 실행 | Accepted |

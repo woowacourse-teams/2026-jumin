@@ -19,7 +19,6 @@
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/import-osm-walking-network.sh` | OSM 전국 보행 네트워크 적재 |
-| `scripts/resolve-geofabrik-osm-snapshot.py` | Geofabrik 공식 페이지에서 최신 한국 PBF 날짜 조회 |
 | `scripts/build-osm-walking-poc.py` | OSM 전국 적재용 CSV 변환·검증 ([사용법](../server/README.md#osm-보행-네트워크-적재)) |
 | `observability/compose.yml` | 중앙 Grafana·Loki·Prometheus·Nginx 실행 |
 | `observability/alloy/` | dev/prod EC2에서 로그와 지표를 수집하는 Alloy 설정 |
@@ -416,48 +415,17 @@ Grafana 경보 9개는 [rules.yml](observability/grafana/provisioning/alerting/r
 
 ## 보행망 수동 적재
 
-`Import walking network` workflow는 정기 스케줄이나 서버 배포와 독립적으로 실행합니다.
-최초 적재와 필요할 때의 갱신에 사용하며 기존 보행망 전체를 교체합니다.
-다운로드 및 검증 후 기존 스크립트의 트랜잭션으로 데이터를 교체합니다.
-SQL 적재가 실패하면 트랜잭션이 롤백되어 기존 데이터를 보존합니다.
+보행망은 컴퓨팅 자원이 충분한 로컬 또는 별도 작업 호스트에서 수동으로 변환·적재합니다.
+GitHub Actions에서는 OSM 다운로드·변환·적재를 실행하지 않습니다.
+실행 방법은 [서버 README의 OSM 적재 안내](../server/README.md#osm-보행-네트워크-적재)를 참고하세요.
 
-### 사전 준비
+- `OSM_PBF_DATE`로 다운로드할 스냅샷 날짜를 지정하거나 `OSM_PBF_FILE`로 준비한 원본을 사용합니다.
+- 미리 변환한 CSV는 `OSM_GRAPH_DIR`로 지정해 적재합니다.
+- RDS에 적재할 때는 `DB_TARGET=direct`와 DB 접속 정보·SSL 설정을 실행 환경에 지정합니다.
+- 원본·CSV·변환 캐시 공간을 확보하고, 필요하면 `OSM_TEMP_DIR`로 임시 파일 저장 위치를 지정합니다.
+- 대상 DB에는 적재 스크립트가 요구하는 마이그레이션과 pgRouting이 적용돼 있어야 합니다.
+  실행 계정에는 보행망 테이블의 SELECT, INSERT, UPDATE, TRUNCATE 및 임시 테이블 생성 권한이 필요합니다.
 
-- 서버를 배포하여 Flyway V7까지 적용합니다. RDS가 pgRouting을 지원해야 하며,
-  Flyway DB 계정에 확장 생성 권한이 필요합니다. 권한을 분리하는 환경에서는 DBA가
-  먼저 확장을 생성합니다. V7은 이미 있는 확장은 유지합니다. OSM 적재는 기존 보행망 스키마를 사용합니다.
-- 서버 배포와 동일한 `DB_URL` Secret을 사용합니다. `DB_HOST`, `DB_NAME`, `DB_PORT`
-  Variables는 추가하지 않습니다. workflow가 JDBC URL에서 접속 정보를 추출하여
-  적재 스크립트와 사전·사후 검증에 동일하게 전달합니다.
-- URL은 `jdbc:postgresql://host[:port]/database` 형식의 단일 호스트를 지원하며,
-  포트 생략 시 5432입니다. 일반 호스트명, IPv4, 대괄호 IPv6와 영문·숫자·밑줄·점·
-  하이픈으로 구성된 DB 이름을 지원합니다. `sslmode` 또는 `ssl=true` 옵션을 전달하며,
-  옵션이 없으면 TLS(`require`)를 사용합니다. 인증서 검증 모드는 runner에 인증서 설정이
-  필요합니다. 그 외 JDBC 옵션, 다중 호스트, URL 인코딩된 DB 이름은 잘못된 대상으로
-  적재하지 않도록 실행 전에 거부합니다.
-- 기존 Secrets `DB_USERNAME`, `DB_PASSWORD`를 사용합니다. 서울시 API 키는 필요하지 않습니다.
-  Geofabrik의 `latest` 별칭은 서버에서 리다이렉트 루프를 일으켜 사용하지 않습니다.
-  GitHub 호스팅 runner가 [Geofabrik 한국 다운로드 페이지](https://download.geofabrik.de/asia/south-korea.html)에서
-  최신 날짜를 자동으로 찾고, self-hosted runner는 그 날짜를 포함한 버전 URL에서 PBF를 직접 받습니다.
-- 해당 환경의 self-hosted runner(`jumin-dev` / `jumin-prod`)에 `psql`, `curl`,
-  Python 3.9 이상·venv가 있어야 하고, RDS 및 Geofabrik·PyPI에 접속할 수 있어야 합니다. DB 연결은 URL의 SSL 설정을 따르며
-  별도 옵션이 없으면 TLS를 사용합니다.
-- 실행 DB 계정에는 보행망 테이블의 SELECT, INSERT, UPDATE, TRUNCATE 및 임시 테이블
-  생성 권한이 필요합니다.
-
-### 실행 순서
-
-1. GitHub Actions에서 `Import walking network` → `Run workflow`를 선택합니다.
-2. development는 `develop`, production은 `main` 브랜치와 해당 environment를 선택합니다.
-   조합이 다르면 작업은 실행되지 않습니다. workflow가 기본 브랜치에 반영되어야
-   수동 실행 목록에서 사용할 수 있습니다.
-3. 최초에는 환경마다 한 번 실행하고 이후 필요할 때 갱신합니다. 별도 날짜 입력 없이
-   workflow가 최신 날짜를 찾고, 날짜가 포함된 버전 URL을 사용해 리다이렉트 루프를 피합니다.
-   변환 임시 파일은 runner의 `RUNNER_TEMP`에 저장합니다(`/tmp` tmpfs 용량 제한 회피).
-   workflow는 Python 환경을 임시로 준비하며 전체 스냅샷을 변환합니다. 충분한 디스크와 실행 시간을 확보합니다.
-4. 성공 로그 `Walking network import and readiness verification succeeded.`를 확인합니다.
-   실제 검색 API와 같은 SQL로 확장, READY 메타데이터, 노드, 보행 가능한 링크를 검증합니다.
-
-동일 환경의 적재는 concurrency로 직렬화하며 진행 중인 적재를 자동 취소하지 않습니다.
-이 workflow는 최초 데이터 적재 전까지 발생하는 검색 503을 배포 헬스 체크로 막지는 않습니다.
-따라서 신규 환경에서는 마이그레이션과 최초 적재를 완료한 후 검색 서비스를 개방합니다.
+스크립트는 다운로드·검증 후 기존 보행망 전체를 트랜잭션으로 교체합니다.
+교체 트랜잭션이 실패하면 롤백되어 기존 데이터를 보존합니다.
+신규 환경은 마이그레이션과 최초 적재를 완료한 후 검색 서비스를 개방합니다.
