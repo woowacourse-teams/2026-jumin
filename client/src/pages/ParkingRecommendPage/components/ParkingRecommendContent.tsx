@@ -61,17 +61,15 @@ const getSortValue = (parkingLot: ParkingLotSummary, type: RecommendationType) =
 };
 
 const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationType) =>
-  [...parkingLots]
-    .filter((parkingLot) => parkingLot.availabilityStatus === 'AVAILABLE')
-    .sort((first, second) => {
-      const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
-      const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
+  [...parkingLots].sort((first, second) => {
+    const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
+    const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
 
-      const firstDistance = first.distanceMeters ?? Number.POSITIVE_INFINITY;
-      const secondDistance = second.distanceMeters ?? Number.POSITIVE_INFINITY;
+    const firstDistance = first.distanceMeters ?? Number.POSITIVE_INFINITY;
+    const secondDistance = second.distanceMeters ?? Number.POSITIVE_INFINITY;
 
-      return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
-    });
+    return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
+  });
 
 const getRecommendationMessage = (type: RecommendationType, rank: number) => {
   if (type === 'PRICE') {
