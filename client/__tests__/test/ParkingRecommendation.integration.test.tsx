@@ -128,9 +128,9 @@ describe('C. 추천 주차장', () => {
 
     const priceRecommendation = screen.getByRole('region', { name: '가격순 추천 주차장' });
     expect(getParkingLotNames(priceRecommendation)).toEqual([
+      '도곡로21길 공영주차장',
       '역삼문화공원 제1호 공영주차장',
       '강남대로 공영주차장',
-      '청운 주차장',
     ]);
   });
 
@@ -411,7 +411,10 @@ describe('C. 추천 주차장', () => {
       if (this.matches('#parking-list-sheet > ul')) {
         return { top: 0, bottom: 300 } as DOMRect;
       }
-      if (this.matches('#parking-list-sheet > ul > li:last-child')) {
+      if (
+        this.matches('#parking-list-sheet > ul > li') &&
+        this.querySelector('h2')?.textContent === '목록 확인 주차장 7'
+      ) {
         return { top: 800, bottom: 900 } as DOMRect;
       }
       return originalGetBoundingClientRect.call(this);
