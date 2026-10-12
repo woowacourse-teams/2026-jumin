@@ -3,7 +3,7 @@ import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import App from '../../App';
-import { FEEDBACK_URL, GUIDE_SEEN_KEY } from '../../shared/constants/help';
+import { FEEDBACK_URL } from '../../shared/constants/help';
 import { initializeInstallPrompt } from '../../shared/pwa/installPrompt';
 import { renderWithProviders } from '../renderWithProviders';
 
@@ -46,7 +46,6 @@ it('설정에 직접 접속해 가이드를 열고 닫으며 다시 열면 첫 �
 
   await user.keyboard('{Escape}');
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(localStorage.getItem(GUIDE_SEEN_KEY)).toBe('true');
 
   await user.click(screen.getByRole('button', { name: /가이드 보기/ }));
   expect(screen.getByText('총 3단계 중 1단계')).toBeInTheDocument();

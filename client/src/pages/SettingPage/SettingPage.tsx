@@ -7,18 +7,13 @@ import installIcon from '../../../assets/icons/installIcon.svg';
 import feedbackIcon from '../../../assets/icons/feedBackIcon.svg';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { GuideModal } from '../../../shared/components/Modal/GuideModal';
-import { FEEDBACK_URL, GUIDE_SEEN_KEY } from '../../../shared/constants/help';
+import { FEEDBACK_URL } from '../../../shared/constants/help';
 import { useModal } from '../../../shared/hooks/useModal';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 
 export const SettingPage = () => {
   const guideModal = useModal();
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
-
-  const closeGuide = () => {
-    localStorage.setItem(GUIDE_SEEN_KEY, 'true');
-    guideModal.close();
-  };
 
   return (
     <main className={styles.page}>
@@ -117,7 +112,7 @@ export const SettingPage = () => {
       </div>
 
       <BottomNav />
-      {guideModal.isOpen && <GuideModal onClose={closeGuide} />}
+      {guideModal.isOpen && <GuideModal onClose={guideModal.close} />}
     </main>
   );
 };
