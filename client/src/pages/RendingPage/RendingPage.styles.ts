@@ -277,15 +277,13 @@ export const styles = {
   `,
   installButton: css`
     min-width: 190px;
-    color: #fff;
-    background: rgb(255 255 255 / 8%);
-    border-color: rgb(255 255 255 / 65%);
+    color: #4d4d4d;
+    background: #ffffff;
     &:hover {
-      background: rgb(255 255 255 / 18%);
+      background: #acacac;
     }
     &:disabled {
       color: #e0e4ee;
-      border-color: rgb(255 255 255 / 30%);
     }
   `,
   installMessage: css`
@@ -470,21 +468,11 @@ export const styles = {
     padding: 44px 56px calc(44px + env(safe-area-inset-bottom, 0px));
     color: #7a8292;
     font-size: 12px;
-    > a:last-child {
-      margin-left: auto;
-      font-size: 11px;
-    }
-    > a:last-child:hover {
-      text-decoration: underline;
-    }
     @media (max-width: 700px) {
       align-items: flex-start;
       flex-direction: column;
       gap: 14px;
       padding: 36px 24px calc(36px + env(safe-area-inset-bottom, 0px));
-      > a:last-child {
-        margin-left: 0;
-      }
     }
   `,
   footerBrand: css`

@@ -4,7 +4,6 @@ import { cx } from '@emotion/css';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
 import searchPreview from '../../../assets/guideImage/guide1.png';
-import timePreview from '../../../assets/guideImage/guide2.png';
 import comparePreview from '../../../assets/guideImage/guide3.png';
 import { showInstallGuide } from '../../../shared/pwa/addToHomeScreen';
 import {
@@ -25,22 +24,9 @@ const features = [
         먼저 알려주세요.
       </>
     ),
-    description: '장소를 검색하거나 지도에서 목적지를 선택하세요. 주변 주차장을 찾아볼 수 있어요.',
+    description: '장소를 검색하거나 지도에서 목적지를 선택하세요. 주변 주차장을 추천해드려요.',
     image: searchPreview,
     alt: '목적지 검색창이 표시된 주차의민족 지도 화면 예시',
-  },
-  {
-    label: '주차 시간 설정',
-    title: (
-      <>
-        머무를 시간에 맞춰,
-        <br />
-        예상 요금을 확인하세요.
-      </>
-    ),
-    description: '입차·출차 시간을 설정하고, 머무를 시간에 따른 주차장의 예상 요금을 확인하세요.',
-    image: timePreview,
-    alt: '입차·출차 시간을 설정하는 주차의민족 화면 예시',
   },
   {
     label: '거리와 요금 비교',
@@ -122,13 +108,11 @@ export const RendingPage = () => {
         <div className={styles.heroContent}>
           <p className={styles.heroEyebrow}>주차장을 찾는 가장 간단한 방법</p>
           <h1 id="rending-title">
-            주차할 곳까지,
+            목적지를 입력하면,
             <br />
-            미리 정하고 출발하세요.
+            주차장을 추천해드려요.
           </h1>
-          <p className={styles.heroDescription}>
-            목적지 주변 주차장의 거리와 예상 요금을 비교하세요.
-          </p>
+          <p className={styles.heroDescription}>목적지 주변의 주차장을 추천해드립니다.</p>
           <div className={styles.actions}>
             <Link className={cx(styles.button, styles.primaryButton)} to="/">
               주차의민족 이용하기
@@ -160,7 +144,7 @@ export const RendingPage = () => {
           <br />
           주차장은 여기서.
         </h2>
-        <p className={styles.description}>검색부터 비교, 길찾기까지 한 흐름으로.</p>
+        <p className={styles.description}>검색부터 추천, 길찾기까지 한 흐름으로.</p>
       </section>
 
       <div id="rending-guide" className={styles.features}>
@@ -200,13 +184,6 @@ export const RendingPage = () => {
           주차의민족
         </Link>
         <p>주차장을 찾는 가장 간단한 방법</p>
-        <a
-          href="https://unsplash.com/photos/aerial-photography-of-parking-lot-k1AFA4N8O0g"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Photo by Ryan Searle / Unsplash
-        </a>
       </footer>
     </main>
   );
