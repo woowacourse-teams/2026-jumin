@@ -20,7 +20,7 @@ export type RecommendationType = 'PRICE' | 'DISTANCE' | 'BALANCED';
 
 export type RecommendView = {
   snap: 'expanded' | 'collapsed';
-  parkingLotId: number;
+  parkingLotId: number | null;
   recommendationType: RecommendationType;
 };
 

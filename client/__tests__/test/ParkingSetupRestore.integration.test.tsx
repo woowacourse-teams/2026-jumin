@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
-import type { ParkingSetupView, RecommendView } from '../../shared/types/navigation';
+import type { ParkingSetupView } from '../../shared/types/navigation';
 import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/ParkingRecommendPage';
 import { ParkingSetupPage } from '../../src/pages/ParkingSetupPage/ParkingSetupPage';
 import { server } from '../msw/server';
@@ -120,7 +120,6 @@ const TestSetupLayout = ({ initialMapReady }: { initialMapReady: boolean }) => {
   const { pathname, state } = useLocation();
   const navigate = useNavigate();
   const [mapReady, setMapReady] = useState(initialMapReady);
-  const [recommendView, setRecommendView] = useState<RecommendView | null>(null);
 
   return (
     <>
@@ -135,8 +134,6 @@ const TestSetupLayout = ({ initialMapReady }: { initialMapReady: boolean }) => {
         context={{
           // 추천 화면의 SDK 동작은 제외하고 실제 추천 요청과 뒤로가기를 확인한다.
           map: pathname === '/parkingsetup' && mapReady ? mockMap.map : null,
-          recommendView,
-          setRecommendView,
         }}
       />
     </>
