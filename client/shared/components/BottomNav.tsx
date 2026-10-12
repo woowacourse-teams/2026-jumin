@@ -1,14 +1,19 @@
 import { css, cx } from '@emotion/css';
 import { NavLink } from 'react-router';
 import activeHomeIcon from '../../assets/icons/activeHome.svg';
-import activeNearbyIcon from '../../assets/icons/activeNearBy.svg';
+import activeSettingIcon from '../../assets/icons/activeSetting.svg';
 import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
 import homeIcon from '../../assets/icons/home.svg';
-import nearbyIcon from '../../assets/icons/nearby.svg';
+import settingIcon from '../../assets/icons/setting.svg';
 import recentUseIcon from '../../assets/icons/recentUse.svg';
-import { useNearbyParkingNavigation } from '../hooks/useNearbyParkingNavigation';
 
 const menus = [
+  {
+    path: '/setting',
+    label: '설정',
+    icon: settingIcon,
+    activeIcon: activeSettingIcon,
+  },
   {
     path: '/',
     label: '홈',
@@ -23,30 +28,16 @@ const menus = [
   },
 ];
 
-export const BottomNav = () => {
-  const { isLocating, navigateToNearbyParking } = useNearbyParkingNavigation();
-
-  return (
-    <nav className={navigationStyle} aria-label="하단 메뉴">
-      <button
-        className={navigationItemStyle}
-        type="button"
-        disabled={isLocating}
-        onClick={navigateToNearbyParking}
-      >
-        <NavigationIcon icon={nearbyIcon} activeIcon={activeNearbyIcon} />
-        <span>{isLocating ? '위치 확인 중' : '주변'}</span>
-      </button>
-
-      {menus.map(({ path, label, icon, activeIcon }) => (
-        <NavLink className={navigationItemStyle} key={path} to={path} end={path === '/'}>
-          <NavigationIcon icon={icon} activeIcon={activeIcon} />
-          <span>{label}</span>
-        </NavLink>
-      ))}
-    </nav>
-  );
-};
+export const BottomNav = () => (
+  <nav className={navigationStyle} aria-label="하단 메뉴">
+    {menus.map(({ path, label, icon, activeIcon }) => (
+      <NavLink className={navigationItemStyle} key={path} to={path} end={path === '/'}>
+        <NavigationIcon icon={icon} activeIcon={activeIcon} />
+        <span>{label}</span>
+      </NavLink>
+    ))}
+  </nav>
+);
 
 interface NavigationIconProps {
   icon: string;
@@ -114,10 +105,6 @@ const navigationItemStyle = css`
     .active-icon {
       opacity: 1;
     }
-  }
-
-  &:disabled {
-    cursor: wait;
   }
 `;
 
