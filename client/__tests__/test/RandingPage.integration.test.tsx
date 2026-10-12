@@ -3,13 +3,13 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
-import { RendingPage } from '../../src/pages/RendingPage/RendingPage';
+import { RandingPage } from '../../src/pages/RandingPage/RandingPage';
 
 const renderPage = () =>
   render(
-    <MemoryRouter initialEntries={['/rending']}>
+    <MemoryRouter initialEntries={['/randing']}>
       <Routes>
-        <Route path="/rending" element={<RendingPage />} />
+        <Route path="/randing" element={<RandingPage />} />
         <Route path="/" element={<p>서비스 홈</p>} />
       </Routes>
     </MemoryRouter>,

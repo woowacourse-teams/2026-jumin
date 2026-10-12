@@ -7,7 +7,7 @@ import { ParkingRecommendPage } from './src/pages/ParkingRecommendPage/ParkingRe
 import { MapLayout } from './shared/maps/MapLayout';
 import { HomePage } from './src/pages/HomePage/HomePage';
 import { AdminPage } from './src/pages/AdminPage/AdminPage';
-import { RendingPage } from './src/pages/RendingPage/RendingPage';
+import { RandingPage } from './src/pages/RandingPage/RandingPage';
 
 const App = () => (
   <Routes>
@@ -22,7 +22,7 @@ const App = () => (
     <Route path="/search" element={<SearchPage />} />
     <Route path="/recent" element={<RecentUsePage />} />
     <Route path="/admin" element={<AdminPage />} />
-    <Route path="/rending" element={<RendingPage />} />
+    <Route path="/randing" element={<RandingPage />} />
   </Routes>
 );
 

@@ -1,7 +1,204 @@
-import { css, injectGlobal } from '@emotion/css';
+import { css, cx, injectGlobal } from '@emotion/css';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 
-const applyRendingRootStyles = () => injectGlobal`
-  #root:has([data-rending-page]) {
+import brandMark from '../../../assets/icons/brandMark.svg';
+import searchPreview from '../../../assets/guideImage/guide1.png';
+import comparePreview from '../../../assets/guideImage/guide3.png';
+import { showInstallGuide } from '../../../shared/pwa/addToHomeScreen';
+import {
+  getInstallAvailability,
+  initializeInstallPrompt,
+  requestPwaInstall,
+} from '../../../shared/pwa/installPrompt';
+import parkingHero from './assets/parking-hero.jpg';
+
+const features = [
+  {
+    label: '목적지 검색',
+    title: (
+      <>
+        가고 싶은 곳을
+        <br />
+        먼저 알려주세요.
+      </>
+    ),
+    description: '장소를 검색하거나 지도에서 목적지를 선택하세요. 주변 주차장을 추천해드려요.',
+    image: searchPreview,
+    alt: '목적지 검색창이 표시된 주차의민족 지도 화면 예시',
+  },
+  {
+    label: '거리와 요금 비교',
+    title: (
+      <>
+        가까운 곳, 저렴한 곳.
+        <br />내 기준으로 고르세요.
+      </>
+    ),
+    description: '거리순·가격순·균형순으로 비교하고, 선택한 주차장으로 길찾기를 시작하세요.',
+    image: comparePreview,
+    alt: '주차의민족 지도에서 도보 거리와 예상 요금을 비교하는 화면 예시',
+  },
+];
+
+const isStandalone = () =>
+  window.matchMedia?.('(display-mode: standalone)').matches === true ||
+  ('standalone' in navigator && navigator.standalone === true);
+
+export const RandingPage = () => {
+  const [isInstalled, setIsInstalled] = useState(isStandalone);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [installMessage, setInstallMessage] = useState('');
+
+  useEffect(() => {
+    initializeInstallPrompt();
+
+    const handleInstalled = () => {
+      setIsInstalled(true);
+      setInstallMessage('');
+    };
+    window.addEventListener('appinstalled', handleInstalled);
+
+    return () => window.removeEventListener('appinstalled', handleInstalled);
+  }, []);
+
+  const handleInstall = async () => {
+    setInstallMessage('');
+    setIsInstalling(true);
+
+    try {
+      if (!getInstallAvailability()) {
+        showInstallGuide();
+        return;
+      }
+
+      const outcome = await requestPwaInstall();
+      if (outcome === 'accepted') {
+        setInstallMessage('설치가 끝나면 홈 화면에서 주차의민족을 열 수 있어요.');
+      }
+    } catch {
+      setInstallMessage('설치창을 열지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
+  return (
+    <main className={styles.page} data-randing-page>
+      <a className={styles.skipLink} href="#randing-intro">
+        본문 바로가기
+      </a>
+
+      <section className={styles.hero} aria-labelledby="randing-title">
+        <img className={styles.heroPhoto} src={parkingHero} alt="" fetchPriority="high" />
+
+        <header className={styles.header}>
+          <Link className={styles.brand} to="/randing" aria-label="주차의민족 소개 홈">
+            <img src={brandMark} alt="" width="29" height="32" />
+            <span>주차의민족</span>
+          </Link>
+          <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
+            <a href="#randing-intro">서비스 소개</a>
+            <a href="#randing-guide">이용 방법</a>
+            <Link to="/">주차장 찾기</Link>
+          </nav>
+        </header>
+
+        <div className={styles.heroContent}>
+          <p className={styles.heroEyebrow}>주차장을 찾는 가장 간단한 방법</p>
+          <h1 id="randing-title">
+            목적지를 입력하면,
+            <br />
+            주차장을 추천해드려요.
+          </h1>
+          <p className={styles.heroDescription}>목적지 주변의 주차장을 추천해드립니다.</p>
+          <div className={styles.actions}>
+            <Link className={cx(styles.button, styles.primaryButton)} to="/">
+              주차의민족 이용하기
+            </Link>
+            <button
+              className={cx(styles.button, styles.installButton)}
+              type="button"
+              onClick={() => void handleInstall()}
+              disabled={isInstalled || isInstalling}
+            >
+              {isInstalled ? '설치 완료' : isInstalling ? '설치창 여는 중' : '앱 설치하기'}
+              {!isInstalled}
+            </button>
+          </div>
+          <p className={styles.installMessage} role="status" aria-live="polite">
+            {installMessage}
+          </p>
+        </div>
+
+        <a className={styles.scrollLink} href="#randing-intro">
+          서비스 알아보기 <span aria-hidden="true">↓</span>
+        </a>
+      </section>
+
+      <section id="randing-intro" className={styles.intro} aria-labelledby="randing-intro-title">
+        <p className={styles.eyebrow}>주차의민족</p>
+        <h2 id="randing-intro-title">
+          어디에 주차할지 고민될 때,
+          <br />
+          목적지만 검색하세요.
+        </h2>
+        <p className={cx(styles.description, styles.introProblem)}>
+          지도나 주차장 앱에서 거리와 요금을 하나씩 확인하며,
+          <br />
+          어느 주차장으로 갈지 고민했던 분들을 위해 만들었어요.
+        </p>
+        <p className={styles.introSolution}>
+          목적지 주변 주차장의 <strong>거리와 예상 요금</strong>을 비교해,
+          <br />
+          추천 주차장을 알려드려요.
+        </p>
+      </section>
+
+      <div id="randing-guide" className={styles.features}>
+        {features.map((feature, index) => (
+          <section
+            key={feature.label}
+            className={cx(styles.feature, index === 1 && styles.reversedFeature)}
+            aria-labelledby={`randing-feature-${index}`}
+          >
+            <div className={styles.featureCopy}>
+              <p className={styles.eyebrow}>{feature.label}</p>
+              <h2 id={`randing-feature-${index}`}>{feature.title}</h2>
+              <p className={styles.description}>{feature.description}</p>
+            </div>
+            <figure className={styles.preview}>
+              <img src={feature.image} alt={feature.alt} width="342" height="393" loading="lazy" />
+              <figcaption>서비스 화면 예시</figcaption>
+            </figure>
+          </section>
+        ))}
+      </div>
+
+      <section className={styles.closing} aria-labelledby="randing-closing-title">
+        <h2 id="randing-closing-title">
+          다음 목적지의 주차장,
+          <br />
+          지금 찾아보세요.
+        </h2>
+        <Link className={cx(styles.button, styles.closingButton)} to="/">
+          주차의민족 이용하기
+        </Link>
+      </section>
+
+      <footer className={styles.footer}>
+        <Link className={styles.footerBrand} to="/randing">
+          <img src={brandMark} alt="" width="22" height="25" />
+          주차의민족
+        </Link>
+        <p>주차장을 찾는 가장 간단한 방법</p>
+      </footer>
+    </main>
+  );
+};
+
+const applyRandingRootStyles = () => injectGlobal`
+  #root:has([data-randing-page]) {
     width: 100%;
     max-width: none;
     height: 100dvh;
@@ -10,18 +207,18 @@ const applyRendingRootStyles = () => injectGlobal`
   }
 `;
 
-applyRendingRootStyles();
+applyRandingRootStyles();
 
-export const styles = {
+const styles = {
   page: css`
-    --rending-primary: #4356d8;
-    --rending-ink: #18233d;
+    --randing-primary: #4356d8;
+    --randing-ink: #18233d;
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    color: var(--rending-ink);
+    color: var(--randing-ink);
     background: #fff;
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
@@ -171,7 +368,7 @@ export const styles = {
     width: min(100% - 112px, 1240px);
     margin: auto;
     padding: 110px 0 150px;
-    animation: rending-appear 700ms ease both;
+    animation: randing-appear 700ms ease both;
 
     h1 {
       margin: 24px 0 28px;
@@ -181,7 +378,7 @@ export const styles = {
       letter-spacing: -2.8px;
     }
 
-    @keyframes rending-appear {
+    @keyframes randing-appear {
       from {
         opacity: 0;
         transform: translateY(16px);
@@ -270,7 +467,7 @@ export const styles = {
   primaryButton: css`
     min-width: 250px;
     color: #fff;
-    background: var(--rending-primary);
+    background: var(--randing-primary);
     &:hover {
       background: #3548c8;
     }
@@ -342,7 +539,7 @@ export const styles = {
     line-height: 1.75;
     letter-spacing: -0.5px;
     strong {
-      color: var(--rending-primary);
+      color: var(--randing-primary);
       font-weight: 700;
     }
     @media (max-width: 700px) {
@@ -351,7 +548,7 @@ export const styles = {
     }
   `,
   eyebrow: css`
-    color: var(--rending-primary);
+    color: var(--randing-primary);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.6;
@@ -458,7 +655,7 @@ export const styles = {
     gap: 36px;
     padding: 96px 24px;
     color: #fff;
-    background: var(--rending-primary);
+    background: var(--randing-primary);
     text-align: center;
     h2 {
       font-size: clamp(30px, 3.6vw, 46px);
@@ -471,7 +668,7 @@ export const styles = {
     }
   `,
   closingButton: css`
-    color: var(--rending-primary) !important;
+    color: var(--randing-primary) !important;
     background: #fff;
     &:hover {
       background: #f0f2ff;
@@ -498,7 +695,7 @@ export const styles = {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--rending-ink) !important;
+    color: var(--randing-ink) !important;
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.7px;
