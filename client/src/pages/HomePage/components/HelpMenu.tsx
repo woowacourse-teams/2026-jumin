@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { GuideModal } from '../../../../shared/components/Modal/GuideModal';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { FEEDBACK_URL, GUIDE_SEEN_KEY } from '../../../../shared/constants/help';
 import {
   getInstallAvailability,
   initializeInstallPrompt,
@@ -11,10 +12,6 @@ import {
 } from '../../../../shared/pwa/installPrompt';
 import { HelpButton } from './HelpButton';
 import { HelpPopover } from './HelpPopover';
-
-const FEEDBACK_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSc4g7zOPP50jMT7AIfBj93PW4w80NJURx91v7NXS3_-jDVcTg/viewform?usp=sharing&ouid=114559092958069426550';
-const GUIDE_SEEN_KEY = 'jucha-guide-seen-v2';
 
 export const HelpMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
