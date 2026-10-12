@@ -20,6 +20,14 @@ export type RecommendationType = 'PRICE' | 'DISTANCE' | 'BALANCED';
 
 export type RecommendView = {
   snap: 'expanded' | 'collapsed';
-  parkingLotId: number;
+  parkingLotId: number | null;
   recommendationType: RecommendationType;
 };
+
+export interface ParkingSetupView {
+  selectedLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  hasMovedMap: boolean;
+}

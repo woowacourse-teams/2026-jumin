@@ -23,9 +23,24 @@ export const parkingCsvImportResponseSchema = z.object({
   summary: parkingCsvSummaryResponseSchema,
 });
 
+export const parkingReviewsResponseSchema = z.object({
+  reviews: z.array(
+    z.object({
+      reviewId: z.number().int().positive(),
+      parkingLotId: z.number().int().positive(),
+      parkingLotName: z.string(),
+      parkingLotAddress: z.string().nullable(),
+      detail: z.string().nullable(),
+      createdAt: z.iso.datetime({ local: true }).refine((value) => !value.endsWith('Z')),
+    }),
+  ),
+});
+
 export type AdminLoginResponse = z.output<typeof adminLoginResponseSchema>;
 export type ParkingCsvSummaryResponse = z.output<typeof parkingCsvSummaryResponseSchema>;
 export type ParkingCsvImportResponse = z.output<typeof parkingCsvImportResponseSchema>;
+export type ParkingReviewsResponse = z.output<typeof parkingReviewsResponseSchema>;
+export type ParkingReview = ParkingReviewsResponse['reviews'][number];
 
 const errorMessageSchema = z.object({
   message: z.string().min(1),
@@ -57,6 +72,7 @@ export class AdminApiError extends Error {
 const LOGIN_FAILED_MESSAGE = '로그인 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
 const UPLOAD_RESULT_UNKNOWN_MESSAGE =
   '업로드 결과를 확인할 수 없습니다. 데이터가 반영되었을 수 있으니 확인 후 다시 업로드해 주세요.';
+const REVIEWS_FAILED_MESSAGE = '제보 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
 const getLoginErrorMessage = (status: number): string => {
   switch (status) {
@@ -184,5 +200,44 @@ export const importParkingCsv = async (
     );
   } catch {
     throw new AdminApiError(UPLOAD_RESULT_UNKNOWN_MESSAGE, response.status);
+  }
+};
+
+export const getParkingReviews = async (
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<ParkingReviewsResponse> => {
+  let response: Response | undefined;
+
+  try {
+    response = await fetch('/api/admin/parking/review', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal,
+    });
+
+    if (!response.ok) {
+      const message =
+        response.status === 401
+          ? '인증이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.'
+          : REVIEWS_FAILED_MESSAGE;
+
+      throw await readApiError(response, message);
+    }
+
+    return await parseApiResponse(response, parkingReviewsResponseSchema, REVIEWS_FAILED_MESSAGE);
+  } catch (error) {
+    signal?.throwIfAborted();
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+
+    if (error instanceof AdminApiError) {
+      throw error;
+    }
+
+    throw new AdminApiError(REVIEWS_FAILED_MESSAGE, response?.status ?? null);
   }
 };

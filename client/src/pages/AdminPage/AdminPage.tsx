@@ -1,5 +1,12 @@
 import { css, injectGlobal } from '@emotion/css';
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { z } from 'zod';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
@@ -7,9 +14,11 @@ import parkingGuide from '../../../assets/guideImage/guide3.png';
 
 import {
   AdminApiError,
+  getParkingReviews,
   importParkingCsv,
   loginAdmin,
   type ParkingCsvImportResponse,
+  type ParkingReview,
 } from './adminApi';
 
 const SESSION_KEY = 'jumin-admin-session-v1';
@@ -21,6 +30,7 @@ const sessionSchema = z.object({
 });
 
 type AdminSession = z.infer<typeof sessionSchema>;
+type AdminTab = 'csv' | 'reviews';
 
 const clearStoredSession = () => {
   try {
@@ -77,6 +87,12 @@ const formatFileSize = (bytes: number) => {
   return `${formatter.format(bytes / (1024 * 1024))}MiB`;
 };
 
+const formatReviewCreatedAt = (createdAt: string) => {
+  const date = createdAt.slice(0, 10).replaceAll('-', '.');
+  const time = createdAt.slice(11, 19).padEnd(8, ':00');
+  return `${date} ${time}`;
+};
+
 export const AdminPage = () => {
   const [session, setSession] = useState(loadSession);
   const [loginId, setLoginId] = useState('');
@@ -87,10 +103,32 @@ export const AdminPage = () => {
   const [uploadError, setUploadError] = useState<AdminApiError | null>(null);
   const [result, setResult] = useState<ParkingCsvImportResponse | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTab>('csv');
+  const [reviews, setReviews] = useState<ParkingReview[] | null>(null);
+  const [reviewError, setReviewError] = useState('');
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const reviewRequest = useRef<AbortController | null>(null);
+  const csvTabRef = useRef<HTMLButtonElement>(null);
+  const reviewsTabRef = useRef<HTMLButtonElement>(null);
   const requestPending = useRef(false);
   const pageRef = useRef<HTMLElement>(null);
 
+  useEffect(
+    () => () => {
+      reviewRequest.current?.abort();
+      reviewRequest.current = null;
+    },
+    [],
+  );
+
+  const cancelReviewRequest = () => {
+    reviewRequest.current?.abort();
+    reviewRequest.current = null;
+    setIsLoadingReviews(false);
+  };
+
   const logout = (message = '') => {
+    cancelReviewRequest();
     clearStoredSession();
     setSession(null);
     setLoginId('');
@@ -99,7 +137,83 @@ export const AdminPage = () => {
     setFile(null);
     setUploadError(null);
     setResult(null);
+    setActiveTab('csv');
+    setReviews(null);
+    setReviewError('');
     if (pageRef.current) pageRef.current.scrollTop = 0;
+  };
+
+  const loadReviews = async () => {
+    if (!session || reviewRequest.current) return;
+    if (session.expiresAt <= Date.now()) {
+      logout(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+
+    const controller = new AbortController();
+    reviewRequest.current = controller;
+    setIsLoadingReviews(true);
+    setReviewError('');
+
+    try {
+      const response = await getParkingReviews(session.accessToken, controller.signal);
+      if (reviewRequest.current !== controller || controller.signal.aborted) return;
+      setReviews(response.reviews);
+    } catch (error) {
+      if (reviewRequest.current !== controller || controller.signal.aborted) return;
+      if (error instanceof AdminApiError && error.status === 401) {
+        logout(error.message);
+        return;
+      }
+      setReviewError(
+        error instanceof AdminApiError
+          ? error.message
+          : '제보 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      if (reviewRequest.current === controller) {
+        reviewRequest.current = null;
+        setIsLoadingReviews(false);
+      }
+    }
+  };
+
+  const handleTabChange = (tab: AdminTab) => {
+    if (isImporting || requestPending.current || tab === activeTab) return;
+    if (!session) return;
+    if (tab === 'reviews' && session.expiresAt <= Date.now()) {
+      logout(SESSION_EXPIRED_MESSAGE);
+      return;
+    }
+
+    setActiveTab(tab);
+    if (tab === 'csv') {
+      cancelReviewRequest();
+      return;
+    }
+    if (reviews === null) void loadReviews();
+  };
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (isImporting) return;
+    let target: HTMLButtonElement | null;
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        target =
+          event.currentTarget === csvTabRef.current ? reviewsTabRef.current : csvTabRef.current;
+        break;
+      case 'Home':
+        target = csvTabRef.current;
+        break;
+      case 'End':
+        target = reviewsTabRef.current;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    target?.focus();
   };
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
@@ -283,153 +397,294 @@ export const AdminPage = () => {
                 <span>오늘도,</span> 더 정확한 주차 정보.
               </h2>
               <p className={heroDescriptionStyle}>
-                CSV 파일 하나로 주차장 정보를 최신 상태로 유지하세요.
+                {activeTab === 'csv'
+                  ? 'CSV 파일 하나로 주차장 정보를 최신 상태로 유지하세요.'
+                  : '사용자의 제보를 확인하고 더 정확한 주차장 정보를 만들어 주세요.'}
               </p>
               <img src={brandMark} alt="" className={workspaceMarkStyle} draggable={false} />
             </section>
-            <div className={uploadLayoutStyle}>
-              <section className={cardStyle} aria-labelledby="admin-import-title">
-                <p className={eyebrowStyle}>CSV IMPORT</p>
-                <h2 id="admin-import-title" className={sectionTitleStyle}>
-                  주차장 CSV 동기화
-                </h2>
-                <p className={descriptionStyle}>전체 주차장 데이터가 담긴 파일을 선택해 주세요.</p>
-                <form onSubmit={handleImport} className={formStyle} aria-busy={isImporting}>
-                  <label
-                    className={uploadZoneStyle}
-                    htmlFor="admin-csv-file"
-                    data-selected={Boolean(file)}
-                    data-disabled={isImporting}
-                  >
-                    <input
-                      id="admin-csv-file"
-                      className={fileInputStyle}
-                      type="file"
-                      accept=".csv"
-                      aria-label="CSV 파일"
-                      aria-describedby="admin-csv-requirements"
-                      onChange={handleFileChange}
-                      disabled={isImporting}
-                    />
-                    <span className={uploadIconStyle} aria-hidden="true">
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M12 15V3m0 0L7 8m5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"
-                          stroke="currentColor"
-                          strokeWidth="1.7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                    <strong className={fileInfoStyle}>
-                      {file ? file.name : 'CSV 파일을 선택해 주세요'}
-                    </strong>
-                    <span className={descriptionStyle}>
-                      {file ? formatFileSize(file.size) : 'UTF-8 인코딩, 최대 10MiB'}
-                    </span>
-                    <span className={fileSelectStyle}>{file ? '파일 변경' : '파일 선택'}</span>
-                  </label>
-                  <p className={syncNoticeStyle}>CSV에 없는 기존 활성 주차장은 비활성화됩니다.</p>
-                  <button
-                    className={primaryButtonStyle}
-                    type="submit"
-                    disabled={!file || isImporting || Boolean(file && validateFile(file))}
-                  >
-                    {isImporting ? '동기화 중…' : 'CSV 동기화'}
-                  </button>
-                  {isImporting && (
-                    <p className={descriptionStyle} role="status">
-                      주차장 데이터를 동기화하고 있습니다. 완료될 때까지 기다려 주세요.
-                    </p>
-                  )}
-                </form>
-              </section>
-              <aside className={guideCardStyle} aria-labelledby="admin-guide-title">
-                <h2 id="admin-guide-title" className={guideTitleStyle}>
-                  업로드 전 확인하세요
-                </h2>
-                <ul className={requirementsStyle} id="admin-csv-requirements">
-                  <li>
-                    <strong>파일 형식</strong>
-                    <span>.csv, UTF-8 또는 UTF-8 BOM</span>
-                  </li>
-                  <li>
-                    <strong>파일 크기</strong>
-                    <span>최대 10MiB (10,485,760바이트)</span>
-                  </li>
-                  <li>
-                    <strong>데이터 구성</strong>
-                    <span>필수 헤더 37개와 데이터 행이 한 건 이상 필요합니다.</span>
-                  </li>
-                </ul>
-                <div className={noticeStyle}>
-                  <strong>전체 데이터를 동기화합니다</strong>
-                  <p>
-                    CSV에서 빠진 기존 활성 주차장은 비활성화됩니다. 일부 데이터만 담은 파일이 아닌
-                    전체 CSV를 선택해 주세요.
-                  </p>
-                  <p>업로드가 완료되면 바로 반영됩니다.</p>
-                </div>
-              </aside>
+            <div className={tabsStyle} role="tablist" aria-label="관리자 기능">
+              <button
+                ref={csvTabRef}
+                id="admin-csv-tab"
+                className={tabStyle}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'csv'}
+                aria-controls="admin-csv-panel"
+                tabIndex={activeTab === 'csv' ? 0 : -1}
+                disabled={isImporting}
+                onClick={() => handleTabChange('csv')}
+                onKeyDown={handleTabKeyDown}
+              >
+                CSV 동기화
+              </button>
+              <button
+                ref={reviewsTabRef}
+                id="admin-reviews-tab"
+                className={tabStyle}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'reviews'}
+                aria-controls="admin-reviews-panel"
+                tabIndex={activeTab === 'reviews' ? 0 : -1}
+                disabled={isImporting}
+                onClick={() => handleTabChange('reviews')}
+                onKeyDown={handleTabKeyDown}
+              >
+                제보 목록
+              </button>
             </div>
+            <div
+              id="admin-csv-panel"
+              className={tabPanelStyle}
+              role="tabpanel"
+              aria-labelledby="admin-csv-tab"
+              hidden={activeTab !== 'csv'}
+              tabIndex={0}
+            >
+              <div className={workspaceStyle}>
+                <div className={uploadLayoutStyle}>
+                  <section className={cardStyle} aria-labelledby="admin-import-title">
+                    <p className={eyebrowStyle}>CSV IMPORT</p>
+                    <h2 id="admin-import-title" className={sectionTitleStyle}>
+                      주차장 CSV 동기화
+                    </h2>
+                    <p className={descriptionStyle}>
+                      전체 주차장 데이터가 담긴 파일을 선택해 주세요.
+                    </p>
+                    <form onSubmit={handleImport} className={formStyle} aria-busy={isImporting}>
+                      <label
+                        className={uploadZoneStyle}
+                        htmlFor="admin-csv-file"
+                        data-selected={Boolean(file)}
+                        data-disabled={isImporting}
+                      >
+                        <input
+                          id="admin-csv-file"
+                          className={fileInputStyle}
+                          type="file"
+                          accept=".csv"
+                          aria-label="CSV 파일"
+                          aria-describedby="admin-csv-requirements"
+                          onChange={handleFileChange}
+                          disabled={isImporting}
+                        />
+                        <span className={uploadIconStyle} aria-hidden="true">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M12 15V3m0 0L7 8m5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                        <strong className={fileInfoStyle}>
+                          {file ? file.name : 'CSV 파일을 선택해 주세요'}
+                        </strong>
+                        <span className={descriptionStyle}>
+                          {file ? formatFileSize(file.size) : 'UTF-8 인코딩, 최대 10MiB'}
+                        </span>
+                        <span className={fileSelectStyle}>{file ? '파일 변경' : '파일 선택'}</span>
+                      </label>
+                      <p className={syncNoticeStyle}>
+                        CSV에 없는 기존 활성 주차장은 비활성화됩니다.
+                      </p>
+                      <button
+                        className={primaryButtonStyle}
+                        type="submit"
+                        disabled={!file || isImporting || Boolean(file && validateFile(file))}
+                      >
+                        {isImporting ? '동기화 중…' : 'CSV 동기화'}
+                      </button>
+                      {isImporting && (
+                        <p className={descriptionStyle} role="status">
+                          주차장 데이터를 동기화하고 있습니다. 완료될 때까지 기다려 주세요.
+                        </p>
+                      )}
+                    </form>
+                  </section>
+                  <aside className={guideCardStyle} aria-labelledby="admin-guide-title">
+                    <h2 id="admin-guide-title" className={guideTitleStyle}>
+                      업로드 전 확인하세요
+                    </h2>
+                    <ul className={requirementsStyle} id="admin-csv-requirements">
+                      <li>
+                        <strong>파일 형식</strong>
+                        <span>.csv, UTF-8 또는 UTF-8 BOM</span>
+                      </li>
+                      <li>
+                        <strong>파일 크기</strong>
+                        <span>최대 10MiB (10,485,760바이트)</span>
+                      </li>
+                      <li>
+                        <strong>데이터 구성</strong>
+                        <span>필수 헤더 37개와 데이터 행이 한 건 이상 필요합니다.</span>
+                      </li>
+                    </ul>
+                    <div className={noticeStyle}>
+                      <strong>전체 데이터를 동기화합니다</strong>
+                      <p>
+                        CSV에서 빠진 기존 활성 주차장은 비활성화됩니다. 일부 데이터만 담은 파일이
+                        아닌 전체 CSV를 선택해 주세요.
+                      </p>
+                      <p>업로드가 완료되면 바로 반영됩니다.</p>
+                    </div>
+                  </aside>
+                </div>
 
-            {uploadError && (
-              <section className={errorCardStyle} role="alert">
-                <h2 className={sectionTitleStyle}>업로드 결과 안내</h2>
-                <p>{uploadError.message}</p>
-                {uploadError.errors.length > 0 && (
-                  <ul className={validationListStyle}>
-                    {uploadError.errors.map((error, index) => (
-                      <li key={`${error.field}-${index}`}>
-                        <code>{error.field}</code>
-                        <span>{error.message}</span>
+                {uploadError && (
+                  <section className={errorCardStyle} role="alert">
+                    <h2 className={sectionTitleStyle}>업로드 결과 안내</h2>
+                    <p>{uploadError.message}</p>
+                    {uploadError.errors.length > 0 && (
+                      <ul className={validationListStyle}>
+                        {uploadError.errors.map((error, index) => (
+                          <li key={`${error.field}-${index}`}>
+                            <code>{error.field}</code>
+                            <span>{error.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )}
+
+                {result && (
+                  <section className={cardStyle} aria-labelledby="admin-result-title">
+                    <p className={successStyle} role="status">
+                      <span aria-hidden="true">✓</span>
+                      CSV 동기화가 완료되었습니다.
+                    </p>
+                    <h2 id="admin-result-title" className={sectionTitleStyle}>
+                      동기화 결과
+                    </h2>
+                    <dl className={summaryStyle}>
+                      {[
+                        ['추가', result.summary.addedCount],
+                        ['수정', result.summary.updatedCount],
+                        ['재활성화', result.summary.reactivatedCount],
+                        ['비활성화', result.summary.deactivatedCount],
+                        ['변경 없음', result.summary.unchangedCount],
+                      ].map(([label, count]) => (
+                        <div key={label}>
+                          <dt>{label}</dt>
+                          <dd>{count}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <dl className={metadataStyle}>
+                      <div>
+                        <dt>파일명</dt>
+                        <dd>{result.fileName}</dd>
+                      </div>
+                      <div>
+                        <dt>CSV 행 수</dt>
+                        <dd>{result.csvRowCount}</dd>
+                      </div>
+                      <div>
+                        <dt>SHA-256</dt>
+                        <dd className={hashStyle}>{result.fileSha256}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                )}
+              </div>
+            </div>
+            <div
+              id="admin-reviews-panel"
+              className={tabPanelStyle}
+              role="tabpanel"
+              aria-labelledby="admin-reviews-tab"
+              hidden={activeTab !== 'reviews'}
+              tabIndex={0}
+            >
+              <section className={cardStyle} aria-labelledby="admin-reviews-title">
+                <div className={reviewsHeaderStyle}>
+                  <div>
+                    <p className={eyebrowStyle}>PARKING REPORTS</p>
+                    <h2 id="admin-reviews-title" className={sectionTitleStyle}>
+                      주차장 제보 목록
+                    </h2>
+                    <p className={descriptionStyle}>접수된 제보를 최신순으로 확인하세요.</p>
+                  </div>
+                  <button
+                    className={secondaryButtonStyle}
+                    type="button"
+                    disabled={isLoadingReviews}
+                    onClick={() => void loadReviews()}
+                  >
+                    새로고침
+                  </button>
+                </div>
+                {reviews !== null && (
+                  <p className={reviewCountStyle}>
+                    전체 {reviews.length.toLocaleString('ko-KR')}건
+                  </p>
+                )}
+                {isLoadingReviews && (
+                  <p className={reviewLoadingStyle} role="status">
+                    제보 목록을 불러오는 중입니다.
+                  </p>
+                )}
+                {reviewError && (
+                  <div className={reviewErrorStyle} role="alert">
+                    <div>
+                      {reviews !== null && <strong>목록을 새로 불러오지 못했습니다.</strong>}
+                      <p>{reviewError}</p>
+                    </div>
+                    <button
+                      className={secondaryButtonStyle}
+                      type="button"
+                      disabled={isLoadingReviews}
+                      onClick={() => void loadReviews()}
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                )}
+                {reviews?.length === 0 && !isLoadingReviews && (
+                  <div className={emptyReviewsStyle}>
+                    <img src={brandMark} alt="" width="38" height="42" draggable={false} />
+                    <h3>접수된 제보가 없습니다.</h3>
+                    <p className={descriptionStyle}>
+                      새로운 제보가 접수되면 여기에서 확인할 수 있습니다.
+                    </p>
+                  </div>
+                )}
+                {reviews !== null && reviews.length > 0 && (
+                  <ul className={reviewListStyle}>
+                    {reviews.map((review) => (
+                      <li key={review.reviewId}>
+                        <article className={reviewCardStyle} aria-label={`제보 ${review.reviewId}`}>
+                          <div className={reviewCardHeaderStyle}>
+                            <span className={reviewIdentifierStyle}>제보 ID {review.reviewId}</span>
+                            <span className={reviewIdentifierStyle}>
+                              주차장 ID {review.parkingLotId}
+                            </span>
+                            <h3>{review.parkingLotName}</h3>
+                            <p className={reviewAddressStyle}>
+                              {review.parkingLotAddress?.trim()
+                                ? review.parkingLotAddress
+                                : '주소 정보 없음'}
+                            </p>
+                            <time dateTime={review.createdAt}>
+                              <span>접수 시각</span>
+                              {formatReviewCreatedAt(review.createdAt)}
+                            </time>
+                          </div>
+                          <p className={reviewDetailStyle}>
+                            {review.detail?.trim() ? review.detail : '제보 내용 없음'}
+                          </p>
+                        </article>
                       </li>
                     ))}
                   </ul>
                 )}
               </section>
-            )}
-
-            {result && (
-              <section className={cardStyle} aria-labelledby="admin-result-title">
-                <p className={successStyle} role="status">
-                  <span aria-hidden="true">✓</span>
-                  CSV 동기화가 완료되었습니다.
-                </p>
-                <h2 id="admin-result-title" className={sectionTitleStyle}>
-                  동기화 결과
-                </h2>
-                <dl className={summaryStyle}>
-                  {[
-                    ['추가', result.summary.addedCount],
-                    ['수정', result.summary.updatedCount],
-                    ['재활성화', result.summary.reactivatedCount],
-                    ['비활성화', result.summary.deactivatedCount],
-                    ['변경 없음', result.summary.unchangedCount],
-                  ].map(([label, count]) => (
-                    <div key={label}>
-                      <dt>{label}</dt>
-                      <dd>{count}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <dl className={metadataStyle}>
-                  <div>
-                    <dt>파일명</dt>
-                    <dd>{result.fileName}</dd>
-                  </div>
-                  <div>
-                    <dt>CSV 행 수</dt>
-                    <dd>{result.csvRowCount}</dd>
-                  </div>
-                  <div>
-                    <dt>SHA-256</dt>
-                    <dd className={hashStyle}>{result.fileSha256}</dd>
-                  </div>
-                </dl>
-              </section>
-            )}
+            </div>
           </div>
         )}
         <footer className={footerStyle}>
@@ -715,6 +970,204 @@ const cardStyle = css`
 const workspaceStyle = css`
   display: grid;
   gap: 24px;
+`;
+
+const tabsStyle = css`
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #e9ecf4;
+  border-radius: 14px;
+`;
+
+const tabStyle = css`
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  color: #697386;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+
+  &[aria-selected='true'] {
+    color: #4356d8;
+    background: #fff;
+    box-shadow: 0 2px 6px rgb(31 45 102 / 6%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #4356d8;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;
+
+const tabPanelStyle = css`
+  min-width: 0;
+
+  &:focus-visible {
+    outline: 2px solid #4356d8;
+    outline-offset: 4px;
+    border-radius: 20px;
+  }
+`;
+
+const reviewsHeaderStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  @media (max-width: 400px) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+`;
+
+const reviewCountStyle = css`
+  margin: 24px 0 0;
+  color: #4356d8;
+  font-size: 13px;
+  font-weight: 700;
+`;
+
+const reviewLoadingStyle = css`
+  margin: 24px 0 0;
+  padding: 20px;
+  color: #4356d8;
+  font-size: 14px;
+  line-height: 1.7;
+  background: #f0f2ff;
+  border-radius: 12px;
+`;
+
+const reviewErrorStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 18px;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.7;
+  background: #fff7f7;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+
+  p {
+    margin: 0;
+  }
+
+  @media (max-width: 600px) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+`;
+
+const emptyReviewsStyle = css`
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 12px;
+  text-align: center;
+
+  img {
+    margin-bottom: 8px;
+    opacity: 0.6;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 17px;
+  }
+`;
+
+const reviewListStyle = css`
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+`;
+
+const reviewCardStyle = css`
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e5e8f2;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+
+  @media (max-width: 600px) {
+    padding: 12px;
+  }
+`;
+
+const reviewCardHeaderStyle = css`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  line-height: 1.6;
+
+  & > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  h3 {
+    margin: 0;
+    color: #101b37;
+    font-size: 14px;
+    letter-spacing: -0.3px;
+  }
+
+  time {
+    color: #697386;
+    font-size: 12px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  time span {
+    margin-right: 4px;
+    font-size: 11px;
+  }
+`;
+
+const reviewIdentifierStyle = css`
+  padding: 2px 6px;
+  color: #43506a;
+  font-size: 11px;
+  white-space: nowrap;
+  background: #f0f2ff;
+  border-radius: 4px;
+`;
+
+const reviewAddressStyle = css`
+  flex: 1 1 160px;
+  margin: 0;
+  color: #697386;
+  font-size: 12px;
+`;
+
+const reviewDetailStyle = css`
+  margin: 12px 0 0;
+  padding-top: 12px;
+  color: #25314a;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  border-top: 1px solid #edf0f5;
 `;
 
 const workspaceIntroStyle = css`

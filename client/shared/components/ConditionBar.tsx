@@ -1,37 +1,37 @@
 import { css } from '@emotion/css';
 import backIcon from '../../assets/icons/backIcon.svg';
-import { formatIsoDateTime } from '../utils/formatTime';
 import { useNavigate } from 'react-router';
+import type { ReactNode } from 'react';
 
 interface Props {
-  destinationName: string;
-  entryAt?: string;
-  exitAt?: string;
+  title: string;
+  description?: string;
+  onBack: () => void;
+  action?: ReactNode;
 }
 
-export const SearchConditionBar = ({ destinationName, entryAt, exitAt }: Props) => {
+export const ConditionBar = ({ title, description, onBack, action }: Props) => {
   const navigate = useNavigate(); // 뒤로가기 기능을 위한 navigate
-
+  const handleBack = onBack ?? (() => navigate(-1));
   return (
     <header className={headerStyle} aria-label="검색 조건">
       <button
         className={backButtonStyle}
         type="button"
         aria-label="이전 화면으로 이동"
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
       >
         <img className={backIconStyle} src={backIcon} alt="" draggable={false} />
       </button>
 
       <div className={conditionStyle}>
-        <h1 className={destinationStyle}>{destinationName}</h1>
+        <h1 className={destinationStyle}>{title}</h1>
 
-        {entryAt && exitAt && (
-          <p className={timeRangeStyle}>
-            <time dateTime={entryAt}>{formatIsoDateTime(entryAt)}</time>
-            <span aria-hidden="true"> – </span>
-            <time dateTime={exitAt}>{formatIsoDateTime(exitAt)}</time>
-          </p>
+        {(description || action) && (
+          <div className={descriptionRowStyle}>
+            {description && <p className={descriptionStyle}>{description}</p>}
+            {action && <div className={actionStyle}>{action}</div>}
+          </div>
         )}
       </div>
     </header>
@@ -108,11 +108,26 @@ const destinationStyle = css`
   white-space: nowrap;
 `;
 
-const timeRangeStyle = css`
-  margin: 2px 0 0;
+const descriptionStyle = css`
+  min-width: 0;
+  margin: 0;
 
   color: #697386;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.4;
+`;
+
+const descriptionRowStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-top: 2px;
+`;
+
+const actionStyle = css`
+  flex-shrink: 0;
+  margin-left: auto;
 `;

@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
-import type { ParkingDetailCondition, RecommendView } from '../../../../shared/types/navigation';
+import type { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
@@ -8,8 +8,7 @@ import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
   type BottomSheetSnap,
 } from '../../../../shared/components/BottomSheet';
-import { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { useCallback, useEffect, useState } from 'react';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
@@ -17,6 +16,9 @@ import { DestinationMapOverlay } from '../../../../shared/components/Destination
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { useMapClick } from '../../../../shared/hooks/useMapClick';
+import { trackEvent } from '../../../../shared/analytics';
+import { eventName } from '../../../../shared/monitoring/constants';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -60,9 +62,6 @@ const formatWeekdayHours = ({ status, openTime, closeTime }: ParkingOperationPer
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
-  const { setRecommendView } = useOutletContext<{
-    setRecommendView: (view: RecommendView | null) => void;
-  }>();
 
   const deepLinkModal = useModal();
 
@@ -104,6 +103,21 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 
     map.panBy(new naver.maps.Point(0, 100));
   }, [map, parkingLotDetail, detailCondition, sheetSnap]);
+
+  const collapseBottomSheet = useCallback(() => {
+    setSheetSnap('collapsed');
+  }, []);
+
+  useMapClick({
+    map,
+    enabled: sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
+
+  const handleRecommendDirectionButtonClick = () => {
+    trackEvent(eventName.RECOMMEND_DIRECTIONS_BUTTON);
+    deepLinkModal.open();
+  };
 
   return (
     <div>
@@ -195,7 +209,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
               <ParkingReportAction parkingLotId={parkingLotDetail.id} />
             </div>
 
-            <button className={navigationButtonStyle} type="button" onClick={deepLinkModal.open}>
+            <button
+              className={navigationButtonStyle}
+              type="button"
+              onClick={handleRecommendDirectionButtonClick}
+            >
               길찾기 시작
             </button>
           </div>
@@ -206,7 +224,6 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
         <DeepLinkModal
           onRequestClose={deepLinkModal.close}
           onDirectionsStart={() => {
-            setRecommendView(null);
             saveRecentParkingUse(parkingLotDetail);
           }}
           destination={{ name: parkingLotDetail.name, location: parkingLotDetail.location }}

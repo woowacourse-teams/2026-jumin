@@ -1,30 +1,28 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useNavigate, useOutletContext } from 'react-router';
+import { useOutletContext } from 'react-router';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
 import { trackEvent } from '../../../../shared/analytics';
-import BottomSheet, {
-  BOTTOM_SHEET_HEIGHT,
-  type BottomSheetSnap,
-} from '../../../../shared/components/BottomSheet';
+import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/BottomSheet';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 import type {
   ParkingDetailCondition,
   ParkingSearchCondition,
   RecommendationType,
-  RecommendView,
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
+import { useMapClick } from '../../../../shared/hooks/useMapClick';
+import { eventName } from '../../../../shared/monitoring/constants';
+import { useParkingRecommendView } from '../hooks/useParkingRecommendView';
+import { useParkingRecommendScrollRestore } from '../hooks/useParkingRecommendScrollRestore';
 
 type MapOutletContext = {
   map: naver.maps.Map | null;
-  recommendView: RecommendView | null;
-  setRecommendView: (view: RecommendView | null) => void;
 };
 
 interface Props {
@@ -63,17 +61,15 @@ const getSortValue = (parkingLot: ParkingLotSummary, type: RecommendationType) =
 };
 
 const sortParkingLots = (parkingLots: ParkingLotSummary[], type: RecommendationType) =>
-  [...parkingLots]
-    .filter((parkingLot) => parkingLot.availabilityStatus === 'AVAILABLE')
-    .sort((first, second) => {
-      const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
-      const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
+  [...parkingLots].sort((first, second) => {
+    const firstValue = getSortValue(first, type) ?? Number.POSITIVE_INFINITY;
+    const secondValue = getSortValue(second, type) ?? Number.POSITIVE_INFINITY;
 
-      const firstDistance = first.distanceMeters ?? Number.POSITIVE_INFINITY;
-      const secondDistance = second.distanceMeters ?? Number.POSITIVE_INFINITY;
+    const firstDistance = first.distanceMeters ?? Number.POSITIVE_INFINITY;
+    const secondDistance = second.distanceMeters ?? Number.POSITIVE_INFINITY;
 
-      return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
-    });
+    return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
+  });
 
 const getRecommendationMessage = (type: RecommendationType, rank: number) => {
   if (type === 'PRICE') {
@@ -95,27 +91,25 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
 };
 
 export const ParkingRecommendContent = ({ searchCondition }: Props) => {
-  const navigate = useNavigate();
-
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
 
   const cardListRef = useRef<HTMLUListElement>(null);
   const parkingListRef = useRef<HTMLUListElement>(null);
   const hasTrackedRecommendations = useRef(false);
 
-  const { map, recommendView, setRecommendView } = useOutletContext<MapOutletContext>();
+  const { map } = useOutletContext<MapOutletContext>();
+  const { view, savedView, updateView, openDetail } = useParkingRecommendView(searchCondition);
+  const { recommendationType, parkingLotId: selectedParkingLotId, snap: sheetSnap } = view;
 
-  const restoreViewRef = useRef(recommendView);
+  const collapseBottomSheet = useCallback(() => {
+    updateView({ snap: 'collapsed' });
+  }, [updateView]);
 
-  const [recommendationType, setRecommendationType] = useState<RecommendationType>(
-    recommendView?.recommendationType ?? 'DISTANCE',
-  );
-
-  const [selectedParkingLotId, setSelectedParkingLotId] = useState<number | null>(
-    recommendView?.parkingLotId ?? null,
-  );
-
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>(recommendView?.snap ?? 'collapsed');
+  useMapClick({
+    map,
+    enabled: sheetSnap === 'expanded',
+    onMapClick: collapseBottomSheet,
+  });
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
@@ -156,21 +150,20 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
 
     // 바텀시트가 펼쳐졌을 때 실제로 지도가 보이는 영역을 계산하기 위해
     // 상단 검색 조건 바의 DOM 요소를 가져온다.
-    const searchConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+    const ConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
 
-    if (!searchConditionBar) return;
+    if (!ConditionBar) return;
 
     // 검색 조건 바의 아래쪽 위치를 지도 상단 기준의 좌표로 변환한다.
     const mapRect = map.getElement().getBoundingClientRect();
-    const searchConditionBarBottom =
-      searchConditionBar.getBoundingClientRect().bottom - mapRect.top;
+    const ConditionBarBottom = ConditionBar.getBoundingClientRect().bottom - mapRect.top;
 
     // 전체 지도 높이에서 바텀시트 높이를 빼서
     // 바텀시트가 시작되는 세로 위치를 구한다.
     const bottomSheetTop = map.getSize().height - BOTTOM_SHEET_HEIGHT;
 
     // 검색 조건 바와 바텀시트 사이에서 실제로 보이는 지도 영역의 중앙을 구한다.
-    const visibleAreaCenter = (searchConditionBarBottom + bottomSheetTop) / 2;
+    const visibleAreaCenter = (ConditionBarBottom + bottomSheetTop) / 2;
 
     // 위·경도 좌표와 화면상의 픽셀 좌표를 서로 변환하기 위한 객체다.
     const projection = map.getProjection();
@@ -211,67 +204,28 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     }
 
     hasTrackedRecommendations.current = true;
-    trackEvent('parking_recommendations_viewed');
+    trackEvent(eventName.PARKING_RECOMMENDATION_VIEWED);
   }, [recommendedParkingLots.length]);
 
   const handleRecommendationTypeChange = (type: RecommendationType) => {
-    setRecommendationType(type);
-    setSelectedParkingLotId(null);
+    updateView({ recommendationType: type, parkingLotId: null });
   };
 
-  useLayoutEffect(() => {
-    const restoreView = restoreViewRef.current;
-
-    if (!restoreView) return;
-
-    const cardList = cardListRef.current;
-    const cardIndex = recommendedParkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
-    const card = cardIndex >= 0 ? cardList?.children.item(cardIndex) : null;
-
-    if (cardList && card) {
-      cardList.scrollBy({
-        left: getHorizontalCenterOffset(cardList, card),
-        behavior: 'auto',
-      });
-    }
-
-    if (restoreView.snap === 'expanded') {
-      const list = parkingListRef.current;
-      const rowIndex = parkingLots.findIndex(({ id }) => id === restoreView.parkingLotId);
-      const row = rowIndex >= 0 ? list?.children.item(rowIndex) : null;
-
-      if (list && row) {
-        const listRect = list.getBoundingClientRect();
-        const rowRect = row.getBoundingClientRect();
-
-        const offset =
-          rowRect.top < listRect.top
-            ? rowRect.top - listRect.top
-            : rowRect.bottom > listRect.bottom
-              ? rowRect.bottom - listRect.bottom
-              : 0;
-
-        if (offset !== 0) {
-          list.scrollBy({
-            top: offset,
-            behavior: 'auto',
-          });
-        }
-      }
-    }
-
-    restoreViewRef.current = null;
-    setRecommendView(null);
-  }, [recommendedParkingLots, parkingLots, setRecommendView]);
+  useParkingRecommendScrollRestore({
+    savedView,
+    cardListRef,
+    parkingListRef,
+    recommendedParkingLots,
+    parkingLots,
+  });
 
   const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
-    setSelectedParkingLotId(parkingLot.id);
-
     const isRecommended = recommendedParkingLots.some(({ id }) => id === parkingLot.id);
 
-    if (!isRecommended) {
-      setSheetSnap('expanded');
-    }
+    updateView({
+      parkingLotId: parkingLot.id,
+      snap: isRecommended ? sheetSnap : 'expanded',
+    });
 
     const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
     const list = parkingListRef.current;
@@ -329,16 +283,11 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     const centeredParkingLot = recommendedParkingLots[nextIndex];
 
     if (centeredParkingLot) {
-      setSelectedParkingLotId(centeredParkingLot.id);
+      updateView({ parkingLotId: centeredParkingLot.id });
     }
   };
 
   const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
-    setRecommendView({
-      snap: sheetSnap,
-      parkingLotId: parkingLot.id,
-      recommendationType,
-    });
     const detailCondition: ParkingDetailCondition = {
       parkingLotId: parkingLot.id,
       parkingLotName: parkingLot.name,
@@ -349,11 +298,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
       exitAt: searchCondition.exitAt,
     };
 
-    navigate('/parkingDetail', {
-      state: {
-        detailCondition,
-      },
-    });
+    openDetail(detailCondition);
   };
 
   return (
@@ -397,7 +342,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
         )}
       </section>
 
-      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
+      <BottomSheet snap={sheetSnap} onSnapChange={(snap) => updateView({ snap })}>
         <section
           id="parking-list-sheet"
           className={sheetContentStyle}

@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
+import { trackEvent } from '../../../../shared/analytics';
+import { eventName } from '../../../../shared/monitoring/constants';
 
 interface Props {
   parkingLot: ParkingLotSummary;
@@ -17,6 +19,10 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
       ? '도보 정보 없음'
       : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
 
+  const handleDetailButtonClick = () => {
+    trackEvent(eventName.RECOMMENDED_PARKING_DETAIL);
+    onNavigate(parkingLot);
+  };
   return (
     <article className={cardStyle(isActive)} draggable={false}>
       <h2 className={nameStyle}>{name}</h2>
@@ -27,7 +33,7 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
 
       <p className={distanceStyle}>{walkingInformation}</p>
 
-      <button className={navigateButtonStyle} type="button" onClick={() => onNavigate(parkingLot)}>
+      <button className={navigateButtonStyle} type="button" onClick={handleDetailButtonClick}>
         상세정보
       </button>
     </article>

@@ -5,6 +5,7 @@ import Modal from 'react-modal';
 
 import { trackEvent } from '../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
+import { eventName } from '../../monitoring/constants';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -87,7 +88,7 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
       destination,
       appName: window.location.origin,
     });
-    trackEvent('directions_requested', {
+    trackEvent(eventName.SELECTED_MAP_APP, {
       provider: provider.toLowerCase(),
     });
     onDirectionsStart?.(provider);
