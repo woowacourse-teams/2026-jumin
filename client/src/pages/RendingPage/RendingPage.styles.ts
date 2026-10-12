@@ -331,6 +331,25 @@ export const styles = {
       padding: 80px 24px 44px;
     }
   `,
+  introProblem: css`
+    max-width: 640px;
+    margin: 0 auto !important;
+  `,
+  introSolution: css`
+    margin: 28px 0 0 !important;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.75;
+    letter-spacing: -0.5px;
+    strong {
+      color: var(--rending-primary);
+      font-weight: 700;
+    }
+    @media (max-width: 700px) {
+      margin-top: 24px !important;
+      font-size: 17px;
+    }
+  `,
   eyebrow: css`
     color: var(--rending-primary);
     font-size: 14px;

@@ -140,11 +140,20 @@ export const RendingPage = () => {
       <section id="rending-intro" className={styles.intro} aria-labelledby="rending-intro-title">
         <p className={styles.eyebrow}>주차의민족</p>
         <h2 id="rending-intro-title">
-          목적지는 정했으니까,
+          어디에 주차할지 고민될 때,
           <br />
-          주차장은 여기서.
+          목적지만 검색하세요.
         </h2>
-        <p className={styles.description}>검색부터 추천, 길찾기까지 한 흐름으로.</p>
+        <p className={cx(styles.description, styles.introProblem)}>
+          지도나 주차장 앱에서 거리와 요금을 하나씩 확인하며,
+          <br />
+          어느 주차장으로 갈지 고민했던 분들을 위해 만들었어요.
+        </p>
+        <p className={styles.introSolution}>
+          목적지 주변 주차장의 <strong>거리와 예상 요금</strong>을 비교해,
+          <br />
+          추천 주차장을 알려드려요.
+        </p>
       </section>
 
       <div id="rending-guide" className={styles.features}>
