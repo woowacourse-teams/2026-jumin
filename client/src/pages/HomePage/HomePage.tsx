@@ -8,7 +8,6 @@ import { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { HelpMenu } from './components/HelpMenu';
 import { BottomNav } from '../../../shared/components/BottomNav';
 import { SearchBar } from '../../../shared/components/SearchBar';
 import type { ParkingLotViewport } from '../../../api/contracts';
@@ -146,7 +145,6 @@ export const HomePage = () => {
       )}
       <footer className={footerStyle}>
         <div className={floatingControlsStyle}>
-          <HelpMenu />
           <CurrentLocationButton onClick={requestCurrentLocation} />
         </div>
         <BottomNav />
@@ -214,11 +212,8 @@ const footerStyle = css`
 const floatingControlsStyle = css`
   position: absolute;
   right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 72px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 30px);
   z-index: 2;
 
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   pointer-events: auto;
 `;

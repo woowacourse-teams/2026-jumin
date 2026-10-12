@@ -1,11 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('jucha-guide-seen-v2', 'true');
-  });
-});
-
 const CURRENT_LOCATION = {
   latitude: 37.4981,
   longitude: 127.0279,
