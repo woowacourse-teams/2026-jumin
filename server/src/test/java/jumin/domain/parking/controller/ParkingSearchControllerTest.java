@@ -24,6 +24,8 @@ import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -219,34 +221,38 @@ class ParkingSearchControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    @DisplayName("북서쪽과 남동쪽 좌표로 viewport 내 주차장 목록을 반환한다")
-    void returns_parking_lots_in_viewport() throws Exception {
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0, 0.5, 0.6666666666666666})
+    @DisplayName("LOD 점수를 숫자로 포함한 viewport 주차장 목록을 반환한다")
+    void returns_parking_lots_in_viewport(double score) throws Exception {
         // given
         ParkingLotViewportResponses result = new ParkingLotViewportResponses(
                 1,
                 List.of(new ParkingLotViewportResponse(
                         1L,
                         37.5665,
-                        126.9780
+                        126.9780,
+                        score
                 ))
         );
         when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class))).thenReturn(result);
 
         // when
-        MockHttpServletRequestBuilder request = get("/api/parking/viewport")
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
                 .queryParam("westLongitude", "126.9700")
                 .queryParam("southLatitude", "37.5600")
                 .queryParam("eastLongitude", "126.9900")
-                .queryParam("northLatitude", "37.5750");
+                .queryParam("northLatitude", "37.5750"));
 
         // then
-        mockMvc.perform(request)
+        response
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.parkingLots[0].id").value(1))
                 .andExpect(jsonPath("$.parkingLots[0].latitude").value(37.5665))
-                .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780));
+                .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780))
+                .andExpect(jsonPath("$.parkingLots[0].score").isNumber())
+                .andExpect(jsonPath("$.parkingLots[0].score").value(score));
 
         verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
                 126.9700,

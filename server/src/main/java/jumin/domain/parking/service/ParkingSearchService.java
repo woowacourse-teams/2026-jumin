@@ -39,6 +39,7 @@ public class ParkingSearchService {
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
+    private final ParkingLodScoreCalculator lodScoreCalculator;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
@@ -94,7 +95,7 @@ public class ParkingSearchService {
                         request.eastLongitude(),
                         request.northLatitude()
                 ).stream()
-                .map(ParkingLotViewportResponse::from)
+                .map(parkingLot -> ParkingLotViewportResponse.from(parkingLot, lodScoreCalculator.calculate(parkingLot)))
                 .toList();
 
         log.atInfo()
