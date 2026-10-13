@@ -1,6 +1,9 @@
 package jumin.domain.parking.service;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingSearchService {
 
     private static final int SEARCH_RADIUS_METERS = 600;
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingOperationRepository parkingOperationRepository;
@@ -40,6 +44,7 @@ public class ParkingSearchService {
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
     private final ParkingLodScoreCalculator lodScoreCalculator;
+    private final Clock clock;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
@@ -88,12 +93,16 @@ public class ParkingSearchService {
 
     public ParkingLotViewportResponses searchViewport(ParkingLotViewportRequest request) {
         validateCoordinateOrder(request);
+        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL_ZONE);
 
         List<ParkingLotViewportResponse> parkingLots = parkingLotRepository.findActiveWithinViewport(
                         request.westLongitude(),
                         request.southLatitude(),
                         request.eastLongitude(),
-                        request.northLatitude()
+                        request.northLatitude(),
+                        request.freeOnly(),
+                        request.excludeMechanical(),
+                        today.getDayOfWeek().getValue()
                 ).stream()
                 .map(parkingLot -> ParkingLotViewportResponse.from(parkingLot, lodScoreCalculator.calculate(parkingLot)))
                 .toList();

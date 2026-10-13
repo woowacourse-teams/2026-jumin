@@ -1,6 +1,7 @@
 package jumin.domain.admin.parking;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
@@ -11,6 +12,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryType;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +20,8 @@ import jumin.TestcontainersConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,6 +34,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.unit.DataSize;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -86,6 +91,9 @@ class ParkingCsvImportIntegrationTest {
     @Autowired
     private JwtEncoder jwtEncoder;
 
+    @MockitoBean
+    private Clock clock;
+
     @Value("${spring.servlet.multipart.max-file-size}")
     private String maxFileSize;
 
@@ -94,6 +102,7 @@ class ParkingCsvImportIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        when(clock.instant()).thenAnswer(invocation -> Instant.now());
         jdbc.update("DELETE FROM parking_operations");
         jdbc.update("DELETE FROM parking_lots");
         Instant now = Instant.now();
@@ -321,6 +330,50 @@ class ParkingCsvImportIntegrationTest {
         assertThat(extension.statusCode()).isEqualTo(415);
         assertThat(encoding.statusCode()).isEqualTo(415);
         assertThat(snapshot()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-10-13T03:00:00Z, WEEKDAY",
+            "2026-10-17T03:00:00Z, SATURDAY",
+            "2026-10-18T03:00:00Z, SUNDAY"
+    })
+    @DisplayName("CSV의 오늘 무료와 기계식 정보로 지도 목록을 필터링하고 숫자형 LOD 점수를 반환한다")
+    void filters_imported_parking_lots_and_returns_lod_scores(String instant, String expectedLot) throws Exception {
+        // given
+        when(clock.instant()).thenReturn(Instant.parse(instant));
+        String data = csv(
+                csvRow("FREE-N", 1, 0, "N", "false", "false", "false"),
+                csvRow("FREE-Y", 2, 0, "Y", "false", "false", "false"),
+                csvRow("FREE-BLANK", 3, 0, "", "false", "false", "false"),
+                csvRow("PAID-N", 4, 1000, "N", "true", "true", "true"),
+                csvRow("WEEKDAY", 5, 1000, "N", "false", "true", "true"),
+                csvRow("SATURDAY", 6, 1000, "N", "true", "false", "true"),
+                csvRow("SUNDAY", 7, 1000, "N", "true", "true", "false"),
+                csvRow("UNKNOWN", 8, 0, "N", "", "", "")
+        );
+        assertThat(upload("filters.csv", data).statusCode()).isEqualTo(200);
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port
+                        + "/api/parking/viewport?westLongitude=126.97&southLatitude=37.56"
+                        + "&eastLongitude=126.99&northLatitude=37.58&freeOnly=true&excludeMechanical=true"))
+                .GET()
+                .build();
+
+        // when
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // then
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(lot("FREE-BLANK").get("mechanical")).isEqualTo(false);
+        assertThat(JsonPath.<Integer>read(response.body(), "$.totalCount")).isEqualTo(3);
+        assertThat(JsonPath.<List<Integer>>read(response.body(), "$.parkingLots[*].id")).containsExactly(
+                ((Number) lot("FREE-N").get("id")).intValue(),
+                ((Number) lot("FREE-BLANK").get("id")).intValue(),
+                ((Number) lot(expectedLot).get("id")).intValue()
+        );
+        assertThat(JsonPath.<List<Number>>read(response.body(), "$.parkingLots[*].score"))
+                .hasSize(3)
+                .allSatisfy(score -> assertThat(score.doubleValue()).isEqualTo(0.16666666666666666));
     }
 
     private String initialCsv() {

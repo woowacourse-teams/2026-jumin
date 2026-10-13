@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,6 +26,7 @@ import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -258,8 +260,75 @@ class ParkingSearchControllerTest {
                 126.9700,
                 37.5600,
                 126.9900,
-                37.5750
+                37.5750,
+                false,
+                false
         ));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true, false", "false, true", "true, true", "false, false"})
+    @DisplayName("viewport 필터의 true와 false 값을 서비스에 전달한다")
+    void passes_viewport_filters_to_service(boolean freeOnly, boolean excludeMechanical) throws Exception {
+        // given
+        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
+                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam("freeOnly", Boolean.toString(freeOnly))
+                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical)));
+
+        // then
+        response.andExpect(status().isOk());
+        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
+        ));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
+    void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
+        // given
+        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
+                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam(filter, "true"));
+
+        // then
+        response.andExpect(status().isOk());
+        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750,
+                filter.equals("freeOnly"), filter.equals("excludeMechanical")
+        ));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @DisplayName("viewport 필터를 불리언으로 변환할 수 없으면 400을 반환한다")
+    void rejects_invalid_viewport_filter(String filter) throws Exception {
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam(filter, "invalid"));
+
+        // then
+        response.andExpect(status().isBadRequest());
+        verifyNoInteractions(parkingSearchService);
     }
 
     @Test

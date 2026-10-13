@@ -63,12 +63,26 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
                         4326
                     )::geography
               )
+              and (:freeOnly = false or exists (
+                    select 1
+                    from parking_operations operation
+                    where operation.parking_lot_id = parking_lot.id
+                      and (
+                          (:dayOfWeek between 1 and 5 and operation.weekday_paid = false)
+                          or (:dayOfWeek = 6 and operation.saturday_paid = false)
+                          or (:dayOfWeek = 7 and operation.holiday_paid = false)
+                      )
+              ))
+              and (:excludeMechanical = false or parking_lot.mechanical = false)
             order by parking_lot.id
             """, nativeQuery = true)
     List<ParkingLot> findActiveWithinViewport(
             @Param("westLongitude") double westLongitude,
             @Param("southLatitude") double southLatitude,
             @Param("eastLongitude") double eastLongitude,
-            @Param("northLatitude") double northLatitude
+            @Param("northLatitude") double northLatitude,
+            @Param("freeOnly") boolean freeOnly,
+            @Param("excludeMechanical") boolean excludeMechanical,
+            @Param("dayOfWeek") int dayOfWeek
     );
 }
