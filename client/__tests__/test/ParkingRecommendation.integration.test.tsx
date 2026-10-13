@@ -317,7 +317,7 @@ describe('C. 추천 주차장', () => {
     const parkingLotCard = parkingLotHeading.closest('article');
 
     expect(parkingLotCard).not.toBeNull();
-    await user.click(within(parkingLotCard!).getByRole('button', { name: '상세정보' }));
+    await user.click(within(parkingLotCard!).getByRole('button', { name: /상세정보$/ }));
 
     expect(
       screen.getByRole('heading', {
@@ -325,6 +325,44 @@ describe('C. 추천 주차장', () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it.each(['거리순 추천 주차장', '주차장 전체 목록'])(
+    '%s에서 길찾기를 시작하면 선택한 주차장을 안내하고 추천 상태를 유지한다',
+    async (regionName) => {
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      mockGeolocation();
+      const recommendView: RecommendView = {
+        snap: 'expanded',
+        parkingLotId: 102,
+        recommendationType: 'DISTANCE',
+      };
+      renderRecommendationPage(recommendView);
+      const user = userEvent.setup();
+      const region = await screen.findByRole('region', { name: regionName });
+
+      await user.click(
+        within(region).getByRole('button', { name: '역삼문화공원 제1호 공영주차장 길찾기' }),
+      );
+
+      const dialog = screen.getByRole('dialog', { name: '길찾기 앱 선택' });
+      expect(
+        within(dialog).getByText('역삼문화공원 제1호 공영주차장까지 안내합니다.'),
+      ).toBeInTheDocument();
+      expect(getRecommendationLocation().pathname).toBe('/parkingRecommend');
+      expect(getRecommendationLocation().state.recommendView).toEqual(recommendView);
+      const provider = within(dialog).getByRole('button', { name: /네이버 지도/ });
+      await waitFor(() => expect(provider).toBeEnabled());
+      expect(localStorage.getItem('recentParkingUses')).toBeNull();
+
+      await user.click(provider);
+      expect(JSON.parse(localStorage.getItem('recentParkingUses')!)[0].parkingLot).toEqual(
+        expect.objectContaining({ id: 101, name: '역삼문화공원 제1호 공영주차장' }),
+      );
+      await user.click(within(dialog).getByRole('button', { name: '길찾기 앱 선택 닫기' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(getRecommendationLocation().state.recommendView).toEqual(recommendView);
+    },
+  );
 
   it('추천 카드의 상세정보에서 돌아오면 접힌 시트와 선택한 주차장을 복원한다', async () => {
     renderRecommendationPage();
@@ -338,7 +376,7 @@ describe('C. 추천 주차장', () => {
       .closest('article');
 
     expect(card).not.toBeNull();
-    await user.click(within(card!).getByRole('button', { name: '상세정보' }));
+    await user.click(within(card!).getByRole('button', { name: /상세정보$/ }));
     await user.click(screen.getByRole('button', { name: '뒤로가기' }));
 
     expect(
@@ -356,7 +394,7 @@ describe('C. 추천 주차장', () => {
     const restoredCard = within(restoredRecommendation)
       .getByRole('heading', { name: '역삼문화공원 제1호 공영주차장' })
       .closest('article')!;
-    await user.click(within(restoredCard).getByRole('button', { name: '상세정보' }));
+    await user.click(within(restoredCard).getByRole('button', { name: /상세정보$/ }));
     await user.click(screen.getByRole('button', { name: '뒤로가기' }));
     expect(await screen.findByRole('region', { name: '거리순 추천 주차장' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '이전 화면으로 이동' }));
@@ -375,7 +413,7 @@ describe('C. 추천 주차장', () => {
     const card = within(recommendation)
       .getByRole('heading', { name: '역삼문화공원 제1호 공영주차장' })
       .closest('article')!;
-    await user.click(within(card).getByRole('button', { name: '상세정보' }));
+    await user.click(within(card).getByRole('button', { name: /상세정보$/ }));
     await user.click(await screen.findByRole('button', { name: '길찾기 시작' }));
     const dialog = screen.getByRole('dialog', { name: '길찾기 앱 선택' });
     const provider = within(dialog).getByRole('button', { name: /네이버 지도/ });
@@ -434,7 +472,7 @@ describe('C. 추천 주차장', () => {
         .closest('article');
 
       expect(row).not.toBeNull();
-      await user.click(within(row!).getByRole('button', { name: '상세보기' }));
+      await user.click(within(row!).getByRole('button', { name: /상세정보$/ }));
       scrollBy.mockClear();
       await user.click(screen.getByRole('button', { name: '뒤로가기' }));
 

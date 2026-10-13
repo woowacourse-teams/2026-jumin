@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -20,6 +20,8 @@ import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { useParkingRecommendView } from '../hooks/useParkingRecommendView';
 import { useParkingRecommendScrollRestore } from '../hooks/useParkingRecommendScrollRestore';
+import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 type MapOutletContext = {
   map: naver.maps.Map | null;
@@ -92,6 +94,7 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
 
 export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
+  const [directionsParkingLot, setDirectionsParkingLot] = useState<ParkingLotSummary | null>(null);
 
   const cardListRef = useRef<HTMLUListElement>(null);
   const parkingListRef = useRef<HTMLUListElement>(null);
@@ -301,6 +304,11 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     openDetail(detailCondition);
   };
 
+  const handleParkingLotDirections = (parkingLot: ParkingLotSummary) => {
+    trackEvent(eventName.RECOMMEND_DIRECTIONS_BUTTON);
+    setDirectionsParkingLot(parkingLot);
+  };
+
   return (
     <>
       <ParkingMarkers
@@ -333,6 +341,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
                   description={getRecommendationMessage(recommendationType, index + 1)}
                   isActive={activeParkingLotId === parkingLot.id}
                   onNavigate={handleParkingLotDetail}
+                  onDirections={handleParkingLotDirections}
                 />
               </li>
             ))}
@@ -380,6 +389,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
                     isActive={activeParkingLotId === parkingLot.id}
                     onSelect={handleParkingLotSelect}
                     onNavigate={handleParkingLotDetail}
+                    onDirections={handleParkingLotDirections}
                   />
                 </li>
               ))}
@@ -389,6 +399,13 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
           )}
         </section>
       </BottomSheet>
+      {directionsParkingLot && (
+        <DeepLinkModal
+          onRequestClose={() => setDirectionsParkingLot(null)}
+          onDirectionsStart={() => saveRecentParkingUse(directionsParkingLot)}
+          destination={{ name: directionsParkingLot.name, location: directionsParkingLot.location }}
+        />
+      )}
     </>
   );
 };
