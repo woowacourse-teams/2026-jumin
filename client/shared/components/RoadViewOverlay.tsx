@@ -57,7 +57,7 @@ export const RoadViewOverlay = ({
           position: new naver.maps.LatLng(latitude, longitude),
           visible: true,
           aroundControl: true,
-          zoomControl: true,
+          zoomControl: false,
         });
 
         panoramaRef.current = panorama;
@@ -140,6 +140,15 @@ const overlayStyle = css`
   z-index: 3000;
 
   background: #101b37;
+
+  @media (min-width: 431px) and (hover: hover) and (pointer: fine) {
+    inset: 50% auto auto 50%;
+    width: 430px;
+    height: min(844px, 100dvh);
+    transform: translate(-50%, -50%);
+    border-radius: 28px;
+    overflow: hidden;
+  }
 `;
 
 const contentStyle = css`

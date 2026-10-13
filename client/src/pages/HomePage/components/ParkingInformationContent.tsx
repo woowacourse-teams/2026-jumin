@@ -7,6 +7,7 @@ import type {
 } from '../../../../api/contracts';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { trackEvent } from '../../../../shared/analytics';
@@ -110,6 +111,10 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
 
   return (
     <section className={sheetContentStyle}>
+      <ParkingDetailActions
+        onDirections={handleDirectionButtonClick}
+        onRoadView={handleRoadViewButtonClick}
+      />
       <div className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>
@@ -154,27 +159,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
           </dl>
         </section>
 
-        <div className={sheetFooterStyle}>
-          <section className={reportRowStyle}>
-            <ParkingReportAction parkingLotId={data.id} />
-          </section>
-          <div className={actionRowStyle}>
-            <button
-              className={roadViewButtonStyle}
-              type="button"
-              onClick={handleRoadViewButtonClick}
-            >
-              로드뷰 보기
-            </button>
-            <button
-              className={navigationButtonStyle}
-              type="button"
-              onClick={handleDirectionButtonClick}
-            >
-              길찾기 시작
-            </button>
-          </div>
-        </div>
+        <ParkingReportAction parkingLotId={data.id} />
 
         {modal.isOpen && (
           <DeepLinkModal
@@ -214,12 +199,18 @@ const sheetContentStyle = css`
 `;
 
 const scrollContentStyle = css`
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 
   overflow-y: auto;
   padding-inline-end: 15px;
   overscroll-behavior: contain;
+
+  > section {
+    flex-shrink: 0;
+  }
 `;
 
 const sectionStyle = css`
@@ -321,15 +312,6 @@ const subValueStyle = css`
   font-weight: 500;
 `;
 
-const reportRowStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-
-  margin-top: 24px;
-  margin-bottom: 12px;
-`;
-
 const detailsStyle = css`
   display: grid;
   gap: 12px;
@@ -360,55 +342,4 @@ const detailsStyle = css`
     font-weight: 750;
     text-align: right;
   }
-`;
-
-const navigationButtonStyle = css`
-  flex: 1;
-  min-height: 54px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  background: #4356d8;
-  border: 0;
-  border-radius: 14px;
-  cursor: pointer;
-  &:active {
-    background: #3548c8;
-  }
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-    outline-offset: 3px;
-  }
-`;
-
-const roadViewButtonStyle = css`
-  flex: 1;
-  min-height: 54px;
-  color: #4356d8;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 800;
-  background: #eef0ff;
-  border: 1px solid #d7dcff;
-  border-radius: 14px;
-  cursor: pointer;
-
-  &:active {
-    background: #e2e6ff;
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-    outline-offset: 3px;
-  }
-`;
-
-const actionRowStyle = css`
-  display: flex;
-  gap: 10px;
-`;
-
-const sheetFooterStyle = css`
-  margin-top: auto;
 `;

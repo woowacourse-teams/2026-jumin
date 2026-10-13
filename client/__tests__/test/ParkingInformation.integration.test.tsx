@@ -71,13 +71,15 @@ describe('홈페이지 주차장 상세정보', () => {
     expect(screen.getAllByText('유료 여부 미제공')).toHaveLength(3);
   });
 
-  it('오른쪽에 신고 버튼을 표시하고 신고 모달을 연다', async () => {
+  it('하단 제보 버튼에서 신고 모달을 연다', async () => {
     renderParkingInformation();
     const user = userEvent.setup();
-    const reportButton = await screen.findByRole('button', { name: '신고하기' });
-    const reportRow = reportButton.parentElement?.parentElement;
+    const reportButton = await screen.findByRole('button', { name: '제보하기' });
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
 
-    expect(reportRow).toHaveStyle({ display: 'flex', justifyContent: 'flex-end' });
+    expect(actions).not.toContainElement(reportButton);
+    expect(actions).toContainElement(screen.getByRole('button', { name: '길찾기 시작' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: '로드뷰 보기' }));
 
     await user.click(reportButton);
     expect(screen.getByRole('dialog', { name: '주차장 정보 신고' })).toBeInTheDocument();
