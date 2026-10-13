@@ -13,6 +13,7 @@ public record ParkingLotValues(
         Double latitude,
         Double longitude,
         Integer capacity,
+        boolean mechanical,
         boolean active,
         Instant sourceCheckedAt
 ) {

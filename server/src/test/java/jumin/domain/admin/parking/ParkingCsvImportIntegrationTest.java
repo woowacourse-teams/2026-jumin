@@ -48,6 +48,7 @@ class ParkingCsvImportIntegrationTest {
             "parking_lots.latitude",
             "parking_lots.longitude",
             "parking_lots.capacity",
+            "parking_lots.mechanical",
             "parking_lots.active",
             "parking_lots.source_checked_at",
             "parking_lots.created_at",
@@ -339,11 +340,18 @@ class ParkingCsvImportIntegrationTest {
     }
 
     private String csvRow(String label, int addressNumber, int baseFee) {
+        return csvRow(label, addressNumber, baseFee, "N", "true", "", "");
+    }
+
+    private String csvRow(
+            String label, int addressNumber, int baseFee,
+            String mechanical, String weekdayPaid, String saturdayPaid, String holidayPaid
+    ) {
         return ("ignored-csv-id,DATA_GO_KR,CSV-DEMO-%s,CSV 샘플 %s 주차장,"
-                + "서울특별시,중구,서울특별시 중구 CSV샘플로 %d,37.5665,126.9780,10,true,"
-                + "2026-09-28T18:42:55+09:00,,,ignored-csv-fk,,30,%d,,,,,true,,,"
+                + "서울특별시,중구,서울특별시 중구 CSV샘플로 %d,37.5665,126.9780,10,%s,true,"
+                + "2026-09-28T18:42:55+09:00,,,ignored-csv-fk,,30,%d,,,,,%s,%s,%s,"
                 + "OPEN,09:00,18:00:00,,,,,,,2026-09-28T09:42:55Z,,")
-                .formatted(label, label, addressNumber, baseFee);
+                .formatted(label, label, addressNumber, mechanical, baseFee, weekdayPaid, saturdayPaid, holidayPaid);
     }
 
     private HttpResponse<String> upload(String name, String csv) throws Exception {
@@ -377,7 +385,7 @@ class ParkingCsvImportIntegrationTest {
     }
 
     private Map<String, Object> lot(String label) {
-        return jdbc.queryForMap("SELECT id, active, created_at, updated_at FROM parking_lots "
+        return jdbc.queryForMap("SELECT id, active, mechanical, created_at, updated_at FROM parking_lots "
                 + "WHERE source_external_id = ?", "CSV-DEMO-" + label);
     }
 
