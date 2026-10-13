@@ -3,15 +3,23 @@ import { css } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
   description: string;
   onNavigate: (parkingLot: ParkingLotSummary) => void;
+  onDirections: (parkingLot: ParkingLotSummary) => void;
   isActive: boolean;
 }
 
-export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Props) => {
+export const InfoCard = ({
+  parkingLot,
+  description,
+  onNavigate,
+  onDirections,
+  isActive,
+}: Props) => {
   const { name, estimatedFee, distanceMeters, walkingDurationMinutes } = parkingLot;
 
   const walkingInformation =
@@ -25,7 +33,17 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
   };
   return (
     <article className={cardStyle(isActive)} draggable={false}>
-      <h2 className={nameStyle}>{name}</h2>
+      <header className={headerStyle}>
+        <h2 className={nameStyle}>{name}</h2>
+        <button
+          className={detailButtonStyle}
+          type="button"
+          aria-label={`${name} 상세정보`}
+          onClick={handleDetailButtonClick}
+        >
+          <InformationIcon />
+        </button>
+      </header>
       <p className={descriptionStyle}>{description}</p>
       <strong className={priceStyle}>
         {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
@@ -33,8 +51,14 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
 
       <p className={distanceStyle}>{walkingInformation}</p>
 
-      <button className={navigateButtonStyle} type="button" onClick={handleDetailButtonClick}>
-        상세정보
+      <button
+        className={navigateButtonStyle}
+        type="button"
+        aria-label={`${name} 길찾기`}
+        onClick={() => onDirections(parkingLot)}
+      >
+        <DirectionsIcon />
+        길찾기
       </button>
     </article>
   );
@@ -43,7 +67,7 @@ export const InfoCard = ({ parkingLot, description, onNavigate, isActive }: Prop
 const cardStyle = (isActive: boolean) => css`
   display: grid;
   grid-template-areas:
-    'name name'
+    'header header'
     'description description'
     'price button'
     'distance button';
@@ -51,8 +75,8 @@ const cardStyle = (isActive: boolean) => css`
   align-items: center;
 
   width: 100%;
-  min-height: 158px;
-  padding: 16px 18px;
+  min-height: 168px;
+  padding: 14px 16px 16px;
 
   background: #ffffff;
   border: ${isActive ? '4px' : ' 2px'} solid #4356d8;
@@ -70,9 +94,16 @@ const cardStyle = (isActive: boolean) => css`
   }
 `;
 
-const nameStyle = css`
-  grid-area: name;
+const headerStyle = css`
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+`;
 
+const nameStyle = css`
+  min-width: 0;
   margin: 0;
   overflow: hidden;
 
@@ -122,18 +153,21 @@ const distanceStyle = css`
 const navigateButtonStyle = css`
   grid-area: button;
 
-  min-width: 90px;
-  height: 56px;
-  margin-left: 14px;
-  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  margin-left: 8px;
+  padding: 0 10px;
 
   color: #ffffff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
 
   background: #4356d8;
   border: 0;
-  border-radius: 16px;
+  border-radius: 13px;
   cursor: pointer;
 
   &:hover {
@@ -147,4 +181,30 @@ const navigateButtonStyle = css`
 
   user-select: none;
   -webkit-user-drag: none;
+`;
+
+const detailButtonStyle = css`
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px -2px 0;
+  padding: 0;
+  color: #697386;
+  background: transparent;
+  border: 0;
+  border-radius: 13px;
+  cursor: pointer;
+
+  &:hover {
+    color: #4356d8;
+    background: #f1f3ff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #4356d8;
+    outline-offset: 2px;
+  }
 `;

@@ -53,7 +53,7 @@ const goToRecommendedParkingDetail = async (page: Page) => {
     .getByRole('heading', { name: PARKING_LOT.name })
     .locator('..');
 
-  await parkingLotCard.getByRole('button', { name: '상세정보' }).click();
+  await parkingLotCard.getByRole('button', { name: /상세정보$/ }).click();
   await expect(page).toHaveURL(/\/parkingDetail$/);
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
 };
