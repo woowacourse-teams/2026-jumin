@@ -134,6 +134,23 @@ class ParkingLotRepositoryTest {
         assertThat(results).extracting("name").containsExactly("경계 안쪽 주차장");
     }
 
+    @Test
+    @DisplayName("기계식 값을 생략하면 DB와 엔티티에서 false로 처리한다")
+    void defaults_mechanical_flag_to_false() {
+        // given
+        insertParkingLot("default-mechanical", "기본값 주차장", "서울시 테스트 주소", true, 37.4990, 127.0279);
+
+        // when
+        ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId("default-mechanical")).orElseThrow();
+
+        // then
+        assertThat(parkingLot.isMechanical()).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+                "select mechanical from parking_lots where id = ?", Boolean.class, parkingLot.getId()
+        )).isFalse();
+        assertThat(new ParkingLot().isMechanical()).isFalse();
+    }
+
     private void insertParkingLot(
             String externalId,
             String name,
