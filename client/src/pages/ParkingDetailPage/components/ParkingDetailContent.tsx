@@ -310,11 +310,8 @@ const totalFeeStyle = css`
 
 const detailsStyle = css`
   display: grid;
-
   gap: 12px;
-
   margin: 44px 0 0;
-
   div {
     display: flex;
 
@@ -322,55 +319,37 @@ const detailsStyle = css`
 
     justify-content: space-between;
   }
-
   dt,
   dd {
     margin: 0;
-
     font-size: 14px;
-
     line-height: 1.35;
   }
-
   dt {
     color: #8a94a8;
   }
-
   dd {
     color: #2f3b55;
-
     font-weight: 750;
   }
 `;
 
 const navigationButtonStyle = css`
   width: 100%;
-
   min-height: 54px;
-
   color: #fff;
-
   font-family: inherit;
-
   font-size: 16px;
-
   font-weight: 800;
-
   background: #4356d8;
-
   border: 0;
-
   border-radius: 14px;
-
   cursor: pointer;
-
   &:active {
     background: #3548c8;
   }
-
   &:focus-visible {
     outline: 3px solid rgb(67 86 216 / 30%);
-
     outline-offset: 3px;
   }
 `;

@@ -73,7 +73,7 @@ const rowStyle = (isActive: boolean) => css`
   gap: 12px;
 
   width: 100%;
-  min-height: 92px;
+  min-height: 80px;
   padding: 0px 10px;
 
   background: ${isActive ? '#f1f3ff' : '#ffffff'};
@@ -155,7 +155,7 @@ const nameStyle = css`
   overflow: hidden;
 
   color: #101b37;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
   letter-spacing: -0.4px;
@@ -171,13 +171,13 @@ const metadataStyle = css`
   margin: 2px 0 0;
 
   color: #697386;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.3;
   white-space: nowrap;
 
   strong {
     color: #101b37;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 800;
   }
 `;
@@ -186,23 +186,25 @@ const detailButtonStyle = (isActive: boolean) => css`
   position: relative;
   z-index: 2;
 
-  min-width: 94px;
-  height: 56px;
+  min-width: 44px;
+  height: 50px;
   padding: 0 14px;
 
-  color: ${isActive ? '#1256c4' : '#ffffff'};
-  font-size: 16px;
+  color: #ffffff;
+
+  font-size: 14px;
   font-weight: 700;
 
-  background: ${isActive ? '#ffffff' : '#4356d8'};
-  border: 1px solid ${isActive ? '#d9deeb' : 'transparent'};
+  background: #4356d8;
+  border: 1px solid #d9deeb;
+
   border-radius: 16px;
   box-shadow: ${isActive ? '0 2px 8px rgb(16 27 55 / 8%)' : 'none'};
   cursor: pointer;
   user-select: none;
 
   &:hover {
-    background: ${isActive ? '#f8f9fc' : '#3548c8'};
+    background: #3548c8;
   }
 
   &:focus-visible {

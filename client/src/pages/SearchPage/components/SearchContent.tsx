@@ -125,6 +125,7 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
     >
       <SearchBar
         autoFocus
+        showShadow={false}
         onChange={(event) => {
           setQuery(event.target.value);
         }}
