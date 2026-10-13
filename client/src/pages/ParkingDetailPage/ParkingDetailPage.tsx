@@ -61,8 +61,6 @@ const pageStyle = css`
   height: 100%;
 
   overflow: hidden;
-
   color: #14213d;
-
   background: transparent;
 `;

@@ -8,9 +8,17 @@ interface Props {
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
   readOnly?: boolean;
   autoFocus?: boolean;
+  showShadow?: boolean;
 }
 
-export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }: Props) => (
+export const SearchBar = ({
+  onClick,
+  onChange,
+  onKeyDown,
+  readOnly,
+  autoFocus,
+  showShadow = true,
+}: Props) => (
   <div
     className={css`
       display: flex;
@@ -22,7 +30,7 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }:
       margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
       padding: 0 16px;
       box-sizing: border-box;
-
+      box-shadow: ${showShadow ? '5px 5px 15px rgba(0, 0, 0, 0.3)' : 'none'};
       border: 1px solid #4356d8;
       border-radius: 16px;
       background: white;
