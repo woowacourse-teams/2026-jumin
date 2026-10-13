@@ -19,6 +19,7 @@ import { ParkingReportAction } from '../../../../shared/components/ParkingReport
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -62,6 +63,7 @@ const formatWeekdayHours = ({ status, openTime, closeTime }: ParkingOperationPer
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+  const [isRoadViewOpen, setIsRoadViewOpen] = useState(false);
 
   const deepLinkModal = useModal();
 
@@ -117,6 +119,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const handleRecommendDirectionButtonClick = () => {
     trackEvent(eventName.RECOMMEND_DIRECTIONS_BUTTON);
     deepLinkModal.open();
+  };
+
+  const handleRoadViewButtonClick = () => {
+    trackEvent(eventName.ROAD_VIEW_BUTTON, { surface: 'parking_detail' });
+    setIsRoadViewOpen(true);
   };
 
   return (
@@ -209,16 +216,35 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
               <ParkingReportAction parkingLotId={parkingLotDetail.id} />
             </div>
 
-            <button
-              className={navigationButtonStyle}
-              type="button"
-              onClick={handleRecommendDirectionButtonClick}
-            >
-              길찾기 시작
-            </button>
+            <div className={actionRowStyle}>
+              <button
+                className={roadViewButtonStyle}
+                type="button"
+                onClick={handleRoadViewButtonClick}
+              >
+                로드뷰 보기
+              </button>
+              <button
+                className={navigationButtonStyle}
+                type="button"
+                onClick={handleRecommendDirectionButtonClick}
+              >
+                길찾기 시작
+              </button>
+            </div>
           </div>
         </section>
       </BottomSheet>
+
+      {isRoadViewOpen && (
+        <RoadViewOverlay
+          parkingLotName={parkingLotDetail.name}
+          parkingLotAddress={parkingLotDetail.address}
+          latitude={parkingLotDetail.location.latitude}
+          longitude={parkingLotDetail.location.longitude}
+          onRequestClose={() => setIsRoadViewOpen(false)}
+        />
+      )}
 
       {deepLinkModal.isOpen && (
         <DeepLinkModal
@@ -335,7 +361,7 @@ const detailsStyle = css`
 `;
 
 const navigationButtonStyle = css`
-  width: 100%;
+  flex: 1;
   min-height: 54px;
   color: #fff;
   font-family: inherit;
@@ -352,6 +378,33 @@ const navigationButtonStyle = css`
     outline: 3px solid rgb(67 86 216 / 30%);
     outline-offset: 3px;
   }
+`;
+
+const roadViewButtonStyle = css`
+  flex: 1;
+  min-height: 54px;
+  color: #4356d8;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  background: #eef0ff;
+  border: 1px solid #d7dcff;
+  border-radius: 14px;
+  cursor: pointer;
+
+  &:active {
+    background: #e2e6ff;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 3px;
+  }
+`;
+
+const actionRowStyle = css`
+  display: flex;
+  gap: 10px;
 `;
 
 const sheetFooterStyle = css`

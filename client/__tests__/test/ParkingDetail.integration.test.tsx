@@ -140,6 +140,21 @@ describe('D. 주차장 상세정보', () => {
     await waitFor(() => expect(naverMapButton).toBeEnabled());
   });
 
+  it('로드뷰 버튼을 누르면 전체 화면 로드뷰를 열고 닫을 수 있다', async () => {
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: '로드뷰 보기' }));
+
+    expect(
+      screen.getByRole('dialog', { name: '역삼문화공원 제1호 공영주차장 로드뷰' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '로드뷰 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: /로드뷰$/ })).not.toBeInTheDocument();
+  });
+
   it('길찾기를 시작한 주차장이 최근 이용에 저장된다', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockGeolocation();

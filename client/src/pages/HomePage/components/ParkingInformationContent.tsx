@@ -11,6 +11,8 @@ import { ParkingReportAction } from '../../../../shared/components/ParkingReport
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
+import { useState } from 'react';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -57,6 +59,7 @@ const formatPaidStatus = (paid: boolean | null) => {
 
 export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   const modal = useModal();
+  const [isRoadViewOpen, setIsRoadViewOpen] = useState(false);
 
   const recentParkingLot = {
     id: data.id,
@@ -98,6 +101,11 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   const handleDirectionButtonClick = () => {
     trackEvent(eventName.HOME_DIRECTIONS_BUTTON);
     modal.open();
+  };
+
+  const handleRoadViewButtonClick = () => {
+    trackEvent(eventName.ROAD_VIEW_BUTTON, { surface: 'home' });
+    setIsRoadViewOpen(true);
   };
 
   return (
@@ -150,13 +158,22 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
           <section className={reportRowStyle}>
             <ParkingReportAction parkingLotId={data.id} />
           </section>
-          <button
-            className={navigationButtonStyle}
-            type="button"
-            onClick={handleDirectionButtonClick}
-          >
-            길찾기 시작
-          </button>
+          <div className={actionRowStyle}>
+            <button
+              className={roadViewButtonStyle}
+              type="button"
+              onClick={handleRoadViewButtonClick}
+            >
+              로드뷰 보기
+            </button>
+            <button
+              className={navigationButtonStyle}
+              type="button"
+              onClick={handleDirectionButtonClick}
+            >
+              길찾기 시작
+            </button>
+          </div>
         </div>
 
         {modal.isOpen && (
@@ -172,6 +189,16 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
                 longitude: parkingLot.longitude,
               },
             }}
+          />
+        )}
+
+        {isRoadViewOpen && (
+          <RoadViewOverlay
+            parkingLotName={data.name}
+            parkingLotAddress={data.address}
+            latitude={parkingLot.latitude}
+            longitude={parkingLot.longitude}
+            onRequestClose={() => setIsRoadViewOpen(false)}
           />
         )}
       </div>
@@ -336,7 +363,7 @@ const detailsStyle = css`
 `;
 
 const navigationButtonStyle = css`
-  width: 100%;
+  flex: 1;
   min-height: 54px;
   color: #fff;
   font-family: inherit;
@@ -353,6 +380,33 @@ const navigationButtonStyle = css`
     outline: 3px solid rgb(67 86 216 / 30%);
     outline-offset: 3px;
   }
+`;
+
+const roadViewButtonStyle = css`
+  flex: 1;
+  min-height: 54px;
+  color: #4356d8;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  background: #eef0ff;
+  border: 1px solid #d7dcff;
+  border-radius: 14px;
+  cursor: pointer;
+
+  &:active {
+    background: #e2e6ff;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgb(67 86 216 / 30%);
+    outline-offset: 3px;
+  }
+`;
+
+const actionRowStyle = css`
+  display: flex;
+  gap: 10px;
 `;
 
 const sheetFooterStyle = css`
