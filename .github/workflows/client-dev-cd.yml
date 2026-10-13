@@ -49,6 +49,10 @@ jobs:
       - name: Build client
         working-directory: client
         env:
+          SENTRY_UPLOAD_SOURCEMAPS: "true"
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: development
           GA_MEASUREMENT_ID: ${{ vars.GA_DEV_MEASUREMENT_ID }}
@@ -64,6 +68,7 @@ jobs:
           test -s dist/index.html
           test -d dist/assets
           test -n "$(find dist/assets -type f -print -quit)"
+          test -z "$(find dist -type f -name '*.map' -print -quit)"
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7
