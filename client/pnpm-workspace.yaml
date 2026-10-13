@@ -1,3 +1,10 @@
+overrides:
+  # GHSA-pqg4-j6r4-53mv: launch-editor의 간접 의존성에 수정 버전 적용.
+  'shell-quote@<1.11.0': 1.12.0
+  # GHSA-hp3w-g68c-fv3c: 패치가 없는 sprintf-js를 YAML 로더 경로에서 제거.
+  # load-nyc-config는 js-yaml 4에서도 제공하는 load() API만 사용한다.
+  '@istanbuljs/load-nyc-config@1.1.0>js-yaml': 4.3.2
+
 allowBuilds:
   '@parcel/watcher': false
   '@swc/core': true
