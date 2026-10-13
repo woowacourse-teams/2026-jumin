@@ -337,32 +337,20 @@ const detailsStyle = css`
 
 const navigationButtonStyle = css`
   width: 100%;
-
   min-height: 54px;
-
   color: #fff;
-
   font-family: inherit;
-
   font-size: 16px;
-
   font-weight: 800;
-
   background: #4356d8;
-
   border: 0;
-
   border-radius: 14px;
-
   cursor: pointer;
-
   &:active {
     background: #3548c8;
   }
-
   &:focus-visible {
     outline: 3px solid rgb(67 86 216 / 30%);
-
     outline-offset: 3px;
   }
 `;

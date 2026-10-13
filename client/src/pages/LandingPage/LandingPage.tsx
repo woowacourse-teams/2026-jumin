@@ -35,7 +35,7 @@ const features = [
   },
 ];
 
-export const RandingPage = () => {
+export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
 
   return (
