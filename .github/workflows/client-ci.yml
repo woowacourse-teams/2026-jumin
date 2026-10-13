@@ -11,8 +11,10 @@ on:
       - develop
       - main
     paths:
-      - 'client/**'
-      - '.github/workflows/client-ci.yml'
+      - "client/**"
+      - ".github/workflows/client-dev-cd.yml"
+      - ".github/workflows/client-prod-cd.yml"
+      - ".github/workflows/client-ci.yml"
 
   workflow_dispatch:
 
@@ -43,7 +45,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24.11.0'
+          node-version: "24.11.0"
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
