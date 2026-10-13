@@ -186,7 +186,7 @@ const detailButtonStyle = (isActive: boolean) => css`
   position: relative;
   z-index: 2;
 
-  min-width: 94px;
+  min-width: 64px;
   height: 56px;
   padding: 0 14px;
 
