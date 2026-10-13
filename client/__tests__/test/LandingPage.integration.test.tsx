@@ -7,9 +7,9 @@ import { LandingPage } from '../../src/pages/LandingPage/LandingPage';
 
 const renderPage = () =>
   render(
-    <MemoryRouter initialEntries={['/randing']}>
+    <MemoryRouter initialEntries={['/landing']}>
       <Routes>
-        <Route path="/randing" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<p>서비스 홈</p>} />
       </Routes>
     </MemoryRouter>,

@@ -22,6 +22,7 @@ export const SearchBar = ({ onClick, onChange, onKeyDown, readOnly, autoFocus }:
       margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
       padding: 0 16px;
       box-sizing: border-box;
+      box-shadow: 5px 10px 15px rgba(0, 0, 0, 0.3);
 
       border: 1px solid #4356d8;
       border-radius: 16px;

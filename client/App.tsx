@@ -24,7 +24,7 @@ const App = () => (
     <Route path="/recent" element={<RecentUsePage />} />
     <Route path="/setting" element={<SettingPage />} />
     <Route path="/admin" element={<AdminPage />} />
-    <Route path="/randing" element={<LandingPage />} />
+    <Route path="/landing" element={<LandingPage />} />
   </Routes>
 );
 

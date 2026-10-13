@@ -27,7 +27,7 @@ it('주변 탭 대신 설정 탭으로 이동하고 기존 랜딩페이지를 �
   expect(screen.getByRole('heading', { level: 1, name: '설정' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '설정' })).toHaveAttribute('aria-current', 'page');
   const introduction = screen.getByRole('link', { name: /주차의민족 소개/ });
-  expect(introduction).toHaveAttribute('href', '/randing');
+  expect(introduction).toHaveAttribute('href', '/landing');
 
   await user.click(introduction);
   expect(

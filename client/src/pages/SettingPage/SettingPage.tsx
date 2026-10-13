@@ -23,7 +23,7 @@ export const SettingPage = () => {
           <p className={styles.description}>주차의민족을 더 편하게 이용해 보세요.</p>
         </header>
 
-        <Link className={styles.intro} to="/randing">
+        <Link className={styles.intro} to="/landing">
           <span className={styles.brandIcon}>
             <img src={brandMark} alt="" draggable={false} />
           </span>
