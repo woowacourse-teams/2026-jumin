@@ -35,33 +35,33 @@ const features = [
   },
 ];
 
-export const RandingPage = () => {
+export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
 
   return (
-    <main className={styles.page} data-randing-page>
-      <a className={styles.skipLink} href="#randing-intro">
+    <main className={styles.page} data-landing-page>
+      <a className={styles.skipLink} href="#landing-intro">
         본문 바로가기
       </a>
 
-      <section className={styles.hero} aria-labelledby="randing-title">
+      <section className={styles.hero} aria-labelledby="landing-title">
         <img className={styles.heroPhoto} src={parkingHero} alt="" fetchPriority="high" />
 
         <header className={styles.header}>
-          <Link className={styles.brand} to="/randing" aria-label="주차의민족 소개 홈">
+          <Link className={styles.brand} to="/landing" aria-label="주차의민족 소개 홈">
             <img src={brandMark} alt="" width="29" height="32" />
             <span>주차의민족</span>
           </Link>
           <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
-            <a href="#randing-intro">서비스 소개</a>
-            <a href="#randing-guide">이용 방법</a>
+            <a href="#landing-intro">서비스 소개</a>
+            <a href="#landing-guide">이용 방법</a>
             <Link to="/">주차장 찾기</Link>
           </nav>
         </header>
 
         <div className={styles.heroContent}>
           <p className={styles.heroEyebrow}>주차장을 찾는 가장 간단한 방법</p>
-          <h1 id="randing-title">
+          <h1 id="landing-title">
             목적지를 입력하면,
             <br />
             주차장을 추천해드려요.
@@ -86,14 +86,14 @@ export const RandingPage = () => {
           </p>
         </div>
 
-        <a className={styles.scrollLink} href="#randing-intro">
+        <a className={styles.scrollLink} href="#landing-intro">
           서비스 알아보기 <span aria-hidden="true">↓</span>
         </a>
       </section>
 
-      <section id="randing-intro" className={styles.intro} aria-labelledby="randing-intro-title">
+      <section id="landing-intro" className={styles.intro} aria-labelledby="landing-intro-title">
         <p className={styles.eyebrow}>주차의민족</p>
-        <h2 id="randing-intro-title">
+        <h2 id="landing-intro-title">
           어디에 주차할지 고민될 때,
           <br />
           목적지만 검색하세요.
@@ -110,16 +110,16 @@ export const RandingPage = () => {
         </p>
       </section>
 
-      <div id="randing-guide" className={styles.features}>
+      <div id="landing-guide" className={styles.features}>
         {features.map((feature, index) => (
           <section
             key={feature.label}
             className={cx(styles.feature, index === 1 && styles.reversedFeature)}
-            aria-labelledby={`randing-feature-${index}`}
+            aria-labelledby={`landing-feature-${index}`}
           >
             <div className={styles.featureCopy}>
               <p className={styles.eyebrow}>{feature.label}</p>
-              <h2 id={`randing-feature-${index}`}>{feature.title}</h2>
+              <h2 id={`landing-feature-${index}`}>{feature.title}</h2>
               <p className={styles.description}>{feature.description}</p>
             </div>
             <figure className={styles.preview}>
@@ -130,8 +130,8 @@ export const RandingPage = () => {
         ))}
       </div>
 
-      <section className={styles.closing} aria-labelledby="randing-closing-title">
-        <h2 id="randing-closing-title">
+      <section className={styles.closing} aria-labelledby="landing-closing-title">
+        <h2 id="landing-closing-title">
           다음 목적지의 주차장,
           <br />
           지금 찾아보세요.
@@ -142,7 +142,7 @@ export const RandingPage = () => {
       </section>
 
       <footer className={styles.footer}>
-        <Link className={styles.footerBrand} to="/randing">
+        <Link className={styles.footerBrand} to="/landing">
           <img src={brandMark} alt="" width="22" height="25" />
           주차의민족
         </Link>
@@ -152,8 +152,8 @@ export const RandingPage = () => {
   );
 };
 
-const applyRandingRootStyles = () => injectGlobal`
-  #root:has([data-randing-page]) {
+const applyLandingRootStyles = () => injectGlobal`
+  #root:has([data-landing-page]) {
     width: 100%;
     max-width: none;
     height: 100dvh;
@@ -162,18 +162,18 @@ const applyRandingRootStyles = () => injectGlobal`
   }
 `;
 
-applyRandingRootStyles();
+applyLandingRootStyles();
 
 const styles = {
   page: css`
-    --randing-primary: #4356d8;
-    --randing-ink: #18233d;
+    --landing-primary: #4356d8;
+    --landing-ink: #18233d;
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    color: var(--randing-ink);
+    color: var(--landing-ink);
     background: #fff;
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
@@ -323,7 +323,7 @@ const styles = {
     width: min(100% - 112px, 1240px);
     margin: auto;
     padding: 110px 0 150px;
-    animation: randing-appear 700ms ease both;
+    animation: landing-appear 700ms ease both;
 
     h1 {
       margin: 24px 0 28px;
@@ -333,7 +333,7 @@ const styles = {
       letter-spacing: -2.8px;
     }
 
-    @keyframes randing-appear {
+    @keyframes landing-appear {
       from {
         opacity: 0;
         transform: translateY(16px);
@@ -422,7 +422,7 @@ const styles = {
   primaryButton: css`
     min-width: 250px;
     color: #fff;
-    background: var(--randing-primary);
+    background: var(--landing-primary);
     &:hover {
       background: #3548c8;
     }
@@ -494,7 +494,7 @@ const styles = {
     line-height: 1.75;
     letter-spacing: -0.5px;
     strong {
-      color: var(--randing-primary);
+      color: var(--landing-primary);
       font-weight: 700;
     }
     @media (max-width: 700px) {
@@ -503,7 +503,7 @@ const styles = {
     }
   `,
   eyebrow: css`
-    color: var(--randing-primary);
+    color: var(--landing-primary);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.6;
@@ -610,7 +610,7 @@ const styles = {
     gap: 36px;
     padding: 96px 24px;
     color: #fff;
-    background: var(--randing-primary);
+    background: var(--landing-primary);
     text-align: center;
     h2 {
       font-size: clamp(30px, 3.6vw, 46px);
@@ -623,7 +623,7 @@ const styles = {
     }
   `,
   closingButton: css`
-    color: var(--randing-primary) !important;
+    color: var(--landing-primary) !important;
     background: #fff;
     &:hover {
       background: #f0f2ff;
@@ -650,7 +650,7 @@ const styles = {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--randing-ink) !important;
+    color: var(--landing-ink) !important;
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.7px;
