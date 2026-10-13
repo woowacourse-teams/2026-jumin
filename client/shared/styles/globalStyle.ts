@@ -7,9 +7,6 @@ export const applyGlobalStyles = () => injectGlobal`
 
   html,
   body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
     height: 100%;
     margin: 0;
@@ -37,6 +34,12 @@ export const applyGlobalStyles = () => injectGlobal`
 }
 
   @media (min-width: 431px) and (hover: hover) and (pointer: fine) {
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     #root {
       max-width: 430px;
       height: min(844px, 100dvh);
