@@ -15,7 +15,7 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
       background: transparent;
       vertical-align: top;
       cursor: pointer;
-      box-shadow: 5px 10px 15px rgba(0, 0, 0, 0.3);
+      box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
     `}
     type="button"
     aria-label="현재 위치로 이동"
