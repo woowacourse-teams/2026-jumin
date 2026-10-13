@@ -13,6 +13,8 @@ export const eventName = {
   RECOMMENDED_PARKING_DETAIL: 'recommended_parking_detail_clicked',
   /**추천 주차장 상세정보 길찾기 버튼 */
   RECOMMEND_DIRECTIONS_BUTTON: 'recommend_directions_button_clicked',
+  /**상세정보 로드뷰 버튼 */
+  ROAD_VIEW_BUTTON: 'road_view_button_clicked',
 };
 
 export const ANALYTICS_OPT_OUT_KEY = 'analytics_opt_out';
