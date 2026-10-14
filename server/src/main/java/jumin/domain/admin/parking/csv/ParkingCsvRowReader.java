@@ -60,7 +60,7 @@ final class ParkingCsvRowReader {
         Double latitude = coordinate(LATITUDE, -90, 90);
         Double longitude = coordinate(LONGITUDE, -180, 180);
         Integer capacity = nonNegativeInteger(CAPACITY);
-        boolean mechanical = yesNo(MECHANICAL);
+        boolean mechanical = parseYesNo(MECHANICAL);
         Boolean active = bool(ACTIVE, true);
         Instant lotCheckedAt = instant(LOT_SOURCE_CHECKED_AT);
         ParkingOperationValues operation = new ParkingOperationValues(
@@ -124,7 +124,7 @@ final class ParkingCsvRowReader {
         return null;
     }
 
-    private boolean yesNo(ParkingCsvColumn column) {
+    private boolean parseYesNo(ParkingCsvColumn column) {
         String value = value(column, false);
         if (value == null) {
             return false;
