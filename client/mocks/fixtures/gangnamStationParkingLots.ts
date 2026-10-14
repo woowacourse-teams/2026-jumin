@@ -1,6 +1,6 @@
 import type { ViewportParkingLotDetailResponse } from '../../api/contracts';
 
-type SourceParkingLot = ViewportParkingLotDetailResponse & {
+type SourceParkingLot = Omit<ViewportParkingLotDetailResponse, 'likeCount' | 'likedByMe'> & {
   sourceExternalId: string;
   latitude: number;
   longitude: number;
