@@ -23,6 +23,14 @@ public record ParkingLotViewportRequest(
         @NotNull(message = "북쪽 위도는 필수입니다.")
         @DecimalMin(value = "-90.0", inclusive = false, message = "북쪽 위도는 -90보다 커야 합니다.")
         @DecimalMax(value = "90.0", inclusive = false, message = "북쪽 위도는 90보다 작아야 합니다.")
-        Double northLatitude
+        Double northLatitude,
+
+        Boolean freeOnly,
+
+        Boolean excludeMechanical
 ) {
+    public ParkingLotViewportRequest {
+        freeOnly = Boolean.TRUE.equals(freeOnly);
+        excludeMechanical = Boolean.TRUE.equals(excludeMechanical);
+    }
 }

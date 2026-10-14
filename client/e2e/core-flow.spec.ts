@@ -1,11 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('jucha-guide-seen-v2', 'true');
-  });
-});
-
 const CURRENT_LOCATION = {
   latitude: 37.4981,
   longitude: 127.0279,
@@ -23,37 +17,6 @@ const PARKING_LOT = {
 
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
-
-type CapturedRequestWindow = Window & {
-  __capturedApiRequests?: string[];
-};
-
-const captureApiRequests = async (page: Page) => {
-  await page.evaluate(() => {
-    const testWindow = window as CapturedRequestWindow;
-    const originalFetch = window.fetch.bind(window);
-
-    testWindow.__capturedApiRequests = [];
-    window.fetch = (input, init) => {
-      const url = input instanceof Request ? input.url : String(input);
-      testWindow.__capturedApiRequests?.push(new URL(url, window.location.origin).toString());
-
-      return originalFetch(input, init);
-    };
-  });
-};
-
-const getCapturedParkingSearchRequest = async (page: Page) => {
-  const requestUrl = await page.evaluate(() =>
-    (window as CapturedRequestWindow).__capturedApiRequests?.find((url) =>
-      new URL(url).pathname.startsWith('/api/parking/search'),
-    ),
-  );
-
-  expect(requestUrl).toBeDefined();
-
-  return new URL(requestUrl!);
-};
 
 const goToParkingTimeStep = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
@@ -90,7 +53,7 @@ const goToRecommendedParkingDetail = async (page: Page) => {
     .getByRole('heading', { name: PARKING_LOT.name })
     .locator('..');
 
-  await parkingLotCard.getByRole('button', { name: '상세정보' }).click();
+  await parkingLotCard.getByRole('button', { name: /상세정보$/ }).click();
   await expect(page).toHaveURL(/\/parkingDetail$/);
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
 };
@@ -122,25 +85,27 @@ test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => 
   await expect(page.getByText('평일 24시간')).toBeVisible();
 });
 
-test('2. 현재 위치 주변의 주차장을 추천받는다', async ({ page }) => {
+test('2. 설정에서 가이드와 기존 랜딩페이지를 확인한다', async ({ page }) => {
   await page.goto('/');
-  await captureApiRequests(page);
-
-  await page.getByRole('button', { name: '주변', exact: true }).click();
-  await expect(page.getByRole('region', { name: '선택한 목적지' })).toContainText('현재 위치');
-
-  await goToParkingTimeStep(page);
-  await requestRecommendation(page);
-
-  await expect(page.getByRole('heading', { name: PARKING_LOT.name }).first()).toBeVisible();
-
-  const requestUrl = await getCapturedParkingSearchRequest(page);
-  expect(requestUrl.searchParams.get('destinationLatitude')).toBe(
-    String(CURRENT_LOCATION.latitude),
+  await expect(page.getByRole('button', { name: '주변', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: '설정', exact: true }).click();
+  await expect(page).toHaveURL(/\/setting$/);
+  await expect(page.getByRole('link', { name: '설정', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
   );
-  expect(requestUrl.searchParams.get('destinationLongitude')).toBe(
-    String(CURRENT_LOCATION.longitude),
-  );
+  await expect(page.getByRole('button', { name: /앱 설치/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /피드백 보내기/ })).toBeVisible();
+
+  await page.getByRole('button', { name: /가이드 보기/ }).click();
+  await expect(page.getByRole('dialog', { name: '주차의민족 이용 가이드' })).toBeVisible();
+  await page.getByRole('button', { name: '건너뛰기' }).click();
+
+  await page.getByRole('link', { name: /주차의민족 소개/ }).click();
+  await expect(page).toHaveURL(/\/landing$/);
+  await expect(page.getByRole('heading', { level: 1, name: /목적지를 입력하면/ })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/setting$/);
 });
 
 test.describe('길찾기', () => {

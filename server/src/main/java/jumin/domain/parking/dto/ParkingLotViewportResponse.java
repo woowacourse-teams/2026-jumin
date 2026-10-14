@@ -5,13 +5,15 @@ import jumin.domain.parking.entity.ParkingLot;
 public record ParkingLotViewportResponse(
         Long id,
         double latitude,
-        double longitude
+        double longitude,
+        double score
 ) {
-    public static ParkingLotViewportResponse from(ParkingLot parkingLot) {
+    public static ParkingLotViewportResponse from(ParkingLot parkingLot, double score) {
         return new ParkingLotViewportResponse(
                 parkingLot.getId(),
                 parkingLot.getLatitude(),
-                parkingLot.getLongitude()
+                parkingLot.getLongitude(),
+                score
         );
     }
 }

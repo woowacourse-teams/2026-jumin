@@ -60,6 +60,7 @@ final class ParkingCsvRowReader {
         Double latitude = coordinate(LATITUDE, -90, 90);
         Double longitude = coordinate(LONGITUDE, -180, 180);
         Integer capacity = nonNegativeInteger(CAPACITY);
+        boolean mechanical = parseYesNo(MECHANICAL);
         Boolean active = bool(ACTIVE, true);
         Instant lotCheckedAt = instant(LOT_SOURCE_CHECKED_AT);
         ParkingOperationValues operation = new ParkingOperationValues(
@@ -77,7 +78,7 @@ final class ParkingCsvRowReader {
             return null;
         }
         ParkingLotValues lot = new ParkingLotValues(source, externalId, name, sido, sigungu,
-                address, latitude, longitude, capacity, active, lotCheckedAt);
+                address, latitude, longitude, capacity, mechanical, active, lotCheckedAt);
         return new ParkingCsvRow(record.getRecordNumber(), lot, operation);
     }
 
@@ -121,6 +122,21 @@ final class ParkingCsvRowReader {
         }
         error(column, "true 또는 false여야 합니다.");
         return null;
+    }
+
+    private boolean parseYesNo(ParkingCsvColumn column) {
+        String value = value(column, false);
+        if (value == null) {
+            return false;
+        }
+        if (value.equals("Y")) {
+            return true;
+        }
+        if (value.equals("N")) {
+            return false;
+        }
+        error(column, "Y 또는 N이어야 합니다.");
+        return false;
     }
 
     private Integer nonNegativeInteger(ParkingCsvColumn column) {

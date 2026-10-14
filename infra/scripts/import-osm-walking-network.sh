@@ -47,7 +47,7 @@ DO $$ BEGIN
      OR to_regclass('walking_network_metadata') IS NULL
      OR to_regclass('parking_lot_walking_nodes') IS NULL
      OR to_regprocedure('refresh_parking_lot_walking_nodes(bigint[])') IS NULL THEN
-    RAISE EXCEPTION 'Deploy Flyway V10 and pgRouting before importing OSM.';
+    RAISE EXCEPTION 'Deploy Flyway V12 and pgRouting before importing OSM.';
   END IF;
 END $$;
 SQL

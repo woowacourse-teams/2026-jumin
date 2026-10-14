@@ -22,7 +22,7 @@ import {
 } from './adminApi';
 
 const SESSION_KEY = 'jumin-admin-session-v1';
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 30 * 1024 * 1024;
 const SESSION_EXPIRED_MESSAGE = '로그인이 만료되었습니다. 다시 로그인해 주세요.';
 const sessionSchema = z.object({
   accessToken: z.string().min(1),
@@ -75,7 +75,7 @@ const validateFile = (file: File): AdminApiError | null => {
     return new AdminApiError('빈 CSV 파일은 업로드할 수 없습니다.', null);
   }
   if (file.size > MAX_FILE_SIZE) {
-    return new AdminApiError('CSV 파일은 최대 10MiB까지 업로드할 수 있습니다.', null);
+    return new AdminApiError('CSV 파일은 최대 30MiB까지 업로드할 수 있습니다.', null);
   }
   return null;
 };
@@ -485,7 +485,7 @@ export const AdminPage = () => {
                           {file ? file.name : 'CSV 파일을 선택해 주세요'}
                         </strong>
                         <span className={descriptionStyle}>
-                          {file ? formatFileSize(file.size) : 'UTF-8 인코딩, 최대 10MiB'}
+                          {file ? formatFileSize(file.size) : 'UTF-8 인코딩, 최대 30MiB'}
                         </span>
                         <span className={fileSelectStyle}>{file ? '파일 변경' : '파일 선택'}</span>
                       </label>
@@ -517,11 +517,18 @@ export const AdminPage = () => {
                       </li>
                       <li>
                         <strong>파일 크기</strong>
-                        <span>최대 10MiB (10,485,760바이트)</span>
+                        <span>최대 30MiB (31,457,280바이트)</span>
                       </li>
                       <li>
                         <strong>데이터 구성</strong>
-                        <span>필수 헤더 37개와 데이터 행이 한 건 이상 필요합니다.</span>
+                        <span>필수 헤더 38개와 데이터 행이 한 건 이상 필요합니다.</span>
+                      </li>
+                      <li>
+                        <strong>기계식 여부</strong>
+                        <span>
+                          <code>parking_lots.mechanical</code> 헤더는 필수입니다. 값은 대문자 Y 또는
+                          N으로 입력하며, 빈 값은 N으로 처리합니다.
+                        </span>
                       </li>
                     </ul>
                     <div className={noticeStyle}>

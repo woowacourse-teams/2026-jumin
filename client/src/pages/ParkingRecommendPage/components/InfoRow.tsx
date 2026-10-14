@@ -1,15 +1,23 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
+import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
   isActive?: boolean;
   onSelect: (parkingLot: ParkingLotSummary) => void;
   onNavigate: (parkingLot: ParkingLotSummary) => void;
+  onDirections: (parkingLot: ParkingLotSummary) => void;
 }
 
-export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: Props) => {
+export const InfoRow = ({
+  parkingLot,
+  isActive = false,
+  onSelect,
+  onNavigate,
+  onDirections,
+}: Props) => {
   const { name, estimatedFee, distanceMeters, walkingDurationMinutes } = parkingLot;
 
   const walkingInformation =
@@ -32,7 +40,10 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
       />
 
       <span className={locationIconContainerStyle} aria-hidden="true">
-        <LocationIcon />
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z" />
+          <circle cx="12" cy="9" r="2.5" />
+        </svg>
       </span>
 
       <div className={informationStyle}>
@@ -46,23 +57,27 @@ export const InfoRow = ({ parkingLot, isActive = false, onSelect, onNavigate }: 
         </p>
       </div>
 
-      <button
-        className={detailButtonStyle(isActive)}
-        type="button"
-        onClick={() => onNavigate(parkingLot)}
-      >
-        상세보기
-      </button>
+      <div className={actionsStyle}>
+        <button
+          className={cx(actionButtonStyle, detailButtonStyle)}
+          type="button"
+          aria-label={`${name} 상세정보`}
+          onClick={() => onNavigate(parkingLot)}
+        >
+          <InformationIcon />
+        </button>
+        <button
+          className={cx(actionButtonStyle, directionsButtonStyle)}
+          type="button"
+          aria-label={`${name} 길찾기`}
+          onClick={() => onDirections(parkingLot)}
+        >
+          <DirectionsIcon />
+        </button>
+      </div>
     </article>
   );
 };
-
-const LocationIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z" />
-    <circle cx="12" cy="9" r="2.5" />
-  </svg>
-);
 
 const rowStyle = (isActive: boolean) => css`
   position: relative;
@@ -70,11 +85,11 @@ const rowStyle = (isActive: boolean) => css`
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 
   width: 100%;
-  min-height: 92px;
-  padding: 0px 10px;
+  min-height: 90px;
+  padding: 12px 8px;
 
   background: ${isActive ? '#f1f3ff' : '#ffffff'};
   border: 2px solid ${isActive ? '#4356d8' : 'transparent'};
@@ -115,33 +130,6 @@ const selectButtonStyle = css`
   }
 `;
 
-const locationIconContainerStyle = css`
-  position: relative;
-  z-index: 1;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 52px;
-  height: 58px;
-
-  color: #1677ff;
-  background: #edf5ff;
-  border-radius: 14px;
-  pointer-events: none;
-
-  svg {
-    width: 28px;
-    height: 28px;
-
-    stroke: currentColor;
-    stroke-width: 2.2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-`;
-
 const informationStyle = css`
   position: relative;
   z-index: 1;
@@ -150,12 +138,35 @@ const informationStyle = css`
   pointer-events: none;
 `;
 
+const locationIconContainerStyle = css`
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 58px;
+  color: #1677ff;
+  background: #edf5ff;
+  border-radius: 14px;
+  pointer-events: none;
+
+  svg {
+    width: 28px;
+    height: 28px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+`;
+
 const nameStyle = css`
   margin: 0;
   overflow: hidden;
 
   color: #101b37;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
   letter-spacing: -0.4px;
@@ -165,48 +176,81 @@ const nameStyle = css`
 
 const metadataStyle = css`
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 4px 10px;
 
-  margin: 2px 0 0;
+  margin: 5px 0 0;
 
   color: #697386;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1.3;
   white-space: nowrap;
 
   strong {
     color: #101b37;
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 800;
   }
 `;
 
-const detailButtonStyle = (isActive: boolean) => css`
+const actionsStyle = css`
   position: relative;
   z-index: 2;
+  display: flex;
+  gap: 8px;
+`;
 
-  min-width: 94px;
-  height: 56px;
-  padding: 0 14px;
-
-  color: ${isActive ? '#1256c4' : '#ffffff'};
-  font-size: 16px;
-  font-weight: 700;
-
-  background: ${isActive ? '#ffffff' : '#4356d8'};
-  border: 1px solid ${isActive ? '#d9deeb' : 'transparent'};
-  border-radius: 16px;
-  box-shadow: ${isActive ? '0 2px 8px rgb(16 27 55 / 8%)' : 'none'};
+const actionButtonStyle = css`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
   cursor: pointer;
   user-select: none;
 
-  &:hover {
-    background: ${isActive ? '#f8f9fc' : '#3548c8'};
+  &::after {
+    position: absolute;
+    inset: -4px;
+    content: '';
   }
 
   &:focus-visible {
     outline: 3px solid rgb(67 86 216 / 30%);
     outline-offset: 2px;
+  }
+`;
+
+const detailButtonStyle = css`
+  color: #697386;
+  background: transparent;
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  &:hover {
+    color: #4356d8;
+    background: #f1f3ff;
+  }
+`;
+
+const directionsButtonStyle = css`
+  color: #ffffff;
+  background: #4356d8;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background: #3548c8;
   }
 `;

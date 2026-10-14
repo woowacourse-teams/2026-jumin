@@ -213,7 +213,7 @@ class ParkingCsvRepositoryTest {
         ParkingLotValues old = row.lot();
         ParkingCsvRow cleared = new ParkingCsvRow(row.rowNumber(), new ParkingLotValues(
                 old.source(), old.sourceExternalId(), old.name(), null, null, old.address(),
-                null, null, null, old.active(), old.sourceCheckedAt()
+                null, null, null, old.mechanical(), old.active(), old.sourceCheckedAt()
         ), row.operation());
 
         // when
@@ -369,6 +369,79 @@ class ParkingCsvRepositoryTest {
         }
     }
 
+    @Test
+    @DisplayName("기계식 정보의 추가와 변경을 저장한다")
+    void persists_mechanical_flag_changes() {
+        // given
+        sync(List.of(row("기계식 변경", 1000, true)), FIRST_UPLOAD_AT);
+        ParkingDbRow initial = repository.findAll().getFirst();
+        assertThat(initial.lot().mechanical()).isTrue();
+
+        // when
+        ParkingChanges updated = sync(List.of(row("기계식 변경", 1000, false)), NEXT_UPLOAD_AT);
+
+        // then
+        assertThat(updated.updated()).hasSize(1);
+        ParkingDbRow saved = repository.findAll().getFirst();
+        assertThat(saved.id()).isEqualTo(initial.id());
+        assertThat(saved.lot().mechanical()).isFalse();
+        assertThat(timestamps(saved.id(), "parking_operations")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
+    }
+
+    @Test
+    @DisplayName("기계식 정보를 비기계식으로 변경하고 동일 입력은 재저장하지 않는다")
+    void updates_mechanical_flag_to_false_and_skips_unchanged_input() {
+        // given
+        sync(List.of(row("기계식 변경", 1000, true)), FIRST_UPLOAD_AT);
+        ParkingCsvRow nonMechanical = row("기계식 변경", 1000, false);
+
+        // when
+        sync(List.of(nonMechanical), NEXT_UPLOAD_AT);
+        ParkingChanges repeated = sync(List.of(nonMechanical), NEXT_UPLOAD_AT.plusSeconds(3600));
+
+        // then
+        ParkingDbRow saved = repository.findAll().getFirst();
+        assertThat(saved.lot().mechanical()).isFalse();
+        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.unchangedCount()).isEqualTo(1);
+        assertThat(timestamps(saved.id(), "parking_lots")).containsExactly(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT);
+    }
+
+    @Test
+    @DisplayName("V11은 기존 행과 신규 행의 기계식 기본값을 false로 설정하고 null을 금지한다")
+    void migration_defaults_mechanical_to_false_and_rejects_null() throws Exception {
+        // given
+        String migration = new ClassPathResource("db/migration/V11__add_parking_mechanical.sql")
+                .getContentAsString(StandardCharsets.UTF_8);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            try {
+                statement.execute("CREATE SCHEMA mechanical_migration_test");
+                statement.execute("SET LOCAL search_path TO mechanical_migration_test");
+                statement.execute("CREATE TABLE parking_lots (id INTEGER PRIMARY KEY)");
+                statement.execute("INSERT INTO parking_lots VALUES (1), (2)");
+
+                // when
+                statement.execute(migration);
+                statement.execute("INSERT INTO parking_lots (id) VALUES (3)");
+                statement.execute("INSERT INTO parking_lots VALUES (4, TRUE), (5, FALSE)");
+
+                // then
+                try (ResultSet rows = statement.executeQuery("SELECT mechanical FROM parking_lots ORDER BY id")) {
+                    List<Boolean> flags = new ArrayList<>();
+                    while (rows.next()) {
+                        flags.add(rows.getObject("mechanical", Boolean.class));
+                    }
+                    assertThat(flags).containsExactly(false, false, false, true, false);
+                }
+                assertThatThrownBy(() -> statement.execute("INSERT INTO parking_lots VALUES (6, NULL)"))
+                        .hasMessageContaining("not-null constraint");
+            } finally {
+                connection.rollback();
+            }
+        }
+    }
+
     private ParkingChanges sync(List<ParkingCsvRow> rows, Instant now) {
         ParkingChanges changes = differ.compare(repository.findAll(), rows);
         repository.save(changes, now);
@@ -376,9 +449,13 @@ class ParkingCsvRepositoryTest {
     }
 
     private ParkingCsvRow row(String name, int fee) {
+        return row(name, fee, false);
+    }
+
+    private ParkingCsvRow row(String name, int fee, boolean mechanical) {
         ParkingLotValues lot = new ParkingLotValues(
                 ParkingDataSource.DATA_GO_KR, "shared-source-id", name, "서울특별시", "강남구",
-                "서울시 테스트 주소", 37.4981, 127.0279, 100, true, SOURCE_CHECKED_AT
+                "서울시 테스트 주소", 37.4981, 127.0279, 100, mechanical, true, SOURCE_CHECKED_AT
         );
         ParkingScheduleValues schedule = new ParkingScheduleValues(
                 ParkingOperationStatus.OPEN, LocalTime.of(9, 0), LocalTime.of(18, 0)

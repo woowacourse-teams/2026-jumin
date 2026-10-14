@@ -40,7 +40,7 @@ docker compose --file infra/docker-compose.loadtest.yml up -d --no-build --wait
 
 주차장 CSV와 전국 OSM 보행망은 별도로 적재한다. CSV 형식은 [ParkingCsvColumn](../src/main/java/jumin/domain/admin/parking/csv/ParkingCsvColumn.java), 보행망 적재 방법은 [서버 README](../README.md#osm-보행-네트워크-적재)를 참고한다. OSM 적재 시 `COMPOSE_FILE=infra/docker-compose.loadtest.yml`, `DB_NAME=jumin_loadtest`, `DB_USERNAME=loadtest`를 지정한다.
 
-OSM 적재 스크립트는 V10 적용 후 주차장 주변 노드도 미리 저장한다. 기존 보행망을 유지하는 경우에는 두 데이터 적재 후 `SELECT refresh_parking_lot_walking_nodes(NULL::BIGINT[]);`를 한 번 실행한다. 첫 구축과 CSV 업로드는 순차적으로 진행한다.
+OSM 적재 스크립트는 V12 적용 후 주차장 주변 노드도 미리 저장한다. 기존 보행망을 유지하는 경우에는 두 데이터 적재 후 `SELECT refresh_parking_lot_walking_nodes(NULL::BIGINT[]);`를 한 번 실행한다. 첫 구축과 CSV 업로드는 순차적으로 진행한다.
 
 보행망 출처는 [Geofabrik South Korea](https://download.geofabrik.de/asia/south-korea.html)이며 [OSM 저작자 표시·ODbL](https://www.openstreetmap.org/copyright)을 따른다.
 

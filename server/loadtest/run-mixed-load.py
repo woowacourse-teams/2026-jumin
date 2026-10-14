@@ -77,7 +77,7 @@ def main():
         "memory_guard": "working_set=current-inactive_file; stop at >=90% for 3 five-second samples or new OOM kill",
         "cache_preparation": "Restart PostgreSQL; recreate Backend and Nginx; 10 viewport then 10 recommendation warmup requests; OS page cache retained.",
         "monitoring": "Every 5s: Docker/cgroup/host load, direct Backend Prometheus scrape filtered to Hikari, one pg_stat_activity query. Same observer on both versions; observer CPU included; monitoring HTTP excluded from k6 and business SQL counts. Sampled gauges can miss short waits.",
-        "db_schema_note": "Same V1-V10 and existing mapping retained; query-only variants do not change write hooks.",
+        "db_schema_note": "Same V1-V12 and existing mapping retained; query-only variants do not change write hooks.",
         "restore_image_id": original_image, "restore_image_tag": backup_tag,
         "script_sha256": {name: hashlib.sha256((HERE / name).read_bytes()).hexdigest() for name in scripts},
     }

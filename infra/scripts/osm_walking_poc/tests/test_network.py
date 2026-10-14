@@ -246,7 +246,7 @@ services:
         for name in ['V6__create_walking_network_tables.sql', 'V7__enable_pgrouting.sql']:
             cls.sql((migrations / name).read_text())
         cls.sql('CREATE TABLE parking_lots(id BIGINT PRIMARY KEY, latitude DOUBLE PRECISION, longitude DOUBLE PRECISION); INSERT INTO parking_lots VALUES(1,37,127.002),(2,37,127.005),(3,37,127.007),(4,37,127.006);')
-        cls.sql((migrations / 'V10__precompute_parking_walking_nodes.sql').read_text())
+        cls.sql((migrations / 'V12__precompute_parking_walking_nodes.sql').read_text())
         cls.input = cls.directory / 'test.osm'
         cls.graph = cls.directory / 'graph'
         snapshot(cls.input)

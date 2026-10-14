@@ -87,7 +87,7 @@ def main():
         "monitoring": "5s Docker/cgroup/host, Hikari and JDBC DB activity; cgroup CPU counters and k6 CPU/memory added. Sampled gauges may miss short queues. Observer resource use included.",
         "cache_preparation": "One initial PostgreSQL restart and Backend/Nginx recreation, then viewport10 + recommendation10 warmup with 2s think time and separate pre-Stress response capture (viewport17 + recommendation3); no server restart between stages or before recovery. OS page cache retained.",
         "response_comparison": {"baseline": "response-baseline", "timing": "After warmup, before the first scout, versus after recovery", "included_in_load_metrics": False},
-        "db_schema_note": "Same V1-V10, nationwide OSM and all parking CSV rows; no new DDL/data changes. Query-only experimental image; write hooks and boundary contract remain separate regression work.",
+        "db_schema_note": "Same V1-V12, nationwide OSM and all parking CSV rows; no new DDL/data changes. Query-only experimental image; write hooks and boundary contract remain separate regression work.",
         "script_sha256": {name: hashlib.sha256((HERE / name).read_bytes()).hexdigest() for name in scripts},
     }
     save(folder / "metadata.json", metadata)

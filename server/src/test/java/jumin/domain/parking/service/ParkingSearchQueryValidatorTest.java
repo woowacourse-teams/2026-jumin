@@ -3,10 +3,7 @@ package jumin.domain.parking.service;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
@@ -15,9 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 
 class ParkingSearchQueryValidatorTest {
 
-    private final ParkingSearchQueryValidator validator = new ParkingSearchQueryValidator(
-            Clock.fixed(Instant.parse("2026-08-13T00:00:00Z"), ZoneOffset.UTC)
-    );
+    private final ParkingSearchQueryValidator validator = new ParkingSearchQueryValidator();
 
     @Test
     @DisplayName("미래의 유효한 이용 시간 요청을 허용한다")
@@ -130,16 +125,15 @@ class ParkingSearchQueryValidatorTest {
     }
 
     @Test
-    @DisplayName("현재 시각 이전의 입차 시간은 거부한다")
-    void rejects_past_entry_time() {
+    @DisplayName("현재 시각 이전의 입출차 시간도 허용한다")
+    void accepts_past_entry_and_exit_times() {
         // given
         ParkingSearchRequest searchRequest = request(
-                37.5, 127.0, "2026-08-13T08:00:00+09:00", "2026-08-13T09:00:00+09:00");
+                37.5, 127.0, "2026-08-13T07:00:00+09:00", "2026-08-13T08:00:00+09:00");
 
         // when & then
-        assertThatThrownBy(() -> validator.validate(searchRequest))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.INVALID_INPUT.getMessage());
+        assertThatCode(() -> validator.validate(searchRequest))
+                .doesNotThrowAnyException();
     }
 
     @Test

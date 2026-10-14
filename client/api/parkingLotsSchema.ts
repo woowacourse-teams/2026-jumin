@@ -121,6 +121,8 @@ export const parkingLotViewportSchema = z.object({
   id: z.number(),
   latitude: z.number(),
   longitude: z.number(),
+  // LOD 점수는 서버가 계산한 JSON 숫자를 그대로 사용한다.
+  score: z.number(),
 });
 
 export const parkingLotViewportResponseSchema = z.object({

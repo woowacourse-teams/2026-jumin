@@ -16,9 +16,15 @@ const renderParkingInformation = (parkingLotId = 101) => {
     throw new Error(`주차장 ID ${parkingLotId}의 목 데이터가 없습니다.`);
   }
 
+  const detail = viewportParkingLotDetailFixtures[parkingLot.id];
+
+  if (!detail) {
+    throw new Error(`주차장 ID ${parkingLotId}의 상세 목 데이터가 없습니다.`);
+  }
+
   return renderWithProviders(
     <Suspense fallback={<p>주차장 정보를 불러오는 중</p>}>
-      <ParkingInformationContent parkingLot={parkingLot} />
+      <ParkingInformationContent parkingLot={parkingLot} data={detail} />
     </Suspense>,
   );
 };
@@ -30,15 +36,8 @@ describe('홈페이지 주차장 상세정보', () => {
     ).toBe(true);
   });
 
-  it('주차장 기본 정보, 요금, 운영 정보와 시설 정보를 표시한다', async () => {
+  it('요금, 운영 정보와 시설 정보를 표시한다', () => {
     renderParkingInformation();
-
-    expect(
-      await screen.findByRole('heading', {
-        name: '역삼문화공원 제1호 공영주차장',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('서울 강남구 테헤란로7길 21')).toBeInTheDocument();
 
     expect(screen.getByText('기본 무료시간')).toBeInTheDocument();
     expect(screen.getByText('0분')).toBeInTheDocument();
@@ -63,26 +62,24 @@ describe('홈페이지 주차장 상세정보', () => {
     expect(screen.getByText('42면')).toBeInTheDocument();
   });
 
-  it('요금과 운영 정보가 없으면 미제공 상태를 표시한다', async () => {
+  it('요금과 운영 정보가 없으면 미제공 상태를 표시한다', () => {
     renderParkingInformation(105);
 
-    expect(
-      await screen.findByRole('heading', { name: '운영정보 확인 주차장' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('서울 강남구 역삼동')).toBeInTheDocument();
     expect(screen.getByText('총 주차면 수')).toBeInTheDocument();
     expect(screen.getAllByText('미제공').length).toBeGreaterThan(0);
     expect(screen.getAllByText('운영 정보 없음')).toHaveLength(3);
     expect(screen.getAllByText('유료 여부 미제공')).toHaveLength(3);
   });
 
-  it('오른쪽에 신고 버튼을 표시하고 신고 모달을 연다', async () => {
+  it('하단 제보 버튼에서 신고 모달을 연다', async () => {
     renderParkingInformation();
     const user = userEvent.setup();
-    const reportButton = await screen.findByRole('button', { name: '신고하기' });
-    const reportRow = reportButton.parentElement?.parentElement;
+    const reportButton = await screen.findByRole('button', { name: '제보하기' });
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
 
-    expect(reportRow).toHaveStyle({ display: 'flex', justifyContent: 'flex-end' });
+    expect(actions).not.toContainElement(reportButton);
+    expect(actions).toContainElement(screen.getByRole('button', { name: '길찾기 시작' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: '로드뷰 보기' }));
 
     await user.click(reportButton);
     expect(screen.getByRole('dialog', { name: '주차장 정보 신고' })).toBeInTheDocument();
@@ -109,5 +106,20 @@ describe('홈페이지 주차장 상세정보', () => {
       }),
     ).toBeInTheDocument();
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('로드뷰 버튼을 누르면 전체 화면 로드뷰를 열고 닫을 수 있다', async () => {
+    renderParkingInformation();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: '로드뷰 보기' }));
+
+    expect(
+      screen.getByRole('dialog', { name: '역삼문화공원 제1호 공영주차장 로드뷰' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '로드뷰 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: /로드뷰$/ })).not.toBeInTheDocument();
   });
 });

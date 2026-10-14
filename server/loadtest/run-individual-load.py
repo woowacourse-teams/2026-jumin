@@ -241,7 +241,7 @@ def main():
         "provisional_thresholds": {"viewport_p95_ms": 300, "recommendation_p95_ms": 2000,
                                    "observed_failure_rate_less_than": 0.01, "dropped_iterations": 0},
         "memory_guard": "working_set=current-inactive_file; stop at >=90% for 3 five-second samples or new OOM kill",
-        "db_schema_note": "V1-V10 remain applied. Mapping usage is recorded separately for each SQL variant.",
+        "db_schema_note": "V1-V12 remain applied. Mapping usage is recorded separately for each SQL variant.",
         "cache_preparation": "Restart PostgreSQL, recreate Backend and Nginx, then 10 endpoint warmup requests. Host OS page cache is not cleared.",
     }
     metadata["script_sha256"] = {

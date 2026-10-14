@@ -3,22 +3,29 @@ import { css } from '@emotion/css';
 
 interface Props {
   parkingLotName: string;
+  parkingLotAddress: string;
+  onBack?: () => void;
 }
 
-export const ParkingLotHeader = ({ parkingLotName }: Props) => {
+export const ParkingLotHeader = ({ parkingLotName, parkingLotAddress, onBack }: Props) => {
   const navigate = useNavigate();
+
+  const handleBack = onBack ?? (() => navigate(-1));
+
   return (
     <header className={headerStyle}>
       <button
         className={backButtonStyle}
         type="button"
         aria-label="이전 화면으로 이동"
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
       >
         <BackIcon />
       </button>
-
-      <h1 className={parkingNameStyle}>{parkingLotName}</h1>
+      <div className={headerContentStyle}>
+        <h1 className={parkingNameStyle}>{parkingLotName}</h1>
+        <p className={addressStyle}>{parkingLotAddress}</p>
+      </div>
     </header>
   );
 };
@@ -33,58 +40,52 @@ function BackIcon() {
 
 const headerStyle = css`
   position: relative;
-
   pointer-events: auto;
-
   z-index: 1001;
-
   display: flex;
-
   align-items: center;
-
   height: calc(60px + env(safe-area-inset-top, 0px));
-
   padding: calc(0px + env(safe-area-inset-top, 0px)) 18px 0;
-
   box-sizing: border-box;
-
   background: #fff;
+`;
+
+const headerContentStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  min-width: 0;
+`;
+
+const addressStyle = css`
+  margin: 0;
+
+  color: #768197;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
 `;
 
 const backButtonStyle = css`
   display: grid;
-
   flex: 0 0 40px;
-
   place-items: center;
-
   width: 40px;
-
   height: 40px;
-
   padding: 0;
-
   color: #62708a;
-
   background: transparent;
-
   border: 0;
-
   border-radius: 12px;
-
   cursor: pointer;
 
   svg {
     width: 22px;
-
     height: 22px;
-
     stroke: currentColor;
-
     stroke-width: 2;
-
     stroke-linecap: round;
-
     stroke-linejoin: round;
   }
 
@@ -95,22 +96,13 @@ const backButtonStyle = css`
 
 const parkingNameStyle = css`
   min-width: 0;
-
   margin: 0;
-
   overflow: hidden;
-
   color: #18233d;
-
   font-size: 16px;
-
   font-weight: 800;
-
   line-height: 1.4;
-
   letter-spacing: -0.3px;
-
   text-overflow: ellipsis;
-
   white-space: nowrap;
 `;
