@@ -521,7 +521,14 @@ export const AdminPage = () => {
                       </li>
                       <li>
                         <strong>데이터 구성</strong>
-                        <span>필수 헤더 37개와 데이터 행이 한 건 이상 필요합니다.</span>
+                        <span>필수 헤더 38개와 데이터 행이 한 건 이상 필요합니다.</span>
+                      </li>
+                      <li>
+                        <strong>기계식 여부</strong>
+                        <span>
+                          <code>parking_lots.mechanical</code> 헤더는 필수입니다. 값은 대문자 Y 또는
+                          N으로 입력하며, 빈 값은 N으로 처리합니다.
+                        </span>
                       </li>
                     </ul>
                     <div className={noticeStyle}>
