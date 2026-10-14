@@ -15,6 +15,10 @@ bin/
 out/
 *.class
 
+# 부하 테스트 산출물
+/server/loadtest/results/
+/server/loadtest/image-context/app.jar
+
 # 로컬 환경 파일
 .env
 .env.*

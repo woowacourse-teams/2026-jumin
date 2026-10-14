@@ -126,12 +126,15 @@ public class ParkingCsvRepository {
 
     public void save(ParkingChanges changes, Instant now) {
         requireTransaction();
-        insertNewParkingLots(changes.added(), now);
-        updateExistingParkingLots(changes.updated(), now);
+        List<Long> parkingLotIdsToRefresh = new ArrayList<>();
+        parkingLotIdsToRefresh.addAll(insertNewParkingLots(changes.added(), now));
+        parkingLotIdsToRefresh.addAll(updateExistingParkingLots(changes.updated(), now));
         deactivateMissingParkingLots(changes.deactivated(), now);
+        refreshWalkingNodeCandidates(parkingLotIdsToRefresh);
     }
 
-    private void insertNewParkingLots(List<ParkingCsvRow> rows, Instant now) {
+    private List<Long> insertNewParkingLots(List<ParkingCsvRow> rows, Instant now) {
+        List<Long> insertedParkingLotIds = new ArrayList<>();
         for (int offset = 0; offset < rows.size(); offset += BATCH_SIZE) {
             List<ParkingCsvRow> batch = rows.subList(offset, Math.min(offset + BATCH_SIZE, rows.size()));
             List<MapSqlParameterSource> lotParameters = new ArrayList<>();
@@ -157,20 +160,24 @@ public class ParkingCsvRepository {
                 if (id == null) {
                     throw new IllegalStateException("신규 주차장의 DB 생성 ID를 확인할 수 없습니다.");
                 }
+                insertedParkingLotIds.add(id);
                 operationParameters.add(operationParameters(id, row.operation(), now));
             }
             insertOperations(operationParameters);
         }
+        return insertedParkingLotIds;
     }
 
-    private void updateExistingParkingLots(List<ParkingUpdate> updates, Instant now) {
+    private List<Long> updateExistingParkingLots(List<ParkingUpdate> updates, Instant now) {
         List<MapSqlParameterSource> lotUpdates = new ArrayList<>();
         List<MapSqlParameterSource> operationUpdates = new ArrayList<>();
         List<MapSqlParameterSource> missingOperations = new ArrayList<>();
+        List<Long> changedParkingLotIds = new ArrayList<>();
         for (ParkingUpdate update : updates) {
             long id = update.before().id();
             if (update.lotChanged()) {
                 lotUpdates.add(lotParameters(update.after().lot(), now).addValue("id", id, Types.BIGINT));
+                changedParkingLotIds.add(id);
             }
             if (!update.operationChanged()) {
                 continue;
@@ -185,6 +192,18 @@ public class ParkingCsvRepository {
         batchUpdate(UPDATE_LOT, lotUpdates);
         batchUpdate(UPDATE_OPERATION, operationUpdates);
         insertOperations(missingOperations);
+        return changedParkingLotIds;
+    }
+
+    private void refreshWalkingNodeCandidates(List<Long> parkingLotIds) {
+        if (parkingLotIds.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.queryForObject(
+                "SELECT refresh_parking_lot_walking_nodes(ARRAY[:parkingLotIds]::BIGINT[])",
+                new MapSqlParameterSource("parkingLotIds", parkingLotIds),
+                Long.class
+        );
     }
 
     private void deactivateMissingParkingLots(List<ParkingDbRow> rows, Instant now) {
@@ -240,7 +259,6 @@ public class ParkingCsvRepository {
             }
             values.add(rowValues.toString());
         }
-        // Table and column names come only from the constants above, never from CSV headers.
         return "INSERT INTO " + table + " (" + String.join(", ", columns) + ") VALUES " + values;
     }
 

@@ -246,6 +246,7 @@ services:
         for name in ['V6__create_walking_network_tables.sql', 'V7__enable_pgrouting.sql']:
             cls.sql((migrations / name).read_text())
         cls.sql('CREATE TABLE parking_lots(id BIGINT PRIMARY KEY, latitude DOUBLE PRECISION, longitude DOUBLE PRECISION); INSERT INTO parking_lots VALUES(1,37,127.002),(2,37,127.005),(3,37,127.007),(4,37,127.006);')
+        cls.sql((migrations / 'V10__precompute_parking_walking_nodes.sql').read_text())
         cls.input = cls.directory / 'test.osm'
         cls.graph = cls.directory / 'graph'
         snapshot(cls.input)
@@ -291,6 +292,8 @@ services:
     def test_existing_schema_readiness_and_current_distance_query(self):
         self.assertEqual(self.sql("SELECT source,node_count,edge_count FROM walking_network_metadata"), 'OSM|6|4')
         self.assertEqual(self.sql("SELECT COUNT(*) FROM walking_nodes WHERE source = 'OSM'"), '6')
+        self.assertEqual(self.sql("SELECT candidate_nodes_snap_radius_meters FROM walking_network_metadata"), '100')
+        self.assertEqual(self.sql("SELECT COUNT(*) FROM parking_lot_walking_nodes WHERE parking_lot_id = 1"), '3')
         self.assertEqual(self.sql("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('walking_edges','walking_network_metadata') AND column_name IN ('osm_way_id','osm_segment_index','source_metadata')"), '0')
         sql_dir = REPO / 'server/src/main/resources/sql/walking'
         self.assertEqual(self.sql((sql_dir / 'has-usable-network.sql').read_text()), 't')
@@ -306,6 +309,7 @@ services:
 
     def test_insert_failure_rolls_back_existing_network(self):
         before = self.sql('SELECT imported_at FROM walking_network_metadata')
+        cached_before = self.sql('SELECT count(*) FROM parking_lot_walking_nodes')
         self.sql("CREATE FUNCTION reject_edge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'forced test failure'; END $$; CREATE TRIGGER reject_edge BEFORE INSERT ON walking_edges FOR EACH ROW EXECUTE FUNCTION reject_edge();")
         try:
             result = self.import_graph()
@@ -313,6 +317,7 @@ services:
             self.assertIn('forced test failure', result.stderr)
             self.assertEqual(self.sql('SELECT imported_at FROM walking_network_metadata'), before)
             self.assertEqual(self.sql('SELECT count(*) FROM walking_edges'), '4')
+            self.assertEqual(self.sql('SELECT count(*) FROM parking_lot_walking_nodes'), cached_before)
         finally:
             self.sql('DROP TRIGGER reject_edge ON walking_edges; DROP FUNCTION reject_edge();')
 

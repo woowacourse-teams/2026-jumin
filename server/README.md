@@ -85,6 +85,10 @@ Compose 설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설
 > 데이터베이스에 자동 반영되지 않습니다. 기존 DB에 직접 적용하거나 볼륨을
 > 삭제하고 다시 초기화해야 합니다.
 
+## 부하 테스트
+
+viewport 조회와 추천 검색을 대상으로 하는 k6 스크립트 및 격리 Docker Compose 환경은 [loadtest/README.md](loadtest/README.md)를 참고하세요.
+
 ## 테스트
 
 테스트는 Testcontainers가 PostgreSQL 컨테이너를 자동으로 실행하므로 Docker가

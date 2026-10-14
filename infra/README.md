@@ -8,6 +8,8 @@
 | 파일 | 용도 |
 | --- | --- |
 | `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS + pgRouting 실행 |
+| `docker-compose.loadtest.yml` | 운영 자원·요청 경로를 근사한 격리 부하 테스트 환경 |
+| `db/loadtest-init/` | 부하 테스트 전용 PostgreSQL 확장 초기화 |
 | `docker-compose.dev.yml` | 개발 서버 백엔드 컨테이너 실행 |
 | `docker-compose.prod.yml` | 운영 서버 백엔드 컨테이너 실행 |
 | `docker-compose.proxy.yml` | 개발 서버 Nginx + Certbot 실행 |
@@ -16,6 +18,7 @@
 | `nginx/jumin.conf` | HTTPS, 정적 파일, API 프록시 설정 |
 | `nginx/bootstrap.prod.conf` | 운영 최초 인증서 발급 전 HTTP 설정 |
 | `nginx/jumin.prod.conf` | 운영 HTTPS, 정적 파일, API 프록시 설정 |
+| `nginx/jumin.loadtest.conf` | loopback 전용 부하 테스트 API 프록시 설정 |
 | `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
 | `scripts/import-osm-walking-network.sh` | OSM 전국 보행 네트워크 적재 |
@@ -65,6 +68,12 @@ docker compose -f infra/docker-compose.local.yml down --volumes
 > Apple Silicon에서는 현재 PostGIS + pgRouting 이미지가 amd64 기반이므로 실행 명령 앞에
 > `DOCKER_DEFAULT_PLATFORM=linux/amd64`를 붙여야 합니다. 자세한 실행·테스트 방법은
 > [서버 README의 아키텍처별 실행](../server/README.md#1-호스트-아키텍처-확인)을 참고하세요.
+
+## 격리 부하 테스트
+
+주차장 API 부하 테스트(viewport 조회·추천 검색)는 운영·개발 DB와 분리된
+`jumin-loadtest-postgres-data` 볼륨을 사용합니다.
+설치·실행·데이터 적재 절차는 [서버 부하 테스트 안내](../server/loadtest/README.md)를 참고하세요.
 
 ## 개발 서버 배포
 
