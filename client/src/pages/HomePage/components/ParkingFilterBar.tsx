@@ -54,6 +54,8 @@ const filterBarStyle = css`
 
   width: min(358px, calc(100% - 32px));
   margin: 10px auto 0;
+  padding: 4px 4px 8px;
+  box-sizing: border-box;
 
   overflow-x: auto;
   pointer-events: auto;
@@ -81,6 +83,11 @@ const filterButtonStyle = (isSelected: boolean, color: string) => css`
   background: ${isSelected ? color : '#ffffff'};
   border: 1px solid ${isSelected ? color : '#e3e6ef'};
   border-radius: 26px;
+
+  box-shadow: ${
+    isSelected ? '0 4px 10px rgba(16, 27, 55, 0.2)' : '0 2px 8px rgba(16, 27, 55, 0.12)'
+  };
+
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
