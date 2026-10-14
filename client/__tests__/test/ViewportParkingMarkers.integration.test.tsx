@@ -67,6 +67,9 @@ class TestMarker {
 
 const markers: TestMarker[] = [];
 const activeMarkers = () => markers.filter(({ active }) => active);
+const representativeMarkers = () =>
+  activeMarkers().filter(({ anchor }) => anchor.x === 10 && anchor.y === 10);
+const dotMarkers = () => activeMarkers().filter(({ anchor }) => anchor.x === 14 && anchor.y === 14);
 const markerFor = (id: number) => {
   const parkingLot = parkingViewportLots.find((lot) => lot.id === id);
   return activeMarkers().find(
@@ -163,14 +166,11 @@ it('줌 15에서 점수 상위 10개만 대표 마커로 표시하고 점도 선
   const { rerender } = renderWithProviders(<ViewportParkingMarkers {...props} />);
 
   await waitFor(() => expect(activeMarkers()).toHaveLength(parkingViewportLots.length));
-  expect(activeMarkers().filter(({ iconSize }) => iconSize.width === 20)).toHaveLength(10);
-  expect(activeMarkers().filter(({ iconSize }) => iconSize.width === 28)).toHaveLength(
-    parkingViewportLots.length - 10,
-  );
-  expect(markerFor(105)?.iconSize.width).toBe(28);
-  expect(markerFor(201)?.iconSize.width).toBe(28);
-  expect(markerFor(216)?.anchor).toEqual(new TestPoint(10, 10));
+  expect(representativeMarkers()).toHaveLength(10);
+  expect(dotMarkers()).toHaveLength(parkingViewportLots.length - 10);
   expect(markerFor(105)?.anchor).toEqual(new TestPoint(14, 14));
+  expect(markerFor(201)?.anchor).toEqual(new TestPoint(14, 14));
+  expect(markerFor(216)?.anchor).toEqual(new TestPoint(10, 10));
 
   act(() => markerFor(216)?.onClick?.());
   expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 216 }));
@@ -199,11 +199,9 @@ it('줌 15보다 확대하면 모든 주차장을 대표 마커로 표시하고 
   await waitFor(() => expect(activeMarkers()).toHaveLength(parkingViewportLots.length));
   rerender(<ViewportParkingMarkers {...props} viewport={{ ...viewport, zoom: 16 }} />);
 
-  expect(activeMarkers().filter(({ iconSize }) => iconSize.width === 20)).toHaveLength(
-    parkingViewportLots.length - 1,
-  );
-  expect(markerFor(105)?.iconSize.width).toBe(30);
-  expect(activeMarkers().filter(({ iconSize }) => iconSize.width === 28)).toHaveLength(0);
+  expect(representativeMarkers()).toHaveLength(parkingViewportLots.length - 1);
+  expect(markerFor(105)?.anchor).toEqual(new TestPoint(15, 33));
+  expect(dotMarkers()).toHaveLength(0);
 });
 
 it('줌 15보다 축소하면 마커 대신 기존 확대 안내를 표시한다', async () => {
