@@ -312,8 +312,8 @@ describe('관리자 주차장 CSV 동기화', () => {
     ['CSV가 아닌 파일', () => new File(['data'], 'parking.txt', { type: 'text/plain' })],
     ['빈 파일', () => new File([], 'parking.csv', { type: 'text/csv' })],
     [
-      '10MiB를 초과하는 파일',
-      () => new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'parking.csv', { type: 'text/csv' }),
+      '30MiB를 초과하는 파일',
+      () => new File([new Uint8Array(30 * 1024 * 1024 + 1)], 'parking.csv', { type: 'text/csv' }),
     ],
   ])('%s은 서버 요청 없이 안내한다', async (_label, createFile) => {
     // given
@@ -335,7 +335,7 @@ describe('관리자 주차장 CSV 동기화', () => {
     expect(requests).toBe(0);
   });
 
-  it('정확히 10MiB인 파일은 동기화 요청을 허용한다', async () => {
+  it('정확히 30MiB인 파일은 동기화 요청을 허용한다', async () => {
     // given
     let requests = 0;
     let submittedSize: number | undefined;
@@ -350,7 +350,7 @@ describe('관리자 주차장 CSV 동기화', () => {
         return HttpResponse.json(importResponse);
       }),
     );
-    const maximumSize = 10 * 1024 * 1024;
+    const maximumSize = 30 * 1024 * 1024;
     const file = new File([new Uint8Array(maximumSize)], 'parking.csv', { type: 'text/csv' });
     renderAuthenticatedPage();
     const user = await selectCsv(file);

@@ -7,6 +7,8 @@ import jumin.TestcontainersConfiguration;
 import jumin.domain.parking.entity.ParkingLot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -62,7 +64,10 @@ class ParkingLotRepositoryTest {
                 127.0270,
                 37.4980,
                 127.0280,
-                37.5000
+                37.5000,
+                false,
+                false,
+                1
         );
 
         // then
@@ -132,6 +137,133 @@ class ParkingLotRepositoryTest {
 
         // then
         assertThat(results).extracting("name").containsExactly("경계 안쪽 주차장");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "1, false, false, 무료 일반|무료 기계식|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "1, true, false, 무료 일반|무료 기계식",
+            "1, false, true, 무료 일반|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "1, true, true, 무료 일반",
+            "6, false, false, 무료 일반|무료 기계식|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "6, true, false, 무료 일반|무료 기계식|주말 무료",
+            "6, false, true, 무료 일반|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "6, true, true, 무료 일반|주말 무료",
+            "7, false, false, 무료 일반|무료 기계식|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "7, true, false, 무료 일반|무료 기계식|주말 무료",
+            "7, false, true, 무료 일반|유료 일반|주말 무료|요금 미확인|운영 정보 없음",
+            "7, true, true, 무료 일반|주말 무료"
+    })
+    @DisplayName("무료와 기계식 제외 필터를 조합한다")
+    void filters_viewport_parking_lots(
+            int dayOfWeek, boolean freeOnly, boolean excludeMechanical, String expectedNames
+    ) {
+        // given
+        insertFilterCandidate("무료 일반", false, false, false, false);
+        insertFilterCandidate("무료 기계식", true, false, false, false);
+        insertFilterCandidate("유료 일반", false, true, true, true);
+        insertFilterCandidate("주말 무료", false, true, false, false);
+        insertFilterCandidate("요금 미확인", false, null, null, null);
+        insertParkingLot("no-operation", "운영 정보 없음", "서울시 테스트 주소", true, 37.4990, 127.0279);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
+                127.0270, 37.4980, 127.0280, 37.5000, freeOnly, excludeMechanical, dayOfWeek
+        );
+
+        // then
+        assertThat(results).extracting(ParkingLot::getName).containsExactly(expectedNames.split("\\|"));
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {
+            "1, true, false, false",
+            "6, false, true, false",
+            "7, false, false, true",
+            "5, NULL, false, false",
+            "6, false, NULL, false",
+            "7, false, false, NULL"
+    }, nullValues = "NULL")
+    @DisplayName("오늘 유료 여부가 true 또는 null이면 기본 무료시간이 있어도 제외한다")
+    void excludes_paid_or_unknown_today(
+            int dayOfWeek, Boolean weekdayPaid, Boolean saturdayPaid, Boolean holidayPaid
+    ) {
+        // given
+        insertFilterCandidate("오늘 무료 아님", false, weekdayPaid, saturdayPaid, holidayPaid);
+        jdbcTemplate.update("""
+                update parking_operations
+                set base_free_minutes = 60, base_fee = 0, additional_fee = 500
+                where parking_lot_id = ?
+                """, parkingLotId("오늘 무료 아님"));
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
+                127.0270, 37.4980, 127.0280, 37.5000, true, false, dayOfWeek
+        );
+
+        // then
+        assertThat(results).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {
+            "1, false, true, true",
+            "6, true, false, true",
+            "7, true, true, false",
+            "5, false, NULL, NULL",
+            "6, NULL, false, NULL",
+            "7, NULL, NULL, false"
+    }, nullValues = "NULL")
+    @DisplayName("다른 요일의 유료 여부나 공통 요금과 관계없이 오늘 무료이면 포함한다")
+    void includes_free_today_regardless_of_other_days_or_common_fee(
+            int dayOfWeek, Boolean weekdayPaid, Boolean saturdayPaid, Boolean holidayPaid
+    ) {
+        // given
+        insertFilterCandidate("오늘 무료", false, weekdayPaid, saturdayPaid, holidayPaid);
+        jdbcTemplate.update("""
+                update parking_operations
+                set base_fee = 1000, additional_fee = 500, monthly_fee = 100000
+                where parking_lot_id = ?
+                """, parkingLotId("오늘 무료"));
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
+                127.0270, 37.4980, 127.0280, 37.5000, true, false, dayOfWeek
+        );
+
+        // then
+        assertThat(results).extracting(ParkingLot::getName).containsExactly("오늘 무료");
+    }
+
+    @Test
+    @DisplayName("기계식 값을 생략하면 DB와 엔티티에서 false로 처리한다")
+    void defaults_mechanical_flag_to_false() {
+        // given
+        insertParkingLot("default-mechanical", "기본값 주차장", "서울시 테스트 주소", true, 37.4990, 127.0279);
+
+        // when
+        ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId("default-mechanical")).orElseThrow();
+
+        // then
+        assertThat(parkingLot.isMechanical()).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+                "select mechanical from parking_lots where id = ?", Boolean.class, parkingLot.getId()
+        )).isFalse();
+        assertThat(new ParkingLot().isMechanical()).isFalse();
+    }
+
+    private void insertFilterCandidate(
+            String name, boolean mechanical, Boolean weekdayPaid, Boolean saturdayPaid, Boolean holidayPaid
+    ) {
+        insertParkingLot(name, name, "서울시 테스트 주소", true, 37.4990, 127.0279);
+        Long id = parkingLotId(name);
+        jdbcTemplate.update("update parking_lots set mechanical = ? where id = ?", mechanical, id);
+        jdbcTemplate.update("""
+                insert into parking_operations (
+                    parking_lot_id, weekday_paid, saturday_paid, holiday_paid,
+                    source_checked_at, created_at, updated_at
+                ) values (?, ?, ?, ?, current_timestamp, current_timestamp, current_timestamp)
+                """, id, weekdayPaid, saturdayPaid, holidayPaid);
     }
 
     private void insertParkingLot(

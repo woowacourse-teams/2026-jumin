@@ -100,7 +100,7 @@ const getImportErrorMessage = (status: number): string => {
     case 409:
       return '다른 업로드가 진행 중이거나 주차장 데이터가 충돌했습니다. 확인 후 다시 시도해 주세요.';
     case 413:
-      return 'CSV 파일은 최대 10MiB까지 업로드할 수 있습니다.';
+      return 'CSV 파일은 최대 30MiB까지 업로드할 수 있습니다.';
     case 415:
       return 'CSV 확장자와 UTF-8 또는 UTF-8 BOM 인코딩을 확인해 주세요.';
     case 422:
