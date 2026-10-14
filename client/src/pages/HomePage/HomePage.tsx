@@ -147,7 +147,7 @@ export const HomePage = () => {
         <div className={floatingControlsStyle}>
           <CurrentLocationButton onClick={requestCurrentLocation} />
         </div>
-        <BottomNav />
+        {selectedParkingLot === null && <BottomNav />}
       </footer>
 
       {selectedParkingLot !== null && (
