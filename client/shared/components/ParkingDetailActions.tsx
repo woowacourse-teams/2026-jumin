@@ -1,12 +1,17 @@
 import { css, cx } from '@emotion/css';
+import type { ReactNode } from 'react';
 
 interface Props {
   onDirections: () => void;
   onRoadView: () => void;
+  children?: ReactNode;
 }
 
-export const ParkingDetailActions = ({ onDirections, onRoadView }: Props) => (
-  <section className={actionsStyle} aria-label="주차장 빠른 메뉴">
+export const ParkingDetailActions = ({ onDirections, onRoadView, children }: Props) => (
+  <section
+    className={cx(actionsStyle, children ? threeActionsStyle : undefined)}
+    aria-label="주차장 빠른 메뉴"
+  >
     <button
       className={cx(buttonStyle, directionsStyle)}
       type="button"
@@ -30,18 +35,23 @@ export const ParkingDetailActions = ({ onDirections, onRoadView }: Props) => (
       </svg>
       로드뷰
     </button>
+    {children}
   </section>
 );
 
 const actionsStyle = css`
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   flex-shrink: 0;
-  align-items: center;
+  align-items: start;
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid #edf0f5;
+`;
+
+const threeActionsStyle = css`
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
 `;
 
 const buttonStyle = css`
@@ -73,6 +83,16 @@ const buttonStyle = css`
   &:focus-visible {
     outline: 3px solid rgb(67 86 216 / 30%);
     outline-offset: 2px;
+  }
+
+  @media (max-width: 360px) {
+    padding-inline: 2px;
+    font-size: 12px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 `;
 
