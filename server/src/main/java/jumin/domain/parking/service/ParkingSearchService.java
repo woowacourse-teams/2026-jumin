@@ -104,7 +104,10 @@ public class ParkingSearchService {
                         request.excludeMechanical(),
                         today.getDayOfWeek().getValue()
                 ).stream()
-                .map(parkingLot -> ParkingLotViewportResponse.from(parkingLot, lodScoreCalculator.calculate(parkingLot)))
+                .map(parkingLot -> ParkingLotViewportResponse.from(
+                        parkingLot,
+                        lodScoreCalculator.calculate(parkingLot.getCapacity())
+                ))
                 .toList();
 
         log.atInfo()
