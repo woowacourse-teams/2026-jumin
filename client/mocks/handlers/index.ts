@@ -1,5 +1,6 @@
 import { destinationHandlers } from './destinationHandlers';
 import { parkingDetailHandlers } from './parkingDetailHandlers';
+import { parkingLikeHandlers } from './parkingLikeHandlers';
 import { parkingSearchHandlers } from './parkingSearchHandlers';
 import { parkingViewportDetailHandlers } from './parkingViewportDetailHandlers';
 import { parkingViewportHandlers } from './parkingViewportHandlers';
@@ -9,6 +10,7 @@ export const handlers = [
   ...destinationHandlers,
   ...parkingSearchHandlers,
   ...reportParkingDataHandlers,
+  ...parkingLikeHandlers,
 
   // 구체적인 viewport 경로를 먼저 등록
   ...parkingViewportHandlers,

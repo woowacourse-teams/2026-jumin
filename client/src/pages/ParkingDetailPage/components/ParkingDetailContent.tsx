@@ -1,5 +1,6 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQueries } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import type { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
@@ -16,6 +17,7 @@ import { DestinationMapOverlay } from '../../../../shared/components/Destination
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
+import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
@@ -68,17 +70,20 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 
   const deepLinkModal = useModal();
 
-  const { data: parkingLotDetail } = useSuspenseQuery(
-    parkingDetailQueryOptions({
-      parkingLotId: detailCondition.parkingLotId,
-      condition: {
-        destinationLatitude: detailCondition.destinationLatitude,
-        destinationLongitude: detailCondition.destinationLongitude,
-        entryAt: detailCondition.entryAt,
-        exitAt: detailCondition.exitAt,
-      },
-    }),
-  );
+  const [{ data: parkingLotDetail }, { data: parkingLike }] = useSuspenseQueries({
+    queries: [
+      parkingDetailQueryOptions({
+        parkingLotId: detailCondition.parkingLotId,
+        condition: {
+          destinationLatitude: detailCondition.destinationLatitude,
+          destinationLongitude: detailCondition.destinationLongitude,
+          entryAt: detailCondition.entryAt,
+          exitAt: detailCondition.exitAt,
+        },
+      }),
+      viewportParkingLotDetailQueryOptions(detailCondition.parkingLotId),
+    ],
+  });
 
   const { feeRule, operation } = parkingLotDetail;
   const durationLabel = formatDuration(detailCondition.entryAt, detailCondition.exitAt);
@@ -105,7 +110,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     });
 
     map.panBy(new naver.maps.Point(0, 100));
-  }, [map, parkingLotDetail, detailCondition, sheetSnap]);
+  }, [map, parkingLotDetail.location, detailCondition, sheetSnap]);
 
   const collapseBottomSheet = useCallback(() => {
     setSheetSnap('collapsed');
@@ -149,7 +154,14 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
           <ParkingDetailActions
             onDirections={handleRecommendDirectionButtonClick}
             onRoadView={handleRoadViewButtonClick}
-          />
+          >
+            <ParkingLikeButton
+              key={parkingLotDetail.id}
+              parkingLotId={parkingLotDetail.id}
+              likeCount={parkingLike.likeCount}
+              likedByMe={parkingLike.likedByMe}
+            />
+          </ParkingDetailActions>
           <div className={scrollContentStyle}>
             <div className={feeCardStyle}>
               <div className={totalFeeStyle}>

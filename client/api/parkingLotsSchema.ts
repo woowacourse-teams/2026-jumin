@@ -148,6 +148,14 @@ export const viewportParkingLotDetailSchema = z.object({
   capacity: z.number().nullable(),
   feeRule: parkingFeeRuleSchema.nullable(),
   dailyOperations: z.array(dailyOperationSchema),
+  likeCount: z.number().int().nonnegative(),
+  likedByMe: z.boolean(),
+});
+
+export const parkingLikeSchema = z.object({
+  parkingLotId: z.number().int().positive(),
+  likeCount: z.number().int().nonnegative(),
+  likedByMe: z.boolean(),
 });
 
 /** 최근 주차장 */

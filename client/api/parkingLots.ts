@@ -15,6 +15,7 @@ import {
   viewportParkingLotDetailSchema,
 } from './parkingLotsSchema';
 import { parseApiResponse } from './parseApiResponse';
+import { getGuestId } from '../shared/utils/guestId';
 
 export interface ParkingSearchParams {
   destinationLatitude: number;
@@ -105,6 +106,7 @@ export async function getParkingLotDetail(
 
   const response = await fetch(`/api/parking/${parkingLotId}?${searchParams.toString()}`, {
     signal,
+    headers: { 'X-Guest-Id': getGuestId() },
   });
 
   return parseApiResponse(
@@ -146,6 +148,7 @@ export async function getViewportParkingLotDetail(
 ): Promise<ViewportParkingLotDetailResponse> {
   const response = await fetch(`/api/parking/viewport/${parkingLotId}`, {
     signal,
+    headers: { 'X-Guest-Id': getGuestId() },
   });
 
   return parseApiResponse(
