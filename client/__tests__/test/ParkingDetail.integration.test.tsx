@@ -43,6 +43,27 @@ const openDirectionsModal = async () => {
 };
 
 describe('D. 주차장 상세정보', () => {
+  it('상세 화면에서 좋아요한 상태를 같은 익명 ID로 다시 조회할 수 있다', async () => {
+    const { unmount } = renderDetailPage();
+    const user = userEvent.setup();
+    const button = await screen.findByRole('button', { name: '좋아요 12개' });
+    const anonymousId = localStorage.getItem('anonymousId');
+
+    await user.click(button);
+    await waitFor(() => expect(button).toBeDisabled());
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(button).toHaveAccessibleName('좋아요 13개');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    unmount();
+    renderDetailPage();
+    expect(await screen.findByRole('button', { name: '좋아요 13개' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(localStorage.getItem('anonymousId')).toBe(anonymousId);
+  });
+
   it('예상 요금, 도보 거리와 운영시간을 확인할 수 있다', async () => {
     renderDetailPage();
 
