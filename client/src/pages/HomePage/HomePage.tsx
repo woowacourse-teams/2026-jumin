@@ -212,7 +212,7 @@ const footerStyle = css`
 const floatingControlsStyle = css`
   position: absolute;
   right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 30px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 60px);
   z-index: 2;
 
   pointer-events: auto;
