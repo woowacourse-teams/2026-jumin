@@ -8,6 +8,7 @@ import type {
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
+import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { trackEvent } from '../../../../shared/analytics';
@@ -114,7 +115,14 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
       <ParkingDetailActions
         onDirections={handleDirectionButtonClick}
         onRoadView={handleRoadViewButtonClick}
-      />
+      >
+        <ParkingLikeButton
+          key={data.id}
+          parkingLotId={data.id}
+          likeCount={data.likeCount}
+          likedByMe={data.likedByMe}
+        />
+      </ParkingDetailActions>
       <div className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>

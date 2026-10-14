@@ -5,6 +5,8 @@ import { parkingSearchSuccess } from './parkingSearch';
 export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLotDetailResponse> = {
   101: {
     id: 101,
+    likeCount: 12,
+    likedByMe: false,
     name: '역삼문화공원 제1호 공영주차장',
     address: '서울 강남구 테헤란로7길 21',
     capacity: 42,
@@ -42,6 +44,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   102: {
     id: 102,
+    likeCount: 12,
+    likedByMe: false,
     name: '청운 주차장',
     address: '서울 강남구 역삼동 825-9',
     capacity: 68,
@@ -79,6 +83,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   103: {
     id: 103,
+    likeCount: 12,
+    likedByMe: false,
     name: '강남대로 공영주차장',
     address: '서울 강남구 강남대로 438',
     capacity: 54,
@@ -116,6 +122,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   104: {
     id: 104,
+    likeCount: 12,
+    likedByMe: false,
     name: '도곡로21길 공영주차장',
     address: '서울 강남구 도곡로21길 7',
     capacity: 36,
@@ -153,6 +161,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   105: {
     id: 105,
+    likeCount: 12,
+    likedByMe: false,
     name: '운영정보 확인 주차장',
     address: '서울 강남구 역삼동',
     capacity: null,
@@ -216,5 +226,7 @@ for (const parkingLot of gangnamStationParkingLots) {
     capacity: parkingLot.capacity,
     feeRule: parkingLot.feeRule,
     dailyOperations: parkingLot.dailyOperations,
+    likeCount: 12,
+    likedByMe: false,
   };
 }
