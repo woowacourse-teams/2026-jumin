@@ -121,11 +121,12 @@ export const HomePage = () => {
             onSelectedParkingLotMissing={clearParkingSelection}
           />
         ) : (
-          <p className={zoomGuideStyle} role="status" aria-live="polite">
-            지도를 확대하면 주차장을 확인할 수 있어요.
-          </p>
+          <div className={zoomGuideContainerStyle}>
+            <span className={zoomGuideStyle} role="status" aria-live="polite">
+              지도를 확대해서 주차장을 찾아보세요.
+            </span>
+          </div>
         ))}
-
       {currentLocation && (
         <>
           <NaverMapMarker
@@ -178,12 +179,17 @@ const headerStyle = css`
   width: 100%;
 `;
 
+const zoomGuideContainerStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 const zoomGuideStyle = css`
   position: absolute;
-  right: 16px;
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
-  left: 16px;
   z-index: 1;
+  width: 60%;
 
   margin: 0;
   padding: 10px 16px;
@@ -212,7 +218,7 @@ const footerStyle = css`
 const floatingControlsStyle = css`
   position: absolute;
   right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 30px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 15px);
   z-index: 2;
 
   pointer-events: auto;
