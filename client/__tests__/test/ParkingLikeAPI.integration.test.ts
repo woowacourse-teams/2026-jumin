@@ -2,25 +2,25 @@ import { jest } from '@jest/globals';
 import { http, HttpResponse } from 'msw';
 import { updateParkingLike } from '../../api/parkingLikes';
 import { getParkingLotDetail, getViewportParkingLotDetail } from '../../api/parkingLots';
-import { getAnonymousId, UUID_V4_PATTERN } from '../../shared/utils/anonymousId';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { server } from '../msw/server';
 import { searchCondition } from '../testData';
+import { getGuestId, UUID_V4_PATTERN } from '../../shared/utils/guestId';
 
 describe('주차장 좋아요 API와 익명 ID', () => {
   it('UUID v4를 localStorage에 저장하고 이후 요청에서 재사용한다', () => {
-    const anonymousId = getAnonymousId();
+    const guestId = getGuestId();
 
-    expect(anonymousId).toMatch(UUID_V4_PATTERN);
-    expect(localStorage.getItem('anonymousId')).toBe(anonymousId);
-    expect(getAnonymousId()).toBe(anonymousId);
+    expect(guestId).toMatch(UUID_V4_PATTERN);
+    expect(localStorage.getItem('guestId')).toBe(guestId);
+    expect(getGuestId()).toBe(guestId);
   });
 
   it('저장된 ID 형식이 잘못되면 새 UUID v4로 교체한다', () => {
-    localStorage.setItem('anonymousId', 'invalid-id');
-    expect(getAnonymousId()).toMatch(UUID_V4_PATTERN);
-    expect(localStorage.getItem('anonymousId')).not.toBe('invalid-id');
+    localStorage.setItem('guestId', 'invalid-id');
+    expect(getGuestId()).toMatch(UUID_V4_PATTERN);
+    expect(localStorage.getItem('guestId')).not.toBe('invalid-id');
   });
 
   it('저장소 접근이 거부되면 매 요청마다 새 ID로 좋아요를 보내지 않는다', async () => {
@@ -31,11 +31,11 @@ describe('주차장 좋아요 API와 익명 ID', () => {
   });
 
   it.each([true, false])('좋아요 상태 %s에 맞는 메서드와 익명 ID 헤더를 보낸다', async (liked) => {
-    const anonymousId = getAnonymousId();
+    const guestId = getGuestId();
     const handler = liked ? http.put : http.delete;
     server.use(
       handler('/api/parking/101/like', async ({ request }) => {
-        expect(request.headers.get('X-Guest-Id')).toBe(anonymousId);
+        expect(request.headers.get('X-Guest-Id')).toBe(guestId);
         expect(request.headers.has('X-Anonymous-Id')).toBe(false);
         expect(await request.text()).toBe('');
         return HttpResponse.json({ parkingLotId: 101, likeCount: 12, likedByMe: liked });
@@ -49,15 +49,15 @@ describe('주차장 좋아요 API와 익명 ID', () => {
   });
 
   it('두 상세 조회 API에도 같은 익명 ID 헤더를 보낸다', async () => {
-    const anonymousId = getAnonymousId();
+    const guestId = getGuestId();
     server.use(
       http.get('/api/parking/101', ({ request }) => {
-        expect(request.headers.get('X-Guest-Id')).toBe(anonymousId);
+        expect(request.headers.get('X-Guest-Id')).toBe(guestId);
         expect(request.headers.has('X-Anonymous-Id')).toBe(false);
         return HttpResponse.json(parkingDetailFixtures[101]);
       }),
       http.get('/api/parking/viewport/101', ({ request }) => {
-        expect(request.headers.get('X-Guest-Id')).toBe(anonymousId);
+        expect(request.headers.get('X-Guest-Id')).toBe(guestId);
         expect(request.headers.has('X-Anonymous-Id')).toBe(false);
         return HttpResponse.json(viewportParkingLotDetailFixtures[101]);
       }),

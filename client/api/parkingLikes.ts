@@ -1,7 +1,7 @@
 import type { ParkingLikeResponse } from './contracts';
 import { parkingLikeSchema } from './parkingLotsSchema';
 import { parseApiResponse } from './parseApiResponse';
-import { getAnonymousId } from '../shared/utils/anonymousId';
+import { getGuestId } from '../shared/utils/guestId';
 
 export const updateParkingLike = async (
   parkingLotId: number,
@@ -9,7 +9,7 @@ export const updateParkingLike = async (
 ): Promise<ParkingLikeResponse> => {
   const response = await fetch(`/api/parking/${parkingLotId}/like`, {
     method: likedByMe ? 'PUT' : 'DELETE',
-    headers: { 'X-Guest-Id': getAnonymousId() },
+    headers: { 'X-Guest-Id': getGuestId() },
   });
 
   const result = await parseApiResponse(

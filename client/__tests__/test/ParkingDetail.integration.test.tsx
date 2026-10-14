@@ -47,7 +47,7 @@ describe('D. 주차장 상세정보', () => {
     const { unmount } = renderDetailPage();
     const user = userEvent.setup();
     const button = await screen.findByRole('button', { name: '좋아요 12개' });
-    const anonymousId = localStorage.getItem('anonymousId');
+    const guestId = localStorage.getItem('guestId');
 
     await user.click(button);
     await waitFor(() => expect(button).toBeDisabled());
@@ -61,7 +61,7 @@ describe('D. 주차장 상세정보', () => {
       'aria-pressed',
       'true',
     );
-    expect(localStorage.getItem('anonymousId')).toBe(anonymousId);
+    expect(localStorage.getItem('guestId')).toBe(guestId);
   });
 
   it('예상 요금, 도보 거리와 운영시간을 확인할 수 있다', async () => {
