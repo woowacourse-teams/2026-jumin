@@ -15,6 +15,8 @@ import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
 import { trackEvent } from '../../../shared/analytics';
 import { eventName } from '../../../shared/monitoring/constants';
+import type { ParkingViewportFilters } from '../../../api/parkingLots';
+import { ParkingFilterBar } from './components/ParkingFilterBar';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -26,6 +28,11 @@ const currentLocationIcon = {
 
 const MIN_PARKING_MARKER_ZOOM = 15;
 
+const DEFAULT_PARKING_FILTERS: ParkingViewportFilters = {
+  freeOnly: false,
+  excludeMechanical: false,
+};
+
 interface MapLocation {
   latitude: number;
   longitude: number;
@@ -35,6 +42,8 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
+  const [parkingFilters, setParkingFilters] =
+    useState<ParkingViewportFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
@@ -116,6 +125,7 @@ export const HomePage = () => {
           <ViewportParkingMarkers
             map={map}
             viewport={viewport}
+            filters={parkingFilters}
             selectedParkingLotId={selectedParkingLot?.id ?? null}
             onSelect={handleParkingMarkerClick}
             onSelectedParkingLotMissing={clearParkingSelection}
@@ -142,6 +152,7 @@ export const HomePage = () => {
       {selectedParkingLot === null && (
         <div className={headerStyle}>
           <SearchBar onClick={handleSearchBarClick} />
+          <ParkingFilterBar filters={parkingFilters} onChange={setParkingFilters} />
         </div>
       )}
       <footer className={footerStyle}>

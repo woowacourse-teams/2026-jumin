@@ -38,6 +38,13 @@ export interface ParkingViewportParams {
   eastLongitude: number;
 }
 
+export interface ParkingViewportFilters {
+  freeOnly: boolean;
+  excludeMechanical: boolean;
+}
+
+export type ParkingViewportRequestParams = ParkingViewportParams & Partial<ParkingViewportFilters>;
+
 // 목적지를 검색 및 자동완성하는 메서드
 export const searchDestinations = async (
   query: string,
@@ -111,7 +118,7 @@ export async function getParkingLotDetail(
 
 // 현재 뷰포트 내 주차장 목록을 가져오는 메서드
 export const getParkingLotsInViewport = async (
-  params: ParkingViewportParams,
+  params: ParkingViewportRequestParams,
   signal?: AbortSignal,
 ): Promise<ParkingLotViewportResponse> => {
   const searchParams = new URLSearchParams({
@@ -120,6 +127,10 @@ export const getParkingLotsInViewport = async (
     northLatitude: String(params.northLatitude),
     eastLongitude: String(params.eastLongitude),
   });
+
+  // 서버의 기본값을 유지해 활성화된 필터만 요청에 포함한다.
+  if (params.freeOnly) searchParams.set('freeOnly', 'true');
+  if (params.excludeMechanical) searchParams.set('excludeMechanical', 'true');
 
   const response = await fetch(`/api/parking/viewport?${searchParams}`, { signal });
 

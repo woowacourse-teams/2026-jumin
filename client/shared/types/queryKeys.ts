@@ -1,7 +1,8 @@
 import type {
   ParkingDetailParams,
+  ParkingViewportFilters as ParkingViewportFilterParams,
   ParkingSearchParams,
-  ParkingViewportParams,
+  ParkingViewportRequestParams,
 } from '../../api/parkingLots';
 
 export interface DestinationSearchQueryKeyParams {
@@ -15,4 +16,6 @@ export interface ParkingDetailQueryKeyParams {
   readonly condition: Readonly<ParkingDetailParams>;
 }
 
-export type ParkingViewportQueryKeyParams = Readonly<ParkingViewportParams>;
+export type ParkingViewportFilters = Readonly<ParkingViewportFilterParams>;
+export type ParkingViewportQueryParams = Readonly<ParkingViewportRequestParams>;
+export type ParkingViewportQueryKeyParams = ParkingViewportQueryParams;

@@ -1,7 +1,7 @@
 import { delay, http, HttpResponse } from 'msw';
 
 import type { ParkingLotViewportResponse } from '../../api/contracts';
-import { parkingViewportLots } from '../fixtures/parkingViewport';
+import { parkingViewportFilterMetadata, parkingViewportLots } from '../fixtures/parkingViewport';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
 
 type ViewportField = 'southLatitude' | 'westLongitude' | 'northLatitude' | 'eastLongitude';
@@ -68,7 +68,10 @@ const isFieldErrorArray = (value: ViewportBounds | FieldError[]): value is Field
 
 export const parkingViewportHandlers = [
   http.get('/api/parking/viewport', async ({ request }) => {
-    const bounds = parseViewportBounds(new URL(request.url));
+    const url = new URL(request.url);
+    const bounds = parseViewportBounds(url);
+    const freeOnly = url.searchParams.get('freeOnly') === 'true';
+    const excludeMechanical = url.searchParams.get('excludeMechanical') === 'true';
 
     if (isFieldErrorArray(bounds)) {
       return HttpResponse.json(
@@ -94,11 +97,13 @@ export const parkingViewportHandlers = [
     }
 
     const parkingLots = parkingViewportLots.filter(
-      ({ latitude, longitude }) =>
+      ({ id, latitude, longitude }) =>
         latitude >= bounds.southLatitude &&
         latitude <= bounds.northLatitude &&
         longitude >= bounds.westLongitude &&
-        longitude <= bounds.eastLongitude,
+        longitude <= bounds.eastLongitude &&
+        (!freeOnly || parkingViewportFilterMetadata[id]?.isFreeToday) &&
+        (!excludeMechanical || !parkingViewportFilterMetadata[id]?.isMechanical),
     );
 
     await delay(200);
