@@ -4,3 +4,6 @@ allowBuilds:
   '@swc/core': true
   msw: true
   unrs-resolver: false
+
+overrides:
+  shell-quote: 1.11.0
