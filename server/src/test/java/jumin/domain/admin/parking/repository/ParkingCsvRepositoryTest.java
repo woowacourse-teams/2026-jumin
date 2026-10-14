@@ -408,10 +408,10 @@ class ParkingCsvRepositoryTest {
     }
 
     @Test
-    @DisplayName("V10은 기존 행과 신규 행의 기계식 기본값을 false로 설정하고 null을 금지한다")
+    @DisplayName("V11은 기존 행과 신규 행의 기계식 기본값을 false로 설정하고 null을 금지한다")
     void migration_defaults_mechanical_to_false_and_rejects_null() throws Exception {
         // given
-        String migration = new ClassPathResource("db/migration/V10__add_parking_mechanical.sql")
+        String migration = new ClassPathResource("db/migration/V11__add_parking_mechanical.sql")
                 .getContentAsString(StandardCharsets.UTF_8);
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             connection.setAutoCommit(false);

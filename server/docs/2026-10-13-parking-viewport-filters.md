@@ -14,7 +14,7 @@
 | 오늘 무료 판정 | [서비스](../src/main/java/jumin/domain/parking/service/ParkingSearchService.java)가 한국 요일을 구하고 [저장소](../src/main/java/jumin/domain/parking/repository/ParkingLotRepository.java)가 두 필터를 기존 공간 쿼리에 적용 |
 | 기계식 데이터 | [엔티티](../src/main/java/jumin/domain/parking/entity/ParkingLot.java)와 [CSV 모델](../src/main/java/jumin/domain/admin/parking/model/ParkingLotValues.java)에 `boolean mechanical` 추가 |
 | CSV 입력과 저장 | [열 정의](../src/main/java/jumin/domain/admin/parking/csv/ParkingCsvColumn.java), [파서](../src/main/java/jumin/domain/admin/parking/csv/ParkingCsvRowReader.java), [CSV 저장소](../src/main/java/jumin/domain/admin/parking/repository/ParkingCsvRepository.java)에 기계식 변환, 조회, 추가와 갱신 반영 |
-| DB 전환 | V10에서 `NOT NULL DEFAULT FALSE`인 기계식 컬럼을 추가하고 기존 행에도 false 적용 |
+| DB 전환 | V11에서 `NOT NULL DEFAULT FALSE`인 기계식 컬럼을 추가하고 기존 행에도 false 적용 |
 
 요일 처리는 기존 서비스와 `Clock`을 사용한다. 별도 요일 enum이나 판별 컴포넌트는 추가하지 않는다.
 추천 검색의 요금 계산과 운영시간 판정, 프론트엔드 구현은 이번 변경 범위 밖이다.
@@ -62,9 +62,10 @@ GET /api/parking/viewport
 - 그 외 값은 검증 오류다. 다른 불리언 열의 `true/false` 입력 규칙과 유료 여부의 `null` 의미는 유지한다.
 - 기계식 변경도 CSV 비교와 저장에 반영하며 동일한 입력은 재저장하지 않는다.
 
-[V10](../src/main/resources/db/migration/V10__add_parking_mechanical.sql)에서 `BOOLEAN NOT NULL DEFAULT FALSE` 컬럼을 추가한다.
+[V11](../src/main/resources/db/migration/V11__add_parking_mechanical.sql)에서 `BOOLEAN NOT NULL DEFAULT FALSE` 컬럼을 추가한다.
 기존 행에도 `false`가 적용되고, 새 행에서 값을 생략하면 `false`가 저장된다. 명시적인 `null`은 거부한다.
 이번 작업의 컬럼 추가와 기본값 설정은 사용자 요청에 따라 배포 전 단일 마이그레이션으로 통합했다.
+최신 develop의 좋아요 테이블 마이그레이션이 V10을 사용하므로, 기계식 컬럼은 V11로 적용한다.
 실제 dev DB에는 이번 작업에서 적용하지 않았으며, 배포 시 마이그레이션과 CSV 새 헤더 적용이 필요하다.
 
 ## 결정 이력
@@ -75,7 +76,7 @@ GET /api/parking/viewport
 | --- | --- | --- |
 | 무료 범위 | 평일, 토요일, 공휴일이 모두 무료 | 주말 무료 주차장도 해당 날짜에 조회하도록 오늘 요일만 판정 |
 | CSV 기계식 빈 값 | `null`로 저장 | 빈 값도 N으로 판정하도록 `false`로 변환 |
-| DB 기계식 `null` | 기존 데이터는 미확인으로 유지, 재업로드 때 변환 | CSV, 엔티티, DB를 일치시키도록 V10에서 기존 행도 `false`로 초기화하고 `null` 금지 |
+| DB 기계식 `null` | 기존 데이터는 미확인으로 유지, 재업로드 때 변환 | CSV, 엔티티, DB를 일치시키도록 V11에서 기존 행도 `false`로 초기화하고 `null` 금지 |
 
 공휴일 달력은 이번 범위에서 제외하기로 합의했다. 무료 여부의 `null`을 0원 요금으로 보완하는 방안은 건수만 조사했고 정책에 적용하지 않았다.
 
