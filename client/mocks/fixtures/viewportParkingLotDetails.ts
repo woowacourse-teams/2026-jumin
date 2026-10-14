@@ -1,4 +1,6 @@
 import type { ViewportParkingLotDetailResponse } from '../../api/contracts';
+import { gangnamStationParkingLots } from './gangnamStationParkingLots';
+import { parkingSearchSuccess } from './parkingSearch';
 
 export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLotDetailResponse> = {
   101: {
@@ -180,3 +182,39 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
     ],
   },
 };
+
+// LOD 목 지도에서 점 마커까지 보이도록 나머지 주차장의 상세 응답도 제공한다.
+const additionalCapacities: Record<number, number> = {
+  106: 80,
+  107: 75,
+  108: 65,
+  109: 50,
+  110: 40,
+  111: 30,
+  112: 20,
+};
+
+for (const parkingLot of parkingSearchSuccess.parkingLots) {
+  const capacity = additionalCapacities[parkingLot.id];
+  if (capacity === undefined) continue;
+
+  viewportParkingLotDetailFixtures[parkingLot.id] = {
+    ...viewportParkingLotDetailFixtures[101]!,
+    id: parkingLot.id,
+    name: parkingLot.name,
+    address: parkingLot.address,
+    capacity,
+  };
+}
+
+// CSV에서 가져온 주차장도 선택 시 실제 요금·운영 정보로 상세 응답을 제공한다.
+for (const parkingLot of gangnamStationParkingLots) {
+  viewportParkingLotDetailFixtures[parkingLot.id] = {
+    id: parkingLot.id,
+    name: parkingLot.name,
+    address: parkingLot.address,
+    capacity: parkingLot.capacity,
+    feeRule: parkingLot.feeRule,
+    dailyOperations: parkingLot.dailyOperations,
+  };
+}
