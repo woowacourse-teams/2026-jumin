@@ -36,7 +36,7 @@ describe('통합 테스트 환경', () => {
     );
 
     const freeFilter = screen.getByRole('button', { name: '무료 주차장' });
-    const mechanicalFilter = screen.getByRole('button', { name: '기계식 주차장' });
+    const mechanicalFilter = screen.getByRole('button', { name: '기계식 제외' });
 
     expect(freeFilter).toHaveAttribute('aria-pressed', 'false');
     expect(mechanicalFilter).toHaveAttribute('aria-pressed', 'false');

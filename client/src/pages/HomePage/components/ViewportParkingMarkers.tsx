@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
-import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
 import type { MapViewport } from '../hooks/useMapViewport';
+import { useViewportParkingLots } from '../hooks/useViewportParkingLots';
+import { getRepresentativeParkingLotIds } from '../utils/parkingMarkerPolicy';
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
@@ -33,9 +33,6 @@ const selectedParkingMarkerIcon = {
   anchorY: 33,
 };
 
-const REPRESENTATIVE_ZOOM = 15;
-const REPRESENTATIVE_COUNT = 10;
-
 interface Props {
   map: naver.maps.Map;
   viewport: MapViewport;
@@ -53,23 +50,11 @@ export const ViewportParkingMarkers = ({
   onSelect,
   onSelectedParkingLotMissing,
 }: Props) => {
-  const { data, isPlaceholderData, isSuccess } = useQuery({
-    ...parkingViewportQueryOptions(viewport, filters),
-    placeholderData: keepPreviousData,
-  });
+  const { data, isPlaceholderData, isSuccess } = useViewportParkingLots(viewport, filters);
 
   const parkingMarkers = data?.parkingLots ?? [];
 
-  // LOD: 줌 15에서만 점수 상위 10개를 대표 마커로 고른다. 동점은 ID로 고정한다.
-  const representativeIds =
-    viewport.zoom === REPRESENTATIVE_ZOOM
-      ? new Set(
-          [...parkingMarkers]
-            .sort((a, b) => b.score - a.score || a.id - b.id)
-            .slice(0, REPRESENTATIVE_COUNT)
-            .map(({ id }) => id),
-        )
-      : null;
+  const representativeIds = getRepresentativeParkingLotIds(parkingMarkers, viewport.zoom);
 
   useEffect(() => {
     if (selectedParkingLotId === null || !isSuccess || isPlaceholderData) return;
