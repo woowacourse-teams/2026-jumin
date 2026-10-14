@@ -147,22 +147,24 @@ secret으로 전달합니다.
 
 ## 운영 서버 HTTPS 프록시
 
-운영 요청 흐름은 다음과 같습니다.
+운영 프론트 서비스 도메인은 `jucha.info`, EC2 API 원본 도메인은
+`origin.jucha.info`로 분리합니다. CloudFront와 DNS 전환이 준비된 뒤의 요청 흐름은 다음과 같습니다.
 
 ```text
-브라우저 -> jucha.info -> EC2:80/443 -> Docker Nginx
-                                             |-- /api/* -> backend:8080
-                                             `-- 그 외  -> /var/www/jumin-prod/current
+브라우저 -> jucha.info -> CloudFront
+                            |-- 정적 파일 -> S3
+                            `-- /api/* -> origin.jucha.info -> EC2:443 -> Docker Nginx -> backend:8080
 ```
 
 운영 프록시 배포는 [`proxy-prod-cd.yml`](../.github/workflows/proxy-prod-cd.yml)이
-담당합니다. 프론트엔드 배포가 `/var/www/jumin-prod/current`를 갱신하고, 프록시 배포가
+담당합니다. 프론트엔드 CD는 S3에 정적 파일을 배포하고, 프록시 CD는
 `/opt/jumin-prod/proxy/current/jumin.prod.conf`를 갱신합니다. 두 workflow 모두
-`main` push를 기준으로 실행하며 `production` Environment를 사용합니다.
+`main` push를 기준으로 실행합니다. 프록시 CD는 `production` Environment를 사용합니다.
+Nginx의 `/var/www/jumin-prod/current` 정적 파일 설정은 기존 구성을 유지합니다.
 
 운영 배포 전에 다음을 준비해야 합니다.
 
-- `jucha.info`가 운영 EC2 Elastic IP를 가리키는 DNS A 레코드
+- `origin.jucha.info`가 운영 EC2 Elastic IP를 가리키는 DNS A 레코드
 - EC2 보안 그룹의 인바운드 TCP `80`, `443`
 - `jumin-prod` 라벨의 Linux ARM64 self-hosted runner
 - EC2의 `/opt/jumin-prod/proxy`, `/opt/jumin-prod/certbot` 쓰기 권한
@@ -194,7 +196,7 @@ sudo -u github-runner -H env NGINX_CONF_FILE=/opt/jumin-prod/proxy/current/jumin
     --file /opt/jumin-prod/proxy/current/docker-compose.proxy.prod.yml \
     up --detach nginx
 
-curl --fail --show-error --head http://jucha.info
+curl --fail --show-error --head http://origin.jucha.info
 ```
 
 HTTP challenge가 확인되면 팀 이메일을 넣어 인증서를 발급합니다.
@@ -209,14 +211,15 @@ sudo -u github-runner -H env NGINX_CONF_FILE=/opt/jumin-prod/proxy/current/jumin
     run --rm certbot certonly \
       --webroot \
       --webroot-path /var/www/certbot \
-      --domain jucha.info \
+      --domain origin.jucha.info \
       --email "${TEAM_EMAIL}" \
       --agree-tos \
       --no-eff-email \
       --non-interactive
 ```
 
-인증서 발급이 성공한 뒤 `main`에 프록시 설정을 병합하면
+`/opt/jumin-prod/certbot/conf/live/origin.jucha.info/`에 인증서가 발급된 뒤
+`main`에 프록시 설정을 병합하면
 `proxy-prod-cd.yml`이 HTTPS 설정으로 Nginx를 교체합니다. 최초 발급 전에 HTTPS
 설정으로 workflow를 실행하면 인증서 파일이 없어 실패하므로, 위 bootstrap과 발급
 절차를 먼저 완료해야 합니다.
@@ -231,7 +234,9 @@ infra/scripts/renew-certificates-prod.sh
 
 운영 DNS, EC2, `jumin-prod` runner가 준비되지 않은 상태에서는 저장소 workflow만으로
 운영 배포를 완료할 수 없습니다. 이 항목들은 AWS·DNS·GitHub 관리 권한으로 별도
-준비해야 합니다.
+준비해야 합니다. CloudFront의 운영 API 원본은 `origin.jucha.info`로 지정하고
+원본 HTTPS 인증서의 도메인과 일치하도록 요청 Host 설정을 확인합니다.
+프론트 서비스 도메인 `jucha.info`는 EC2 API 원본 도메인으로 대체하지 않습니다.
 
 ## 개발 서버 HTTPS 프록시
 
