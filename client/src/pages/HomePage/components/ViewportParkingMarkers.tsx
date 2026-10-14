@@ -5,7 +5,7 @@ import { parkingViewportQueryOptions } from '../../../../api/queries/parkingView
 import type { MapViewport } from '../hooks/useMapViewport';
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
-import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMaker.svg';
+import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 import type { ParkingLotViewport } from '../../../../api/contracts';
 
 const homeParkingMarkerIcon = {
