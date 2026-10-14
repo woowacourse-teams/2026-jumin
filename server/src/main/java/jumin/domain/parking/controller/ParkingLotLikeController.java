@@ -27,7 +27,7 @@ public class ParkingLotLikeController {
     @PutMapping
     public ResponseEntity<ParkingLikeResponse> like(
             @PathVariable @Positive Long parkingLotId,
-            @RequestHeader("X-Anonymous-Id") @Pattern(regexp = UUID_V4) String anonymousId
+            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String anonymousId
     ) {
         return ResponseEntity.ok(
                 parkingLotLikeService.like(parkingLotId, UUID.fromString(anonymousId))
@@ -37,7 +37,7 @@ public class ParkingLotLikeController {
     @DeleteMapping
     public ResponseEntity<ParkingLikeResponse> unlike(
             @PathVariable @Positive Long parkingLotId,
-            @RequestHeader("X-Anonymous-Id") @Pattern(regexp = UUID_V4) String anonymousId
+            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String anonymousId
     ) {
         return ResponseEntity.ok(
                 parkingLotLikeService.unlike(parkingLotId, UUID.fromString(anonymousId))

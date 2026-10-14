@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,8 +23,11 @@ public class ParkingLotDetailController {
     @GetMapping("/{parkingLotId}")
     public ResponseEntity<ParkingLotDetailResponse> detail(
             @PathVariable Long parkingLotId,
-            @Valid @ModelAttribute ParkingSearchRequest request
+            @Valid @ModelAttribute ParkingSearchRequest request,
+            @RequestHeader("X-Guest-Id") String guestId
     ) {
-        return ResponseEntity.ok(parkingLotDetailService.getDetail(parkingLotId, request));
+        return ResponseEntity.ok(
+                parkingLotDetailService.getDetail(parkingLotId, request, GuestIdParser.parse(guestId))
+        );
     }
 }

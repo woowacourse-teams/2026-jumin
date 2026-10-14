@@ -59,4 +59,29 @@ public class ParkingLotLikeRepository {
         );
     }
 
+    public Summary findSummary(Long parkingLotId, UUID anonymousId) {
+        return jdbcTemplate.queryForObject(
+                """
+                select count(*) as like_count,
+                       exists (
+                           select 1
+                           from parking_likes
+                           where parking_lot_id = ? and anonymous_id = ?
+                       ) as liked_by_me
+                from parking_likes
+                where parking_lot_id = ?
+                """,
+                (resultSet, rowNum) -> new Summary(
+                        resultSet.getLong("like_count"),
+                        resultSet.getBoolean("liked_by_me")
+                ),
+                parkingLotId,
+                anonymousId,
+                parkingLotId
+        );
+    }
+
+    public record Summary(long likeCount, boolean likedByMe) {
+    }
+
 }
