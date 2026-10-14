@@ -7,6 +7,7 @@ import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMa
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 import type { ParkingLotViewport } from '../../../../api/contracts';
+import type { ParkingViewportFilters } from '../../../../api/parkingLots';
 
 const homeParkingMarkerIcon = {
   url: homeParkingMarkerUrl,
@@ -38,6 +39,7 @@ const REPRESENTATIVE_COUNT = 10;
 interface Props {
   map: naver.maps.Map;
   viewport: MapViewport;
+  filters?: ParkingViewportFilters;
   selectedParkingLotId: number | null;
   onSelect: (parkingLot: ParkingLotViewport) => void;
   onSelectedParkingLotMissing: () => void;
@@ -46,12 +48,13 @@ interface Props {
 export const ViewportParkingMarkers = ({
   map,
   viewport,
+  filters = { freeOnly: false, excludeMechanical: false },
   selectedParkingLotId,
   onSelect,
   onSelectedParkingLotMissing,
 }: Props) => {
   const { data, isPlaceholderData, isSuccess } = useQuery({
-    ...parkingViewportQueryOptions(viewport),
+    ...parkingViewportQueryOptions(viewport, filters),
     placeholderData: keepPreviousData,
   });
 
