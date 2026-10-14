@@ -49,7 +49,7 @@ class ParkingLotLikeControllerTest {
         }
 
         mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                        .header("X-Anonymous-Id", ID.toUpperCase()))
+                        .header("X-Guest-Id", ID.toUpperCase()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parkingLotId").value(123))
                 .andExpect(jsonPath("$.likeCount").value(liked ? 2 : 1))
@@ -72,7 +72,7 @@ class ParkingLotLikeControllerTest {
                 "550e8400-e29b-41d4-7716-446655440000", ID + " "
         }) {
             mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                            .header("X-Anonymous-Id", invalidId))
+                            .header("X-Guest-Id", invalidId))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."))
                     .andExpect(jsonPath("$.errors").isArray());
@@ -82,7 +82,7 @@ class ParkingLotLikeControllerTest {
 
         for (String invalidLotId : new String[]{"0", "-1", "bad", "9223372036854775808"}) {
             mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/" + invalidLotId + "/like")
-                            .header("X-Anonymous-Id", ID))
+                            .header("X-Guest-Id", ID))
                     .andExpect(status().isBadRequest());
         }
         verifyNoInteractions(parkingLotLikeService);
@@ -99,7 +99,7 @@ class ParkingLotLikeControllerTest {
             when(parkingLotLikeService.unlike(123L, UUID.fromString(ID))).thenThrow(exception);
         }
         mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                        .header("X-Anonymous-Id", ID))
+                        .header("X-Guest-Id", ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());

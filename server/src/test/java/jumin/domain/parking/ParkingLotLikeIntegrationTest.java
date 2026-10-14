@@ -79,6 +79,22 @@ class ParkingLotLikeIntegrationTest {
     }
 
     @Test
+    @DisplayName("viewport 상세 조회에 전체 좋아요 수와 요청자의 좋아요 여부를 함께 반환한다")
+    void viewport_detail_returns_like_summary_for_requested_anonymous_id() throws Exception {
+        assertState(send("PUT", lotId, ID), lotId, 1, true);
+
+        HttpResponse<String> likedResponse = sendViewportDetail(lotId, ID);
+        assertThat(likedResponse.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Number>read(likedResponse.body(), "$.likeCount").longValue()).isEqualTo(1);
+        assertThat(JsonPath.<Boolean>read(likedResponse.body(), "$.likedByMe")).isTrue();
+
+        HttpResponse<String> unlikedResponse = sendViewportDetail(lotId, UUID.randomUUID().toString());
+        assertThat(unlikedResponse.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Number>read(unlikedResponse.body(), "$.likeCount").longValue()).isEqualTo(1);
+        assertThat(JsonPath.<Boolean>read(unlikedResponse.body(), "$.likedByMe")).isFalse();
+    }
+
+    @Test
     @DisplayName("중복 및 서로 다른 익명 ID의 동시 요청을 정확히 집계한다")
     void concurrent_duplicate_and_distinct_requests_do_not_overcount() throws Exception {
         for (HttpResponse<String> response : concurrent("PUT", Collections.nCopies(12, ID))) {
@@ -170,9 +186,20 @@ class ParkingLotLikeIntegrationTest {
                 .timeout(Duration.ofSeconds(15))
                 .method(method, HttpRequest.BodyPublishers.noBody());
         if (anonymousId != null) {
-            builder.header("X-Anonymous-Id", anonymousId);
+            builder.header("X-Guest-Id", anonymousId);
         }
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> sendViewportDetail(Long parkingLotId, String anonymousId) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                        "http://localhost:" + port + "/api/parking/viewport/" + parkingLotId
+                ))
+                .timeout(Duration.ofSeconds(15))
+                .header("X-Guest-Id", anonymousId)
+                .GET()
+                .build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private void assertState(
