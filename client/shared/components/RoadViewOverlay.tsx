@@ -42,6 +42,8 @@ export const RoadViewOverlay = ({
   const panoramaContainerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<naver.maps.Panorama | null>(null);
   const statusListenerRef = useRef<naver.maps.MapEventListener | null>(null);
+  const initListenerRef = useRef<naver.maps.MapEventListener | null>(null);
+  const parkingMarkerRef = useRef<naver.maps.Marker | null>(null);
   const [roadViewState, setRoadViewState] = useState<RoadViewState>('LOADING');
 
   useEffect(() => {
@@ -53,11 +55,30 @@ export const RoadViewOverlay = ({
 
         if (isCancelled || !panoramaContainerRef.current) return;
 
+        const parkingPosition = new naver.maps.LatLng(latitude, longitude);
+
         const panorama = new naver.maps.Panorama(panoramaContainerRef.current, {
-          position: new naver.maps.LatLng(latitude, longitude),
+          position: parkingPosition,
           visible: true,
           aroundControl: true,
           zoomControl: false,
+        });
+
+        const parkingMarker = new naver.maps.Marker({
+          position: parkingPosition,
+          title: `${parkingLotName} 위치`,
+        });
+        parkingMarkerRef.current = parkingMarker;
+
+        initListenerRef.current = panorama.addListener('init', () => {
+          if (isCancelled) return;
+
+          parkingMarker.setMap(panorama as unknown as naver.maps.Map);
+
+          const targetPov = panorama.getProjection().fromCoordToPov(parkingPosition);
+          if (targetPov) {
+            panorama.setPov(targetPov);
+          }
         });
 
         panoramaRef.current = panorama;
@@ -88,11 +109,19 @@ export const RoadViewOverlay = ({
         panoramaRef.current.removeListener(statusListenerRef.current);
       }
 
+      if (initListenerRef.current && panoramaRef.current) {
+        panoramaRef.current.removeListener(initListenerRef.current);
+      }
+
+      parkingMarkerRef.current?.setMap(null);
       panoramaRef.current?.setVisible(false);
+
       panoramaRef.current = null;
       statusListenerRef.current = null;
+      initListenerRef.current = null;
+      parkingMarkerRef.current = null;
     };
-  }, [latitude, longitude]);
+  }, [latitude, longitude, parkingLotName]);
 
   const hasStatusMessage = roadViewState !== 'READY';
 
