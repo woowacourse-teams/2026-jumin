@@ -6,13 +6,13 @@ export const getParkingRequestViewport = (viewport: MapViewport): ParkingViewpor
   if (zoom < 15 || zoom >= 17) return bounds;
 
   // 처음 두 줌에서는 화면 중앙만 조회해 표시할 주차장 수를 줄인다.
-  const horizontalScale = zoom < 16 ? 0.7 : 0.85;
-  const verticalScale = zoom < 16 ? 0.55 : 0.7;
+  const widthScale = zoom < 16 ? 0.7 : 0.85;
+  const heightScale = zoom < 16 ? 0.55 : 0.7;
 
   const centerLatitude = (bounds.southLatitude + bounds.northLatitude) / 2;
   const centerLongitude = (bounds.westLongitude + bounds.eastLongitude) / 2;
-  const halfLatitudeSpan = ((bounds.northLatitude - bounds.southLatitude) * verticalScale) / 2;
-  const halfLongitudeSpan = ((bounds.eastLongitude - bounds.westLongitude) * horizontalScale) / 2;
+  const halfLatitudeSpan = ((bounds.northLatitude - bounds.southLatitude) * heightScale) / 2;
+  const halfLongitudeSpan = ((bounds.eastLongitude - bounds.westLongitude) * widthScale) / 2;
 
   return {
     southLatitude: centerLatitude - halfLatitudeSpan,
