@@ -34,7 +34,7 @@ import org.springframework.test.context.ActiveProfiles;
 @Import(TestcontainersConfiguration.class)
 class ParkingLotLikeIntegrationTest {
 
-    private static final String ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     private final HttpClient client = HttpClient.newHttpClient();
 
@@ -52,21 +52,21 @@ class ParkingLotLikeIntegrationTest {
     }
 
     @Test
-    @DisplayName("반복 요청과 서로 다른 익명 ID의 좋아요를 독립적으로 처리한다")
-    void repeated_requests_and_different_browser_ids_are_isolated() throws Exception {
-        assertState(send("PUT", lotId, ID), lotId, 1, true);
-        assertState(send("PUT", lotId, ID.toUpperCase()), lotId, 1, true);
-        String otherId = UUID.randomUUID().toString();
-        assertState(send("PUT", lotId, otherId), lotId, 2, true);
+    @DisplayName("반복 요청과 서로 다른 게스트 ID의 좋아요를 독립적으로 처리한다")
+    void repeated_requests_and_different_guest_ids_are_isolated() throws Exception {
+        assertState(send("PUT", lotId, GUEST_ID), lotId, 1, true);
+        assertState(send("PUT", lotId, GUEST_ID.toUpperCase()), lotId, 1, true);
+        String otherGuestId = UUID.randomUUID().toString();
+        assertState(send("PUT", lotId, otherGuestId), lotId, 2, true);
 
         Long otherLotId = insertLot(true);
-        assertState(send("PUT", otherLotId, ID), otherLotId, 1, true);
+        assertState(send("PUT", otherLotId, GUEST_ID), otherLotId, 1, true);
         assertState(send("DELETE", lotId, UUID.randomUUID().toString()), lotId, 2, false);
-        assertState(send("DELETE", lotId, ID), lotId, 1, false);
-        assertState(send("DELETE", lotId, ID), lotId, 1, false);
+        assertState(send("DELETE", lotId, GUEST_ID), lotId, 1, false);
+        assertState(send("DELETE", lotId, GUEST_ID), lotId, 1, false);
         assertThat(count(lotId)).isEqualTo(1);
         assertThat(count(otherLotId)).isEqualTo(1);
-        assertState(send("PUT", lotId, ID), lotId, 2, true);
+        assertState(send("PUT", lotId, GUEST_ID), lotId, 2, true);
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)
@@ -79,24 +79,40 @@ class ParkingLotLikeIntegrationTest {
     }
 
     @Test
-    @DisplayName("중복 및 서로 다른 익명 ID의 동시 요청을 정확히 집계한다")
+    @DisplayName("viewport 상세 조회에 전체 좋아요 수와 요청자의 좋아요 여부를 함께 반환한다")
+    void viewport_detail_returns_like_summary_for_requested_guest_id() throws Exception {
+        assertState(send("PUT", lotId, GUEST_ID), lotId, 1, true);
+
+        HttpResponse<String> likedResponse = sendViewportDetail(lotId, GUEST_ID);
+        assertThat(likedResponse.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Number>read(likedResponse.body(), "$.likeCount").longValue()).isEqualTo(1);
+        assertThat(JsonPath.<Boolean>read(likedResponse.body(), "$.likedByMe")).isTrue();
+
+        HttpResponse<String> unlikedResponse = sendViewportDetail(lotId, UUID.randomUUID().toString());
+        assertThat(unlikedResponse.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Number>read(unlikedResponse.body(), "$.likeCount").longValue()).isEqualTo(1);
+        assertThat(JsonPath.<Boolean>read(unlikedResponse.body(), "$.likedByMe")).isFalse();
+    }
+
+    @Test
+    @DisplayName("중복 및 서로 다른 게스트 ID의 동시 요청을 정확히 집계한다")
     void concurrent_duplicate_and_distinct_requests_do_not_overcount() throws Exception {
-        for (HttpResponse<String> response : concurrent("PUT", Collections.nCopies(12, ID))) {
+        for (HttpResponse<String> response : concurrent("PUT", Collections.nCopies(12, GUEST_ID))) {
             assertState(response, lotId, 1, true);
         }
         assertThat(count(lotId)).isEqualTo(1);
-        List<String> ids = IntStream.range(0, 12)
+        List<String> guestIds = IntStream.range(0, 12)
                 .mapToObj(i -> UUID.randomUUID().toString())
                 .toList();
-        for (HttpResponse<String> response : concurrent("PUT", ids)) {
+        for (HttpResponse<String> response : concurrent("PUT", guestIds)) {
             assertThat(response.statusCode()).isEqualTo(200);
         }
         assertThat(count(lotId)).isEqualTo(13);
-        for (HttpResponse<String> response : concurrent("DELETE", Collections.nCopies(12, ID))) {
+        for (HttpResponse<String> response : concurrent("DELETE", Collections.nCopies(12, GUEST_ID))) {
             assertState(response, lotId, 12, false);
         }
         assertThat(count(lotId)).isEqualTo(12);
-        for (HttpResponse<String> response : concurrent("DELETE", ids)) {
+        for (HttpResponse<String> response : concurrent("DELETE", guestIds)) {
             assertThat(response.statusCode()).isEqualTo(200);
         }
         assertThat(count(lotId)).isZero();
@@ -108,16 +124,16 @@ class ParkingLotLikeIntegrationTest {
         Long inactiveLotId = insertLot(false);
         for (String method : List.of("PUT", "DELETE")) {
             for (Long unavailable : List.of(Long.MAX_VALUE, inactiveLotId)) {
-                HttpResponse<String> response = send(method, unavailable, ID);
+                HttpResponse<String> response = send(method, unavailable, GUEST_ID);
                 assertThat(response.statusCode()).isEqualTo(404);
                 assertThat(JsonPath.<String>read(response.body(), "$.message"))
                         .isEqualTo("주차장 정보를 찾을 수 없습니다.");
             }
-            for (String invalidId : List.of("invalid", "550e8400-e29b-11d4-a716-446655440000")) {
-                assertThat(send(method, lotId, invalidId).statusCode()).isEqualTo(400);
+            for (String invalidGuestId : List.of("invalid", "550e8400-e29b-11d4-a716-446655440000")) {
+                assertThat(send(method, lotId, invalidGuestId).statusCode()).isEqualTo(400);
             }
             assertThat(send(method, lotId, null).statusCode()).isEqualTo(400);
-            assertThat(send(method, 0L, ID).statusCode()).isEqualTo(400);
+            assertThat(send(method, 0L, GUEST_ID).statusCode()).isEqualTo(400);
         }
         assertThat(count(lotId)).isZero();
         assertThat(count(inactiveLotId)).isZero();
@@ -126,11 +142,11 @@ class ParkingLotLikeIntegrationTest {
     @Test
     @DisplayName("DB에서 좋아요 중복과 주차장 외래 키 제약을 보장한다")
     void database_enforces_unique_identity_and_foreign_key() throws Exception {
-        assertState(send("PUT", lotId, ID), lotId, 1, true);
+        assertState(send("PUT", lotId, GUEST_ID), lotId, 1, true);
         assertThatThrownBy(() -> jdbc.update(
                 "insert into parking_likes (parking_lot_id, anonymous_id) values (?, ?)",
                 lotId,
-                UUID.fromString(ID)
+                UUID.fromString(GUEST_ID)
         )).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update(
                 "insert into parking_likes (parking_lot_id, anonymous_id) values (?, ?)",
@@ -144,11 +160,11 @@ class ParkingLotLikeIntegrationTest {
 
     private List<HttpResponse<String>> concurrent(
             String method,
-            List<String> ids
+            List<String> guestIds
     ) throws Exception {
         try (var executor = Executors.newFixedThreadPool(6)) {
-            List<Callable<HttpResponse<String>>> calls = ids.stream()
-                    .<Callable<HttpResponse<String>>>map(id -> () -> send(method, lotId, id))
+            List<Callable<HttpResponse<String>>> calls = guestIds.stream()
+                    .<Callable<HttpResponse<String>>>map(guestId -> () -> send(method, lotId, guestId))
                     .toList();
             var futures = executor.invokeAll(calls, 30, TimeUnit.SECONDS);
             List<HttpResponse<String>> responses = new ArrayList<>();
@@ -162,17 +178,28 @@ class ParkingLotLikeIntegrationTest {
     private HttpResponse<String> send(
             String method,
             Long parkingLotId,
-            String anonymousId
+            String guestId
     ) throws Exception {
         var builder = HttpRequest.newBuilder(URI.create(
                 "http://localhost:" + port + "/api/parking/" + parkingLotId + "/like"
         ))
                 .timeout(Duration.ofSeconds(15))
                 .method(method, HttpRequest.BodyPublishers.noBody());
-        if (anonymousId != null) {
-            builder.header("X-Anonymous-Id", anonymousId);
+        if (guestId != null) {
+            builder.header("X-Guest-Id", guestId);
         }
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> sendViewportDetail(Long parkingLotId, String guestId) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                        "http://localhost:" + port + "/api/parking/viewport/" + parkingLotId
+                ))
+                .timeout(Duration.ofSeconds(15))
+                .header("X-Guest-Id", guestId)
+                .GET()
+                .build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private void assertState(

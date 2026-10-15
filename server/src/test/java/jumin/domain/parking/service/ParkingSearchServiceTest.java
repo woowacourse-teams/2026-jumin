@@ -19,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
@@ -31,6 +32,8 @@ import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
+import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -48,7 +51,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingSearchServiceTest {
 
+    private static final UUID GUEST_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
+    private final ParkingLotLikeRepository parkingLotLikeRepository = mock(ParkingLotLikeRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
     private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
     private final Clock clock = mock(Clock.class);
@@ -58,6 +64,7 @@ class ParkingSearchServiceTest {
     void setUp() {
         service = new ParkingSearchService(
                 parkingLotRepository,
+                parkingLotLikeRepository,
                 parkingOperationRepository,
                 new ParkingSearchQueryValidator(),
                 new ParkingOperationEvaluator(),
@@ -74,6 +81,8 @@ class ParkingSearchServiceTest {
                     return new WalkingDistanceResult(parkingLots.stream()
                             .collect(Collectors.toMap(ParkingLot::getId, ignored -> 500)));
                 });
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
+                .thenReturn(new ParkingLotLikeResult(0L, false));
     }
 
     @Test
@@ -482,15 +491,19 @@ class ParkingSearchServiceTest {
         ParkingOperation operation = availableOperationWithDetails(1L);
         when(parkingLotRepository.findActiveById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
+                .thenReturn(new ParkingLotLikeResult(3L, true));
 
         // when
-        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, GUEST_ID);
 
         // then
         assertThat(result.id()).isEqualTo(1L);
         assertThat(result.name()).isEqualTo("주차장 1");
         assertThat(result.address()).isEqualTo("서울시 주소 1");
         assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.likeCount()).isEqualTo(3);
+        assertThat(result.likedByMe()).isTrue();
         assertThat(result.feeRule().baseFreeMinutes()).isZero();
         assertThat(result.feeRule().dailyMaxFee()).isEqualTo(30_000);
         assertThat(result.dailyOperations()).extracting("day")
@@ -514,7 +527,7 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
 
         // when
-        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L);
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, GUEST_ID);
 
         // then
         assertThat(result.feeRule()).isNull();
@@ -535,7 +548,7 @@ class ParkingSearchServiceTest {
         when(parkingLotRepository.findActiveById(999L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.getParkingLotDetail(999L))
+        assertThatThrownBy(() -> service.getParkingLotDetail(999L, GUEST_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
     }

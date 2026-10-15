@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
 import jumin.domain.parking.dto.LocationResponse;
 import jumin.domain.parking.dto.ParkingFeeRuleResponse;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
@@ -18,6 +19,8 @@ import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -36,11 +39,15 @@ class ParkingLotDetailControllerTest {
     @MockitoBean
     private ParkingLotDetailService parkingLotDetailService;
 
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
+
     @Test
     @DisplayName("주차장 상세 조회 응답을 반환한다")
     void returns_parking_lot_detail_response() throws Exception {
         // given
-        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
                 .thenReturn(detailResponse(310, 5));
 
         // when
@@ -51,6 +58,8 @@ class ParkingLotDetailControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.likeCount").value(3))
+                .andExpect(jsonPath("$.likedByMe").value(true))
                 .andExpect(jsonPath("$.distanceMeters").value(310))
                 .andExpect(jsonPath("$.walkingDurationMinutes").value(5))
                 .andExpect(jsonPath("$.estimatedFee").value(6_000))
@@ -67,6 +76,7 @@ class ParkingLotDetailControllerTest {
     void returns_bad_request_when_required_detail_condition_is_missing() throws Exception {
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/1")
+                .header("X-Guest-Id", GUEST_ID)
                 .queryParam("destinationLongitude", "127.0279")
                 .queryParam("entryAt", "2026-08-21T19:00:00+09:00")
                 .queryParam("exitAt", "2026-08-21T20:00:00+09:00"));
@@ -83,7 +93,9 @@ class ParkingLotDetailControllerTest {
     @DisplayName("주차장이 없으면 상세 조회 전용 메시지와 404를 반환한다")
     void returns_not_found_when_parking_lot_does_not_exist() throws Exception {
         // given
-        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
                 .thenThrow(new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
 
         // when
@@ -100,7 +112,9 @@ class ParkingLotDetailControllerTest {
     @DisplayName("도보 경로가 없어도 거리와 소요 시간이 null인 상세 응답과 200을 반환한다")
     void returns_detail_with_null_distance_and_duration_when_walking_route_does_not_exist() throws Exception {
         // given
-        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
                 .thenReturn(detailResponse(null, null));
 
         // when
@@ -126,7 +140,9 @@ class ParkingLotDetailControllerTest {
     @DisplayName("보행망이 준비되지 않으면 보행 네트워크 사용 불가 메시지와 503을 반환한다")
     void returns_service_unavailable_when_walking_network_is_unavailable() throws Exception {
         // given
-        when(parkingLotDetailService.getDetail(any(Long.class), any(ParkingSearchRequest.class)))
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
                 .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
 
         // when
@@ -139,7 +155,36 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "not-a-uuid",
+            "550e8400-e29b-11d4-a716-446655440000",
+            "550e8400-e29b-41d4-7716-446655440000"
+    })
+    @DisplayName("게스트 ID가 UUID v4가 아니면 400을 반환한다")
+    void rejects_invalid_guest_id(String guestId) throws Exception {
+        mockMvc.perform(validRequestWithoutGuestId(1L).header("X-Guest-Id", guestId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."));
+    }
+
+    @Test
+    @DisplayName("게스트 ID가 없으면 400을 반환한다")
+    void rejects_missing_guest_id() throws Exception {
+        mockMvc.perform(get("/api/parking/{parkingLotId}", 1L)
+                        .queryParam("destinationLatitude", "37.4981")
+                        .queryParam("destinationLongitude", "127.0279")
+                        .queryParam("entryAt", "2026-08-21T19:00:00+09:00")
+                        .queryParam("exitAt", "2026-08-21T20:00:00+09:00"))
+                .andExpect(status().isBadRequest());
+    }
+
     private MockHttpServletRequestBuilder validRequest(long id) {
+        return validRequestWithoutGuestId(id)
+                .header("X-Guest-Id", GUEST_ID);
+    }
+
+    private MockHttpServletRequestBuilder validRequestWithoutGuestId(long id) {
         return get("/api/parking/{parkingLotId}", id)
                 .queryParam("destinationLatitude", "37.4981")
                 .queryParam("destinationLongitude", "127.0279")
@@ -164,7 +209,9 @@ class ParkingLotDetailControllerTest {
                         new ParkingScheduleResponse("OPEN", "00:00", "00:00", true),
                         new ParkingScheduleResponse("OPEN", "09:00", "18:00", null),
                         new ParkingScheduleResponse("CLOSED", null, null, null)
-                )
+                ),
+                3L,
+                true
         );
     }
 }
