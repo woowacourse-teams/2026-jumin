@@ -491,11 +491,10 @@ class ParkingSearchServiceTest {
         ParkingOperation operation = availableOperationWithDetails(1L);
         when(parkingLotRepository.findActiveById(1L)).thenReturn(Optional.of(parkingLot));
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
-
-        // when
         when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
                 .thenReturn(new ParkingLotLikeResult(3L, true));
 
+        // when
         ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, GUEST_ID);
 
         // then
