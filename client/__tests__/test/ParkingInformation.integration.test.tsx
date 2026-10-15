@@ -30,6 +30,14 @@ const renderParkingInformation = (parkingLotId = 101) => {
 };
 
 describe('홈페이지 주차장 상세정보', () => {
+  it('상세 패널의 빠른 메뉴에서 좋아요 개수와 선택 여부를 표시한다', () => {
+    renderParkingInformation();
+    expect(screen.getByRole('button', { name: '좋아요 12개' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
   it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {
     expect(
       parkingViewportLots.every(({ id }) => viewportParkingLotDetailFixtures[id] !== undefined),

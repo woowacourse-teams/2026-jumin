@@ -8,6 +8,7 @@ import {
   feeCalculationStatusSchema,
   parkingFeeRuleSchema,
   parkingInformationSourceSchema,
+  parkingLikeSchema,
   parkingLotDetailSchema,
   parkingLotSummarySchema,
   parkingLotViewportResponseSchema,
@@ -51,3 +52,6 @@ export type ParkingLotViewportResponse = z.infer<typeof parkingLotViewportRespon
 
 // 6. 뷰포트 내 주차장 상세정보 응답
 export type ViewportParkingLotDetailResponse = z.infer<typeof viewportParkingLotDetailSchema>;
+
+export type ParkingLikeResponse = z.infer<typeof parkingLikeSchema>;
+export type ParkingLikeState = Pick<ParkingLikeResponse, 'likeCount' | 'likedByMe'>;

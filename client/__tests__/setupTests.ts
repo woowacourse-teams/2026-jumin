@@ -3,6 +3,7 @@ import { cleanup, configure } from '@testing-library/react';
 import ReactModal from 'react-modal';
 
 import { server } from './msw/server';
+import { resetParkingLikes } from '../mocks/handlers/parkingLikeHandlers';
 
 configure({ asyncUtilTimeout: 4_000 });
 
@@ -18,6 +19,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  resetParkingLikes();
 
   localStorage.clear();
   sessionStorage.clear();

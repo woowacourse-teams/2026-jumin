@@ -12,12 +12,15 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
+import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -31,7 +34,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingLotDetailServiceTest {
 
+    private static final UUID GUEST_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
+    private final ParkingLotLikeRepository parkingLotLikeRepository = mock(ParkingLotLikeRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
     private final ParkingSearchQueryValidator queryValidator = mock(ParkingSearchQueryValidator.class);
     private final ParkingOperationEvaluator operationEvaluator = mock(ParkingOperationEvaluator.class);
@@ -42,6 +48,7 @@ class ParkingLotDetailServiceTest {
     void setUp() {
         service = new ParkingLotDetailService(
                 parkingLotRepository,
+                parkingLotLikeRepository,
                 parkingOperationRepository,
                 queryValidator,
                 operationEvaluator,
@@ -50,6 +57,8 @@ class ParkingLotDetailServiceTest {
         );
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenReturn(new WalkingDistanceResult(Map.of()));
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
+                .thenReturn(new ParkingLotLikeResult(0L, false));
     }
 
     @Test
@@ -65,9 +74,11 @@ class ParkingLotDetailServiceTest {
                 .thenReturn(new WalkingDistanceResult(Map.of(1L, 540)));
         when(operationEvaluator.evaluate(operation, request.entryAt(), request.exitAt()))
                 .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
+                .thenReturn(new ParkingLotLikeResult(3L, true));
 
         // when
-        ParkingLotDetailResponse result = service.getDetail(1L, request);
+        ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
 
         // then
         assertThat(result.id()).isEqualTo(1L);
@@ -76,6 +87,8 @@ class ParkingLotDetailServiceTest {
         assertThat(result.location().latitude()).isEqualTo(37.4990);
         assertThat(result.location().longitude()).isEqualTo(127.0290);
         assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.likeCount()).isEqualTo(3);
+        assertThat(result.likedByMe()).isTrue();
         assertThat(result.distanceMeters()).isEqualTo(540);
         assertThat(result.walkingDurationMinutes()).isEqualTo(9);
         assertThat(result.estimatedFee()).isEqualTo(6_000);
@@ -109,7 +122,7 @@ class ParkingLotDetailServiceTest {
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenReturn(new WalkingDistanceResult(Map.of(1L, 540)));
         // when
-        ParkingLotDetailResponse result = service.getDetail(1L, request);
+        ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
 
         // then
         assertThat(result.estimatedFee()).isNull();
@@ -134,7 +147,7 @@ class ParkingLotDetailServiceTest {
                 .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
 
         // when
-        ParkingLotDetailResponse result = service.getDetail(1L, request);
+        ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
 
         // then
         assertThat(result.id()).isEqualTo(1L);
@@ -158,7 +171,7 @@ class ParkingLotDetailServiceTest {
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
 
         // when
-        ParkingLotDetailResponse result = service.getDetail(1L, request);
+        ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
 
         // then
         assertThat(result.id()).isEqualTo(1L);
@@ -182,7 +195,7 @@ class ParkingLotDetailServiceTest {
                 .thenThrow(new BusinessException(ErrorCode.WALKING_NETWORK_UNAVAILABLE));
 
         // when & then
-        assertThatThrownBy(() -> service.getDetail(1L, request))
+        assertThatThrownBy(() -> service.getDetail(1L, request, GUEST_ID))
                 .isInstanceOf(BusinessException.class)
                 .extracting(exception -> ((BusinessException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.WALKING_NETWORK_UNAVAILABLE);
@@ -196,7 +209,7 @@ class ParkingLotDetailServiceTest {
         when(parkingLotRepository.findActiveWithLocationById(999L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.getDetail(999L, request))
+        assertThatThrownBy(() -> service.getDetail(999L, request, GUEST_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
     }
