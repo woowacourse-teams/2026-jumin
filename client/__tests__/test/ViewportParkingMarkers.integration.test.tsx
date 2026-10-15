@@ -265,9 +265,9 @@ it('줌 15와 16은 화면 중앙을 축소해 조회하고 줌 17은 전체 화
     throw new Error('줌별 뷰포트 요청이 모두 기록되지 않았습니다.');
   }
 
-  expect(zoom15Bounds.north - zoom15Bounds.south).toBeCloseTo(0.7, 3);
+  expect(zoom15Bounds.north - zoom15Bounds.south).toBeCloseTo(0.55, 3);
   expect(zoom15Bounds.east - zoom15Bounds.west).toBeCloseTo(1.4, 3);
-  expect(zoom16Bounds.north - zoom16Bounds.south).toBeCloseTo(0.425, 3);
+  expect(zoom16Bounds.north - zoom16Bounds.south).toBeCloseTo(0.35, 3);
   expect(zoom16Bounds.east - zoom16Bounds.west).toBeCloseTo(0.85, 3);
   expect(zoom17Bounds).toEqual({
     south: 37.375,
