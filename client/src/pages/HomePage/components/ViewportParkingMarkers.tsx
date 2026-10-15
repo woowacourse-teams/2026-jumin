@@ -13,16 +13,16 @@ const homeParkingMarkerIcon = {
   url: homeParkingMarkerUrl,
   width: 25,
   height: 25,
-  anchorX: 10,
-  anchorY: 10,
+  anchorX: 12.5,
+  anchorY: 25,
 };
 
 const dotParkingMarkerIcon = {
   url: dotParkingMarkerUrl,
   width: 40,
   height: 40,
-  anchorX: 14,
-  anchorY: 14,
+  anchorX: 5,
+  anchorY: 5,
 };
 
 const selectedParkingMarkerIcon = {
