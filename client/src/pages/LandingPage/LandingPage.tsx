@@ -2,38 +2,9 @@ import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import searchPreview from '../../../assets/guideImage/guide1.png';
-import comparePreview from '../../../assets/guideImage/guide3.png';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 import parkingHero from '../../../assets/parking-hero.jpg';
-
-const features = [
-  {
-    label: '목적지 검색',
-    title: (
-      <>
-        가고 싶은 곳을
-        <br />
-        먼저 알려주세요.
-      </>
-    ),
-    description: '장소를 검색하거나 지도에서 목적지를 선택하세요. 주변 주차장을 추천해드려요.',
-    image: searchPreview,
-    alt: '목적지 검색창이 표시된 주차의민족 지도 화면 예시',
-  },
-  {
-    label: '거리와 요금 비교',
-    title: (
-      <>
-        가까운 곳, 저렴한 곳.
-        <br />내 기준으로 고르세요.
-      </>
-    ),
-    description: '거리순·가격순·균형순으로 비교하고, 선택한 주차장으로 길찾기를 시작하세요.',
-    image: comparePreview,
-    alt: '주차의민족 지도에서 도보 거리와 예상 요금을 비교하는 화면 예시',
-  },
-];
+import { LandingGuide } from './components/LandingGuide';
 
 export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
@@ -110,25 +81,7 @@ export const LandingPage = () => {
         </p>
       </section>
 
-      <div id="landing-guide" className={styles.features}>
-        {features.map((feature, index) => (
-          <section
-            key={feature.label}
-            className={cx(styles.feature, index === 1 && styles.reversedFeature)}
-            aria-labelledby={`landing-feature-${index}`}
-          >
-            <div className={styles.featureCopy}>
-              <p className={styles.eyebrow}>{feature.label}</p>
-              <h2 id={`landing-feature-${index}`}>{feature.title}</h2>
-              <p className={styles.description}>{feature.description}</p>
-            </div>
-            <figure className={styles.preview}>
-              <img src={feature.image} alt={feature.alt} width="342" height="393" loading="lazy" />
-              <figcaption>서비스 화면 예시</figcaption>
-            </figure>
-          </section>
-        ))}
-      </div>
+      <LandingGuide />
 
       <section className={styles.closing} aria-labelledby="landing-closing-title">
         <h2 id="landing-closing-title">
@@ -178,10 +131,7 @@ const styles = {
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
 
-    h1,
-    h2,
-    p,
-    figure {
+    :where(h1, h2, p, figure) {
       margin: 0;
     }
     a {
@@ -515,92 +465,6 @@ const styles = {
     letter-spacing: -0.4px;
     @media (max-width: 700px) {
       font-size: 15px;
-    }
-  `,
-  features: css`
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: 0 56px 100px;
-    @media (max-width: 700px) {
-      padding: 0 24px 70px;
-    }
-  `,
-  feature: css`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: 80px;
-    padding: 48px 0;
-
-    @media (max-width: 900px) {
-      gap: 36px;
-    }
-    @media (max-width: 700px) {
-      grid-template-columns: 1fr;
-      gap: 28px;
-      padding: 36px 0;
-    }
-  `,
-  reversedFeature: css`
-    > div {
-      order: 2;
-    }
-    > figure {
-      order: 1;
-    }
-    @media (max-width: 700px) {
-      > div,
-      > figure {
-        order: initial;
-      }
-    }
-  `,
-  featureCopy: css`
-    h2 {
-      margin: 18px 0 22px;
-      font-size: clamp(27px, 2.8vw, 38px);
-      font-weight: 800;
-      line-height: 1.4;
-      letter-spacing: -1.4px;
-    }
-    > p:last-child {
-      max-width: 380px;
-    }
-    @media (max-width: 700px) {
-      h2 {
-        margin: 14px 0 16px;
-        font-size: 28px;
-        letter-spacing: -1px;
-      }
-    }
-  `,
-  preview: css`
-    display: grid;
-    min-height: 460px;
-    justify-items: center;
-    align-content: center;
-    gap: 20px;
-    padding: 40px;
-    background: #f3f4f9;
-    border-radius: 24px;
-    img {
-      display: block;
-      width: min(100%, 280px);
-      height: auto;
-      border: 6px solid #fff;
-      border-radius: 24px;
-      box-shadow: 0 16px 32px rgb(24 35 61 / 10%);
-    }
-    figcaption {
-      color: #747d90;
-      font-size: 11px;
-    }
-    @media (max-width: 900px) {
-      padding: 28px;
-    }
-    @media (max-width: 700px) {
-      min-height: 380px;
-      padding: 32px;
     }
   `,
   closing: css`
