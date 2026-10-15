@@ -19,6 +19,7 @@ import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -133,7 +134,7 @@ public class ParkingSearchService {
                 });
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);
-        ParkingLotLikeRepository.Summary likeSummary =
+        ParkingLotLikeResult likeSummary =
                 parkingLotLikeRepository.findSummary(parkingLotId, anonymousId);
 
         return ParkingLotViewportDetailResponse.from(

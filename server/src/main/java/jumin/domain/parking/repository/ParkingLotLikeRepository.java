@@ -59,7 +59,7 @@ public class ParkingLotLikeRepository {
         );
     }
 
-    public Summary findSummary(Long parkingLotId, UUID anonymousId) {
+    public ParkingLotLikeResult findSummary(Long parkingLotId, UUID anonymousId) {
         return jdbcTemplate.queryForObject(
                 """
                 select count(*) as like_count,
@@ -71,7 +71,7 @@ public class ParkingLotLikeRepository {
                 from parking_likes
                 where parking_lot_id = ?
                 """,
-                (resultSet, rowNum) -> new Summary(
+                (resultSet, rowNum) -> new ParkingLotLikeResult(
                         resultSet.getLong("like_count"),
                         resultSet.getBoolean("liked_by_me")
                 ),
@@ -79,9 +79,6 @@ public class ParkingLotLikeRepository {
                 anonymousId,
                 parkingLotId
         );
-    }
-
-    public record Summary(long likeCount, boolean likedByMe) {
     }
 
 }

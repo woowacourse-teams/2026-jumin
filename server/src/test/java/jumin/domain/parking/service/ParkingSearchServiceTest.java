@@ -33,6 +33,7 @@ import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -79,7 +80,7 @@ class ParkingSearchServiceTest {
                             .collect(Collectors.toMap(ParkingLot::getId, ignored -> 500)));
                 });
         when(parkingLotLikeRepository.findSummary(1L, anonymousId()))
-                .thenReturn(new ParkingLotLikeRepository.Summary(0L, false));
+                .thenReturn(new ParkingLotLikeResult(0L, false));
     }
 
     @Test
@@ -491,7 +492,7 @@ class ParkingSearchServiceTest {
 
         // when
         when(parkingLotLikeRepository.findSummary(1L, anonymousId()))
-                .thenReturn(new ParkingLotLikeRepository.Summary(3L, true));
+                .thenReturn(new ParkingLotLikeResult(3L, true));
 
         ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, anonymousId());
 

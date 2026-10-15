@@ -8,6 +8,7 @@ import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -79,7 +80,7 @@ public class ParkingLotDetailService {
         if (availabilityStatus != null) {
             availabilityStatusName = availabilityStatus.name();
         }
-        ParkingLotLikeRepository.Summary likeSummary =
+        ParkingLotLikeResult likeSummary =
                 parkingLotLikeRepository.findSummary(parkingLotId, anonymousId);
 
         log.atInfo()
