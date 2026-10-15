@@ -36,7 +36,7 @@ export const ParkingRecommendPage = () => {
         title={searchCondition.destinationName}
         description={`${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`}
         onBack={() => navigate(-1)}
-        action={<PeriodChangeControl />}
+        // action={<PeriodChangeControl />}
       />
 
       <QueryErrorResetBoundary>
