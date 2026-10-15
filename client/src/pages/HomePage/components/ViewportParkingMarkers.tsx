@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import type { MapViewport } from '../hooks/useMapViewport';
 import { useViewportParkingLots } from '../hooks/useViewportParkingLots';
@@ -39,7 +38,6 @@ interface Props {
   filters?: ParkingViewportFilters;
   selectedParkingLotId: number | null;
   onSelect: (parkingLot: ParkingLotViewport) => void;
-  onSelectedParkingLotMissing: () => void;
 }
 
 export const ViewportParkingMarkers = ({
@@ -48,25 +46,12 @@ export const ViewportParkingMarkers = ({
   filters = { freeOnly: false, excludeMechanical: false },
   selectedParkingLotId,
   onSelect,
-  onSelectedParkingLotMissing,
 }: Props) => {
-  const { data, isPlaceholderData, isSuccess } = useViewportParkingLots(viewport, filters);
+  const { data } = useViewportParkingLots(viewport, filters);
 
   const parkingMarkers = data?.parkingLots ?? [];
 
   const representativeIds = getRepresentativeParkingLotIds(parkingMarkers, viewport.zoom);
-
-  useEffect(() => {
-    if (selectedParkingLotId === null || !isSuccess || isPlaceholderData) return;
-
-    const isSelectedParkingLotVisible = data.parkingLots.some(
-      ({ id }) => id === selectedParkingLotId,
-    );
-
-    if (!isSelectedParkingLotVisible) {
-      onSelectedParkingLotMissing();
-    }
-  }, [data, isPlaceholderData, isSuccess, onSelectedParkingLotMissing, selectedParkingLotId]);
 
   return (
     <>
