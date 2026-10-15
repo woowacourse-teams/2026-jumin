@@ -163,7 +163,6 @@ it('줌 15에서 점수 상위 10개만 대표 마커로 표시하고 점도 선
     viewport,
     selectedParkingLotId: null,
     onSelect,
-    onSelectedParkingLotMissing: jest.fn(),
   };
   const { rerender } = renderWithProviders(<ViewportParkingMarkers {...props} />);
 
@@ -194,7 +193,6 @@ it('줌 15보다 확대하면 모든 주차장을 대표 마커로 표시하고 
     viewport,
     selectedParkingLotId: 105,
     onSelect: jest.fn(),
-    onSelectedParkingLotMissing: jest.fn(),
   };
   const { rerender } = renderWithProviders(<ViewportParkingMarkers {...props} />);
 
@@ -220,7 +218,6 @@ it('줌 15와 16은 화면 중앙을 축소해 조회하고 줌 17은 전체 화
     selectedParkingLotId: null,
     filters: { freeOnly: true, excludeMechanical: false },
     onSelect: jest.fn(),
-    onSelectedParkingLotMissing: jest.fn(),
   };
   const { rerender } = renderWithProviders(
     <ViewportParkingMarkers {...props} viewport={viewport} />,

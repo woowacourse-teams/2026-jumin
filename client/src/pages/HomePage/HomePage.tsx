@@ -128,7 +128,6 @@ export const HomePage = () => {
             filters={parkingFilters}
             selectedParkingLotId={selectedParkingLot?.id ?? null}
             onSelect={handleParkingMarkerClick}
-            onSelectedParkingLotMissing={clearParkingSelection}
           />
         ) : (
           <div className={zoomGuideContainerStyle}>
