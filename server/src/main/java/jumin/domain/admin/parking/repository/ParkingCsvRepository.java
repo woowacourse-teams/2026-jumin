@@ -175,12 +175,14 @@ public class ParkingCsvRepository {
         List<MapSqlParameterSource> lotUpdates = new ArrayList<>();
         List<MapSqlParameterSource> operationUpdates = new ArrayList<>();
         List<MapSqlParameterSource> missingOperations = new ArrayList<>();
-        List<Long> changedParkingLotIds = new ArrayList<>();
+        List<Long> parkingLotIdsToRefresh = new ArrayList<>();
         for (ParkingUpdate update : updates) {
             long id = update.before().id();
             if (update.lotChanged()) {
                 lotUpdates.add(lotParameters(update.after().lot(), now).addValue("id", id, Types.BIGINT));
-                changedParkingLotIds.add(id);
+            }
+            if (update.coordinatesChanged()) {
+                parkingLotIdsToRefresh.add(id);
             }
             if (!update.operationChanged()) {
                 continue;
@@ -195,7 +197,7 @@ public class ParkingCsvRepository {
         batchUpdate(UPDATE_LOT, lotUpdates);
         batchUpdate(UPDATE_OPERATION, operationUpdates);
         insertOperations(missingOperations);
-        return changedParkingLotIds;
+        return parkingLotIdsToRefresh;
     }
 
     private void refreshWalkingNodeCandidates(List<Long> parkingLotIds) {
