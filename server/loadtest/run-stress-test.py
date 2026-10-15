@@ -52,6 +52,10 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]*", args.label):
         parser.error("Invalid result label")
+    try:
+        viewport = shared.resolve_viewport_bounds(os.environ)
+    except ValueError as error:
+        parser.error(str(error))
     manifest = json.loads(args.image_manifest.read_text())
     folder = shared.RESULTS / args.label
     folder.mkdir(parents=True, exist_ok=False)
@@ -68,7 +72,7 @@ def main():
         "image_manifest_sha256": hashlib.sha256(args.image_manifest.read_bytes()).hexdigest(),
         "restore_image_id": original_image,
         "inputs": {"latitude": 37.49795, "longitude": 127.02756,
-                   "bbox": [127.0200, 37.4920, 127.0350, 37.5040],
+                   "bbox": shared.viewport_bbox(viewport),
                    "entry_at": args.entry_at, "exit_at": args.exit_at},
         "plan": {
             "load_rps": {"viewport": 0.70, "recommendation": 0.05},
@@ -123,7 +127,7 @@ def main():
 
     common = ["--env", "LOADTEST_ENV=local", "--env", "LOADTEST_BASE_URL=http://nginx",
               "--env", "DESTINATION_LATITUDE=37.49795", "--env", "DESTINATION_LONGITUDE=127.02756",
-              "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"]
+              "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"] + shared.viewport_k6_env(viewport)
 
     def stage(kind, viewport_rps, duration, worker_multiplier=1):
         nonlocal active_k6, previous_end
@@ -239,7 +243,7 @@ def main():
         response_baseline = folder / "response-baseline"
         for endpoint in ["viewport", "recommendation"]:
             (response_baseline / endpoint).mkdir(parents=True)
-        shared.capture_viewport_accuracy(response_baseline / "viewport")
+        shared.capture_viewport_accuracy(response_baseline / "viewport", viewport)
         shared.capture_accuracy(response_baseline / "recommendation", args.entry_at, args.exit_at)
         last_pass = None
         for rate in rates:
@@ -285,7 +289,7 @@ def main():
         })
         for endpoint in ["viewport", "recommendation"]:
             (folder / endpoint).mkdir()
-        shared.capture_viewport_accuracy(folder / "viewport")
+        shared.capture_viewport_accuracy(folder / "viewport", viewport)
         shared.capture_accuracy(folder / "recommendation", args.entry_at, args.exit_at)
         save(folder / "response-comparison-before-after-stress.json", comparison.responses(response_baseline, folder))
     except BaseException as error:

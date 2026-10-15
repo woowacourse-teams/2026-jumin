@@ -79,6 +79,8 @@ docker compose --file infra/docker-compose.loadtest.yml run --rm --no-deps \
 
 인자는 각 파일의 `--help`로 확인한다. 자동 실행기는 macOS의 `memory_pressure`를 사용한다. 혼합·Stress 실행에는 이미지 ID·코드 버전·JAR 항목별 SHA-256을 담은 manifest를 별도로 준비해야 한다. 이미지 빌드 스크립트는 manifest를 생성하지 않는다.
 
+세 Python 실행기는 시작 시 셸의 `VIEWPORT_WEST_LONGITUDE`, `VIEWPORT_SOUTH_LATITUDE`, `VIEWPORT_EAST_LONGITUDE`, `VIEWPORT_NORTH_LATITUDE`를 한 번 읽는다. 미설정·빈 값은 강남역 기본 범위(경도 127.0200~127.0350, 위도 37.4920~37.5040)를 사용한다. 확정한 좌표는 예열·본 측정의 k6 인자로 명시하고, 결과의 `inputs.bbox`와 응답 비교에도 동일하게 사용한다. 별도 Compose `.env`의 지도 범위보다 이 값이 우선하며, 좌표가 유효하지 않으면 환경을 변경하기 전에 종료한다. 응답 비교의 16개 추가 범위도 이 좌표를 기준으로 이동한다.
+
 위 k6 직접 실행은 요청·응답 지표를 저장한다. 예열·서버 자원 수집·메모리 안전 중단·이미지 검증은 Python 자동 실행기에 포함돼 있다.
 
 ## 결과 해석

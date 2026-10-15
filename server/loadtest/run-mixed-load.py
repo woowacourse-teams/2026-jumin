@@ -50,6 +50,10 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]*", args.label):
         parser.error("Invalid results label")
+    try:
+        viewport = shared.resolve_viewport_bounds(os.environ)
+    except ValueError as error:
+        parser.error(str(error))
     manifest = json.loads(args.image_manifest.read_text())
     folder = shared.RESULTS / args.label
     folder.mkdir(parents=True, exist_ok=False)
@@ -69,7 +73,7 @@ def main():
         "warmup_think_time_seconds": 2, "preallocated_vus_per_api": 5, "max_vus_per_api": 8,
         "request_timeout_seconds": 60, "graceful_stop_seconds": 65,
         "inputs": {"latitude": 37.49795, "longitude": 127.02756,
-                   "bbox": [127.0200, 37.4920, 127.0350, 37.5040],
+                   "bbox": shared.viewport_bbox(viewport),
                    "entry_at": args.entry_at, "exit_at": args.exit_at},
         "load_rps": {"viewport": 0.70, "recommendation": 0.05},
         "provisional_thresholds": {"viewport_p95_ms": 300, "recommendation_p95_ms": 2000,
@@ -124,7 +128,7 @@ def main():
             "SELECT row_to_json(walking_network_metadata) FROM walking_network_metadata; SELECT count(*) AS parking_lots FROM parking_lots;") + "\n")
         common = ["--env", "LOADTEST_ENV=local", "--env", "LOADTEST_BASE_URL=http://nginx",
                   "--env", "DESTINATION_LATITUDE=37.49795", "--env", "DESTINATION_LONGITUDE=127.02756",
-                  "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"]
+                  "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"] + shared.viewport_k6_env(viewport)
         for endpoint, api in [("viewport", "parking_viewport"), ("recommendation", "parking_search")]:
             warmup = folder / f"warmup-{endpoint}"
             warmup.mkdir()
@@ -161,7 +165,7 @@ def main():
         if result["exit_code"] in (0, 99) and not result["safety_stop_reason"]:
             for endpoint in ["viewport", "recommendation"]:
                 (folder / endpoint).mkdir()
-            shared.capture_viewport_accuracy(folder / "viewport")
+            shared.capture_viewport_accuracy(folder / "viewport", viewport)
             shared.capture_accuracy(folder / "recommendation", args.entry_at, args.exit_at)
     finally:
         print(f"[{shared.now()}] Restoring original local Backend", flush=True)

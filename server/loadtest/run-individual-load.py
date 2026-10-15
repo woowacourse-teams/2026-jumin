@@ -23,6 +23,37 @@ ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ["docker", "compose", "--file", str(ROOT / "infra/docker-compose.loadtest.yml")]
 KST = ZoneInfo("Asia/Seoul")
 RESULTS = ROOT / "server/loadtest/results"
+VIEWPORT_COORDINATES = (
+    ("VIEWPORT_WEST_LONGITUDE", "westLongitude", 127.0200),
+    ("VIEWPORT_SOUTH_LATITUDE", "southLatitude", 37.4920),
+    ("VIEWPORT_EAST_LONGITUDE", "eastLongitude", 127.0350),
+    ("VIEWPORT_NORTH_LATITUDE", "northLatitude", 37.5040),
+)
+
+
+def resolve_viewport_bounds(environment):
+    bounds = {}
+    for variable, parameter, default in VIEWPORT_COORDINATES:
+        try:
+            value = float(environment.get(variable) or default)
+        except ValueError as error:
+            raise ValueError(f"{variable} must be a finite coordinate") from error
+        if not math.isfinite(value):
+            raise ValueError(f"{variable} must be a finite coordinate")
+        bounds[parameter] = value
+    if not (-180 <= bounds["westLongitude"] < bounds["eastLongitude"] <= 180
+            and -90 < bounds["southLatitude"] < bounds["northLatitude"] < 90):
+        raise ValueError("Viewport coordinates must be in range and ordered west < east, south < north")
+    return bounds
+
+
+def viewport_bbox(bounds):
+    return [bounds[parameter] for _, parameter, _ in VIEWPORT_COORDINATES]
+
+
+def viewport_k6_env(bounds):
+    return [argument for variable, parameter, _ in VIEWPORT_COORDINATES
+            for argument in ("--env", f"{variable}={bounds[parameter]}")]
 
 
 def now():
@@ -161,17 +192,15 @@ def capture_accuracy(folder, entry_at, exit_at):
     }, ensure_ascii=False, indent=2) + "\n")
 
 
-def capture_viewport_accuracy(folder):
+def capture_viewport_accuracy(folder, bounds):
     accuracy = folder / "accuracy"
     accuracy.mkdir()
-    fixed = {"westLongitude": 127.0200, "southLatitude": 37.4920,
-             "eastLongitude": 127.0350, "northLatitude": 37.5040}
-    cases = [("fixed", fixed)]
+    cases = [("fixed", dict(bounds))]
     for index in range(16):
         dx = (index % 4 - 1.5) * 0.001
         dy = (index // 4 - 1.5) * 0.001
         cases.append((f"grid-{index:02}", {
-            key: value + (dx if "Longitude" in key else dy) for key, value in fixed.items()
+            key: value + (dx if "Longitude" in key else dy) for key, value in bounds.items()
         }))
     records = []
     for name, parameters in cases:
@@ -206,6 +235,10 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]*", args.label):
         parser.error("label must contain only letters, digits, dot, underscore, or hyphen")
+    try:
+        viewport = resolve_viewport_bounds(os.environ)
+    except ValueError as error:
+        parser.error(str(error))
 
     destination = RESULTS / args.label
     destination.mkdir(parents=True, exist_ok=False)
@@ -235,7 +268,7 @@ def main():
         "warmup_think_time_seconds": 2, "preallocated_vus": 5, "max_vus": 8,
         "request_timeout_seconds": 60, "graceful_stop_seconds": 65,
         "inputs": {"latitude": 37.49795, "longitude": 127.02756,
-                   "bbox": [127.0200, 37.4920, 127.0350, 37.5040],
+                   "bbox": viewport_bbox(viewport),
                    "entry_at": args.entry_at, "exit_at": args.exit_at},
         "load_rps": {"viewport": 0.70, "recommendation": 0.05},
         "provisional_thresholds": {"viewport_p95_ms": 300, "recommendation_p95_ms": 2000,
@@ -296,7 +329,7 @@ def main():
                 (folder / "verified-walking-sql.sha256").write_text(hashlib.sha256(actual_sql).hexdigest() + "\n")
             common_env = ["--env", "LOADTEST_ENV=local", "--env", "LOADTEST_BASE_URL=http://nginx",
                           "--env", "DESTINATION_LATITUDE=37.49795", "--env", "DESTINATION_LONGITUDE=127.02756",
-                          "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"]
+                          "--env", f"ENTRY_AT={args.entry_at}", "--env", f"EXIT_AT={args.exit_at}"] + viewport_k6_env(viewport)
             relative = folder.relative_to(RESULTS)
             name = f"jumin-loadtest-{args.label}-{endpoint}-warmup"
             warmup = COMPOSE + ["run", "--rm", "--no-deps", "--name", name, "k6", "run"] + common_env + [
@@ -338,7 +371,7 @@ def main():
             if endpoint == "recommendation" and args.capture_accuracy:
                 capture_accuracy(folder, args.entry_at, args.exit_at)
             elif endpoint == "viewport" and args.capture_accuracy:
-                capture_viewport_accuracy(folder)
+                capture_viewport_accuracy(folder, viewport)
     finally:
         print(f"[{now()}] Restoring the original local Backend image", flush=True)
         command(["docker", "image", "tag", original_image, "jumin-backend:loadtest"])
