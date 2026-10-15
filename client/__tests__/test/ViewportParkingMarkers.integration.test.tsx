@@ -1,5 +1,6 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import { http, HttpResponse } from 'msw';
 import { Outlet, Route, Routes } from 'react-router';
 
 import { parkingLotViewportResponseSchema } from '../../api/parkingLotsSchema';
@@ -9,6 +10,7 @@ import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportP
 import { HomePage } from '../../src/pages/HomePage/HomePage';
 import { ViewportParkingMarkers } from '../../src/pages/HomePage/components/ViewportParkingMarkers';
 import type { MapViewport } from '../../src/pages/HomePage/hooks/useMapViewport';
+import { server } from '../msw/server';
 import { renderWithProviders } from '../renderWithProviders';
 
 class TestSize {
@@ -202,6 +204,84 @@ it('줌 15보다 확대하면 모든 주차장을 대표 마커로 표시하고 
   expect(representativeMarkers()).toHaveLength(parkingViewportLots.length - 1);
   expect(markerFor(105)?.anchor).toEqual(new TestPoint(15, 33));
   expect(dotMarkers()).toHaveLength(0);
+});
+
+it('줌 15와 16은 화면 중앙을 축소해 조회하고 줌 17은 전체 화면을 조회한다', async () => {
+  const requestUrls: URL[] = [];
+  server.use(
+    http.get('/api/parking/viewport', ({ request }) => {
+      requestUrls.push(new URL(request.url));
+      return HttpResponse.json({ totalCount: 0, parkingLots: [] });
+    }),
+  );
+
+  const props = {
+    map,
+    selectedParkingLotId: null,
+    filters: { freeOnly: true, excludeMechanical: false },
+    onSelect: jest.fn(),
+    onSelectedParkingLotMissing: jest.fn(),
+  };
+  const { rerender } = renderWithProviders(
+    <ViewportParkingMarkers {...props} viewport={viewport} />,
+  );
+
+  await waitFor(() => expect(requestUrls).toHaveLength(1));
+  rerender(
+    <ViewportParkingMarkers
+      {...props}
+      viewport={{
+        zoom: 16,
+        southLatitude: 37.25,
+        westLongitude: 126.5,
+        northLatitude: 37.75,
+        eastLongitude: 127.5,
+      }}
+    />,
+  );
+  await waitFor(() => expect(requestUrls).toHaveLength(2));
+  rerender(
+    <ViewportParkingMarkers
+      {...props}
+      viewport={{
+        zoom: 17,
+        southLatitude: 37.375,
+        westLongitude: 126.75,
+        northLatitude: 37.625,
+        eastLongitude: 127.25,
+      }}
+    />,
+  );
+  await waitFor(() => expect(requestUrls).toHaveLength(3));
+
+  const requestedBounds = requestUrls.map(({ searchParams }) => ({
+    south: Number(searchParams.get('southLatitude')),
+    west: Number(searchParams.get('westLongitude')),
+    north: Number(searchParams.get('northLatitude')),
+    east: Number(searchParams.get('eastLongitude')),
+  }));
+  const [zoom15Bounds, zoom16Bounds, zoom17Bounds] = requestedBounds;
+  if (!zoom15Bounds || !zoom16Bounds || !zoom17Bounds) {
+    throw new Error('줌별 뷰포트 요청이 모두 기록되지 않았습니다.');
+  }
+
+  expect(zoom15Bounds.north - zoom15Bounds.south).toBeCloseTo(0.7, 3);
+  expect(zoom15Bounds.east - zoom15Bounds.west).toBeCloseTo(1.4, 3);
+  expect(zoom16Bounds.north - zoom16Bounds.south).toBeCloseTo(0.425, 3);
+  expect(zoom16Bounds.east - zoom16Bounds.west).toBeCloseTo(0.85, 3);
+  expect(zoom17Bounds).toEqual({
+    south: 37.375,
+    west: 126.75,
+    north: 37.625,
+    east: 127.25,
+  });
+  for (const { south, west, north, east } of requestedBounds) {
+    expect((south + north) / 2).toBeCloseTo(37.5, 3);
+    expect((west + east) / 2).toBeCloseTo(127, 3);
+  }
+  expect(requestUrls.every(({ searchParams }) => searchParams.get('freeOnly') === 'true')).toBe(
+    true,
+  );
 });
 
 it('줌 15보다 축소하면 마커 대신 기존 확대 안내를 표시한다', async () => {
