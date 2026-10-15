@@ -51,6 +51,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingSearchServiceTest {
 
+    private static final UUID GUEST_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
     private final ParkingLotRepository parkingLotRepository = mock(ParkingLotRepository.class);
     private final ParkingLotLikeRepository parkingLotLikeRepository = mock(ParkingLotLikeRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
@@ -79,7 +81,7 @@ class ParkingSearchServiceTest {
                     return new WalkingDistanceResult(parkingLots.stream()
                             .collect(Collectors.toMap(ParkingLot::getId, ignored -> 500)));
                 });
-        when(parkingLotLikeRepository.findSummary(1L, anonymousId()))
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
                 .thenReturn(new ParkingLotLikeResult(0L, false));
     }
 
@@ -491,10 +493,10 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
 
         // when
-        when(parkingLotLikeRepository.findSummary(1L, anonymousId()))
+        when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
                 .thenReturn(new ParkingLotLikeResult(3L, true));
 
-        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, anonymousId());
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, GUEST_ID);
 
         // then
         assertThat(result.id()).isEqualTo(1L);
@@ -526,7 +528,7 @@ class ParkingSearchServiceTest {
         when(parkingOperationRepository.findById(1L)).thenReturn(Optional.empty());
 
         // when
-        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, anonymousId());
+        ParkingLotViewportDetailResponse result = service.getParkingLotDetail(1L, GUEST_ID);
 
         // then
         assertThat(result.feeRule()).isNull();
@@ -547,7 +549,7 @@ class ParkingSearchServiceTest {
         when(parkingLotRepository.findActiveById(999L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.getParkingLotDetail(999L, anonymousId()))
+        assertThatThrownBy(() -> service.getParkingLotDetail(999L, GUEST_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
     }
@@ -608,10 +610,6 @@ class ParkingSearchServiceTest {
                 OffsetDateTime.parse(entryAt),
                 OffsetDateTime.parse(exitAt)
         );
-    }
-
-    private UUID anonymousId() {
-        return UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     }
 
     private ParkingLot parkingLotWithCapacity(long id, Integer capacity) {

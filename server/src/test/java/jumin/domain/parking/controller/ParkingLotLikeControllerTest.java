@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc(addFilters = false)
 class ParkingLotLikeControllerTest {
 
-    private static final String ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,29 +36,29 @@ class ParkingLotLikeControllerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"PUT", "DELETE"})
-    @DisplayName("익명 ID의 대소문자와 관계없이 좋아요 상태를 반환한다")
-    void returns_state_for_canonical_anonymous_id(String method) throws Exception {
-        UUID anonymousId = UUID.fromString(ID);
+    @DisplayName("게스트 ID의 대소문자와 관계없이 좋아요 상태를 반환한다")
+    void returns_state_for_canonical_guest_id(String method) throws Exception {
+        UUID guestId = UUID.fromString(GUEST_ID);
         boolean liked = method.equals("PUT");
         if (liked) {
-            when(parkingLotLikeService.like(123L, anonymousId))
+            when(parkingLotLikeService.like(123L, guestId))
                     .thenReturn(new ParkingLikeResponse(123L, 2, true));
         } else {
-            when(parkingLotLikeService.unlike(123L, anonymousId))
+            when(parkingLotLikeService.unlike(123L, guestId))
                     .thenReturn(new ParkingLikeResponse(123L, 1, false));
         }
 
         mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                        .header("X-Guest-Id", ID.toUpperCase()))
+                        .header("X-Guest-Id", GUEST_ID.toUpperCase()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parkingLotId").value(123))
                 .andExpect(jsonPath("$.likeCount").value(liked ? 2 : 1))
                 .andExpect(jsonPath("$.likedByMe").value(liked));
 
         if (liked) {
-            verify(parkingLotLikeService).like(123L, anonymousId);
+            verify(parkingLotLikeService).like(123L, guestId);
         } else {
-            verify(parkingLotLikeService).unlike(123L, anonymousId);
+            verify(parkingLotLikeService).unlike(123L, guestId);
         }
     }
 
@@ -66,13 +66,13 @@ class ParkingLotLikeControllerTest {
     @ValueSource(strings = {"PUT", "DELETE"})
     @DisplayName("요청 값이 올바르지 않으면 좋아요를 변경하지 않고 400을 반환한다")
     void rejects_invalid_requests_before_mutation(String method) throws Exception {
-        for (String invalidId : new String[]{
+        for (String invalidGuestId : new String[]{
                 "", " ", "not-a-uuid", "1-1-4-8-1",
                 "550e8400-e29b-11d4-a716-446655440000",
-                "550e8400-e29b-41d4-7716-446655440000", ID + " "
+                "550e8400-e29b-41d4-7716-446655440000", GUEST_ID + " "
         }) {
             mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                            .header("X-Guest-Id", invalidId))
+                            .header("X-Guest-Id", invalidGuestId))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."))
                     .andExpect(jsonPath("$.errors").isArray());
@@ -82,7 +82,7 @@ class ParkingLotLikeControllerTest {
 
         for (String invalidLotId : new String[]{"0", "-1", "bad", "9223372036854775808"}) {
             mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/" + invalidLotId + "/like")
-                            .header("X-Guest-Id", ID))
+                            .header("X-Guest-Id", GUEST_ID))
                     .andExpect(status().isBadRequest());
         }
         verifyNoInteractions(parkingLotLikeService);
@@ -94,12 +94,12 @@ class ParkingLotLikeControllerTest {
     void returns_common_not_found_response(String method) throws Exception {
         var exception = new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND);
         if (method.equals("PUT")) {
-            when(parkingLotLikeService.like(123L, UUID.fromString(ID))).thenThrow(exception);
+            when(parkingLotLikeService.like(123L, UUID.fromString(GUEST_ID))).thenThrow(exception);
         } else {
-            when(parkingLotLikeService.unlike(123L, UUID.fromString(ID))).thenThrow(exception);
+            when(parkingLotLikeService.unlike(123L, UUID.fromString(GUEST_ID))).thenThrow(exception);
         }
         mockMvc.perform(request(HttpMethod.valueOf(method), "/api/parking/123/like")
-                        .header("X-Guest-Id", ID))
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());

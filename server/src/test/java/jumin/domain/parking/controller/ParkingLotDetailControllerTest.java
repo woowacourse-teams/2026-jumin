@@ -39,7 +39,7 @@ class ParkingLotDetailControllerTest {
     @MockitoBean
     private ParkingLotDetailService parkingLotDetailService;
 
-    private static final String ANONYMOUS_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Test
     @DisplayName("주차장 상세 조회 응답을 반환한다")
@@ -76,7 +76,7 @@ class ParkingLotDetailControllerTest {
     void returns_bad_request_when_required_detail_condition_is_missing() throws Exception {
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/1")
-                .header("X-Guest-Id", ANONYMOUS_ID)
+                .header("X-Guest-Id", GUEST_ID)
                 .queryParam("destinationLongitude", "127.0279")
                 .queryParam("entryAt", "2026-08-21T19:00:00+09:00")
                 .queryParam("exitAt", "2026-08-21T20:00:00+09:00"));
@@ -161,16 +161,16 @@ class ParkingLotDetailControllerTest {
             "550e8400-e29b-11d4-a716-446655440000",
             "550e8400-e29b-41d4-7716-446655440000"
     })
-    @DisplayName("익명 ID가 UUID v4가 아니면 400을 반환한다")
-    void rejects_invalid_anonymous_id(String anonymousId) throws Exception {
-        mockMvc.perform(validRequestWithoutAnonymousId(1L).header("X-Guest-Id", anonymousId))
+    @DisplayName("게스트 ID가 UUID v4가 아니면 400을 반환한다")
+    void rejects_invalid_guest_id(String guestId) throws Exception {
+        mockMvc.perform(validRequestWithoutGuestId(1L).header("X-Guest-Id", guestId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."));
     }
 
     @Test
-    @DisplayName("익명 ID가 없으면 400을 반환한다")
-    void rejects_missing_anonymous_id() throws Exception {
+    @DisplayName("게스트 ID가 없으면 400을 반환한다")
+    void rejects_missing_guest_id() throws Exception {
         mockMvc.perform(get("/api/parking/{parkingLotId}", 1L)
                         .queryParam("destinationLatitude", "37.4981")
                         .queryParam("destinationLongitude", "127.0279")
@@ -180,11 +180,11 @@ class ParkingLotDetailControllerTest {
     }
 
     private MockHttpServletRequestBuilder validRequest(long id) {
-        return validRequestWithoutAnonymousId(id)
-                .header("X-Guest-Id", ANONYMOUS_ID);
+        return validRequestWithoutGuestId(id)
+                .header("X-Guest-Id", GUEST_ID);
     }
 
-    private MockHttpServletRequestBuilder validRequestWithoutAnonymousId(long id) {
+    private MockHttpServletRequestBuilder validRequestWithoutGuestId(long id) {
         return get("/api/parking/{parkingLotId}", id)
                 .queryParam("destinationLatitude", "37.4981")
                 .queryParam("destinationLongitude", "127.0279")

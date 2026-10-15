@@ -17,9 +17,9 @@ public class ParkingLotLikeService {
     private final ParkingLotLikeRepository parkingLotLikeRepository;
 
     @Transactional
-    public ParkingLikeResponse like(Long parkingLotId, UUID anonymousId) {
+    public ParkingLikeResponse like(Long parkingLotId, UUID guestId) {
         lockParkingLot(parkingLotId);
-        parkingLotLikeRepository.insertIfAbsent(parkingLotId, anonymousId);
+        parkingLotLikeRepository.insertIfAbsent(parkingLotId, guestId);
         return new ParkingLikeResponse(
                 parkingLotId,
                 parkingLotLikeRepository.countByParkingLotId(parkingLotId),
@@ -28,9 +28,9 @@ public class ParkingLotLikeService {
     }
 
     @Transactional
-    public ParkingLikeResponse unlike(Long parkingLotId, UUID anonymousId) {
+    public ParkingLikeResponse unlike(Long parkingLotId, UUID guestId) {
         lockParkingLot(parkingLotId);
-        parkingLotLikeRepository.delete(parkingLotId, anonymousId);
+        parkingLotLikeRepository.delete(parkingLotId, guestId);
         return new ParkingLikeResponse(
                 parkingLotId,
                 parkingLotLikeRepository.countByParkingLotId(parkingLotId),

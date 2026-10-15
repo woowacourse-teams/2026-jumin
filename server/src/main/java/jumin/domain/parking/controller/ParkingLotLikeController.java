@@ -27,20 +27,20 @@ public class ParkingLotLikeController {
     @PutMapping
     public ResponseEntity<ParkingLikeResponse> like(
             @PathVariable @Positive Long parkingLotId,
-            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String anonymousId
+            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String guestId
     ) {
         return ResponseEntity.ok(
-                parkingLotLikeService.like(parkingLotId, UUID.fromString(anonymousId))
+                parkingLotLikeService.like(parkingLotId, UUID.fromString(guestId))
         );
     }
 
     @DeleteMapping
     public ResponseEntity<ParkingLikeResponse> unlike(
             @PathVariable @Positive Long parkingLotId,
-            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String anonymousId
+            @RequestHeader("X-Guest-Id") @Pattern(regexp = UUID_V4) String guestId
     ) {
         return ResponseEntity.ok(
-                parkingLotLikeService.unlike(parkingLotId, UUID.fromString(anonymousId))
+                parkingLotLikeService.unlike(parkingLotId, UUID.fromString(guestId))
         );
     }
 

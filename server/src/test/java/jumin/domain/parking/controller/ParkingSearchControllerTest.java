@@ -42,7 +42,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc(addFilters = false)
 class ParkingSearchControllerTest {
 
-    private static final String ANONYMOUS_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Autowired
     private MockMvc mockMvc;
@@ -338,7 +338,7 @@ class ParkingSearchControllerTest {
     @DisplayName("지도에서 선택한 주차장의 상세 정보를 반환한다")
     void returns_parking_lot_detail_from_viewport_controller() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(ANONYMOUS_ID))).thenReturn(
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID))).thenReturn(
                 new ParkingLotViewportDetailResponse(
                         1L,
                         "역삼문화공원 제1호 공영주차장",
@@ -357,7 +357,7 @@ class ParkingSearchControllerTest {
 
         // when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
-                        .header("X-Guest-Id", ANONYMOUS_ID))
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("역삼문화공원 제1호 공영주차장"))
@@ -383,7 +383,7 @@ class ParkingSearchControllerTest {
     @DisplayName("운영·요금 정보가 없는 주차장은 해당 정보를 null로 반환한다")
     void returns_null_fields_when_viewport_parking_operation_is_missing() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(ANONYMOUS_ID))).thenReturn(
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID))).thenReturn(
                 new ParkingLotViewportDetailResponse(
                         1L,
                         "주차장",
@@ -402,7 +402,7 @@ class ParkingSearchControllerTest {
 
         // when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
-                        .header("X-Guest-Id", ANONYMOUS_ID))
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.feeRule").hasJsonPath())
                 .andExpect(jsonPath("$.feeRule").value(nullValue()))
@@ -420,17 +420,17 @@ class ParkingSearchControllerTest {
             "550e8400-e29b-11d4-a716-446655440000",
             "550e8400-e29b-41d4-7716-446655440000"
     })
-    @DisplayName("viewport 상세 조회의 익명 ID가 UUID v4가 아니면 400을 반환한다")
-    void rejects_invalid_viewport_detail_anonymous_id(String anonymousId) throws Exception {
+    @DisplayName("viewport 상세 조회의 게스트 ID가 UUID v4가 아니면 400을 반환한다")
+    void rejects_invalid_viewport_detail_guest_id(String guestId) throws Exception {
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
-                        .header("X-Guest-Id", anonymousId))
+                        .header("X-Guest-Id", guestId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."));
     }
 
     @Test
-    @DisplayName("viewport 상세 조회의 익명 ID가 없으면 400을 반환한다")
-    void rejects_missing_viewport_detail_anonymous_id() throws Exception {
+    @DisplayName("viewport 상세 조회의 게스트 ID가 없으면 400을 반환한다")
+    void rejects_missing_viewport_detail_guest_id() throws Exception {
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
                 .andExpect(status().isBadRequest());
     }
@@ -439,12 +439,12 @@ class ParkingSearchControllerTest {
     @DisplayName("지도에서 선택한 주차장을 찾지 못하면 404를 반환한다")
     void returns_not_found_when_viewport_parking_lot_does_not_exist() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(999L, UUID.fromString(ANONYMOUS_ID)))
+        when(parkingSearchService.getParkingLotDetail(999L, UUID.fromString(GUEST_ID)))
                 .thenThrow(new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
 
         // when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 999L)
-                        .header("X-Guest-Id", ANONYMOUS_ID))
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."));
     }
@@ -453,12 +453,12 @@ class ParkingSearchControllerTest {
     @DisplayName("지도에서 선택한 주차장 조회 중 DB 예외가 발생하면 500을 반환한다")
     void returns_internal_server_error_when_viewport_detail_database_fails() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(ANONYMOUS_ID)))
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID)))
                 .thenThrow(new IllegalStateException("database unavailable"));
 
         // when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
-                        .header("X-Guest-Id", ANONYMOUS_ID))
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("요청을 처리하는 중 서버 오류가 발생했습니다."));
     }

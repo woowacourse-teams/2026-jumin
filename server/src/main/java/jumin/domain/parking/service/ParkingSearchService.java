@@ -122,7 +122,7 @@ public class ParkingSearchService {
         return ParkingLotViewportResponses.from(parkingLots);
     }
 
-    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId, UUID anonymousId) {
+    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId, UUID guestId) {
         ParkingLot parkingLot = parkingLotRepository.findActiveById(parkingLotId)
                 .orElseThrow(() -> {
                     log.atWarn()
@@ -135,7 +135,7 @@ public class ParkingSearchService {
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);
         ParkingLotLikeResult likeSummary =
-                parkingLotLikeRepository.findSummary(parkingLotId, anonymousId);
+                parkingLotLikeRepository.findSummary(parkingLotId, guestId);
 
         return ParkingLotViewportDetailResponse.from(
                 parkingLot,

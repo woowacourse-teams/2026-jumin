@@ -24,7 +24,7 @@ public class ParkingLotLikeRepository {
         ).isEmpty();
     }
 
-    public void insertIfAbsent(Long parkingLotId, UUID anonymousId) {
+    public void insertIfAbsent(Long parkingLotId, UUID guestId) {
         jdbcTemplate.update(
                 """
                 insert into parking_likes (parking_lot_id, anonymous_id)
@@ -32,18 +32,18 @@ public class ParkingLotLikeRepository {
                 on conflict (parking_lot_id, anonymous_id) do nothing
                 """,
                 parkingLotId,
-                anonymousId
+                guestId
         );
     }
 
-    public void delete(Long parkingLotId, UUID anonymousId) {
+    public void delete(Long parkingLotId, UUID guestId) {
         jdbcTemplate.update(
                 """
                 delete from parking_likes
                 where parking_lot_id = ? and anonymous_id = ?
                 """,
                 parkingLotId,
-                anonymousId
+                guestId
         );
     }
 
@@ -59,7 +59,7 @@ public class ParkingLotLikeRepository {
         );
     }
 
-    public ParkingLotLikeResult findSummary(Long parkingLotId, UUID anonymousId) {
+    public ParkingLotLikeResult findSummary(Long parkingLotId, UUID guestId) {
         return jdbcTemplate.queryForObject(
                 """
                 select count(*) as like_count,
@@ -76,7 +76,7 @@ public class ParkingLotLikeRepository {
                         resultSet.getBoolean("liked_by_me")
                 ),
                 parkingLotId,
-                anonymousId,
+                guestId,
                 parkingLotId
         );
     }

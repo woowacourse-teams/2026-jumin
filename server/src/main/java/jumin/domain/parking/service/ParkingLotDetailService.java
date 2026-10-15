@@ -35,7 +35,7 @@ public class ParkingLotDetailService {
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
-    public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request, UUID anonymousId) {
+    public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request, UUID guestId) {
         queryValidator.validateForDetail(request);
 
         ParkingLot parkingLot = parkingLotRepository.findActiveWithLocationById(parkingLotId)
@@ -81,7 +81,7 @@ public class ParkingLotDetailService {
             availabilityStatusName = availabilityStatus.name();
         }
         ParkingLotLikeResult likeSummary =
-                parkingLotLikeRepository.findSummary(parkingLotId, anonymousId);
+                parkingLotLikeRepository.findSummary(parkingLotId, guestId);
 
         log.atInfo()
                 .setMessage("주차장 상세 조회가 완료되었습니다.")
