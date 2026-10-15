@@ -70,8 +70,8 @@ class TestMarker {
 const markers: TestMarker[] = [];
 const activeMarkers = () => markers.filter(({ active }) => active);
 const representativeMarkers = () =>
-  activeMarkers().filter(({ anchor }) => anchor.x === 10 && anchor.y === 10);
-const dotMarkers = () => activeMarkers().filter(({ anchor }) => anchor.x === 14 && anchor.y === 14);
+  activeMarkers().filter(({ anchor }) => anchor.x === 12.5 && anchor.y === 25);
+const dotMarkers = () => activeMarkers().filter(({ anchor }) => anchor.x === 5 && anchor.y === 5);
 const markerFor = (id: number) => {
   const parkingLot = parkingViewportLots.find((lot) => lot.id === id);
   return activeMarkers().find(
@@ -170,9 +170,9 @@ it('줌 15에서 점수 상위 10개만 대표 마커로 표시하고 점도 선
   await waitFor(() => expect(activeMarkers()).toHaveLength(parkingViewportLots.length));
   expect(representativeMarkers()).toHaveLength(10);
   expect(dotMarkers()).toHaveLength(parkingViewportLots.length - 10);
-  expect(markerFor(105)?.anchor).toEqual(new TestPoint(14, 14));
-  expect(markerFor(201)?.anchor).toEqual(new TestPoint(14, 14));
-  expect(markerFor(216)?.anchor).toEqual(new TestPoint(10, 10));
+  expect(markerFor(105)?.anchor).toEqual(new TestPoint(5, 5));
+  expect(markerFor(201)?.anchor).toEqual(new TestPoint(5, 5));
+  expect(markerFor(216)?.anchor).toEqual(new TestPoint(12.5, 25));
 
   act(() => markerFor(216)?.onClick?.());
   expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: 216 }));
