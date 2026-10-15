@@ -53,16 +53,15 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
               and parking_lot.location is not null
               and parking_lot.name is not null
               and parking_lot.address is not null
-              and ST_Intersects(
-                    parking_lot.location,
-                    ST_MakeEnvelope(
-                        :westLongitude,
-                        :southLatitude,
-                        :eastLongitude,
-                        :northLatitude,
-                        4326
-                    )::geography
-              )
+              and parking_lot.location && ST_MakeEnvelope(
+                    :westLongitude,
+                    :southLatitude,
+                    :eastLongitude,
+                    :northLatitude,
+                    4326
+              )::geography
+              and parking_lot.longitude between :westLongitude and :eastLongitude
+              and parking_lot.latitude between :southLatitude and :northLatitude
               and (:freeOnly = false or exists (
                     select 1
                     from parking_operations operation

@@ -1,0 +1,153 @@
+name: jumin-loadtest
+
+services:
+  postgres:
+    image: pgrouting/pgrouting:18-3.6-3.8
+    platform: linux/amd64
+    restart: unless-stopped
+    cpus: 2.0
+    mem_limit: 1g
+    environment:
+      TZ: Asia/Seoul
+      POSTGRES_DB: ${LOADTEST_DB_NAME:-jumin_loadtest}
+      POSTGRES_USER: ${LOADTEST_DB_USERNAME:-loadtest}
+      POSTGRES_PASSWORD: ${LOADTEST_DB_PASSWORD:-loadtest-only-password}
+    command:
+      - postgres
+      - -c
+      - timezone=Asia/Seoul
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=112
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    ports:
+      - '127.0.0.1:${LOADTEST_DB_PORT:-55432}:5432'
+    volumes:
+      - loadtest-postgres-data:/var/lib/postgresql
+      - ./db/loadtest-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    image: jumin-backend:loadtest
+    build:
+      context: ../server/loadtest/image-context
+      dockerfile: ../../Dockerfile
+      args:
+        APP_COMMIT_SHA: ${LOADTEST_APP_COMMIT_SHA:-loadtest-local}
+    restart: unless-stopped
+    cpus: 2.0
+    mem_limit: 903m
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      LOG_ENVIRONMENT: loadtest-local
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Xmx226m -Duser.timezone=Asia/Seoul
+      APP_COMMIT_SHA: ${LOADTEST_APP_COMMIT_SHA:-loadtest-local}
+      DB_URL: jdbc:postgresql://postgres:5432/${LOADTEST_DB_NAME:-jumin_loadtest}
+      DB_USERNAME: ${LOADTEST_DB_USERNAME:-loadtest}
+      DB_PASSWORD: ${LOADTEST_DB_PASSWORD:-loadtest-only-password}
+      LOCAL_SEARCH_CLIENT_ID: loadtest-only
+      LOCAL_SEARCH_CLIENT_SECRET: loadtest-only
+      LOCAL_SEARCH_BASE_URL: http://nginx
+      REVERSE_GEOCODING_CLIENT_ID: loadtest-only
+      REVERSE_GEOCODING_CLIENT_SECRET: loadtest-only
+      REVERSE_GEOCODING_BASE_URL: http://nginx
+      ADMIN_LOGIN_ID: loadtest-only
+      ADMIN_PASSWORD_HASH: $$2y$$10$$2CGdlyW93vq30OgJ1NTD.OSCmxr1w9FNTD7E728l2ax58qias8r5a
+      ADMIN_TOKEN_SECRET: loadtest-only-token-secret-at-least-32-characters
+      ADMIN_ENV_LABEL: loadtest-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', '--silent', 'http://localhost:8080/actuator/health']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  nginx:
+    image: nginx:1.30.4-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${LOADTEST_HTTP_PORT:-8081}:80'
+    volumes:
+      - ./nginx/jumin.loadtest.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/__loadtest_health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: ['load']
+    restart: 'no'
+    environment:
+      LOADTEST_ENV: local
+      LOADTEST_BASE_URL: http://nginx
+      LOAD_PROFILE: ${LOAD_PROFILE:-both}
+      VIEWPORT_RPS: ${VIEWPORT_RPS:-0.7}
+      RECOMMENDATION_RPS: ${RECOMMENDATION_RPS:-0.05}
+      DURATION: ${DURATION:-10m}
+      VIEWPORT_PATTERN: ${VIEWPORT_PATTERN:-fixed}
+      PRE_ALLOCATED_VUS: ${PRE_ALLOCATED_VUS:-}
+      MAX_VUS: ${MAX_VUS:-}
+      MAX_TARGET_RPS: ${MAX_TARGET_RPS:-8}
+      VIEWPORT_WEST_LONGITUDE: ${VIEWPORT_WEST_LONGITUDE:-127.0200}
+      VIEWPORT_SOUTH_LATITUDE: ${VIEWPORT_SOUTH_LATITUDE:-37.4920}
+      VIEWPORT_EAST_LONGITUDE: ${VIEWPORT_EAST_LONGITUDE:-127.0350}
+      VIEWPORT_NORTH_LATITUDE: ${VIEWPORT_NORTH_LATITUDE:-37.5040}
+      DESTINATION_LATITUDE: ${DESTINATION_LATITUDE:-}
+      DESTINATION_LONGITUDE: ${DESTINATION_LONGITUDE:-}
+      ENTRY_AT: ${ENTRY_AT:-}
+      EXIT_AT: ${EXIT_AT:-}
+      SUMMARY_EXPORT_FILE: ${SUMMARY_EXPORT_FILE:-/results/summary.json}
+    volumes:
+      - ../server/loadtest/parking-apis.js:/scripts/parking-apis.js:ro
+      - ../server/loadtest/api-baseline.js:/scripts/api-baseline.js:ro
+      - ../server/loadtest/results:/results
+    depends_on:
+      nginx:
+        condition: service_healthy
+    command:
+      - run
+      - --summary-export=${SUMMARY_EXPORT_FILE:-/results/summary.json}
+      - --env=LOADTEST_ENV=local
+      - --env=LOADTEST_BASE_URL=http://nginx
+      - --env=LOAD_PROFILE=${LOAD_PROFILE:-both}
+      - --env=VIEWPORT_RPS=${VIEWPORT_RPS:-0.7}
+      - --env=RECOMMENDATION_RPS=${RECOMMENDATION_RPS:-0.05}
+      - --env=DURATION=${DURATION:-10m}
+      - --env=VIEWPORT_PATTERN=${VIEWPORT_PATTERN:-fixed}
+      - --env=PRE_ALLOCATED_VUS=${PRE_ALLOCATED_VUS:-}
+      - --env=MAX_VUS=${MAX_VUS:-}
+      - --env=MAX_TARGET_RPS=${MAX_TARGET_RPS:-8}
+      - --env=VIEWPORT_WEST_LONGITUDE=${VIEWPORT_WEST_LONGITUDE:-127.0200}
+      - --env=VIEWPORT_SOUTH_LATITUDE=${VIEWPORT_SOUTH_LATITUDE:-37.4920}
+      - --env=VIEWPORT_EAST_LONGITUDE=${VIEWPORT_EAST_LONGITUDE:-127.0350}
+      - --env=VIEWPORT_NORTH_LATITUDE=${VIEWPORT_NORTH_LATITUDE:-37.5040}
+      - --env=DESTINATION_LATITUDE=${DESTINATION_LATITUDE:-}
+      - --env=DESTINATION_LONGITUDE=${DESTINATION_LONGITUDE:-}
+      - --env=ENTRY_AT=${ENTRY_AT:-}
+      - --env=EXIT_AT=${EXIT_AT:-}
+      - /scripts/parking-apis.js
+
+volumes:
+  loadtest-postgres-data:
+    name: jumin-loadtest-postgres-data
