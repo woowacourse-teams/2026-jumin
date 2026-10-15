@@ -39,14 +39,15 @@ run_psql() {
   fi
 }
 
-# Fail before downloading if the target database has not been migrated.
 run_psql <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgrouting')
      OR to_regclass('walking_nodes') IS NULL
      OR to_regclass('walking_edges') IS NULL
-     OR to_regclass('walking_network_metadata') IS NULL THEN
-    RAISE EXCEPTION 'Deploy Flyway V7 and pgRouting before importing OSM.';
+     OR to_regclass('walking_network_metadata') IS NULL
+     OR to_regclass('parking_lot_walking_nodes') IS NULL
+     OR to_regprocedure('refresh_parking_lot_walking_nodes(bigint[])') IS NULL THEN
+    RAISE EXCEPTION 'Deploy Flyway V12 and pgRouting before importing OSM.';
   END IF;
 END $$;
 SQL
@@ -134,7 +135,7 @@ END $$;
 
 BEGIN;
 SELECT pg_advisory_xact_lock(hashtext('walking-network-import'));
-TRUNCATE TABLE walking_edges, walking_nodes;
+TRUNCATE TABLE parking_lot_walking_nodes, walking_edges, walking_nodes;
 INSERT INTO walking_nodes (id, geom, source)
 SELECT id, geom, 'OSM' FROM osm_nodes;
 INSERT INTO walking_edges (id, source, target, link_type_code, geom, cost, reverse_cost, walkable)
@@ -147,9 +148,11 @@ FROM osm_manifest
 ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, source = EXCLUDED.source,
   source_row_count = EXCLUDED.source_row_count, node_count = EXCLUDED.node_count,
   edge_count = EXCLUDED.edge_count, imported_at = EXCLUDED.imported_at;
+SELECT refresh_parking_lot_walking_nodes(NULL::BIGINT[]);
 COMMIT;
 ANALYZE walking_nodes;
 ANALYZE walking_edges;
+ANALYZE parking_lot_walking_nodes;
 SELECT source, node_count, edge_count FROM walking_network_metadata WHERE id = 1;
 SQL
 } | run_psql

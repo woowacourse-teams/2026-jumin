@@ -38,7 +38,7 @@ public class ParkingCsvRepository {
     private static final long IMPORT_LOCK_KEY = 138_2026_0928L;
     private static final List<String> LOT_COLUMNS = List.of(
             "source", "source_external_id", "name", "sido", "sigungu", "address",
-            "latitude", "longitude", "capacity", "active", "source_checked_at", "created_at", "updated_at"
+            "latitude", "longitude", "capacity", "mechanical", "active", "source_checked_at", "created_at", "updated_at"
     );
     private static final List<String> OPERATION_COLUMNS = List.of(
             "parking_lot_id", "base_free_minutes", "base_minutes", "base_fee", "additional_minutes",
@@ -50,7 +50,8 @@ public class ParkingCsvRepository {
     );
     private static final String SELECT_ALL = """
             SELECT l.id, l.source, l.source_external_id, l.name, l.sido, l.sigungu, l.address,
-                   l.latitude, l.longitude, l.capacity, l.active, l.source_checked_at AS lot_source_checked_at,
+                   l.latitude, l.longitude, l.capacity, l.mechanical, l.active,
+                   l.source_checked_at AS lot_source_checked_at,
                    o.parking_lot_id AS operation_id,
                    o.base_free_minutes, o.base_minutes, o.base_fee, o.additional_minutes, o.additional_fee,
                    o.daily_max_fee, o.monthly_fee, o.weekday_paid, o.saturday_paid, o.holiday_paid,
@@ -66,7 +67,8 @@ public class ParkingCsvRepository {
             UPDATE parking_lots
             SET source = :source, source_external_id = :source_external_id, name = :name,
                 sido = :sido, sigungu = :sigungu, address = :address,
-                latitude = :latitude, longitude = :longitude, capacity = :capacity, active = :active,
+                latitude = :latitude, longitude = :longitude, capacity = :capacity,
+                mechanical = :mechanical, active = :active,
                 source_checked_at = :source_checked_at, updated_at = :updated_at
             WHERE id = :id
             """;
@@ -113,6 +115,7 @@ public class ParkingCsvRepository {
                     resultSet.getObject("latitude", Double.class),
                     resultSet.getObject("longitude", Double.class),
                     resultSet.getObject("capacity", Integer.class),
+                    resultSet.getBoolean("mechanical"),
                     resultSet.getBoolean("active"),
                     readInstant(resultSet, "lot_source_checked_at")
             );
@@ -126,12 +129,15 @@ public class ParkingCsvRepository {
 
     public void save(ParkingChanges changes, Instant now) {
         requireTransaction();
-        insertNewParkingLots(changes.added(), now);
-        updateExistingParkingLots(changes.updated(), now);
+        List<Long> parkingLotIdsToRefresh = new ArrayList<>();
+        parkingLotIdsToRefresh.addAll(insertNewParkingLots(changes.added(), now));
+        parkingLotIdsToRefresh.addAll(updateExistingParkingLots(changes.updated(), now));
         deactivateMissingParkingLots(changes.deactivated(), now);
+        refreshWalkingNodeCandidates(parkingLotIdsToRefresh);
     }
 
-    private void insertNewParkingLots(List<ParkingCsvRow> rows, Instant now) {
+    private List<Long> insertNewParkingLots(List<ParkingCsvRow> rows, Instant now) {
+        List<Long> insertedParkingLotIds = new ArrayList<>();
         for (int offset = 0; offset < rows.size(); offset += BATCH_SIZE) {
             List<ParkingCsvRow> batch = rows.subList(offset, Math.min(offset + BATCH_SIZE, rows.size()));
             List<MapSqlParameterSource> lotParameters = new ArrayList<>();
@@ -157,20 +163,26 @@ public class ParkingCsvRepository {
                 if (id == null) {
                     throw new IllegalStateException("신규 주차장의 DB 생성 ID를 확인할 수 없습니다.");
                 }
+                insertedParkingLotIds.add(id);
                 operationParameters.add(operationParameters(id, row.operation(), now));
             }
             insertOperations(operationParameters);
         }
+        return insertedParkingLotIds;
     }
 
-    private void updateExistingParkingLots(List<ParkingUpdate> updates, Instant now) {
+    private List<Long> updateExistingParkingLots(List<ParkingUpdate> updates, Instant now) {
         List<MapSqlParameterSource> lotUpdates = new ArrayList<>();
         List<MapSqlParameterSource> operationUpdates = new ArrayList<>();
         List<MapSqlParameterSource> missingOperations = new ArrayList<>();
+        List<Long> parkingLotIdsToRefresh = new ArrayList<>();
         for (ParkingUpdate update : updates) {
             long id = update.before().id();
             if (update.lotChanged()) {
                 lotUpdates.add(lotParameters(update.after().lot(), now).addValue("id", id, Types.BIGINT));
+            }
+            if (update.coordinatesChanged()) {
+                parkingLotIdsToRefresh.add(id);
             }
             if (!update.operationChanged()) {
                 continue;
@@ -185,6 +197,18 @@ public class ParkingCsvRepository {
         batchUpdate(UPDATE_LOT, lotUpdates);
         batchUpdate(UPDATE_OPERATION, operationUpdates);
         insertOperations(missingOperations);
+        return parkingLotIdsToRefresh;
+    }
+
+    private void refreshWalkingNodeCandidates(List<Long> parkingLotIds) {
+        if (parkingLotIds.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.queryForObject(
+                "SELECT refresh_parking_lot_walking_nodes(ARRAY[:parkingLotIds]::BIGINT[])",
+                new MapSqlParameterSource("parkingLotIds", parkingLotIds),
+                Long.class
+        );
     }
 
     private void deactivateMissingParkingLots(List<ParkingDbRow> rows, Instant now) {
@@ -240,7 +264,6 @@ public class ParkingCsvRepository {
             }
             values.add(rowValues.toString());
         }
-        // Table and column names come only from the constants above, never from CSV headers.
         return "INSERT INTO " + table + " (" + String.join(", ", columns) + ") VALUES " + values;
     }
 
@@ -256,6 +279,7 @@ public class ParkingCsvRepository {
                 .addValue("latitude", lot.latitude(), Types.DOUBLE)
                 .addValue("longitude", lot.longitude(), Types.DOUBLE)
                 .addValue("capacity", lot.capacity(), Types.INTEGER)
+                .addValue("mechanical", lot.mechanical(), Types.BOOLEAN)
                 .addValue("active", lot.active(), Types.BOOLEAN)
                 .addValue("source_checked_at", lot.sourceCheckedAt().atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("created_at", timestamp, Types.TIMESTAMP_WITH_TIMEZONE)

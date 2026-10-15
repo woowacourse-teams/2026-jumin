@@ -43,6 +43,27 @@ const openDirectionsModal = async () => {
 };
 
 describe('D. 주차장 상세정보', () => {
+  it('상세 화면에서 좋아요한 상태를 같은 익명 ID로 다시 조회할 수 있다', async () => {
+    const { unmount } = renderDetailPage();
+    const user = userEvent.setup();
+    const button = await screen.findByRole('button', { name: '좋아요 12개' });
+    const guestId = localStorage.getItem('guestId');
+
+    await user.click(button);
+    await waitFor(() => expect(button).toBeDisabled());
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(button).toHaveAccessibleName('좋아요 13개');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    unmount();
+    renderDetailPage();
+    expect(await screen.findByRole('button', { name: '좋아요 13개' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(localStorage.getItem('guestId')).toBe(guestId);
+  });
+
   it('예상 요금, 도보 거리와 운영시간을 확인할 수 있다', async () => {
     renderDetailPage();
 
@@ -62,20 +83,15 @@ describe('D. 주차장 상세정보', () => {
     expect(missingInformation.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('오른쪽에 신고 버튼을 배치하고 신고 모달을 열고 닫을 수 있다', async () => {
+  it('하단 제보 버튼에서 신고 모달을 열고 닫을 수 있다', async () => {
     renderDetailPage();
     const user = userEvent.setup();
-    const reportButton = await screen.findByRole('button', { name: '신고하기' });
-    const reportPrompt = screen.getByText('주차장 정보가 다른가요?');
+    const reportButton = await screen.findByRole('button', { name: '제보하기' });
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
 
-    expect(reportButton.parentElement).toContainElement(reportPrompt);
-    expect(reportButton.parentElement?.parentElement).toHaveStyle({
-      display: 'flex',
-      justifyContent: 'flex-end',
-    });
-    expect(reportButton).not.toContainElement(reportPrompt);
-    await user.click(reportPrompt);
-    expect(screen.queryByRole('dialog', { name: '주차장 정보 신고' })).not.toBeInTheDocument();
+    expect(actions).not.toContainElement(reportButton);
+    expect(actions).toContainElement(screen.getByRole('button', { name: '길찾기 시작' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: '로드뷰 보기' }));
 
     await user.click(reportButton);
     const dialog = screen.getByRole('dialog', { name: '주차장 정보 신고' });
@@ -91,7 +107,7 @@ describe('D. 주차장 상세정보', () => {
     expect(screen.getByRole('textbox', { name: '신고 내용' })).toHaveValue('');
   });
 
-  it('출처가 없어도 오른쪽에 신고 버튼을 표시하고 모달을 열 수 있다', async () => {
+  it('출처가 없어도 하단에서 신고 모달을 열 수 있다', async () => {
     server.use(
       http.get('/api/parking/101', () =>
         HttpResponse.json({ ...parkingDetailFixtures[101], source: undefined }),
@@ -99,11 +115,11 @@ describe('D. 주차장 상세정보', () => {
     );
     renderDetailPage();
     const user = userEvent.setup();
-    const reportButton = await screen.findByRole('button', { name: '신고하기' });
-    const reportRow = reportButton.parentElement?.parentElement;
+    const reportButton = await screen.findByRole('button', { name: '제보하기' });
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
 
     expect(screen.queryByText(/서울 열린데이터광장/)).not.toBeInTheDocument();
-    expect(reportRow).toHaveStyle({ display: 'flex', justifyContent: 'flex-end' });
+    expect(actions).not.toContainElement(reportButton);
 
     await user.click(reportButton);
     expect(screen.getByRole('dialog', { name: '주차장 정보 신고' })).toBeInTheDocument();
@@ -138,6 +154,21 @@ describe('D. 주차장 상세정보', () => {
     ).toBeInTheDocument();
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(naverMapButton).toBeEnabled());
+  });
+
+  it('로드뷰 버튼을 누르면 전체 화면 로드뷰를 열고 닫을 수 있다', async () => {
+    renderDetailPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: '로드뷰 보기' }));
+
+    expect(
+      screen.getByRole('dialog', { name: '역삼문화공원 제1호 공영주차장 로드뷰' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '로드뷰 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: /로드뷰$/ })).not.toBeInTheDocument();
   });
 
   it('길찾기를 시작한 주차장이 최근 이용에 저장된다', async () => {

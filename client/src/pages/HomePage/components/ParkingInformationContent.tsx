@@ -7,10 +7,14 @@ import type {
 } from '../../../../api/contracts';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
+import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
+import { useState } from 'react';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -57,6 +61,7 @@ const formatPaidStatus = (paid: boolean | null) => {
 
 export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   const modal = useModal();
+  const [isRoadViewOpen, setIsRoadViewOpen] = useState(false);
 
   const recentParkingLot = {
     id: data.id,
@@ -100,8 +105,24 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
     modal.open();
   };
 
+  const handleRoadViewButtonClick = () => {
+    trackEvent(eventName.ROAD_VIEW_BUTTON, { surface: 'home' });
+    setIsRoadViewOpen(true);
+  };
+
   return (
     <section className={sheetContentStyle}>
+      <ParkingDetailActions
+        onDirections={handleDirectionButtonClick}
+        onRoadView={handleRoadViewButtonClick}
+      >
+        <ParkingLikeButton
+          key={data.id}
+          parkingLotId={data.id}
+          likeCount={data.likeCount}
+          likedByMe={data.likedByMe}
+        />
+      </ParkingDetailActions>
       <div className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>
@@ -146,18 +167,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
           </dl>
         </section>
 
-        <div className={sheetFooterStyle}>
-          <section className={reportRowStyle}>
-            <ParkingReportAction parkingLotId={data.id} />
-          </section>
-          <button
-            className={navigationButtonStyle}
-            type="button"
-            onClick={handleDirectionButtonClick}
-          >
-            길찾기 시작
-          </button>
-        </div>
+        <ParkingReportAction parkingLotId={data.id} />
 
         {modal.isOpen && (
           <DeepLinkModal
@@ -174,6 +184,16 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
             }}
           />
         )}
+
+        {isRoadViewOpen && (
+          <RoadViewOverlay
+            parkingLotName={data.name}
+            parkingLotAddress={data.address}
+            latitude={parkingLot.latitude}
+            longitude={parkingLot.longitude}
+            onRequestClose={() => setIsRoadViewOpen(false)}
+          />
+        )}
       </div>
     </section>
   );
@@ -187,12 +207,18 @@ const sheetContentStyle = css`
 `;
 
 const scrollContentStyle = css`
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 
   overflow-y: auto;
   padding-inline-end: 15px;
   overscroll-behavior: contain;
+
+  > section {
+    flex-shrink: 0;
+  }
 `;
 
 const sectionStyle = css`
@@ -294,15 +320,6 @@ const subValueStyle = css`
   font-weight: 500;
 `;
 
-const reportRowStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-
-  margin-top: 24px;
-  margin-bottom: 12px;
-`;
-
 const detailsStyle = css`
   display: grid;
   gap: 12px;
@@ -333,40 +350,4 @@ const detailsStyle = css`
     font-weight: 750;
     text-align: right;
   }
-`;
-
-const navigationButtonStyle = css`
-  width: 100%;
-
-  min-height: 54px;
-
-  color: #fff;
-
-  font-family: inherit;
-
-  font-size: 16px;
-
-  font-weight: 800;
-
-  background: #4356d8;
-
-  border: 0;
-
-  border-radius: 14px;
-
-  cursor: pointer;
-
-  &:active {
-    background: #3548c8;
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-
-    outline-offset: 3px;
-  }
-`;
-
-const sheetFooterStyle = css`
-  margin-top: auto;
 `;

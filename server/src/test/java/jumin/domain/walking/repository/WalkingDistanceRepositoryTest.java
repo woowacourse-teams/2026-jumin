@@ -33,11 +33,18 @@ class WalkingDistanceRepositoryTest {
     @Test
     @DisplayName("Flyway가 pgRouting을 활성화해도 보행망 적재 전에는 사용할 수 없다")
     void requires_import_after_extension_migration() {
-        assertThat(jdbcTemplate.queryForObject(
+        // given
+
+        // when
+        Boolean pgRoutingEnabled = jdbcTemplate.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgrouting')",
                 Boolean.class
-        )).isTrue();
-        assertThat(walkingDistanceRepository.hasUsableNetwork()).isFalse();
+        );
+        Boolean networkIsUsable = walkingDistanceRepository.hasUsableNetwork();
+
+        // then
+        assertThat(pgRoutingEnabled).isTrue();
+        assertThat(networkIsUsable).isFalse();
     }
 
     @Test
@@ -67,8 +74,85 @@ class WalkingDistanceRepositoryTest {
     }
 
     @Test
+    @DisplayName("미리 계산한 주차장 주변 노드를 사용해도 기존 도보거리를 유지한다")
+    void uses_precomputed_candidate_nodes_without_changing_distance() {
+        // given
+        insertWalkingGraph();
+        long parkingLotId = insertParkingLot("near-walking-network");
+        List<WalkingDistanceQueryResult> dynamicallyCalculated = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        );
+
+        // when
+        Long refreshedRows = jdbcTemplate.queryForObject(
+                "SELECT refresh_parking_lot_walking_nodes(NULL::BIGINT[])",
+                Long.class
+        );
+        List<WalkingDistanceQueryResult> precomputed = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        );
+        Integer cachedNodeCount = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM parking_lot_walking_nodes WHERE parking_lot_id = ?",
+                Integer.class,
+                parkingLotId
+        );
+
+        // then
+        assertThat(refreshedRows).isEqualTo(5L);
+        assertThat(cachedNodeCount).isEqualTo(5);
+        assertThat(precomputed).isEqualTo(dynamicallyCalculated);
+    }
+
+    @Test
+    @DisplayName("목적지 스냅 후보가 여러 개면 스냅 거리를 더해 가장 짧은 경로를 고른다")
+    void selects_shortest_route_including_destination_snap_distance() {
+        // given
+        jdbcTemplate.update("""
+                insert into walking_nodes (id, node_type_code, geom) values
+                    (1, 'DESTINATION', ST_SetSRID(ST_MakePoint(127.0279, 37.4981), 4326)),
+                    (2, 'INTERSECTION', ST_SetSRID(ST_MakePoint(127.0284, 37.4981), 4326)),
+                    (3, 'PARKING', ST_SetSRID(ST_MakePoint(127.0300, 37.4981), 4326))
+                """);
+        jdbcTemplate.update("""
+                insert into walking_edges (id, source, target, geom, cost, reverse_cost) values
+                    (1, 1, 3, ST_GeomFromText('LINESTRING (127.0279 37.4981, 127.0300 37.4981)', 4326), 100, 100),
+                    (2, 2, 3, ST_GeomFromText('LINESTRING (127.0284 37.4981, 127.0300 37.4981)', 4326), 20, 20)
+                """);
+        jdbcTemplate.update("""
+                insert into walking_network_metadata (
+                    id, status, source, source_row_count, node_count, edge_count, imported_at
+                ) values (1, 'READY', 'TEST', 5, 3, 2, current_timestamp)
+                """);
+        long parkingLotId = insertParkingLot("multiple-destination-snaps");
+        jdbcTemplate.update(
+                "update parking_lots set longitude = 127.0300 where id = ?",
+                parkingLotId
+        );
+        Integer alternativeSnapDistanceMeters = jdbcTemplate.queryForObject("""
+                select round(ST_Distance(
+                    geom::geography,
+                    ST_SetSRID(ST_MakePoint(127.0279, 37.4981), 4326)::geography
+                ))::integer
+                from walking_nodes
+                where id = 2
+                """, Integer.class);
+
+        // when
+        List<WalkingDistanceQueryResult> results = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        );
+
+        // then
+        assertThat(alternativeSnapDistanceMeters).isGreaterThan(0);
+        assertThat(results)
+                .extracting(WalkingDistanceQueryResult::parkingLotId, WalkingDistanceQueryResult::distanceMeters)
+                .containsExactly(tuple(parkingLotId, alternativeSnapDistanceMeters + 20));
+    }
+
+    @Test
     @DisplayName("목적지 800m 밖의 링크를 통해서만 도달하는 주차장은 반환하지 않는다")
     void excludes_routes_requiring_edges_outside_graph_radius() {
+        // given
         insertWalkingGraph();
         long parkingLotId = insertParkingLot("outside-network");
         jdbcTemplate.update("""
@@ -82,20 +166,31 @@ class WalkingDistanceRepositoryTest {
                     (6, 7, 8, ST_GeomFromText('LINESTRING (127.0400 37.4981, 127.0430 37.4981)', 4326), 270, 270)
                 """);
         jdbcTemplate.update("update parking_lots set longitude = 127.0400 where id = ?", parkingLotId);
-        assertThat(walkingDistanceRepository.findDistances(
-                37.4981, 127.0279, List.of(parkingLotId), 100
-        )).hasSize(1);
 
+        // when
+        List<WalkingDistanceQueryResult> withinGraphRadius = walkingDistanceRepository.findDistances(
+                37.4981, 127.0279, List.of(parkingLotId), 100
+        );
+
+        // then
+        assertThat(withinGraphRadius).hasSize(1);
+
+        // given
         jdbcTemplate.update("update parking_lots set longitude = 127.0430 where id = ?", parkingLotId);
 
-        assertThat(jdbcTemplate.queryForObject("""
+        // when
+        Integer unboundedGraphRouteCount = jdbcTemplate.queryForObject("""
                 select count(*) from pgr_dijkstraCost(
                     'select id, source, target, cost, reverse_cost from walking_edges where walkable',
                     1::bigint, 8::bigint, true)
-                """, Integer.class)).isEqualTo(1);
-        assertThat(walkingDistanceRepository.findDistances(
+                """, Integer.class);
+        List<WalkingDistanceQueryResult> beyondGraphRadius = walkingDistanceRepository.findDistances(
                 37.4981, 127.0279, List.of(parkingLotId), 100
-        )).isEmpty();
+        );
+
+        // then
+        assertThat(unboundedGraphRouteCount).isEqualTo(1);
+        assertThat(beyondGraphRadius).isEmpty();
     }
 
     @Test
@@ -113,7 +208,6 @@ class WalkingDistanceRepositoryTest {
         );
 
         // then
-        // 목적지 → 주차장으로만 갈 수 있으면 주차 후 목적지행 경로는 없다.
         assertThat(unavailableResults).isEmpty();
 
         // given

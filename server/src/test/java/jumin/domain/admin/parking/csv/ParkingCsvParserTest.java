@@ -24,6 +24,7 @@ import jumin.domain.admin.parking.model.ParkingCsvRow;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.global.response.ValidationErrorField;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -36,6 +37,67 @@ import org.springframework.web.multipart.MultipartFile;
 class ParkingCsvParserTest {
 
     private final ParkingCsvParser parser = new ParkingCsvParser("10MB");
+
+    @ParameterizedTest
+    @CsvSource({"Y, true", "N, false"})
+    @DisplayName("기계식 Y와 N을 불리언으로 변환한다")
+    void reads_mechanical_flag(String value, boolean expected) {
+        // given
+        Map<String, String> row = validRow("A", "주소");
+        row.put("parking_lots.mechanical", value);
+
+        // when
+        ParkingCsvRow result = parser.parse(file(csv(List.of(row)))).rows().getFirst();
+
+        // then
+        assertThat(result.lot().mechanical()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    @DisplayName("기계식 값이 비어 있으면 N으로 판정한다")
+    void treats_blank_mechanical_flag_as_false(String value) {
+        // given
+        Map<String, String> row = validRow("A", "주소");
+        row.put("parking_lots.mechanical", value);
+
+        // when
+        ParkingCsvRow result = parser.parse(file(csv(List.of(row)))).rows().getFirst();
+
+        // then
+        assertThat(result.lot().mechanical()).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "false", "1", "0", "y", "n", "UNKNOWN"})
+    @DisplayName("기계식 CSV 값은 대문자 Y와 N 또는 빈 값만 허용한다")
+    void rejects_invalid_mechanical_flag(String value) {
+        // given
+        Map<String, String> row = validRow("A", "주소");
+        row.put("parking_lots.mechanical", value);
+
+        // when
+        ParkingCsvException exception = parseFailure(csv(List.of(row)));
+
+        // then
+        assertThat(exception.getErrors()).extracting(ValidationErrorField::getField)
+                .containsExactly("rows[2].parking_lots.mechanical");
+    }
+
+    @Test
+    @DisplayName("기계식 헤더가 없는 이전 CSV는 명확한 헤더 오류로 거절한다")
+    void rejects_csv_without_mechanical_header() {
+        // given
+        List<String> headers = new ArrayList<>(ParkingCsvColumn.headers());
+        headers.remove("parking_lots.mechanical");
+
+        // when
+        ParkingCsvException exception = parseFailure(csv(headers, List.of(validRow("A", "주소"))));
+
+        // then
+        assertThat(exception.getErrors()).extracting(ValidationErrorField::getField)
+                .containsExactly("headers.parking_lots.mechanical");
+    }
 
     @Test
     void readsBomReorderedHeadersQuotedCommaAndNewlineAndHashesOriginalBytes() throws Exception {

@@ -10,12 +10,16 @@ public record ParkingLotViewportDetailResponse(
         String address,
         Integer capacity,
         ParkingFeeRuleResponse feeRule,
-        List<ParkingDailyOperationResponse> dailyOperations
+        List<ParkingDailyOperationResponse> dailyOperations,
+        long likeCount,
+        boolean likedByMe
 ) {
 
     public static ParkingLotViewportDetailResponse from(
             ParkingLot parkingLot,
-            ParkingOperation operation
+            ParkingOperation operation,
+            long likeCount,
+            boolean likedByMe
     ) {
         return new ParkingLotViewportDetailResponse(
                 parkingLot.getId(),
@@ -23,7 +27,9 @@ public record ParkingLotViewportDetailResponse(
                 parkingLot.getAddress(),
                 parkingLot.getCapacity(),
                 ParkingFeeRuleResponse.from(operation),
-                dailyOperations(operation)
+                dailyOperations(operation),
+                likeCount,
+                likedByMe
         );
     }
 

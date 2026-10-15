@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const { sentryWebpackPlugin } = require('@sentry/webpack-plugin');
 
 const addToHomescreenDist = path.dirname(require.resolve('pwa-add-to-homescreen'));
 
@@ -9,9 +10,23 @@ module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
   const isE2E = env?.e2e === true || env?.e2e === 'true';
+  const uploadSourcemaps = process.env.SENTRY_UPLOAD_SOURCEMAPS === 'true';
+
+  if (uploadSourcemaps) {
+    if (isDevelopment) {
+      throw new Error('Sentry source map upload requires a production-mode build.');
+    }
+
+    for (const name of ['SENTRY_AUTH_TOKEN', 'SENTRY_ORG', 'SENTRY_PROJECT', 'SENTRY_DSN']) {
+      if (!process.env[name]?.trim()) {
+        throw new Error(`Missing required Sentry build variable: ${name}`);
+      }
+    }
+  }
 
   return {
     entry: './main.tsx',
+    devtool: isDevelopment ? 'eval' : 'hidden-source-map',
     output: {
       filename: 'assets/[name].[contenthash].js',
       assetModuleFilename: 'assets/[name].[contenthash][ext]',
@@ -97,6 +112,23 @@ module.exports = (env, argv) => {
           },
         ],
       }),
+      ...(uploadSourcemaps
+        ? [
+            sentryWebpackPlugin({
+              org: process.env.SENTRY_ORG,
+              project: process.env.SENTRY_PROJECT,
+              authToken: process.env.SENTRY_AUTH_TOKEN,
+              telemetry: false,
+              errorHandler(error) {
+                throw error;
+              },
+              sourcemaps: {
+                assets: path.join(__dirname, 'dist/assets/**'),
+                filesToDeleteAfterUpload: [path.join(__dirname, 'dist/**/*.map')],
+              },
+            }),
+          ]
+        : []),
     ],
     devServer: {
       static: {

@@ -1,5 +1,6 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQueries } from '@tanstack/react-query';
 import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import type { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
@@ -15,10 +16,13 @@ import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedR
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
+import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
+import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
 import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -62,20 +66,24 @@ const formatWeekdayHours = ({ status, openTime, closeTime }: ParkingOperationPer
 
 export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('expanded');
+  const [isRoadViewOpen, setIsRoadViewOpen] = useState(false);
 
   const deepLinkModal = useModal();
 
-  const { data: parkingLotDetail } = useSuspenseQuery(
-    parkingDetailQueryOptions({
-      parkingLotId: detailCondition.parkingLotId,
-      condition: {
-        destinationLatitude: detailCondition.destinationLatitude,
-        destinationLongitude: detailCondition.destinationLongitude,
-        entryAt: detailCondition.entryAt,
-        exitAt: detailCondition.exitAt,
-      },
-    }),
-  );
+  const [{ data: parkingLotDetail }, { data: parkingLike }] = useSuspenseQueries({
+    queries: [
+      parkingDetailQueryOptions({
+        parkingLotId: detailCondition.parkingLotId,
+        condition: {
+          destinationLatitude: detailCondition.destinationLatitude,
+          destinationLongitude: detailCondition.destinationLongitude,
+          entryAt: detailCondition.entryAt,
+          exitAt: detailCondition.exitAt,
+        },
+      }),
+      viewportParkingLotDetailQueryOptions(detailCondition.parkingLotId),
+    ],
+  });
 
   const { feeRule, operation } = parkingLotDetail;
   const durationLabel = formatDuration(detailCondition.entryAt, detailCondition.exitAt);
@@ -102,7 +110,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
     });
 
     map.panBy(new naver.maps.Point(0, 100));
-  }, [map, parkingLotDetail, detailCondition, sheetSnap]);
+  }, [map, parkingLotDetail.location, detailCondition, sheetSnap]);
 
   const collapseBottomSheet = useCallback(() => {
     setSheetSnap('collapsed');
@@ -117,6 +125,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
   const handleRecommendDirectionButtonClick = () => {
     trackEvent(eventName.RECOMMEND_DIRECTIONS_BUTTON);
     deepLinkModal.open();
+  };
+
+  const handleRoadViewButtonClick = () => {
+    trackEvent(eventName.ROAD_VIEW_BUTTON, { surface: 'parking_detail' });
+    setIsRoadViewOpen(true);
   };
 
   return (
@@ -138,87 +151,99 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       />
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section className={sheetContentStyle}>
-          <div className={feeCardStyle}>
-            <div className={totalFeeStyle}>
-              <span>{durationLabel} 예상 요금</span>
-              <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
-            </div>
+          <ParkingDetailActions
+            onDirections={handleRecommendDirectionButtonClick}
+            onRoadView={handleRoadViewButtonClick}
+          >
+            <ParkingLikeButton
+              key={parkingLotDetail.id}
+              parkingLotId={parkingLotDetail.id}
+              likeCount={parkingLike.likeCount}
+              likedByMe={parkingLike.likedByMe}
+            />
+          </ParkingDetailActions>
+          <div className={scrollContentStyle}>
+            <div className={feeCardStyle}>
+              <div className={totalFeeStyle}>
+                <span>{durationLabel} 예상 요금</span>
+                <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
+              </div>
 
-            <dl className={feeRuleListStyle}>
-              {feeRule?.baseFreeMinutes !== null &&
-                feeRule?.baseFreeMinutes !== undefined &&
-                feeRule.baseFreeMinutes > 0 && (
+              <dl className={feeRuleListStyle}>
+                {feeRule?.baseFreeMinutes !== null &&
+                  feeRule?.baseFreeMinutes !== undefined &&
+                  feeRule.baseFreeMinutes > 0 && (
+                    <div>
+                      <dt>기본 무료 {feeRule.baseFreeMinutes}분</dt>
+                      <dd>0원</dd>
+                    </div>
+                  )}
+
+                {feeRule && feeRule.baseMinutes !== null && feeRule.baseFee !== null && (
                   <div>
-                    <dt>기본 무료 {feeRule.baseFreeMinutes}분</dt>
-                    <dd>0원</dd>
+                    <dt>기본 {feeRule.baseMinutes}분</dt>
+                    <dd>{formatFee(feeRule.baseFee)}</dd>
                   </div>
                 )}
 
-              {feeRule && feeRule.baseMinutes !== null && feeRule.baseFee !== null && (
-                <div>
-                  <dt>기본 {feeRule.baseMinutes}분</dt>
-                  <dd>{formatFee(feeRule.baseFee)}</dd>
-                </div>
-              )}
+                {feeRule &&
+                  feeRule.additionalMinutes !== null &&
+                  feeRule.additionalFee !== null && (
+                    <div>
+                      <dt>추가 {feeRule.additionalMinutes}분당</dt>
+                      <dd>{formatFee(feeRule.additionalFee)}</dd>
+                    </div>
+                  )}
 
-              {feeRule && feeRule.additionalMinutes !== null && feeRule.additionalFee !== null && (
-                <div>
-                  <dt>추가 {feeRule.additionalMinutes}분당</dt>
-                  <dd>{formatFee(feeRule.additionalFee)}</dd>
-                </div>
-              )}
+                {!feeRule && (
+                  <div>
+                    <dt>요금 규칙</dt>
+                    <dd>미제공</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
 
-              {!feeRule && (
-                <div>
-                  <dt>요금 규칙</dt>
-                  <dd>미제공</dd>
-                </div>
-              )}
+            <dl className={detailsStyle}>
+              <div>
+                <dt>도보 거리</dt>
+
+                <dd>
+                  {parkingLotDetail.walkingDurationMinutes === null ||
+                  parkingLotDetail.distanceMeters === null
+                    ? '도보 정보 없음'
+                    : `${parkingLotDetail.distanceMeters.toLocaleString(
+                        'ko-KR',
+                      )}m(${parkingLotDetail.walkingDurationMinutes}분)`}
+                </dd>
+              </div>
+
+              <div>
+                <dt>운영시간</dt>
+
+                <dd>{formatWeekdayHours(operation.weekday)}</dd>
+              </div>
+
+              <div>
+                <dt>잔여석</dt>
+
+                <dd>미제공</dd>
+              </div>
             </dl>
-          </div>
-
-          <dl className={detailsStyle}>
-            <div>
-              <dt>도보 거리</dt>
-
-              <dd>
-                {parkingLotDetail.walkingDurationMinutes === null ||
-                parkingLotDetail.distanceMeters === null
-                  ? '도보 정보 없음'
-                  : `${parkingLotDetail.distanceMeters.toLocaleString(
-                      'ko-KR',
-                    )}m(${parkingLotDetail.walkingDurationMinutes}분)`}
-              </dd>
-            </div>
-
-            <div>
-              <dt>운영시간</dt>
-
-              <dd>{formatWeekdayHours(operation.weekday)}</dd>
-            </div>
-
-            <div>
-              <dt>잔여석</dt>
-
-              <dd>미제공</dd>
-            </div>
-          </dl>
-
-          <div className={sheetFooterStyle}>
-            <div className={reportRowStyle}>
-              <ParkingReportAction parkingLotId={parkingLotDetail.id} />
-            </div>
-
-            <button
-              className={navigationButtonStyle}
-              type="button"
-              onClick={handleRecommendDirectionButtonClick}
-            >
-              길찾기 시작
-            </button>
+            <ParkingReportAction parkingLotId={parkingLotDetail.id} />
           </div>
         </section>
       </BottomSheet>
+
+      {isRoadViewOpen && (
+        <RoadViewOverlay
+          parkingLotName={parkingLotDetail.name}
+          parkingLotAddress={parkingLotDetail.address}
+          latitude={parkingLotDetail.location.latitude}
+          longitude={parkingLotDetail.location.longitude}
+          onRequestClose={() => setIsRoadViewOpen(false)}
+        />
+      )}
 
       {deepLinkModal.isOpen && (
         <DeepLinkModal
@@ -238,7 +263,22 @@ const sheetContentStyle = css`
 
   flex-direction: column;
 
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+`;
+
+const scrollContentStyle = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  > div,
+  > dl {
+    flex-shrink: 0;
+  }
 `;
 
 const feeCardStyle = css`
@@ -310,11 +350,8 @@ const totalFeeStyle = css`
 
 const detailsStyle = css`
   display: grid;
-
   gap: 12px;
-
-  margin: 44px 0 0;
-
+  margin: 24px 0 0;
   div {
     display: flex;
 
@@ -322,68 +359,17 @@ const detailsStyle = css`
 
     justify-content: space-between;
   }
-
   dt,
   dd {
     margin: 0;
-
     font-size: 14px;
-
     line-height: 1.35;
   }
-
   dt {
     color: #8a94a8;
   }
-
   dd {
     color: #2f3b55;
-
     font-weight: 750;
   }
-`;
-
-const navigationButtonStyle = css`
-  width: 100%;
-
-  min-height: 54px;
-
-  color: #fff;
-
-  font-family: inherit;
-
-  font-size: 16px;
-
-  font-weight: 800;
-
-  background: #4356d8;
-
-  border: 0;
-
-  border-radius: 14px;
-
-  cursor: pointer;
-
-  &:active {
-    background: #3548c8;
-  }
-
-  &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
-
-    outline-offset: 3px;
-  }
-`;
-
-const sheetFooterStyle = css`
-  margin-top: auto;
-`;
-
-const reportRowStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-
-  margin-top: 24px;
-  margin-bottom: 12px;
 `;

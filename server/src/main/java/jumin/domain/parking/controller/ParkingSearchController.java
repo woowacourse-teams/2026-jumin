@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,7 +36,12 @@ public class ParkingSearchController {
     }
 
     @GetMapping("/viewport/{parkingLotId}")
-    public ResponseEntity<ParkingLotViewportDetailResponse> parkingLotDetail(@PathVariable Long parkingLotId) {
-        return ResponseEntity.ok(parkingSearchService.getParkingLotDetail(parkingLotId));
+    public ResponseEntity<ParkingLotViewportDetailResponse> parkingLotDetail(
+            @PathVariable Long parkingLotId,
+            @RequestHeader("X-Guest-Id") String guestId
+    ) {
+        return ResponseEntity.ok(
+                parkingSearchService.getParkingLotDetail(parkingLotId, GuestIdParser.parse(guestId))
+        );
     }
 }

@@ -121,6 +121,8 @@ export const parkingLotViewportSchema = z.object({
   id: z.number(),
   latitude: z.number(),
   longitude: z.number(),
+  // LOD 점수는 서버가 계산한 JSON 숫자를 그대로 사용한다.
+  score: z.number(),
 });
 
 export const parkingLotViewportResponseSchema = z.object({
@@ -146,6 +148,14 @@ export const viewportParkingLotDetailSchema = z.object({
   capacity: z.number().nullable(),
   feeRule: parkingFeeRuleSchema.nullable(),
   dailyOperations: z.array(dailyOperationSchema),
+  likeCount: z.number().int().nonnegative(),
+  likedByMe: z.boolean(),
+});
+
+export const parkingLikeSchema = z.object({
+  parkingLotId: z.number().int().positive(),
+  likeCount: z.number().int().nonnegative(),
+  likedByMe: z.boolean(),
 });
 
 /** 최근 주차장 */

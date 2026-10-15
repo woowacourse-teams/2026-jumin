@@ -69,38 +69,23 @@ const addressStyle = css`
 
 const backButtonStyle = css`
   display: grid;
-
   flex: 0 0 40px;
-
   place-items: center;
-
   width: 40px;
-
   height: 40px;
-
   padding: 0;
-
   color: #62708a;
-
   background: transparent;
-
   border: 0;
-
   border-radius: 12px;
-
   cursor: pointer;
 
   svg {
     width: 22px;
-
     height: 22px;
-
     stroke: currentColor;
-
     stroke-width: 2;
-
     stroke-linecap: round;
-
     stroke-linejoin: round;
   }
 
@@ -111,22 +96,13 @@ const backButtonStyle = css`
 
 const parkingNameStyle = css`
   min-width: 0;
-
   margin: 0;
-
   overflow: hidden;
-
   color: #18233d;
-
   font-size: 16px;
-
   font-weight: 800;
-
   line-height: 1.4;
-
   letter-spacing: -0.3px;
-
   text-overflow: ellipsis;
-
   white-space: nowrap;
 `;

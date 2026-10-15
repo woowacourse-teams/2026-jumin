@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.UUID;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingDailyOperationResponse;
@@ -24,6 +26,9 @@ import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -36,6 +41,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @WebMvcTest(ParkingSearchController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class ParkingSearchControllerTest {
+
+    private static final String GUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 
     @Autowired
     private MockMvc mockMvc;
@@ -219,48 +226,119 @@ class ParkingSearchControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    @DisplayName("북서쪽과 남동쪽 좌표로 viewport 내 주차장 목록을 반환한다")
-    void returns_parking_lots_in_viewport() throws Exception {
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0, 0.5, 0.6666666666666666})
+    @DisplayName("LOD 점수를 숫자로 포함한 viewport 주차장 목록을 반환한다")
+    void returns_parking_lots_in_viewport(double score) throws Exception {
         // given
         ParkingLotViewportResponses result = new ParkingLotViewportResponses(
                 1,
                 List.of(new ParkingLotViewportResponse(
                         1L,
                         37.5665,
-                        126.9780
+                        126.9780,
+                        score
                 ))
         );
         when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class))).thenReturn(result);
 
         // when
-        MockHttpServletRequestBuilder request = get("/api/parking/viewport")
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
                 .queryParam("westLongitude", "126.9700")
                 .queryParam("southLatitude", "37.5600")
                 .queryParam("eastLongitude", "126.9900")
-                .queryParam("northLatitude", "37.5750");
+                .queryParam("northLatitude", "37.5750"));
 
         // then
-        mockMvc.perform(request)
+        response
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.parkingLots[0].id").value(1))
                 .andExpect(jsonPath("$.parkingLots[0].latitude").value(37.5665))
-                .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780));
+                .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780))
+                .andExpect(jsonPath("$.parkingLots[0].score").isNumber())
+                .andExpect(jsonPath("$.parkingLots[0].score").value(score));
 
         verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
                 126.9700,
                 37.5600,
                 126.9900,
-                37.5750
+                37.5750,
+                false,
+                false
         ));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true, false", "false, true", "true, true", "false, false"})
+    @DisplayName("viewport 필터의 true와 false 값을 서비스에 전달한다")
+    void passes_viewport_filters_to_service(boolean freeOnly, boolean excludeMechanical) throws Exception {
+        // given
+        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
+                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam("freeOnly", Boolean.toString(freeOnly))
+                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical)));
+
+        // then
+        response.andExpect(status().isOk());
+        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
+        ));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
+    void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
+        // given
+        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
+                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam(filter, "true"));
+
+        // then
+        response.andExpect(status().isOk());
+        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750,
+                filter.equals("freeOnly"), filter.equals("excludeMechanical")
+        ));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @DisplayName("viewport 필터를 불리언으로 변환할 수 없으면 400을 반환한다")
+    void rejects_invalid_viewport_filter(String filter) throws Exception {
+        // when
+        ResultActions response = mockMvc.perform(get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750")
+                .queryParam(filter, "invalid"));
+
+        // then
+        response.andExpect(status().isBadRequest());
+        verifyNoInteractions(parkingSearchService);
     }
 
     @Test
     @DisplayName("지도에서 선택한 주차장의 상세 정보를 반환한다")
     void returns_parking_lot_detail_from_viewport_controller() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L)).thenReturn(
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID))).thenReturn(
                 new ParkingLotViewportDetailResponse(
                         1L,
                         "역삼문화공원 제1호 공영주차장",
@@ -271,17 +349,22 @@ class ParkingSearchControllerTest {
                                 new ParkingDailyOperationResponse("WEEKDAY", "OPEN", "00:00", "00:00", true),
                                 new ParkingDailyOperationResponse("SATURDAY", "OPEN", "09:00", "18:00", false),
                                 new ParkingDailyOperationResponse("HOLIDAY", "CLOSED", null, null, null)
-                        )
+                        ),
+                        3L,
+                        true
                 )
         );
 
         // when & then
-        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("역삼문화공원 제1호 공영주차장"))
                 .andExpect(jsonPath("$.address").value("서울 강남구 테헤란로7길 21"))
                 .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.likeCount").value(3))
+                .andExpect(jsonPath("$.likedByMe").value(true))
                 .andExpect(jsonPath("$.feeRule.baseFreeMinutes").value(0))
                 .andExpect(jsonPath("$.feeRule.dailyMaxFee").value(30_000))
                 .andExpect(jsonPath("$.dailyOperations[0].day").value("WEEKDAY"))
@@ -300,7 +383,7 @@ class ParkingSearchControllerTest {
     @DisplayName("운영·요금 정보가 없는 주차장은 해당 정보를 null로 반환한다")
     void returns_null_fields_when_viewport_parking_operation_is_missing() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L)).thenReturn(
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID))).thenReturn(
                 new ParkingLotViewportDetailResponse(
                         1L,
                         "주차장",
@@ -311,12 +394,15 @@ class ParkingSearchControllerTest {
                                 new ParkingDailyOperationResponse("WEEKDAY", "UNKNOWN", null, null, null),
                                 new ParkingDailyOperationResponse("SATURDAY", "UNKNOWN", null, null, null),
                                 new ParkingDailyOperationResponse("HOLIDAY", "UNKNOWN", null, null, null)
-                        )
+                        ),
+                        0L,
+                        false
                 )
         );
 
         // when & then
-        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.feeRule").hasJsonPath())
                 .andExpect(jsonPath("$.feeRule").value(nullValue()))
@@ -328,15 +414,37 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.dailyOperations[0].paid").value(nullValue()));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "not-a-uuid",
+            "550e8400-e29b-11d4-a716-446655440000",
+            "550e8400-e29b-41d4-7716-446655440000"
+    })
+    @DisplayName("viewport 상세 조회의 게스트 ID가 UUID v4가 아니면 400을 반환한다")
+    void rejects_invalid_viewport_detail_guest_id(String guestId) throws Exception {
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
+                        .header("X-Guest-Id", guestId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("요청 값이 올바르지 않습니다."));
+    }
+
+    @Test
+    @DisplayName("viewport 상세 조회의 게스트 ID가 없으면 400을 반환한다")
+    void rejects_missing_viewport_detail_guest_id() throws Exception {
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     @DisplayName("지도에서 선택한 주차장을 찾지 못하면 404를 반환한다")
     void returns_not_found_when_viewport_parking_lot_does_not_exist() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(999L))
+        when(parkingSearchService.getParkingLotDetail(999L, UUID.fromString(GUEST_ID)))
                 .thenThrow(new BusinessException(ErrorCode.PARKING_LOT_NOT_FOUND));
 
         // when & then
-        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 999L))
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 999L)
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("주차장 정보를 찾을 수 없습니다."));
     }
@@ -345,11 +453,12 @@ class ParkingSearchControllerTest {
     @DisplayName("지도에서 선택한 주차장 조회 중 DB 예외가 발생하면 500을 반환한다")
     void returns_internal_server_error_when_viewport_detail_database_fails() throws Exception {
         // given
-        when(parkingSearchService.getParkingLotDetail(1L))
+        when(parkingSearchService.getParkingLotDetail(1L, UUID.fromString(GUEST_ID)))
                 .thenThrow(new IllegalStateException("database unavailable"));
 
         // when & then
-        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
+        mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
+                        .header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("요청을 처리하는 중 서버 오류가 발생했습니다."));
     }

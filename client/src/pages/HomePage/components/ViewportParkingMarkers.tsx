@@ -1,31 +1,42 @@
 import { useEffect } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
-import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
-import type { ParkingViewportParams } from '../../../../api/parkingLots';
-
-import viewportParkingMarkerUrl from '../../../../assets/icons/markers/viewportParkingMarkers.svg';
+import type { MapViewport } from '../hooks/useMapViewport';
+import { useViewportParkingLots } from '../hooks/useViewportParkingLots';
+import { getRepresentativeParkingLotIds } from '../utils/parkingMarkerPolicy';
+import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
+import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
+import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 import type { ParkingLotViewport } from '../../../../api/contracts';
+import type { ParkingViewportFilters } from '../../../../api/parkingLots';
 
-const viewportParkingMarkerIcon = {
-  url: viewportParkingMarkerUrl,
+const homeParkingMarkerIcon = {
+  url: homeParkingMarkerUrl,
+  width: 25,
+  height: 25,
+  anchorX: 12.5,
+  anchorY: 25,
+};
+
+const dotParkingMarkerIcon = {
+  url: dotParkingMarkerUrl,
   width: 40,
   height: 40,
-  anchorX: 20,
-  anchorY: 40,
+  anchorX: 5,
+  anchorY: 5,
 };
 
 const selectedParkingMarkerIcon = {
-  url: viewportParkingMarkerUrl,
-  width: 48,
-  height: 56,
-  anchorX: 24,
-  anchorY: 56,
+  url: selectedParkingMarkerUrl,
+  width: 30,
+  height: 33,
+  anchorX: 15,
+  anchorY: 33,
 };
 
 interface Props {
   map: naver.maps.Map;
-  viewport: Readonly<ParkingViewportParams>;
+  viewport: MapViewport;
+  filters?: ParkingViewportFilters;
   selectedParkingLotId: number | null;
   onSelect: (parkingLot: ParkingLotViewport) => void;
   onSelectedParkingLotMissing: () => void;
@@ -34,16 +45,16 @@ interface Props {
 export const ViewportParkingMarkers = ({
   map,
   viewport,
+  filters = { freeOnly: false, excludeMechanical: false },
   selectedParkingLotId,
   onSelect,
   onSelectedParkingLotMissing,
 }: Props) => {
-  const { data, isPlaceholderData, isSuccess } = useQuery({
-    ...parkingViewportQueryOptions(viewport),
-    placeholderData: keepPreviousData,
-  });
+  const { data, isPlaceholderData, isSuccess } = useViewportParkingLots(viewport, filters);
 
-  const parkingMarkers = [...(data?.parkingLots ?? [])];
+  const parkingMarkers = data?.parkingLots ?? [];
+
+  const representativeIds = getRepresentativeParkingLotIds(parkingMarkers, viewport.zoom);
 
   useEffect(() => {
     if (selectedParkingLotId === null || !isSuccess || isPlaceholderData) return;
@@ -61,6 +72,13 @@ export const ViewportParkingMarkers = ({
     <>
       {parkingMarkers.map((parkingLot) => {
         const isSelected = parkingLot.id === selectedParkingLotId;
+        const isRepresentative = representativeIds === null || representativeIds.has(parkingLot.id);
+        // 선택 상태를 먼저 적용해 점 마커도 클릭하면 선택 마커로 바뀐다.
+        const icon = isSelected
+          ? selectedParkingMarkerIcon
+          : isRepresentative
+            ? homeParkingMarkerIcon
+            : dotParkingMarkerIcon;
 
         return (
           <NaverMapMarker
@@ -68,9 +86,9 @@ export const ViewportParkingMarkers = ({
             map={map}
             latitude={parkingLot.latitude}
             longitude={parkingLot.longitude}
-            icon={isSelected ? selectedParkingMarkerIcon : viewportParkingMarkerIcon}
+            icon={icon}
             title="주차장"
-            zIndex={isSelected ? 20 : 10}
+            zIndex={isSelected ? 20 : isRepresentative ? 10 : 5}
             onClick={() => onSelect(parkingLot)}
           />
         );

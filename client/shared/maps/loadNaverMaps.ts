@@ -29,7 +29,7 @@ export const loadNaverMaps = (): Promise<void> => {
 
     //네이버 지도 SDK 주소에 발급받은 Client ID를 넣는다.
     //encodeURIComponent는 Client ID를 URL에 안전하게 포함시킨다.
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(__NAVER_MAP_CLIENT_ID__)}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(__NAVER_MAP_CLIENT_ID__)}&submodules=panorama`;
 
     script.onload = () => resolve();
 

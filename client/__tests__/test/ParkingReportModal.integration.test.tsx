@@ -9,7 +9,7 @@ import { server } from '../msw/server';
 
 const openReportModal = async () => {
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: '신고하기' }));
+  await user.click(screen.getByRole('button', { name: '제보하기' }));
   return user;
 };
 

@@ -1,8 +1,12 @@
 package jumin.domain.parking.service;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jumin.domain.parking.dto.ParkingLotResponse;
@@ -14,6 +18,8 @@ import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
+import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -33,12 +39,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingSearchService {
 
     private static final int SEARCH_RADIUS_METERS = 600;
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
     private final ParkingLotRepository parkingLotRepository;
+    private final ParkingLotLikeRepository parkingLotLikeRepository;
     private final ParkingOperationRepository parkingOperationRepository;
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
+    private final ParkingLodScoreCalculator lodScoreCalculator;
+    private final Clock clock;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
@@ -87,14 +97,21 @@ public class ParkingSearchService {
 
     public ParkingLotViewportResponses searchViewport(ParkingLotViewportRequest request) {
         validateCoordinateOrder(request);
+        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL_ZONE);
 
         List<ParkingLotViewportResponse> parkingLots = parkingLotRepository.findActiveWithinViewport(
                         request.westLongitude(),
                         request.southLatitude(),
                         request.eastLongitude(),
-                        request.northLatitude()
+                        request.northLatitude(),
+                        request.freeOnly(),
+                        request.excludeMechanical(),
+                        today.getDayOfWeek().getValue()
                 ).stream()
-                .map(ParkingLotViewportResponse::from)
+                .map(parkingLot -> ParkingLotViewportResponse.from(
+                        parkingLot,
+                        lodScoreCalculator.calculate(parkingLot.getCapacity())
+                ))
                 .toList();
 
         log.atInfo()
@@ -105,7 +122,7 @@ public class ParkingSearchService {
         return ParkingLotViewportResponses.from(parkingLots);
     }
 
-    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId) {
+    public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId, UUID guestId) {
         ParkingLot parkingLot = parkingLotRepository.findActiveById(parkingLotId)
                 .orElseThrow(() -> {
                     log.atWarn()
@@ -117,8 +134,15 @@ public class ParkingSearchService {
                 });
         ParkingOperation operation = parkingOperationRepository.findById(parkingLotId)
                 .orElse(null);
+        ParkingLotLikeResult likeSummary =
+                parkingLotLikeRepository.findSummary(parkingLotId, guestId);
 
-        return ParkingLotViewportDetailResponse.from(parkingLot, operation);
+        return ParkingLotViewportDetailResponse.from(
+                parkingLot,
+                operation,
+                likeSummary.likeCount(),
+                likeSummary.likedByMe()
+        );
     }
 
     private List<ParkingLot> findCandidates(Coordinate destination) {

@@ -1,0 +1,2 @@
+ALTER TABLE parking_lots
+    ADD COLUMN mechanical BOOLEAN NOT NULL DEFAULT FALSE;

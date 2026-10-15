@@ -30,6 +30,14 @@ const renderParkingInformation = (parkingLotId = 101) => {
 };
 
 describe('홈페이지 주차장 상세정보', () => {
+  it('상세 패널의 빠른 메뉴에서 좋아요 개수와 선택 여부를 표시한다', () => {
+    renderParkingInformation();
+    expect(screen.getByRole('button', { name: '좋아요 12개' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
   it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {
     expect(
       parkingViewportLots.every(({ id }) => viewportParkingLotDetailFixtures[id] !== undefined),
@@ -71,13 +79,15 @@ describe('홈페이지 주차장 상세정보', () => {
     expect(screen.getAllByText('유료 여부 미제공')).toHaveLength(3);
   });
 
-  it('오른쪽에 신고 버튼을 표시하고 신고 모달을 연다', async () => {
+  it('하단 제보 버튼에서 신고 모달을 연다', async () => {
     renderParkingInformation();
     const user = userEvent.setup();
-    const reportButton = await screen.findByRole('button', { name: '신고하기' });
-    const reportRow = reportButton.parentElement?.parentElement;
+    const reportButton = await screen.findByRole('button', { name: '제보하기' });
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
 
-    expect(reportRow).toHaveStyle({ display: 'flex', justifyContent: 'flex-end' });
+    expect(actions).not.toContainElement(reportButton);
+    expect(actions).toContainElement(screen.getByRole('button', { name: '길찾기 시작' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: '로드뷰 보기' }));
 
     await user.click(reportButton);
     expect(screen.getByRole('dialog', { name: '주차장 정보 신고' })).toBeInTheDocument();
@@ -104,5 +114,20 @@ describe('홈페이지 주차장 상세정보', () => {
       }),
     ).toBeInTheDocument();
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('로드뷰 버튼을 누르면 전체 화면 로드뷰를 열고 닫을 수 있다', async () => {
+    renderParkingInformation();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: '로드뷰 보기' }));
+
+    expect(
+      screen.getByRole('dialog', { name: '역삼문화공원 제1호 공영주차장 로드뷰' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '로드뷰 닫기' }));
+
+    expect(screen.queryByRole('dialog', { name: /로드뷰$/ })).not.toBeInTheDocument();
   });
 });

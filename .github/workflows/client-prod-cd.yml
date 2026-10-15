@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'client/**'
-      - '.github/workflows/client-prod-cd.yml'
+      - "client/**"
+      - ".github/workflows/client-prod-cd.yml"
 
   workflow_dispatch:
 
@@ -20,6 +20,8 @@ concurrency:
 jobs:
   build:
     name: Build client (Prod)
+    # Keep production deployment disabled until its distribution is provisioned.
+    if: github.ref == 'refs/heads/main' && vars.PROD_CLIENT_CLOUDFRONT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -37,7 +39,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24.11.0'
+          node-version: "24.11.0"
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
@@ -48,6 +50,10 @@ jobs:
       - name: Build client
         working-directory: client
         env:
+          SENTRY_UPLOAD_SOURCEMAPS: "true"
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: production
           GA_MEASUREMENT_ID: ${{ vars.GA_PROD_MEASUREMENT_ID }}
@@ -63,6 +69,7 @@ jobs:
           test -s dist/index.html
           test -d dist/assets
           test -n "$(find dist/assets -type f -print -quit)"
+          test -z "$(find dist -type f -name '*.map' -print -quit)"
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v7
@@ -74,52 +81,146 @@ jobs:
 
   deploy:
     name: Deploy frontend (Prod)
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: [self-hosted, Linux, ARM64, jumin-prod]
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_PAGER: ""
+      AWS_CONFIG_FILE: /dev/null
+      AWS_SHARED_CREDENTIALS_FILE: /dev/null
+      CLIENT_S3_BUCKET: techcourse-project-2026
+      CLIENT_S3_PREFIX: jumin/jumin-prod/dist
+      CLIENT_CLOUDFRONT_ID: ${{ vars.PROD_CLIENT_CLOUDFRONT_ID }}
 
     steps:
       - name: Download frontend artifact
         uses: actions/download-artifact@v8
         with:
           name: frontend-prod-${{ github.sha }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/jumin-prod-deploy/frontend
+          path: ${{ runner.temp }}/jumin-prod-deploy/${{ github.run_id }}-${{ github.run_attempt }}/frontend
 
-      - name: Deploy frontend
+      - name: Deploy frontend with AWS CLI
         shell: bash
+        env:
+          AWS_CLI_PATH: /usr/local/bin/aws
+          CLIENT_ARTIFACT_DIR: ${{ runner.temp }}/jumin-prod-deploy/${{ github.run_id }}-${{ github.run_attempt }}/frontend
         run: |
           set -Eeuo pipefail
 
-          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          release_root="/var/www/jumin-prod/releases"
-          frontend_release="${release_root}/${release_id}"
-          current_link="/var/www/jumin-prod/current"
-          previous_frontend="$(readlink -f "${current_link}" 2>/dev/null || true)"
+          # Use the EC2 instance role, not shell credentials or local profiles.
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+          unset AWS_PROFILE AWS_DEFAULT_PROFILE AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+          unset AWS_CONTAINER_CREDENTIALS_RELATIVE_URI AWS_CONTAINER_CREDENTIALS_FULL_URI
+          export AWS_EC2_METADATA_DISABLED=false
+          export AWS_DEFAULT_REGION="${AWS_REGION:?Set the AWS_REGION repository variable}"
+
+          [[ "${GITHUB_REF}" == 'refs/heads/main' ]] || exit 1
+          [[ "${AWS_REGION}" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]] || exit 1
+          [[ "${CLIENT_S3_BUCKET}" == 'techcourse-project-2026' ]] || exit 1
+          [[ "${CLIENT_S3_PREFIX}" == 'jumin/jumin-prod/dist' ]] || exit 1
+          [[ "${CLIENT_CLOUDFRONT_ID}" =~ ^[A-Z0-9]{8,32}$ ]] || exit 1
+          [[ "${CLIENT_CLOUDFRONT_ID}" != 'E3IDBOP0IO291' ]] || exit 1
+          [[ "${GITHUB_RUN_ID}" =~ ^[0-9]+$ && "${GITHUB_RUN_ATTEMPT}" =~ ^[0-9]+$ ]] || exit 1
+          [[ "${RUNNER_TEMP}" == /* && -d "${RUNNER_TEMP}" && ! -L "${RUNNER_TEMP}" ]] || exit 1
+          artifact="${RUNNER_TEMP}/jumin-prod-deploy/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/frontend"
+          [[ "${CLIENT_ARTIFACT_DIR}" == "${artifact}" && -d "${artifact}" && ! -L "${artifact}" ]] || exit 1
+          test -s "${artifact}/index.html"
+          test -d "${artifact}/assets"
+          test -z "$(find "${artifact}" -type l -print -quit)"
+          test -z "$(find "${artifact}" ! -type f ! -type d -print -quit)"
+          asset="$(find "${artifact}/assets" -type f -name '*.js' -print -quit)"
+          test -n "${asset}"
+          test -s "${asset}"
+          asset_key="${asset#"${artifact}/"}"
+          [[ "${asset_key}" =~ ^assets/[a-zA-Z0-9_./-]+\.js$ ]] || exit 1
+          test -x "${AWS_CLI_PATH}"
+          command -v curl >/dev/null
+          command -v cmp >/dev/null
+
+          aws() { "${AWS_CLI_PATH}" "$@" --no-cli-pager; }
+          aws --version
+          caller="$(aws sts get-caller-identity --query Arn --output text)"
+          [[ "${caller}" == arn:aws:sts::843255971531:assumed-role/ec2-project/* ]] || exit 1
+
+          # Check the destination before changing S3 objects.
+          read -r status enabled domain root < <(aws cloudfront get-distribution \
+            --id "${CLIENT_CLOUDFRONT_ID}" \
+            --query 'Distribution.[Status,DistributionConfig.Enabled,DomainName,DistributionConfig.DefaultRootObject]' \
+            --output text)
+          [[ "${status}" == Deployed && "${enabled}" == True && "${root}" == index.html ]] || exit 1
+          [[ "${domain}" =~ ^d[a-z0-9]+\.cloudfront\.net$ ]] || exit 1
+          CLIENT_DEPLOY_URL="https://${domain}/"
+          origin_id="$(aws cloudfront get-distribution --id "${CLIENT_CLOUDFRONT_ID}" \
+            --query 'Distribution.DistributionConfig.DefaultCacheBehavior.TargetOriginId' --output text)"
+          [[ "${origin_id}" =~ ^[a-zA-Z0-9_./:-]+$ ]] || exit 1
+          read -r origin_domain origin_path oac < <(aws cloudfront get-distribution \
+            --id "${CLIENT_CLOUDFRONT_ID}" \
+            --query "Distribution.DistributionConfig.Origins.Items[?Id=='${origin_id}'].[DomainName,OriginPath,OriginAccessControlId] | [0]" \
+            --output text)
+          [[ "${origin_domain}" == "${CLIENT_S3_BUCKET}.s3."* ]] || exit 1
+          [[ "${origin_path}" == "/${CLIENT_S3_PREFIX}" && -n "${oac}" && "${oac}" != None ]] || exit 1
+
+          target="s3://${CLIENT_S3_BUCKET}/${CLIENT_S3_PREFIX}"
+          release_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          release="s3://${CLIENT_S3_BUCKET}/jumin/jumin-prod/releases/${release_id}"
+          aws s3api head-object --bucket "${CLIENT_S3_BUCKET}" \
+            --key "${CLIENT_S3_PREFIX}/index.html" >/dev/null
+          aws s3 cp "${target}/" "${release}/previous/" --recursive \
+            --metadata-directive COPY --only-show-errors
+          aws s3 cp "${artifact}/" "${release}/next/" --recursive \
+            --cache-control no-cache --only-show-errors
+
+          invalidate() {
+            local phase="$1" invalidation_id
+            invalidation_id="$(aws cloudfront create-invalidation \
+              --distribution-id "${CLIENT_CLOUDFRONT_ID}" \
+              --invalidation-batch "{\"CallerReference\":\"client-prod-${release_id}-${phase}\",\"Paths\":{\"Quantity\":1,\"Items\":[\"/*\"]}}" \
+              --query Invalidation.Id --output text)" || return 1
+            [[ -n "${invalidation_id}" && "${invalidation_id}" != None ]] || return 1
+            aws cloudfront wait invalidation-completed \
+              --distribution-id "${CLIENT_CLOUDFRONT_ID}" --id "${invalidation_id}"
+          }
 
           rollback() {
-            if [[ -n "${previous_frontend}" && -d "${previous_frontend}" ]]; then
-              ln -sfn "${previous_frontend}" "${current_link}"
-            elif [[ -L "${current_link}" ]]; then
-              unlink "${current_link}"
+            trap - ERR
+            echo '::error::Deployment failed; restoring the previous S3 release.'
+            if aws s3 cp "${release}/previous/" "${target}/" --recursive \
+              --exclude index.html --metadata-directive COPY --only-show-errors \
+              && aws s3 cp "${release}/previous/index.html" "${target}/index.html" \
+                --metadata-directive COPY --only-show-errors \
+              && invalidate rollback; then
+              echo 'Previous release restored and CloudFront invalidation completed.'
+            else
+              echo "::error::Rollback failed. Restore manually from ${release}/previous/"
             fi
+            exit 1
           }
+
           trap rollback ERR
+          # Keep old hashed files for open tabs. Never use --delete in this shared bucket.
+          aws s3 cp "${artifact}/" "${target}/" --recursive \
+            --exclude index.html --exclude 'assets/*' --cache-control no-cache --only-show-errors
+          while IFS= read -r -d '' file; do
+            key="${file#"${artifact}/"}"
+            cache_control=no-cache
+            if [[ "${key}" =~ \.[a-fA-F0-9]{8,}\. ]]; then
+              cache_control='public,max-age=31536000,immutable'
+            fi
+            aws s3 cp "${file}" "${target}/${key}" \
+              --cache-control "${cache_control}" --only-show-errors
+          done < <(find "${artifact}/assets" -type f -print0)
+          aws s3 cp "${artifact}/index.html" "${target}/index.html" \
+            --content-type 'text/html; charset=utf-8' --cache-control no-cache --only-show-errors
+          invalidate publish
 
-          install -d -m 2755 "${frontend_release}"
-          rsync -a --delete \
-            "${RUNNER_TEMP}/jumin-prod-deploy/frontend/" \
-            "${frontend_release}/"
-
-          test -s "${frontend_release}/index.html"
-          test -d "${frontend_release}/assets"
-
-          ln -sfn "${frontend_release}" "${current_link}"
-
-          curl --noproxy '*' \
-            --fail \
-            --silent \
-            --show-error \
-            --resolve 'jucha.info:443:127.0.0.1' \
-            https://jucha.info/ >/dev/null
-
+          verification="$(mktemp -d "${RUNNER_TEMP}/jumin-prod-verify.XXXXXX")"
+          curl --noproxy '*' --fail --silent --show-error --max-time 30 \
+            "${CLIENT_DEPLOY_URL}index.html" -o "${verification}/index.html"
+          cmp "${artifact}/index.html" "${verification}/index.html"
+          curl --noproxy '*' --fail --silent --show-error --max-time 30 \
+            "${CLIENT_DEPLOY_URL}${asset_key}" -o "${verification}/asset.js"
+          cmp "${asset}" "${verification}/asset.js"
           trap - ERR
+          echo "Client prod deployment verified: ${release_id}"

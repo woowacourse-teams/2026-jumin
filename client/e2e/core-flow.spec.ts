@@ -53,7 +53,7 @@ const goToRecommendedParkingDetail = async (page: Page) => {
     .getByRole('heading', { name: PARKING_LOT.name })
     .locator('..');
 
-  await parkingLotCard.getByRole('button', { name: '상세정보' }).click();
+  await parkingLotCard.getByRole('button', { name: /상세정보$/ }).click();
   await expect(page).toHaveURL(/\/parkingDetail$/);
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
 };
@@ -102,7 +102,7 @@ test('2. 설정에서 가이드와 기존 랜딩페이지를 확인한다', asyn
   await page.getByRole('button', { name: '건너뛰기' }).click();
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
-  await expect(page).toHaveURL(/\/randing$/);
+  await expect(page).toHaveURL(/\/landing$/);
   await expect(page.getByRole('heading', { level: 1, name: /목적지를 입력하면/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/setting$/);

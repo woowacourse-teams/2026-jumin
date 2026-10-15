@@ -14,7 +14,9 @@ public record ParkingLotDetailResponse(
         Integer estimatedFee,
         String feeCalculationStatus,
         ParkingFeeRuleResponse feeRule,
-        ParkingOperationResponse operation
+        ParkingOperationResponse operation,
+        long likeCount,
+        boolean likedByMe
 ) {
 
     public static ParkingLotDetailResponse from(
@@ -28,7 +30,9 @@ public record ParkingLotDetailResponse(
             Integer walkingDurationMinutes,
             Integer estimatedFee,
             ParkingOperation parkingOperation,
-            ParkingAvailabilityStatus availabilityStatus
+            ParkingAvailabilityStatus availabilityStatus,
+            long likeCount,
+            boolean likedByMe
     ) {
         return new ParkingLotDetailResponse(
                 id,
@@ -41,7 +45,9 @@ public record ParkingLotDetailResponse(
                 estimatedFee,
                 feeCalculationStatusOf(estimatedFee),
                 ParkingFeeRuleResponse.from(parkingOperation),
-                ParkingOperationResponse.from(parkingOperation, availabilityStatus)
+                ParkingOperationResponse.from(parkingOperation, availabilityStatus),
+                likeCount,
+                likedByMe
         );
     }
 

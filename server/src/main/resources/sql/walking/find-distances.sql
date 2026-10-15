@@ -1,25 +1,27 @@
--- 1. 목적지 좌표를 연결 가능한 주변 보행 노드에 연결한다.
-WITH destination_nodes AS (
-    SELECT node.id,
-           ST_Distance(
-               node.geom::geography,
-               ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
-           ) AS snap_distance
-    FROM walking_nodes node
-    WHERE ST_DWithin(
-        node.geom::geography,
-        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
-        :maxSnapDistanceMeters
-    )
-      AND EXISTS (
-          SELECT 1
-          FROM walking_edges edge
-          WHERE edge.walkable = true
-            AND (edge.source = node.id OR edge.target = node.id)
-      )
+WITH candidate_cache_status AS MATERIALIZED (
+    SELECT COALESCE(
+        (
+            SELECT metadata.candidate_nodes_snap_radius_meters >= :maxSnapDistanceMeters
+            FROM walking_network_metadata metadata
+            WHERE metadata.id = 1
+        ),
+        false
+    ) AS available
 ),
--- 2. 각 주차장 좌표를 연결 가능한 주변 보행 노드에 연결한다.
 candidate_nodes AS (
+    SELECT parking_lot.id AS parking_lot_id,
+           mapping.walking_node_id AS node_id,
+           mapping.snap_distance
+    FROM candidate_cache_status cache_status
+    CROSS JOIN parking_lots parking_lot
+    JOIN parking_lot_walking_nodes mapping
+      ON mapping.parking_lot_id = parking_lot.id
+    WHERE cache_status.available
+      AND parking_lot.id IN (:parkingLotIds)
+      AND mapping.snap_distance <= :maxSnapDistanceMeters
+
+    UNION ALL
+
     SELECT parking_lot.id AS parking_lot_id,
            node.id AS node_id,
            ST_Distance(
@@ -48,51 +50,73 @@ candidate_nodes AS (
                 AND (edge.source = candidate.id OR edge.target = candidate.id)
           )
     ) node
+    CROSS JOIN candidate_cache_status cache_status
+    WHERE NOT cache_status.available
 ),
--- 3. 주차장 → 목적지 방향의 최단 보행로 거리를 계산한다.
 routes AS (
-    SELECT destination.id AS destination_node_id,
-           destination.id AS candidate_node_id,
-           0::double precision AS agg_cost,
-           destination.snap_distance
-    FROM destination_nodes destination
-
-    UNION ALL
-
-    SELECT route.start_vid AS destination_node_id,
-           route.end_vid AS candidate_node_id,
-           route.agg_cost,
-           destination.snap_distance
-    FROM destination_nodes destination
-    JOIN pgr_dijkstraCost(
-        -- 조회용 그래프는 간선 양 끝을 교환하고 각 방향의 비용은 그대로 유지한다.
-        -- 뒤집힌 그래프의 목적지 → 주차장 거리는 원래 그래프의 주차장 → 목적지 거리와 같다.
-        -- 목적지 노드를 시작점으로 유지해 주차장마다 최단경로 탐색을 반복하지 않는다.
-        -- geometry 인덱스로 후보 링크를 좁힌 뒤 geography로 실제 미터 거리를 확인한다.
-        -- 75000은 서울 위도에서 800m 원을 포함하도록 잡은 보수적인 도 단위 변환값이다.
-        -- 반경에 일부라도 걸치는 링크는 분할하지 않고 전체를 포함한다.
+    SELECT route.end_vid AS candidate_node_id,
+           route.agg_cost
+    FROM pgr_dijkstraCost(
         format(
-            'SELECT id, target AS source, source AS target, cost, reverse_cost '
-                || 'FROM walking_edges WHERE walkable = true '
-                || 'AND geom && ST_Expand(ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326), %3$L::double precision / 75000.0) '
-                || 'AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography, %3$L::double precision)',
+            'WITH destination_nodes AS (
+                SELECT node.id,
+                       ST_Distance(
+                           node.geom::geography,
+                           ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography
+                       ) AS snap_distance
+                FROM walking_nodes node
+                WHERE ST_DWithin(
+                    node.geom::geography,
+                    ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography,
+                    %3$L::double precision
+                )
+                  AND EXISTS (
+                      SELECT 1
+                      FROM walking_edges edge
+                      WHERE edge.walkable = true
+                        AND (edge.source = node.id OR edge.target = node.id)
+                  )
+            )
+            SELECT id,
+                   target AS source,
+                   source AS target,
+                   cost,
+                   reverse_cost
+            FROM walking_edges
+            WHERE walkable = true
+              AND geom && ST_Expand(
+                    ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326),
+                    %4$L::double precision / 75000.0
+              )
+              AND ST_DWithin(
+                    geom::geography,
+                    ST_SetSRID(ST_MakePoint(%1$L, %2$L), 4326)::geography,
+                    %4$L::double precision
+              )
+
+            UNION ALL
+
+            SELECT -(ROW_NUMBER() OVER (ORDER BY destination.id))::bigint AS id,
+                   0::bigint AS source,
+                   destination.id AS target,
+                   destination.snap_distance AS cost,
+                   -1::double precision AS reverse_cost
+            FROM destination_nodes destination',
             CAST(:longitude AS double precision),
             CAST(:latitude AS double precision),
+            CAST(:maxSnapDistanceMeters AS double precision),
             CAST(:graphSearchRadiusMeters AS double precision)
         ),
-        ARRAY(SELECT DISTINCT node.id FROM destination_nodes node),
+        0::bigint,
         ARRAY(
             SELECT DISTINCT candidate.node_id
             FROM candidate_nodes candidate
         ),
         true
-    ) route ON route.start_vid = destination.id
+    ) route
 )
--- 4. 연결된 조합 중 총 도보거리가 가장 짧은 값을 주차장별로 반환한다.
 SELECT candidate.parking_lot_id,
-       ROUND(MIN((routes.agg_cost
-           + routes.snap_distance
-           + candidate.snap_distance))::numeric)::integer AS distance_meters
+       ROUND(MIN((routes.agg_cost + candidate.snap_distance))::numeric)::integer AS distance_meters
 FROM candidate_nodes candidate
 JOIN routes ON routes.candidate_node_id = candidate.node_id
 GROUP BY candidate.parking_lot_id

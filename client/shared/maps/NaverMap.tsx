@@ -30,9 +30,14 @@ export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) 
         // 컴포넌트가 제거됐거나 지도 컨테이너가 없으면 중단한다.
         if (isCancelled || !mapContainerRef.current) return;
 
-        // 지도를 생성할 때 사용할 기본 옵션
+        // 지도를 생성할 때 사용할 기본 옵션(대한민국 기준)
         const mapOptions: naver.maps.MapOptions = {
           zoom,
+          minZoom: 8,
+          maxBounds: new naver.maps.LatLngBounds(
+            new naver.maps.LatLng(32.0, 124.0),
+            new naver.maps.LatLng(39.0, 132.0),
+          ),
         };
 
         // 위도와 경도가 모두 전달된 경우에만 중심 좌표를 지정한다.

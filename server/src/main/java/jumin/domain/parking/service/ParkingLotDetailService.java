@@ -2,10 +2,13 @@ package jumin.domain.parking.service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import jumin.domain.parking.dto.ParkingLotDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
+import jumin.domain.parking.repository.ParkingLotLikeRepository;
+import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
 import jumin.domain.walking.service.WalkingDistanceResult;
@@ -25,13 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingLotDetailService {
 
     private final ParkingLotRepository parkingLotRepository;
+    private final ParkingLotLikeRepository parkingLotLikeRepository;
     private final ParkingOperationRepository parkingOperationRepository;
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
-    public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request) {
+    public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request, UUID guestId) {
         queryValidator.validateForDetail(request);
 
         ParkingLot parkingLot = parkingLotRepository.findActiveWithLocationById(parkingLotId)
@@ -76,6 +80,8 @@ public class ParkingLotDetailService {
         if (availabilityStatus != null) {
             availabilityStatusName = availabilityStatus.name();
         }
+        ParkingLotLikeResult likeSummary =
+                parkingLotLikeRepository.findSummary(parkingLotId, guestId);
 
         log.atInfo()
                 .setMessage("주차장 상세 조회가 완료되었습니다.")
@@ -96,7 +102,9 @@ public class ParkingLotDetailService {
                 walkingDurationMinutes,
                 estimatedFee,
                 operation,
-                availabilityStatus
+                availabilityStatus,
+                likeSummary.likeCount(),
+                likeSummary.likedByMe()
         );
     }
 }

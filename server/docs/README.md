@@ -18,3 +18,6 @@
 
 | 문서 | 결정 주제 | 상태 |
 | ---- | --------- | ---- |
+| [2026-10-12-osm-import-outside-github-actions.md](decisions/2026-10-12-osm-import-outside-github-actions.md) | OSM 전국 보행망 적재는 충분한 자원을 가진 호스트에서 수동 실행 | Accepted |
+| [지도 주차장 LOD 점수](2026-10-13-parking-lod-score.md) | 구획 수 기반 고정 점수와 확장 구조 | Accepted |
+| [지도 주차장 필터와 변경 요약](2026-10-13-parking-viewport-filters.md) | 오늘 무료, 기계식 제외, CSV와 DB 계약, 결정 이력, 전체 검증 | Accepted |

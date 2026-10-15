@@ -15,6 +15,8 @@ import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
 import { trackEvent } from '../../../shared/analytics';
 import { eventName } from '../../../shared/monitoring/constants';
+import type { ParkingViewportFilters } from '../../../api/parkingLots';
+import { ParkingFilterBar } from './components/ParkingFilterBar';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -26,6 +28,11 @@ const currentLocationIcon = {
 
 const MIN_PARKING_MARKER_ZOOM = 15;
 
+const DEFAULT_PARKING_FILTERS: ParkingViewportFilters = {
+  freeOnly: false,
+  excludeMechanical: false,
+};
+
 interface MapLocation {
   latitude: number;
   longitude: number;
@@ -35,6 +42,8 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
+  const [parkingFilters, setParkingFilters] =
+    useState<ParkingViewportFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
@@ -116,16 +125,18 @@ export const HomePage = () => {
           <ViewportParkingMarkers
             map={map}
             viewport={viewport}
+            filters={parkingFilters}
             selectedParkingLotId={selectedParkingLot?.id ?? null}
             onSelect={handleParkingMarkerClick}
             onSelectedParkingLotMissing={clearParkingSelection}
           />
         ) : (
-          <p className={zoomGuideStyle} role="status" aria-live="polite">
-            지도를 확대하면 주차장을 확인할 수 있어요.
-          </p>
+          <div className={zoomGuideContainerStyle}>
+            <span className={zoomGuideStyle} role="status" aria-live="polite">
+              지도를 확대해서 주차장을 찾아보세요.
+            </span>
+          </div>
         ))}
-
       {currentLocation && (
         <>
           <NaverMapMarker
@@ -141,13 +152,14 @@ export const HomePage = () => {
       {selectedParkingLot === null && (
         <div className={headerStyle}>
           <SearchBar onClick={handleSearchBarClick} />
+          <ParkingFilterBar filters={parkingFilters} onChange={setParkingFilters} />
         </div>
       )}
       <footer className={footerStyle}>
         <div className={floatingControlsStyle}>
           <CurrentLocationButton onClick={requestCurrentLocation} />
         </div>
-        <BottomNav />
+        {selectedParkingLot === null && <BottomNav />}
       </footer>
 
       {selectedParkingLot !== null && (
@@ -178,12 +190,17 @@ const headerStyle = css`
   width: 100%;
 `;
 
+const zoomGuideContainerStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 const zoomGuideStyle = css`
   position: absolute;
-  right: 16px;
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
-  left: 16px;
   z-index: 1;
+  width: 60%;
 
   margin: 0;
   padding: 10px 16px;
@@ -212,7 +229,7 @@ const footerStyle = css`
 const floatingControlsStyle = css`
   position: absolute;
   right: 16px;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 30px);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 15px);
   z-index: 2;
 
   pointer-events: auto;

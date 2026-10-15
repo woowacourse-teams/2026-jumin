@@ -1,8 +1,12 @@
 import type { ViewportParkingLotDetailResponse } from '../../api/contracts';
+import { gangnamStationParkingLots } from './gangnamStationParkingLots';
+import { parkingSearchSuccess } from './parkingSearch';
 
 export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLotDetailResponse> = {
   101: {
     id: 101,
+    likeCount: 12,
+    likedByMe: false,
     name: '역삼문화공원 제1호 공영주차장',
     address: '서울 강남구 테헤란로7길 21',
     capacity: 42,
@@ -40,6 +44,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   102: {
     id: 102,
+    likeCount: 12,
+    likedByMe: false,
     name: '청운 주차장',
     address: '서울 강남구 역삼동 825-9',
     capacity: 68,
@@ -77,6 +83,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   103: {
     id: 103,
+    likeCount: 12,
+    likedByMe: false,
     name: '강남대로 공영주차장',
     address: '서울 강남구 강남대로 438',
     capacity: 54,
@@ -114,6 +122,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   104: {
     id: 104,
+    likeCount: 12,
+    likedByMe: false,
     name: '도곡로21길 공영주차장',
     address: '서울 강남구 도곡로21길 7',
     capacity: 36,
@@ -151,6 +161,8 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
   },
   105: {
     id: 105,
+    likeCount: 12,
+    likedByMe: false,
     name: '운영정보 확인 주차장',
     address: '서울 강남구 역삼동',
     capacity: null,
@@ -180,3 +192,41 @@ export const viewportParkingLotDetailFixtures: Record<number, ViewportParkingLot
     ],
   },
 };
+
+// LOD 목 지도에서 점 마커까지 보이도록 나머지 주차장의 상세 응답도 제공한다.
+const additionalCapacities: Record<number, number> = {
+  106: 80,
+  107: 75,
+  108: 65,
+  109: 50,
+  110: 40,
+  111: 30,
+  112: 20,
+};
+
+for (const parkingLot of parkingSearchSuccess.parkingLots) {
+  const capacity = additionalCapacities[parkingLot.id];
+  if (capacity === undefined) continue;
+
+  viewportParkingLotDetailFixtures[parkingLot.id] = {
+    ...viewportParkingLotDetailFixtures[101]!,
+    id: parkingLot.id,
+    name: parkingLot.name,
+    address: parkingLot.address,
+    capacity,
+  };
+}
+
+// CSV에서 가져온 주차장도 선택 시 실제 요금·운영 정보로 상세 응답을 제공한다.
+for (const parkingLot of gangnamStationParkingLots) {
+  viewportParkingLotDetailFixtures[parkingLot.id] = {
+    id: parkingLot.id,
+    name: parkingLot.name,
+    address: parkingLot.address,
+    capacity: parkingLot.capacity,
+    feeRule: parkingLot.feeRule,
+    dailyOperations: parkingLot.dailyOperations,
+    likeCount: 12,
+    likedByMe: false,
+  };
+}

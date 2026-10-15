@@ -2,66 +2,37 @@ import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import searchPreview from '../../../assets/guideImage/guide1.png';
-import comparePreview from '../../../assets/guideImage/guide3.png';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 import parkingHero from '../../../assets/parking-hero.jpg';
+import { LandingGuide } from './components/LandingGuide';
 
-const features = [
-  {
-    label: '목적지 검색',
-    title: (
-      <>
-        가고 싶은 곳을
-        <br />
-        먼저 알려주세요.
-      </>
-    ),
-    description: '장소를 검색하거나 지도에서 목적지를 선택하세요. 주변 주차장을 추천해드려요.',
-    image: searchPreview,
-    alt: '목적지 검색창이 표시된 주차의민족 지도 화면 예시',
-  },
-  {
-    label: '거리와 요금 비교',
-    title: (
-      <>
-        가까운 곳, 저렴한 곳.
-        <br />내 기준으로 고르세요.
-      </>
-    ),
-    description: '거리순·가격순·균형순으로 비교하고, 선택한 주차장으로 길찾기를 시작하세요.',
-    image: comparePreview,
-    alt: '주차의민족 지도에서 도보 거리와 예상 요금을 비교하는 화면 예시',
-  },
-];
-
-export const RandingPage = () => {
+export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
 
   return (
-    <main className={styles.page} data-randing-page>
-      <a className={styles.skipLink} href="#randing-intro">
+    <main className={styles.page} data-landing-page>
+      <a className={styles.skipLink} href="#landing-intro">
         본문 바로가기
       </a>
 
-      <section className={styles.hero} aria-labelledby="randing-title">
+      <section className={styles.hero} aria-labelledby="landing-title">
         <img className={styles.heroPhoto} src={parkingHero} alt="" fetchPriority="high" />
 
         <header className={styles.header}>
-          <Link className={styles.brand} to="/randing" aria-label="주차의민족 소개 홈">
+          <Link className={styles.brand} to="/landing" aria-label="주차의민족 소개 홈">
             <img src={brandMark} alt="" width="29" height="32" />
             <span>주차의민족</span>
           </Link>
           <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
-            <a href="#randing-intro">서비스 소개</a>
-            <a href="#randing-guide">이용 방법</a>
+            <a href="#landing-intro">서비스 소개</a>
+            <a href="#landing-guide">이용 방법</a>
             <Link to="/">주차장 찾기</Link>
           </nav>
         </header>
 
         <div className={styles.heroContent}>
           <p className={styles.heroEyebrow}>주차장을 찾는 가장 간단한 방법</p>
-          <h1 id="randing-title">
+          <h1 id="landing-title">
             목적지를 입력하면,
             <br />
             주차장을 추천해드려요.
@@ -86,14 +57,14 @@ export const RandingPage = () => {
           </p>
         </div>
 
-        <a className={styles.scrollLink} href="#randing-intro">
+        <a className={styles.scrollLink} href="#landing-intro">
           서비스 알아보기 <span aria-hidden="true">↓</span>
         </a>
       </section>
 
-      <section id="randing-intro" className={styles.intro} aria-labelledby="randing-intro-title">
+      <section id="landing-intro" className={styles.intro} aria-labelledby="landing-intro-title">
         <p className={styles.eyebrow}>주차의민족</p>
-        <h2 id="randing-intro-title">
+        <h2 id="landing-intro-title">
           어디에 주차할지 고민될 때,
           <br />
           목적지만 검색하세요.
@@ -110,28 +81,10 @@ export const RandingPage = () => {
         </p>
       </section>
 
-      <div id="randing-guide" className={styles.features}>
-        {features.map((feature, index) => (
-          <section
-            key={feature.label}
-            className={cx(styles.feature, index === 1 && styles.reversedFeature)}
-            aria-labelledby={`randing-feature-${index}`}
-          >
-            <div className={styles.featureCopy}>
-              <p className={styles.eyebrow}>{feature.label}</p>
-              <h2 id={`randing-feature-${index}`}>{feature.title}</h2>
-              <p className={styles.description}>{feature.description}</p>
-            </div>
-            <figure className={styles.preview}>
-              <img src={feature.image} alt={feature.alt} width="342" height="393" loading="lazy" />
-              <figcaption>서비스 화면 예시</figcaption>
-            </figure>
-          </section>
-        ))}
-      </div>
+      <LandingGuide />
 
-      <section className={styles.closing} aria-labelledby="randing-closing-title">
-        <h2 id="randing-closing-title">
+      <section className={styles.closing} aria-labelledby="landing-closing-title">
+        <h2 id="landing-closing-title">
           다음 목적지의 주차장,
           <br />
           지금 찾아보세요.
@@ -142,7 +95,7 @@ export const RandingPage = () => {
       </section>
 
       <footer className={styles.footer}>
-        <Link className={styles.footerBrand} to="/randing">
+        <Link className={styles.footerBrand} to="/landing">
           <img src={brandMark} alt="" width="22" height="25" />
           주차의민족
         </Link>
@@ -152,8 +105,8 @@ export const RandingPage = () => {
   );
 };
 
-const applyRandingRootStyles = () => injectGlobal`
-  #root:has([data-randing-page]) {
+const applyLandingRootStyles = () => injectGlobal`
+  #root:has([data-landing-page]) {
     width: 100%;
     max-width: none;
     height: 100dvh;
@@ -162,26 +115,23 @@ const applyRandingRootStyles = () => injectGlobal`
   }
 `;
 
-applyRandingRootStyles();
+applyLandingRootStyles();
 
 const styles = {
   page: css`
-    --randing-primary: #4356d8;
-    --randing-ink: #18233d;
+    --landing-primary: #4356d8;
+    --landing-ink: #18233d;
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    color: var(--randing-ink);
+    color: var(--landing-ink);
     background: #fff;
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
 
-    h1,
-    h2,
-    p,
-    figure {
+    :where(h1, h2, p, figure) {
       margin: 0;
     }
     a {
@@ -323,7 +273,7 @@ const styles = {
     width: min(100% - 112px, 1240px);
     margin: auto;
     padding: 110px 0 150px;
-    animation: randing-appear 700ms ease both;
+    animation: landing-appear 700ms ease both;
 
     h1 {
       margin: 24px 0 28px;
@@ -333,7 +283,7 @@ const styles = {
       letter-spacing: -2.8px;
     }
 
-    @keyframes randing-appear {
+    @keyframes landing-appear {
       from {
         opacity: 0;
         transform: translateY(16px);
@@ -422,7 +372,7 @@ const styles = {
   primaryButton: css`
     min-width: 250px;
     color: #fff;
-    background: var(--randing-primary);
+    background: var(--landing-primary);
     &:hover {
       background: #3548c8;
     }
@@ -494,7 +444,7 @@ const styles = {
     line-height: 1.75;
     letter-spacing: -0.5px;
     strong {
-      color: var(--randing-primary);
+      color: var(--landing-primary);
       font-weight: 700;
     }
     @media (max-width: 700px) {
@@ -503,7 +453,7 @@ const styles = {
     }
   `,
   eyebrow: css`
-    color: var(--randing-primary);
+    color: var(--landing-primary);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.6;
@@ -517,92 +467,6 @@ const styles = {
       font-size: 15px;
     }
   `,
-  features: css`
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: 0 56px 100px;
-    @media (max-width: 700px) {
-      padding: 0 24px 70px;
-    }
-  `,
-  feature: css`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: 80px;
-    padding: 48px 0;
-
-    @media (max-width: 900px) {
-      gap: 36px;
-    }
-    @media (max-width: 700px) {
-      grid-template-columns: 1fr;
-      gap: 28px;
-      padding: 36px 0;
-    }
-  `,
-  reversedFeature: css`
-    > div {
-      order: 2;
-    }
-    > figure {
-      order: 1;
-    }
-    @media (max-width: 700px) {
-      > div,
-      > figure {
-        order: initial;
-      }
-    }
-  `,
-  featureCopy: css`
-    h2 {
-      margin: 18px 0 22px;
-      font-size: clamp(27px, 2.8vw, 38px);
-      font-weight: 800;
-      line-height: 1.4;
-      letter-spacing: -1.4px;
-    }
-    > p:last-child {
-      max-width: 380px;
-    }
-    @media (max-width: 700px) {
-      h2 {
-        margin: 14px 0 16px;
-        font-size: 28px;
-        letter-spacing: -1px;
-      }
-    }
-  `,
-  preview: css`
-    display: grid;
-    min-height: 460px;
-    justify-items: center;
-    align-content: center;
-    gap: 20px;
-    padding: 40px;
-    background: #f3f4f9;
-    border-radius: 24px;
-    img {
-      display: block;
-      width: min(100%, 280px);
-      height: auto;
-      border: 6px solid #fff;
-      border-radius: 24px;
-      box-shadow: 0 16px 32px rgb(24 35 61 / 10%);
-    }
-    figcaption {
-      color: #747d90;
-      font-size: 11px;
-    }
-    @media (max-width: 900px) {
-      padding: 28px;
-    }
-    @media (max-width: 700px) {
-      min-height: 380px;
-      padding: 32px;
-    }
-  `,
   closing: css`
     display: flex;
     align-items: center;
@@ -610,7 +474,7 @@ const styles = {
     gap: 36px;
     padding: 96px 24px;
     color: #fff;
-    background: var(--randing-primary);
+    background: var(--landing-primary);
     text-align: center;
     h2 {
       font-size: clamp(30px, 3.6vw, 46px);
@@ -623,7 +487,7 @@ const styles = {
     }
   `,
   closingButton: css`
-    color: var(--randing-primary) !important;
+    color: var(--landing-primary) !important;
     background: #fff;
     &:hover {
       background: #f0f2ff;
@@ -650,7 +514,7 @@ const styles = {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--randing-ink) !important;
+    color: var(--landing-ink) !important;
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.7px;
