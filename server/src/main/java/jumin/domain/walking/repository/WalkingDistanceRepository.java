@@ -34,6 +34,8 @@ public class WalkingDistanceRepository {
             .addValue("maxSnapDistanceMeters", maxSnapDistanceMeters)
             .addValue("graphSearchRadiusMeters", GRAPH_SEARCH_RADIUS_METERS);
 
+        jdbcTemplate.getJdbcTemplate().execute("SET LOCAL jit = off");
+
         return jdbcTemplate.query(
             FIND_DISTANCES_SQL,
             parameters,
