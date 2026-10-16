@@ -1,32 +1,34 @@
 import type { ParkingLotSummary } from '../../../../api/contracts';
-import defaultRecommendationMarkerUrl from '../../../../assets/icons/markers/defaultRecommandMarker.svg';
-import selectedRecommendationMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
-import unselectedRecommendationMarkerUrl from '../../../../assets/icons/markers/unselectedRecommandMarker.svg';
+
+import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
+import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
+import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
+
 import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 
 const markerIcons = {
   selected: {
-    url: selectedRecommendationMarkerUrl,
-    width: 50,
-    height: 60,
-    anchorX: 25,
-    anchorY: 60,
+    url: selectedParkingMarkerUrl,
+    width: 30,
+    height: 33,
+    anchorX: 15,
+    anchorY: 33,
   },
   recommended: {
-    url: unselectedRecommendationMarkerUrl,
-    width: 40,
-    height: 61,
-    anchorX: 20,
-    anchorY: 61,
+    url: homeParkingMarkerUrl,
+    width: 25,
+    height: 25,
+    anchorX: 12.5,
+    anchorY: 25,
   },
   candidate: {
-    url: defaultRecommendationMarkerUrl,
-    width: 20,
-    height: 20,
-    anchorX: 10,
-    anchorY: 20,
+    url: dotParkingMarkerUrl,
+    width: 40,
+    height: 40,
+    anchorX: 5,
+    anchorY: 5,
   },
 } satisfies Record<ParkingMarkerType, Parameters<typeof NaverMapMarker>[0]['icon']>;
 
