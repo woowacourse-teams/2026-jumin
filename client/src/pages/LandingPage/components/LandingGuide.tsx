@@ -1,12 +1,10 @@
 import { css } from '@emotion/css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import home from '../../../../assets/landing/home.png';
 import destination from '../../../../assets/landing/destination.png';
 import recommend from '../../../../assets/landing/recommend.png';
 import detail from '../../../../assets/landing/detail.png';
-
-const SLIDE_INTERVAL = 5_000;
 
 // 원본 캡처는 보존하고, 회색 바깥 여백을 제외한 860 × 1688 영역만 표시한다.
 const steps = [
@@ -59,48 +57,44 @@ const steps = [
 
 export const LandingGuide = () => {
   const guideRef = useRef<HTMLElement>(null);
-  const [index, setIndex] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [hidden, setHidden] = useState(() => document.hidden);
-  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
-  const [reducedMotion, setReducedMotion] = useState(
-    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
-  );
-  const playing = visible && !hovered && !focused && !hidden && !reducedMotion;
-  const step = steps[index]!;
 
   useEffect(() => {
     const guide = guideRef.current;
-    if (!guide || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible(Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.15)),
-      { threshold: 0.15 },
-    );
-    observer.observe(guide);
-    return () => observer.disconnect();
-  }, []);
+    const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!guide || typeof IntersectionObserver === 'undefined' || motion?.matches) return;
 
-  useEffect(() => {
-    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    const handleMotion = () => setReducedMotion(media?.matches ?? false);
-    const handleVisibility = () => setHidden(document.hidden);
-    media?.addEventListener('change', handleMotion);
-    document.addEventListener('visibilitychange', handleVisibility);
+    const sections = Array.from(guide.querySelectorAll<HTMLElement>('[data-guide-step]'));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting || entry.intersectionRatio < 0.12) continue;
+          entry.target.setAttribute('data-reveal', 'visible');
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -48px 0px' },
+    );
+    sections.forEach((section) => {
+      section.dataset.reveal = 'pending';
+      observer.observe(section);
+    });
+
+    const handleMotion = () => {
+      if (!motion?.matches) return;
+      sections.forEach((section) => {
+        section.dataset.reveal = 'visible';
+      });
+      observer.disconnect();
+    };
+    motion?.addEventListener('change', handleMotion);
     return () => {
-      media?.removeEventListener('change', handleMotion);
-      document.removeEventListener('visibilitychange', handleVisibility);
+      observer.disconnect();
+      motion?.removeEventListener('change', handleMotion);
+      sections.forEach((section) => {
+        delete section.dataset.reveal;
+      });
     };
   }, []);
-
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setTimeout(
-      () => setIndex((current) => (current + 1) % steps.length),
-      SLIDE_INTERVAL,
-    );
-    return () => window.clearTimeout(timer);
-  }, [index, playing]);
 
   return (
     <section
@@ -108,69 +102,56 @@ export const LandingGuide = () => {
       id="landing-guide"
       className={styles.guide}
       aria-label="주차의민족 이용 방법"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocusCapture={() => setFocused(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
-      }}
     >
-      <div className={styles.inner}>
-        <div className={styles.copy}>
-          <p className={styles.eyebrow}>
-            HOW TO USE <span>목적지 검색부터 길찾기까지</span>
-          </p>
-          <nav className={styles.steps} aria-label="이용 방법 단계 선택">
-            {steps.map((item, stepIndex) => (
-              <button
-                key={item.label}
-                type="button"
-                aria-current={index === stepIndex ? 'step' : undefined}
-                onClick={() => setIndex(stepIndex)}
-              >
-                <span>{String(stepIndex + 1).padStart(2, '0')}</span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-          <div
-            className={styles.explanation}
-            aria-live={playing ? 'off' : 'polite'}
-            aria-atomic="true"
+      <div className={styles.content}>
+        <p className={styles.eyebrow}>
+          HOW TO USE <span>목적지 검색부터 길찾기까지</span>
+        </p>
+        {steps.map((step, index) => (
+          <section
+            key={step.label}
+            className={styles.step}
+            data-guide-step
+            aria-labelledby={`landing-guide-step-${index + 1}`}
           >
-            <p className={styles.label}>{step.label}</p>
-            <h2>
-              {step.title[0]}
-              <br />
-              {step.title[1]}
-            </h2>
-            <p className={styles.description}>{step.description}</p>
-          </div>
-        </div>
-        <figure className={styles.preview}>
-          <div className={styles.phone}>
-            <div className={styles.screen}>
-              <img
-                src={step.image}
-                alt={step.alt}
-                width={step.width}
-                height={step.height}
-                decoding="async"
-                loading="lazy"
-                style={{
-                  width: `${(step.width / 860) * 100}%`,
-                  height: `${(step.height / 1688) * 100}%`,
-                  left: `${(-step.x / 860) * 100}%`,
-                  top: `${(-step.y / 1688) * 100}%`,
-                }}
-              />
+            <div className={styles.copy}>
+              <p className={styles.label}>
+                <span>STEP {String(index + 1).padStart(2, '0')}</span>
+                {step.label}
+              </p>
+              <h2 id={`landing-guide-step-${index + 1}`}>
+                {step.title[0]}
+                <br />
+                {step.title[1]}
+              </h2>
+              <p className={styles.description}>{step.description}</p>
             </div>
-          </div>
-          <figcaption>
-            <span aria-hidden="true" />
-            실제 서비스 이용 화면
-          </figcaption>
-        </figure>
+            <figure className={styles.preview}>
+              <div className={styles.phone}>
+                <div className={styles.screen}>
+                  <img
+                    src={step.image}
+                    alt={step.alt}
+                    width={step.width}
+                    height={step.height}
+                    decoding="async"
+                    loading="lazy"
+                    style={{
+                      width: `${(step.width / 860) * 100}%`,
+                      height: `${(step.height / 1688) * 100}%`,
+                      left: `${(-step.x / 860) * 100}%`,
+                      top: `${(-step.y / 1688) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <figcaption>
+                <span aria-hidden="true" />
+                실제 서비스 이용 화면
+              </figcaption>
+            </figure>
+          </section>
+        ))}
       </div>
     </section>
   );
@@ -185,23 +166,88 @@ const styles = {
       padding: 48px 24px;
     }
   `,
-  inner: css`
+  content: css`
+    max-width: 1128px;
+    margin: 0 auto;
+  `,
+  step: css`
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     align-items: center;
     gap: 56px;
-    max-width: 1128px;
-    margin: 0 auto;
+    padding: 64px 0;
+    border-bottom: 1px solid #e1e5f2;
+    &:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+    &:nth-of-type(even) {
+      > div {
+        order: 2;
+      }
+      > figure {
+        order: 1;
+      }
+    }
+    &[data-reveal='pending'] {
+      opacity: 0;
+      transform: translateY(36px);
+    }
+    &[data-reveal='visible'] {
+      animation: landing-step-reveal 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes landing-step-reveal {
+      from {
+        opacity: 0;
+        transform: translateY(36px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
     @media (max-width: 900px) {
       gap: 28px;
     }
     @media (max-width: 700px) {
       grid-template-columns: 1fr;
       gap: 32px;
+      padding: 48px 0;
+      &:nth-of-type(even) {
+        > div,
+        > figure {
+          order: initial;
+        }
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      &[data-reveal] {
+        opacity: 1;
+        transform: none;
+        animation: none;
+      }
     }
   `,
   copy: css`
     min-width: 0;
+    h2 {
+      margin: 20px 0;
+      font-size: clamp(28px, 3.1vw, 42px);
+      font-weight: 800;
+      line-height: 1.4;
+      letter-spacing: -1.6px;
+    }
+    @media (max-width: 900px) {
+      h2 {
+        font-size: 30px;
+      }
+    }
+    @media (max-width: 700px) {
+      h2 {
+        font-size: clamp(25px, 6.6vw, 34px);
+        letter-spacing: -1px;
+      }
+    }
   `,
   eyebrow: css`
     display: flex;
@@ -217,66 +263,20 @@ const styles = {
       letter-spacing: -0.3px;
     }
   `,
-  steps: css`
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin: 28px 0 40px;
-    button {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      min-height: 44px;
-      padding: 10px 12px;
-      border: 1px solid #e0e4f0;
-      border-radius: 10px;
-      color: #667086;
-      background: transparent;
-      font-size: 13px;
-      text-align: left;
-      cursor: pointer;
-    }
-    button[aria-current='step'] {
-      color: #4356d8;
-      border-color: #4356d8;
-      background: #fff;
-      font-weight: 700;
-    }
-    span {
-      font-size: 11px;
-      font-weight: 700;
-      opacity: 0.65;
-    }
-    @media (max-width: 700px) {
-      margin: 24px 0 28px;
-    }
-  `,
-  explanation: css`
-    min-height: 240px;
-    h2 {
-      margin: 14px 0 20px;
-      font-size: clamp(28px, 3.1vw, 42px);
-      font-weight: 800;
-      line-height: 1.4;
-      letter-spacing: -1.6px;
-    }
-    @media (max-width: 900px) {
-      h2 {
-        font-size: 30px;
-      }
-    }
-    @media (max-width: 700px) {
-      min-height: 204px;
-      h2 {
-        font-size: clamp(25px, 6.6vw, 34px);
-        letter-spacing: -1px;
-      }
-    }
-  `,
   label: css`
+    display: flex;
+    align-items: center;
+    gap: 12px;
     color: var(--landing-primary);
     font-size: 14px;
     font-weight: 700;
+    span {
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #e8ecff;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
   `,
   description: css`
     max-width: 420px;
