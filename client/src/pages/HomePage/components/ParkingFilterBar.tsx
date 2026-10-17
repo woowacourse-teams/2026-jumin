@@ -1,5 +1,7 @@
 import { css } from '@emotion/css';
 import type { ParkingViewportFilters } from '../../../../api/parkingLots';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   filters: ParkingViewportFilters;
@@ -14,8 +16,13 @@ const filterOptions: Array<{
   icon: string;
   color: string;
 }> = [
-  { key: 'freeOnly', label: '무료 주차장', icon: '$', color: '#00ad78' },
-  { key: 'excludeMechanical', label: '기계식 제외', icon: '▤', color: '#454545' },
+  { key: 'freeOnly', label: '무료 주차장', icon: '$', color: color.parkingFilter.freeOnly },
+  {
+    key: 'excludeMechanical',
+    label: '기계식 제외',
+    icon: '▤',
+    color: color.parkingFilter.excludeMechanical,
+  },
 ];
 
 export const ParkingFilterBar = ({ filters, onChange }: Props) => {
@@ -26,18 +33,18 @@ export const ParkingFilterBar = ({ filters, onChange }: Props) => {
 
   return (
     <div className={filterBarStyle} role="group" aria-label="주차장 필터">
-      {filterOptions.map(({ key, label, icon, color }) => {
+      {filterOptions.map(({ key, label, icon, color: accentColor }) => {
         const isSelected = filters[key];
 
         return (
           <button
             key={key}
-            className={filterButtonStyle(isSelected, color)}
+            className={filterButtonStyle(isSelected, accentColor)}
             type="button"
             aria-pressed={isSelected}
             onClick={() => toggleFilter(key)}
           >
-            <span className={filterIconStyle(color, isSelected)} aria-hidden="true">
+            <span className={filterIconStyle(accentColor, isSelected)} aria-hidden="true">
               {icon}
             </span>
             {label}
@@ -66,7 +73,7 @@ const filterBarStyle = css`
   }
 `;
 
-const filterButtonStyle = (isSelected: boolean, color: string) => css`
+const filterButtonStyle = (isSelected: boolean, accentColor: string) => css`
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -75,13 +82,12 @@ const filterButtonStyle = (isSelected: boolean, color: string) => css`
   min-height: 38px;
   padding: 0 16px;
 
-  color: ${isSelected ? '#ffffff' : '#101b37'};
-  font-size: 15px;
-  font-weight: 700;
+  ${typography.label};
+  color: ${isSelected ? color.text.inverse : color.text.primary};
   white-space: nowrap;
 
-  background: ${isSelected ? color : '#ffffff'};
-  border: 1px solid ${isSelected ? color : '#e3e6ef'};
+  background: ${isSelected ? accentColor : color.background.default};
+  border: 1px solid ${isSelected ? accentColor : color.border.default};
   border-radius: 26px;
 
   box-shadow: ${
@@ -93,12 +99,12 @@ const filterButtonStyle = (isSelected: boolean, color: string) => css`
   -webkit-tap-highlight-color: transparent;
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;
 
-const filterIconStyle = (color: string, isSelected: boolean) => css`
+const filterIconStyle = (accentColor: string, isSelected: boolean) => css`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -106,11 +112,9 @@ const filterIconStyle = (color: string, isSelected: boolean) => css`
   width: 22px;
   height: 22px;
 
-  color: ${isSelected ? color : '#ffffff'};
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1;
+  color: ${isSelected ? accentColor : color.icon.inverse};
+  ${typography.label};
 
-  background: ${isSelected ? '#ffffff' : color};
+  background: ${isSelected ? color.background.default : accentColor};
   border-radius: 50%;
 `;

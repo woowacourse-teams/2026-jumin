@@ -17,6 +17,8 @@ import { trackEvent } from '../../../shared/analytics';
 import { eventName } from '../../../shared/monitoring/constants';
 import type { ParkingViewportFilters } from '../../../api/parkingLots';
 import { ParkingFilterBar } from './components/ParkingFilterBar';
+import { typography } from '../../theme/typography';
+import { color } from '../../theme/color';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -204,10 +206,8 @@ const zoomGuideStyle = css`
   margin: 0;
   padding: 10px 16px;
 
-  color: #101b37;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.primary};
   text-align: center;
   word-break: keep-all;
 

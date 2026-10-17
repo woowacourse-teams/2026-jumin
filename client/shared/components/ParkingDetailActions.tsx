@@ -1,5 +1,8 @@
 import { css, cx } from '@emotion/css';
 import type { ReactNode } from 'react';
+import { color } from '../../src/theme/color';
+import { fontSize } from '../../src/theme/font';
+import { typography } from '../../src/theme/typography';
 
 interface Props {
   onDirections: () => void;
@@ -47,7 +50,7 @@ const actionsStyle = css`
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid ${color.border.default};
 `;
 
 const threeActionsStyle = css`
@@ -63,8 +66,7 @@ const buttonStyle = css`
   min-height: 48px;
   padding: 0 4px;
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  ${typography.label};
   white-space: nowrap;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -81,13 +83,13 @@ const buttonStyle = css`
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 
   @media (max-width: 360px) {
     padding-inline: 2px;
-    font-size: 12px;
+    font-size: ${fontSize[12]};
 
     svg {
       width: 16px;
@@ -97,22 +99,28 @@ const buttonStyle = css`
 `;
 
 const directionsStyle = css`
-  color: #fff;
-  background: #4356d8;
+  color: ${color.text.inverse};
+  background: ${color.background.brand};
 
-  &:hover,
+  &:hover {
+    background: ${color.background.brandHovered};
+  }
+
   &:active {
-    background: #3548c8;
+    background: ${color.background.brandPressed};
   }
 `;
 
 const roadViewStyle = css`
-  color: #4356d8;
-  background: #f1f3ff;
-  border-color: #dfe4ff;
+  color: ${color.text.brand};
+  background: ${color.background.brandSubtle};
+  border-color: ${color.border.brandSubtle};
 
-  &:hover,
+  &:hover {
+    background: ${color.background.brandSubtleHovered};
+  }
+
   &:active {
-    background: #e2e6ff;
+    background: ${color.background.brandSubtlePressed};
   }
 `;

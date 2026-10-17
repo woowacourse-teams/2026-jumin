@@ -15,6 +15,8 @@ import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
 import { useState } from 'react';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   parkingLot: ParkingLotViewport;
@@ -228,126 +230,69 @@ const sectionStyle = css`
 const sectionTitleStyle = css`
   margin: 0 0 12px;
 
-  color: #18233d;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.4;
+  color: ${color.text.primary};
+  ${typography.titleCard}
 `;
 
 const feeCardStyle = css`
   overflow: hidden;
 
-  background: #fff;
-  border: 1px solid #dfe4ef;
+  background: ${color.background.default};
+  border: 1px solid ${color.border.default};
   border-radius: 18px;
   box-sizing: border-box;
 `;
 
-const feeRuleListStyle = css`
-  display: grid;
-  gap: 18px;
+const informationListBase = {
+  display: 'grid',
+  margin: 0,
 
-  margin: 0;
-  padding: 20px 18px;
+  '> div': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+  },
 
-  div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
+  '> div > dt': {
+    ...typography.bodySmall,
+    margin: 0,
+    color: color.text.secondary,
+  },
 
-  dt,
-  dd {
-    margin: 0;
+  '> div > dd': {
+    ...typography.bodySmallStrong,
+    margin: 0,
+    color: color.text.primary,
+    textAlign: 'right',
+  },
+} as const;
 
-    font-size: 14px;
-    line-height: 1.35;
-  }
+const feeRuleListStyle = css(informationListBase, {
+  gap: '18px',
+  padding: '20px 18px',
+});
 
-  dt {
-    color: #768197;
-    font-weight: 500;
-  }
+const operationListStyle = css(informationListBase, {
+  gap: '16px',
 
-  dd {
-    color: #25314a;
-    font-weight: 800;
-    text-align: right;
-  }
-`;
+  '> div': {
+    alignItems: 'flex-start',
+  },
 
-const operationListStyle = css`
-  display: grid;
-  gap: 16px;
-
-  margin: 0;
-
-  div {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  dt,
-  dd {
-    margin: 0;
-
-    font-size: 14px;
-    line-height: 1.35;
-  }
-
-  dt {
-    color: #8a94a8;
-  }
-
-  dd {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-
-    color: #2f3b55;
-    font-weight: 750;
-    text-align: right;
-  }
-`;
+  '> div > dd': {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '4px',
+  },
+});
 
 const subValueStyle = css`
-  color: #9aa3b4;
-  font-size: 12px;
-  font-weight: 500;
+  ${typography.caption};
+  color: ${color.text.secondary};
 `;
 
-const detailsStyle = css`
-  display: grid;
-  gap: 12px;
-
-  margin: 0;
-
-  div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  dt,
-  dd {
-    margin: 0;
-
-    font-size: 14px;
-    line-height: 1.35;
-  }
-
-  dt {
-    color: #8a94a8;
-  }
-
-  dd {
-    color: #2f3b55;
-    font-weight: 750;
-    text-align: right;
-  }
-`;
+const detailsStyle = css(informationListBase, {
+  gap: '12px',
+});
