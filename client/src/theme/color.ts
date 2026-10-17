@@ -18,6 +18,11 @@ export const color = {
     inverse: palette.white,
   },
 
+  parkingFilter: {
+    freeOnly: palette.green500,
+    excludeMechanical: palette.gray700,
+  },
+
   background: {
     default: palette.white,
     subtle: palette.gray50,

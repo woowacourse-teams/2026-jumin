@@ -26,6 +26,11 @@ export const typography = {
     lineHeight: lineHeight[150],
     fontWeight: fontWeight[400],
   },
+  bodySmallStrong: {
+    fontSize: fontSize[14],
+    lineHeight: lineHeight[150],
+    fontWeight: fontWeight[800],
+  },
   caption: {
     fontSize: fontSize[12],
     lineHeight: lineHeight[150],
