@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
 import type { Destination } from '../../../../api/contracts';
 import { SearchResultRow } from './SearchResultRow';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   query: string;
@@ -26,6 +28,7 @@ export const SearchResultList = ({
     return '';
   };
   const message = getMessage();
+  const isErrorMessage = query.length >= 2 && !isSearching && Boolean(errorMessage);
 
   return (
     <section
@@ -40,8 +43,8 @@ export const SearchResultList = ({
         <p
           className={css`
             margin: 32px 20px;
-            color: #98a2b3;
-            font-size: 13px;
+            ${typography.bodySmall};
+            color: ${isErrorMessage ? color.text.error : color.text.secondary};
             text-align: center;
           `}
         >

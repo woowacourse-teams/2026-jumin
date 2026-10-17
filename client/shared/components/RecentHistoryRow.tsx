@@ -1,4 +1,7 @@
 import { css } from '@emotion/css';
+import { color } from '../../src/theme/color';
+import { fontSize } from '../../src/theme/font';
+import { typography } from '../../src/theme/typography';
 
 interface Props {
   title: string;
@@ -49,7 +52,7 @@ const rowStyle = css`
 
   min-height: 66px;
 
-  border-bottom: 1px solid #eef2f6;
+  border-bottom: 1px solid ${color.border.default};
 `;
 
 const contentButtonStyle = css`
@@ -71,7 +74,7 @@ const contentButtonStyle = css`
 
   &:hover,
   &:focus-visible {
-    background: #f7f9fc;
+    background: ${color.background.subtle};
   }
 `;
 
@@ -79,8 +82,8 @@ const historyIconStyle = css`
   width: 20px;
   flex-shrink: 0;
 
-  color: #aab4c2;
-  font-size: 18px;
+  color: ${color.icon.default};
+  font-size: ${fontSize[18]};
   text-align: center;
 `;
 
@@ -94,9 +97,8 @@ const textContainerStyle = css`
 const titleStyle = css`
   overflow: hidden;
 
-  color: #24334b;
-  font-size: 14px;
-  line-height: 1.35;
+  ${typography.bodySmallStrong};
+  color: ${color.text.primary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
@@ -104,9 +106,8 @@ const titleStyle = css`
 const addressStyle = css`
   overflow: hidden;
 
-  color: #98a2b3;
-  font-size: 11px;
-  line-height: 1.35;
+  ${typography.caption};
+  color: ${color.text.secondary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
@@ -114,9 +115,8 @@ const addressStyle = css`
 const metadataStyle = css`
   margin-top: 4px;
 
-  color: #98a2b3;
-  font-size: 11px;
-  line-height: 1.35;
+  ${typography.caption};
+  color: ${color.text.secondary};
 `;
 
 const removeButtonStyle = css`
@@ -125,8 +125,8 @@ const removeButtonStyle = css`
   margin-right: 6px;
   flex-shrink: 0;
 
-  color: #aab4c2;
-  font-size: 20px;
+  color: ${color.icon.default};
+  font-size: ${fontSize[20]};
 
   background: transparent;
   border: 0;
