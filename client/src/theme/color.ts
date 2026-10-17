@@ -7,6 +7,7 @@ export const color = {
     placeholder: palette.gray500,
     disabled: palette.gray550,
     inverse: palette.white,
+    inverseSecondary: palette.gray200,
     brand: palette.primary500,
     selected: palette.primary500,
     error: palette.red500,
@@ -26,6 +27,8 @@ export const color = {
   background: {
     default: palette.white,
     subtle: palette.gray50,
+    neutralPressed: palette.gray100,
+    inverse: palette.gray900,
     disabled: palette.gray250,
     brand: palette.primary500,
     brandHovered: palette.primary550,
@@ -35,6 +38,17 @@ export const color = {
     brandSubtlePressed: palette.primary100,
     selected: palette.primary500,
     selectedSubtle: palette.primary50,
+  },
+
+  iconBackground: {
+    mint: palette.mint50,
+    peach: palette.peach50,
+  },
+
+  mapProvider: {
+    naver: { foreground: palette.white, background: palette.naverGreen },
+    kakao: { foreground: palette.kakaoDark, background: palette.kakaoYellow },
+    tmap: { foreground: palette.tmapGray, background: palette.tmapLightGray },
   },
 
   border: {

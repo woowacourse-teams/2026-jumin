@@ -10,6 +10,9 @@ import { GuideModal } from '../../../shared/components/Modal/GuideModal';
 import { FEEDBACK_URL } from '../../../shared/constants/help';
 import { useModal } from '../../../shared/hooks/useModal';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
+import { color } from '../../theme/color';
+import { fontSize, fontWeight } from '../../theme/font';
+import { typography } from '../../theme/typography';
 
 export const SettingPage = () => {
   const guideModal = useModal();
@@ -123,9 +126,9 @@ const styles = {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    color: #18233d;
+    color: ${color.text.primary};
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    background: #f7f8fc;
+    background: ${color.background.subtle};
   `,
   content: css`
     height: calc(100% - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
@@ -137,17 +140,14 @@ const styles = {
 
     h1 {
       margin: 0;
-      font-size: 30px;
-      font-weight: 800;
-      line-height: 1.3;
+      ${typography.titlePage};
       letter-spacing: -1px;
     }
   `,
   description: css`
     margin: 10px 0 0;
-    color: #69758b;
-    font-size: 14px;
-    line-height: 1.6;
+    ${typography.bodySmall};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   intro: css`
@@ -155,19 +155,19 @@ const styles = {
     align-items: center;
     gap: 18px;
     padding: 24px 20px;
-    color: #18233d;
+    color: ${color.text.primary};
     text-decoration: none;
-    background: #edf0ff;
-    border: 1px solid #e0e5ff;
+    background: ${color.background.brandSubtle};
+    border: 1px solid ${color.border.brandSubtle};
     border-radius: 22px;
     transition: background-color 150ms ease;
 
     &:hover {
-      background: #e5eaff;
+      background: ${color.background.brandSubtleHovered};
     }
 
     &:focus-visible {
-      outline: 2px solid #4356d8;
+      outline: 2px solid ${color.border.focused};
       outline-offset: 3px;
     }
   `,
@@ -190,36 +190,31 @@ const styles = {
     gap: 6px;
   `,
   introLabel: css`
-    color: #596681;
-    font-size: 11px;
-    line-height: 1.5;
+    ${typography.caption};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   introTitle: css`
-    font-size: 20px;
-    font-weight: 800;
+    ${typography.titleSection};
     letter-spacing: -0.6px;
   `,
   introLink: css`
     margin-top: 6px;
-    color: #4356d8;
-    font-size: 12px;
-    font-weight: 700;
+    ${typography.bodySmallStrong};
+    color: ${color.text.brand};
   `,
   section: css`
     margin-top: 30px;
   `,
   sectionTitle: css`
     margin: 0 0 12px 4px;
-    color: #69758b;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.5;
+    ${typography.bodySmallStrong};
+    color: ${color.text.secondary};
   `,
   menu: css`
     overflow: hidden;
-    background: #fff;
-    border: 1px solid #e9edf5;
+    background: ${color.background.default};
+    border: 1px solid ${color.border.default};
     border-radius: 20px;
   `,
   item: css`
@@ -230,7 +225,7 @@ const styles = {
     width: 100%;
     min-height: 96px;
     padding: 20px 16px;
-    color: #18233d;
+    color: ${color.text.primary};
     font: inherit;
     text-align: left;
     background: transparent;
@@ -240,19 +235,19 @@ const styles = {
     transition: background-color 150ms ease;
 
     & + & {
-      border-top: 1px solid #eef1f7;
+      border-top: 1px solid ${color.border.default};
     }
 
     &:hover:not(:disabled) {
-      background: #f7f8fc;
+      background: ${color.background.subtle};
     }
 
     &:active:not(:disabled) {
-      background: #edf0ff;
+      background: ${color.background.brandSubtlePressed};
     }
 
     &:focus-visible {
-      outline: 2px solid #4356d8;
+      outline: 2px solid ${color.border.focused};
       outline-offset: -3px;
     }
 
@@ -265,7 +260,7 @@ const styles = {
     width: 40px;
     height: 40px;
     place-items: center;
-    background: #f0f2ff;
+    background: ${color.background.brandSubtle};
     border-radius: 13px;
 
     img {
@@ -274,33 +269,29 @@ const styles = {
     }
   `,
   installIconFrame: css`
-    background: #edf7f3;
+    background: ${color.iconBackground.mint};
   `,
   feedbackIconFrame: css`
-    background: #fff4e8;
+    background: ${color.iconBackground.peach};
   `,
   itemTitle: css`
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.4;
+    ${typography.label};
   `,
   itemDescription: css`
-    color: #69758b;
-    font-size: 12px;
-    line-height: 1.6;
+    ${typography.caption};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   chevron: css`
-    color: #8a94a2;
-    font-size: 22px;
+    color: ${color.icon.default};
+    ${typography.titleSection}
     line-height: 1;
   `,
   installMessage: css`
     margin: 0;
     padding: 0 4px;
-    color: #4356d8;
-    font-size: 12px;
-    line-height: 1.6;
+    ${typography.caption};
+    color: ${color.text.brand};
     word-break: keep-all;
 
     &:not(:empty) {
