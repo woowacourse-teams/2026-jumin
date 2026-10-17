@@ -5,6 +5,9 @@ import home from '../../../../assets/landing/home.png';
 import destination from '../../../../assets/landing/destination.png';
 import recommend from '../../../../assets/landing/recommend.png';
 import detail from '../../../../assets/landing/detail.png';
+import { color } from '../../../theme/color';
+import { fontSize, fontWeight, lineHeight } from '../../../theme/font';
+import { typography } from '../../../theme/typography';
 
 // 원본 캡처는 보존하고, 회색 바깥 여백을 제외한 860 × 1688 영역만 표시한다.
 const steps = [
@@ -161,7 +164,7 @@ const styles = {
   guide: css`
     padding: 72px 40px 88px;
     scroll-margin-top: 20px;
-    background: #f5f6fc;
+    background: ${color.background.subtle};
     @media (max-width: 700px) {
       padding: 48px 24px;
     }
@@ -176,7 +179,7 @@ const styles = {
     align-items: center;
     gap: 56px;
     padding: 64px 0;
-    border-bottom: 1px solid #e1e5f2;
+    border-bottom: 1px solid ${color.border.default};
     &:last-child {
       border-bottom: 0;
       padding-bottom: 0;
@@ -232,19 +235,19 @@ const styles = {
     min-width: 0;
     h2 {
       margin: 20px 0;
-      font-size: clamp(28px, 3.1vw, 42px);
-      font-weight: 800;
-      line-height: 1.4;
+      ${typography.titlePage};
+      font-size: clamp(1.75rem, 3.1vw, 2.625rem);
+      line-height: ${lineHeight[140]};
       letter-spacing: -1.6px;
     }
     @media (max-width: 900px) {
       h2 {
-        font-size: 30px;
+        font-size: ${fontSize[30]};
       }
     }
     @media (max-width: 700px) {
       h2 {
-        font-size: clamp(25px, 6.6vw, 34px);
+        font-size: clamp(1.5625rem, 6.6vw, 2.125rem);
         letter-spacing: -1px;
       }
     }
@@ -254,12 +257,12 @@ const styles = {
     flex-wrap: wrap;
     gap: 10px 14px;
     color: var(--landing-primary);
-    font-size: 12px;
-    font-weight: 800;
+    ${typography.caption};
+    font-weight: ${fontWeight[800]};
     letter-spacing: 1.5px;
     span {
-      color: #7a8297;
-      font-weight: 500;
+      color: ${color.text.secondary};
+      font-weight: ${fontWeight[400]};
       letter-spacing: -0.3px;
     }
   `,
@@ -268,21 +271,19 @@ const styles = {
     align-items: center;
     gap: 12px;
     color: var(--landing-primary);
-    font-size: 14px;
-    font-weight: 700;
+    ${typography.label};
     span {
       padding: 6px 10px;
       border-radius: 6px;
-      background: #e8ecff;
-      font-size: 11px;
+      background: ${color.background.brandSubtle};
+      font-size: ${fontSize[12]};
       letter-spacing: 1px;
     }
   `,
   description: css`
     max-width: 420px;
-    color: #667086;
-    font-size: 16px;
-    line-height: 1.85;
+    ${typography.body};
+    color: ${color.text.secondary};
   `,
   preview: css`
     position: relative;
@@ -298,30 +299,30 @@ const styles = {
       width: 100%;
       aspect-ratio: 1;
       border-radius: 50%;
-      background: #e4e8fc;
+      background: ${color.background.brandSubtle};
     }
     figcaption {
       display: flex;
       align-items: center;
       gap: 6px;
       z-index: 1;
-      color: #7a8297;
-      font-size: 11px;
+      ${typography.caption};
+      color: ${color.text.secondary};
     }
     figcaption span {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #4356d8;
+      background: ${color.background.brand};
     }
   `,
   phone: css`
     position: relative;
     width: min(100%, 312px);
     padding: 7px;
-    border: 1px solid #e0e4f0;
+    border: 1px solid ${color.border.default};
     border-radius: 31px;
-    background: #fff;
+    background: ${color.background.default};
     box-shadow: 0 24px 48px -16px rgb(35 49 104 / 25%);
     @media (max-width: 700px) {
       width: min(100%, 280px);
