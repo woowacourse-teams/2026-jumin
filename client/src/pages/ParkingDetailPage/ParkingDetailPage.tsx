@@ -11,6 +11,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
 import { ConditionBar } from '../../../shared/components/ConditionBar';
+import { color } from '../../theme/color';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
@@ -61,6 +62,6 @@ const pageStyle = css`
   height: 100%;
 
   overflow: hidden;
-  color: #14213d;
+  color: ${color.text.primary};
   background: transparent;
 `;

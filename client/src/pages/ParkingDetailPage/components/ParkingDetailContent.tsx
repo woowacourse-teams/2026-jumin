@@ -23,6 +23,8 @@ import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -284,9 +286,9 @@ const scrollContentStyle = css`
 const feeCardStyle = css`
   overflow: hidden;
 
-  background: #fff;
+  background: ${color.background.default};
 
-  border: 1px solid #dfe4ef;
+  border: 1px solid ${color.border.default};
 
   border-radius: 18px;
 
@@ -310,18 +312,16 @@ const feeRuleListStyle = css`
   dd {
     margin: 0;
 
-    font-size: 14px;
-    line-height: 1.35;
+    ${typography.bodySmall};
   }
 
   dt {
-    color: #768197;
-    font-weight: 500;
+    color: ${color.text.secondary};
   }
 
   dd {
-    color: #25314a;
-    font-weight: 800;
+    ${typography.bodySmallStrong};
+    color: ${color.text.primary};
   }
 `;
 
@@ -333,18 +333,14 @@ const totalFeeStyle = css`
   min-height: 64px;
   padding: 0 18px;
 
-  color: #18233d;
-  font-size: 15px;
-  font-weight: 800;
+  ${typography.bodySmallStrong};
+  color: ${color.text.primary};
 
-  background: #f0f2ff;
+  background: ${color.background.brandSubtle};
 
   strong {
-    color: #4356d8;
-
-    font-size: 17px;
-
-    font-weight: 800;
+    ${typography.titleCard};
+    color: ${color.text.brand};
   }
 `;
 
@@ -362,14 +358,13 @@ const detailsStyle = css`
   dt,
   dd {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.35;
+    ${typography.bodySmall};
   }
   dt {
-    color: #8a94a8;
+    color: ${color.text.secondary};
   }
   dd {
-    color: #2f3b55;
-    font-weight: 750;
+    ${typography.bodySmallStrong};
+    color: ${color.text.primary};
   }
 `;

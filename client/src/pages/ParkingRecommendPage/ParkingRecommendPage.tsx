@@ -10,7 +10,6 @@ import { ParkingRecommendContent } from './components/ParkingRecommendContent';
 import { ErrorCard } from '../../../shared/components/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
-// import { PeriodChangeControl } from './components/PeriodChangeControl';
 import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';
 
 export interface NavigationState {
@@ -36,7 +35,6 @@ export const ParkingRecommendPage = () => {
         title={searchCondition.destinationName}
         description={`${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`}
         onBack={() => navigate(-1)}
-        // action={<PeriodChangeControl />}
       />
 
       <QueryErrorResetBoundary>

@@ -2,6 +2,8 @@ import type { FormEvent } from 'react';
 import { css } from '@emotion/css';
 import { Modal } from '../../../../shared/components/Modal/Modal';
 import type { ParkingReport } from '../../../../shared/hooks/useParkingReport';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   report: ParkingReport;
@@ -66,7 +68,7 @@ export const ParkingReportModal = ({ report }: Props) => {
 const formStyle = css`
   width: 100%;
   padding-top: 16px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid ${color.border.default};
 `;
 
 const textareaStyle = css`
@@ -76,45 +78,42 @@ const textareaStyle = css`
   padding: 14px;
   box-sizing: border-box;
 
-  color: #18233d;
+  ${typography.body};
+  color: ${color.text.primary};
   font-family: inherit;
-  font-size: 16px;
-  line-height: 1.5;
 
-  background: #f5f6fb;
-  border: 1px solid #dfe4ef;
+  background: ${color.background.subtle};
+  border: 1px solid ${color.border.default};
   border-radius: 14px;
   resize: vertical;
 
   &::placeholder {
-    color: #8a94a8;
-    font-size: 12px;
+    ${typography.caption};
+    color: ${color.text.placeholder};
   }
 
   &:focus-visible {
-    border-color: #4356d8;
-    outline: 3px solid rgb(67 86 216 / 20%);
+    border-color: ${color.border.focused};
+    outline: 3px solid ${color.focus.ring};
   }
 
   &:disabled {
-    color: #7f8a9f;
+    color: ${color.text.disabled};
     cursor: wait;
   }
 `;
 
 const countStyle = css`
   margin: 8px 0 0;
-  color: #8a94a8;
-  font-size: 12px;
-  line-height: 1.5;
+  ${typography.caption};
+  color: ${color.text.secondary};
   text-align: right;
 `;
 
 const errorStyle = css`
   margin: 12px 0 0;
-  color: #d64545;
-  font-size: 12px;
-  line-height: 1.5;
+  ${typography.caption};
+  color: ${color.text.error};
 `;
 
 const submitButtonStyle = css`
@@ -123,29 +122,27 @@ const submitButtonStyle = css`
   margin-top: 16px;
   padding: 12px 16px;
 
-  color: #fff;
+  ${typography.bodySmallStrong};
+  color: ${color.text.inverse};
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.5;
 
-  background: #4356d8;
+  background: ${color.background.brand};
   border: 0;
   border-radius: 14px;
   cursor: pointer;
 
   &:active:not(:disabled) {
-    background: #3548c8;
+    background: ${color.background.brandPressed};
   }
 
   &:disabled {
-    color: #7f8a9f;
-    background: #dce0ec;
+    color: ${color.text.disabled};
+    background: ${color.background.disabled};
     cursor: not-allowed;
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 3px;
   }
 `;
@@ -153,14 +150,12 @@ const submitButtonStyle = css`
 const successStyle = css`
   width: 100%;
   padding-top: 16px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid ${color.border.default};
 `;
 
 const successMessageStyle = css`
   margin: 8px 0;
-  color: #18233d;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.5;
+  ${typography.label};
+  color: ${color.text.primary};
   text-align: center;
 `;
