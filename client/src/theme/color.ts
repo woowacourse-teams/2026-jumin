@@ -27,7 +27,6 @@ export const color = {
   background: {
     default: palette.white,
     subtle: palette.gray50,
-    neutralPressed: palette.gray100,
     inverse: palette.gray900,
     disabled: palette.gray250,
     brand: palette.primary500,
@@ -38,11 +37,6 @@ export const color = {
     brandSubtlePressed: palette.primary100,
     selected: palette.primary500,
     selectedSubtle: palette.primary50,
-  },
-
-  iconBackground: {
-    mint: palette.mint50,
-    peach: palette.peach50,
   },
 
   mapProvider: {

@@ -386,7 +386,7 @@ const styles = {
     color: ${color.text.secondary};
     background: ${color.background.default};
     &:hover {
-      background: ${color.background.neutralPressed};
+      background: ${color.background.subtle};
     }
     &:disabled {
       color: ${color.text.disabled};

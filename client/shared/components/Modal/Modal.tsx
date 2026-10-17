@@ -99,7 +99,7 @@ const closeButtonStyle = css`
   }
 
   &:active {
-    background: ${color.background.neutralPressed};
+    background: ${color.background.subtle};
   }
 
   &:focus-visible {

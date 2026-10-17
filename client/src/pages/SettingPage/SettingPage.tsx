@@ -11,7 +11,7 @@ import { FEEDBACK_URL } from '../../../shared/constants/help';
 import { useModal } from '../../../shared/hooks/useModal';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 import { color } from '../../theme/color';
-import { fontSize, fontWeight } from '../../theme/font';
+import { palette } from '../../theme/palette';
 import { typography } from '../../theme/typography';
 
 export const SettingPage = () => {
@@ -269,10 +269,10 @@ const styles = {
     }
   `,
   installIconFrame: css`
-    background: ${color.iconBackground.mint};
+    background: ${palette.mint50};
   `,
   feedbackIconFrame: css`
-    background: ${color.iconBackground.peach};
+    background: ${palette.peach50};
   `,
   itemTitle: css`
     ${typography.label};
