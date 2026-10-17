@@ -22,6 +22,8 @@ import { useParkingRecommendView } from '../hooks/useParkingRecommendView';
 import { useParkingRecommendScrollRestore } from '../hooks/useParkingRecommendScrollRestore';
 import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 type MapOutletContext = {
   map: naver.maps.Map | null;
@@ -450,10 +452,11 @@ const emptyMessageStyle = css`
   margin: 12px 16px 18px;
   padding: 24px;
 
-  color: #697386;
+  ${typography.body};
+  color: ${color.text.secondary};
   text-align: center;
 
-  background: #ffffff;
+  background: ${color.background.default};
   border-radius: 20px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 10%);
 `;
@@ -471,11 +474,10 @@ const filterButtonStyle = (isSelected: boolean) => css`
   height: 42px;
   padding: 0 12px;
 
-  color: ${isSelected ? '#ffffff' : '#2463d4'};
-  font-size: 14px;
-  font-weight: 700;
+  ${typography.label};
+  color: ${isSelected ? color.text.inverse : color.text.brand};
 
-  background: ${isSelected ? '#4356d8' : '#edf3ff'};
+  background: ${isSelected ? color.background.selected : color.background.brandSubtle};
   border: 0;
   border-radius: 12px;
   appearance: none;
@@ -484,8 +486,16 @@ const filterButtonStyle = (isSelected: boolean) => css`
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
 
+  &:hover {
+    background: ${isSelected ? color.background.brandHovered : color.background.brandSubtleHovered};
+  }
+
+  &:active {
+    background: ${isSelected ? color.background.brandPressed : color.background.brandSubtlePressed};
+  }
+
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;

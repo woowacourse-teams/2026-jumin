@@ -1,4 +1,5 @@
 import { css, cx, keyframes } from '@emotion/css';
+import { color } from '../../../theme/color';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -41,7 +42,12 @@ const shimmer = keyframes`
 `;
 
 const skeletonBlockStyle = css`
-  background: linear-gradient(90deg, #e5e8f0 25%, #f7f8fb 50%, #e5e8f0 75%);
+  background: linear-gradient(
+    90deg,
+    ${color.border.default} 25%,
+    ${color.background.subtle} 50%,
+    ${color.border.default} 75%
+  );
   background-size: 200% 100%;
   animation: ${shimmer} 1.4s ease-in-out infinite;
 
@@ -88,8 +94,8 @@ const cardStyle = css`
   min-height: 158px;
   padding: 16px 18px;
 
-  background: #ffffff;
-  border: 2px solid #dfe3ef;
+  background: ${color.background.default};
+  border: 2px solid ${color.border.default};
   border-radius: 24px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
 `;
@@ -141,7 +147,7 @@ const collapsedBottomSheetStyle = css`
 
   height: 100px;
 
-  background: #ffffff;
+  background: ${color.background.default};
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
 `;
@@ -156,6 +162,6 @@ const handleStyle = css`
   width: 40px;
   height: 4px;
 
-  background: #d9deeb;
+  background: ${color.border.default};
   border-radius: 999px;
 `;

@@ -21,6 +21,11 @@ export const typography = {
     lineHeight: lineHeight[150],
     fontWeight: fontWeight[400],
   },
+  bodyStrong: {
+    fontSize: fontSize[16],
+    lineHeight: lineHeight[150],
+    fontWeight: fontWeight[800],
+  },
   bodySmall: {
     fontSize: fontSize[14],
     lineHeight: lineHeight[150],

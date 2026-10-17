@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
 
 import brandMark from '../../assets/icons/brandMark.svg';
+import { color } from '../../src/theme/color';
+import { typography } from '../../src/theme/typography';
 
 interface Props {
   label: string;
@@ -45,7 +47,7 @@ const errorStyle = css`
 
   padding: 28px 24px 24px;
 
-  color: #101b37;
+  color: ${color.text.primary};
   text-align: center;
 
   background: rgb(255 255 255 / 96%);
@@ -73,18 +75,15 @@ const messageStyle = css`
 const titleStyle = css`
   margin: 0;
 
-  font-size: 19px;
-  font-weight: 800;
-  line-height: 1.35;
+  ${typography.titleCard};
   letter-spacing: -0.6px;
 `;
 
 const descriptionStyle = css`
   margin: 0;
 
-  color: #697386;
-  font-size: 14px;
-  line-height: 1.5;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
 `;
 
 const retryButtonStyle = css`
@@ -97,12 +96,11 @@ const retryButtonStyle = css`
   min-height: 52px;
   padding: 0 20px;
 
-  color: #ffffff;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 700;
+  font-family: inherit;
+  ${typography.label};
+  color: ${color.text.inverse};
 
-  background: #4356d8;
+  background: ${color.background.brand};
   border: 0;
   border-radius: 14px;
   cursor: pointer;
@@ -110,15 +108,15 @@ const retryButtonStyle = css`
   -webkit-tap-highlight-color: transparent;
 
   &:hover {
-    background: #3b4dcc;
+    background: ${color.background.brandHovered};
   }
 
   &:active {
-    background: #3548c8;
+    background: ${color.background.brandPressed};
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 3px;
   }
 `;
