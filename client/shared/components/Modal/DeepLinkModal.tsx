@@ -6,6 +6,8 @@ import Modal from 'react-modal';
 import { trackEvent } from '../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
 import { eventName } from '../../monitoring/constants';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -67,7 +69,7 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
           status: 'ERROR',
           message:
             error.code === error.PERMISSION_DENIED
-              ? '브라우저 설정에서 이 사이트의 위치 권한을 허용한 뒤 다시 시도해주세요.' // 일단 웹 출시이니까 이런식으로
+              ? '브라우저 설정에서 위치 권한을 허용해주세요.'
               : '현재 위치를 가져오지 못했어요.',
         });
       },
@@ -192,7 +194,7 @@ const overlayStyle = css`
   padding: 20px;
   box-sizing: border-box;
 
-  background: rgb(16 27 55 / 48%);
+  background: ${color.overlay.scrim};
 `;
 
 const modalStyle = css`
@@ -202,8 +204,8 @@ const modalStyle = css`
   padding: 26px 20px 18px;
   box-sizing: border-box;
 
-  color: #18233d;
-  background: #fff;
+  color: ${color.text.primary};
+  background: ${color.background.default};
   border: 0;
   border-radius: 24px;
   box-shadow: 0 24px 64px rgb(16 27 55 / 24%);
@@ -222,8 +224,8 @@ const closeButtonStyle = css`
   height: 36px;
   padding: 0;
 
-  color: #7f8a9f;
-  font-size: 24px;
+  color: ${color.icon.default};
+  ${typography.titleSection}
   line-height: 1;
 
   background: transparent;
@@ -232,16 +234,14 @@ const closeButtonStyle = css`
   cursor: pointer;
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 25%);
+    outline: 3px solid ${color.focus.ring};
   }
 `;
 
 const titleStyle = css`
   margin: 0 40px 6px 0;
 
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.35;
+  ${typography.titleSection};
   letter-spacing: -0.5px;
 `;
 
@@ -249,9 +249,8 @@ const descriptionStyle = css`
   margin: 0 0 14px;
   overflow: hidden;
 
-  color: #8a94a8;
-  font-size: 12px;
-  line-height: 1.5;
+  ${typography.caption};
+  color: ${color.text.secondary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
@@ -266,12 +265,12 @@ const providerButtonStyle = css`
   min-height: 68px;
   padding: 8px 4px;
 
-  color: #18233d;
+  color: ${color.text.primary};
   text-align: left;
 
-  background: #fff;
+  background: ${color.background.default};
   border: 0;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid ${color.border.default};
   cursor: pointer;
 
   strong,
@@ -280,14 +279,13 @@ const providerButtonStyle = css`
   }
 
   strong {
-    font-size: 14px;
-    font-weight: 800;
+    ${typography.bodySmallStrong};
   }
 
   small {
     margin-top: 3px;
-    color: #99a2b3;
-    font-size: 11px;
+    ${typography.caption};
+    color: ${color.text.secondary};
   }
 
   &:disabled {
@@ -296,7 +294,7 @@ const providerButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 20%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: -3px;
   }
 `;
@@ -308,45 +306,44 @@ const providerLogoBaseStyle = css`
   width: 42px;
   height: 42px;
 
-  font-size: 15px;
-  font-weight: 900;
+  ${typography.bodyStrong};
 
   border-radius: 11px;
 `;
 
 const providerLogoStyles: Record<DirectionsProvider, string> = {
   NAVER: css`
-    color: #fff;
-    background: #03c75a;
+    color: ${color.mapProvider.naver.foreground};
+    background: ${color.mapProvider.naver.background};
   `,
   KAKAO: css`
-    color: #231f20;
-    background: #fee500;
+    color: ${color.mapProvider.kakao.foreground};
+    background: ${color.mapProvider.kakao.background};
   `,
   TMAP: css`
-    color: #546176;
-    background: #eef1f7;
+    color: ${color.mapProvider.tmap.foreground};
+    background: ${color.mapProvider.tmap.background};
   `,
 };
 
 const chevronStyle = css`
-  color: #a6afbf;
-  font-size: 22px;
+  color: ${color.icon.default};
+  ${typography.titleSection}
 `;
 
 const statusStyle = css`
   margin: 12px 0 0;
 
-  color: #7f8a9f;
-  font-size: 12px;
+  ${typography.caption};
+  color: ${color.text.secondary};
   text-align: center;
 `;
 
 const errorStyle = css`
   margin-top: 12px;
 
-  color: #d64545;
-  font-size: 12px;
+  ${typography.caption};
+  color: ${color.text.error};
   text-align: center;
 
   p {
@@ -356,11 +353,11 @@ const errorStyle = css`
   button {
     padding: 8px 12px;
 
-    color: #4356d8;
+    color: ${color.text.brand};
     font: inherit;
-    font-weight: 800;
+    ${typography.bodySmallStrong}
 
-    background: #f1f3ff;
+    background: ${color.background.brandSubtle};
     border: 0;
     border-radius: 9px;
     cursor: pointer;

@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router';
 import { css } from '@emotion/css';
+import { color } from '../../src/theme/color';
+import { typography } from '../../src/theme/typography';
 
 interface Props {
   parkingLotName: string;
@@ -47,7 +49,7 @@ const headerStyle = css`
   height: calc(60px + env(safe-area-inset-top, 0px));
   padding: calc(0px + env(safe-area-inset-top, 0px)) 18px 0;
   box-sizing: border-box;
-  background: #fff;
+  background: ${color.background.default};
 `;
 
 const headerContentStyle = css`
@@ -61,10 +63,8 @@ const headerContentStyle = css`
 const addressStyle = css`
   margin: 0;
 
-  color: #768197;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
 `;
 
 const backButtonStyle = css`
@@ -74,7 +74,7 @@ const backButtonStyle = css`
   width: 40px;
   height: 40px;
   padding: 0;
-  color: #62708a;
+  color: ${color.icon.default};
   background: transparent;
   border: 0;
   border-radius: 12px;
@@ -90,7 +90,7 @@ const backButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 25%);
+    outline: 3px solid ${color.focus.ring};
   }
 `;
 
@@ -98,10 +98,8 @@ const parkingNameStyle = css`
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: #18233d;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.4;
+  ${typography.bodyStrong};
+  color: ${color.text.primary};
   letter-spacing: -0.3px;
   text-overflow: ellipsis;
   white-space: nowrap;
