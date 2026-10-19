@@ -17,7 +17,6 @@ import { DestinationMapOverlay } from '../../../../shared/components/service/des
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
 import { ParkingDetailActions } from '../../../../shared/components/service/parking/ParkingDetailActions';
-import { ParkingLikeButton } from '../../../../shared/components/service/parking/ParkingLikeButton';
 import { ParkingReportAction } from '../../../../shared/components/service/parking/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
@@ -154,16 +153,12 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section className={sheetContentStyle}>
           <ParkingDetailActions
+            parkingLotId={parkingLotDetail.id}
+            likeCount={parkingLike.likeCount}
+            likedByMe={parkingLike.likedByMe}
             onDirections={handleRecommendDirectionButtonClick}
             onRoadView={handleRoadViewButtonClick}
-          >
-            <ParkingLikeButton
-              key={parkingLotDetail.id}
-              parkingLotId={parkingLotDetail.id}
-              likeCount={parkingLike.likeCount}
-              likedByMe={parkingLike.likedByMe}
-            />
-          </ParkingDetailActions>
+          />
           <div className={scrollContentStyle}>
             <div className={feeCardStyle}>
               <div className={totalFeeStyle}>
