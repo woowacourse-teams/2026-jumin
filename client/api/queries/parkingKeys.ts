@@ -4,12 +4,12 @@ import type {
   ParkingViewportRequestParams,
 } from '../parkingLots';
 
-export const parkingKeys = {
-  all: ['parking-lots'] as const,
+const parkingRoot = ['parking-lots'] as const;
 
+export const parkingKeys = {
   viewport: (params: ParkingViewportRequestParams) =>
     [
-      'parking-lots',
+      parkingRoot,
       'viewport',
       {
         southLatitude: params.southLatitude,
@@ -21,12 +21,11 @@ export const parkingKeys = {
       },
     ] as const,
 
-  viewportDetail: (parkingLotId: number) =>
-    ['parking-lots', 'viewport-detail', parkingLotId] as const,
+  viewportDetail: (parkingLotId: number) => [parkingRoot, 'viewport-detail', parkingLotId] as const,
 
   detail: (parkingLotId: number, condition: ParkingDetailParams) =>
     [
-      'parking-lots',
+      parkingRoot,
       'detail',
       parkingLotId,
       {
@@ -39,7 +38,7 @@ export const parkingKeys = {
 
   search: (params: ParkingSearchParams) =>
     [
-      'parking-lots',
+      parkingRoot,
       'search',
       {
         destinationLatitude: params.destinationLatitude,
