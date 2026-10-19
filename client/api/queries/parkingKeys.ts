@@ -9,7 +9,7 @@ const parkingRoot = ['parking-lots'] as const;
 export const parkingKeys = {
   viewport: (params: ParkingViewportRequestParams) =>
     [
-      parkingRoot,
+      ...parkingRoot,
       'viewport',
       {
         southLatitude: params.southLatitude,
@@ -21,11 +21,12 @@ export const parkingKeys = {
       },
     ] as const,
 
-  viewportDetail: (parkingLotId: number) => [parkingRoot, 'viewport-detail', parkingLotId] as const,
+  viewportDetail: (parkingLotId: number) =>
+    [...parkingRoot, 'viewport-detail', parkingLotId] as const,
 
   detail: (parkingLotId: number, condition: ParkingDetailParams) =>
     [
-      parkingRoot,
+      ...parkingRoot,
       'detail',
       parkingLotId,
       {
@@ -38,7 +39,7 @@ export const parkingKeys = {
 
   search: (params: ParkingSearchParams) =>
     [
-      parkingRoot,
+      ...parkingRoot,
       'search',
       {
         destinationLatitude: params.destinationLatitude,
