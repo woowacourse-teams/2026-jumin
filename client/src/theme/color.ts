@@ -30,7 +30,7 @@ export const color = {
     inverse: palette.gray900,
     disabled: palette.gray250,
     brand: palette.primary500,
-    brandHovered: palette.primary550,
+    brandHovered: palette.primary600,
     brandPressed: palette.primary600,
     brandSubtle: palette.primary50,
     brandSubtleHovered: palette.primary100,
