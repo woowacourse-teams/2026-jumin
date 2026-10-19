@@ -19,49 +19,44 @@ interface Props extends ComponentProps<'button'> {
  * - subtle: 로드뷰처럼 연한 브랜드 배경과 테두리를 사용하는 버튼
  * - outline: 흰 배경과 중립색 테두리를 사용하는 보조 버튼
  * - ghost: 배경 없이 글자나 아이콘을 표시하는 버튼
- * - rose: 좋아요처럼 분홍색을 사용하는 버튼. 선택 여부는 aria-pressed로 전달합니다.
+ * - rose: 분홍색 버튼. aria-pressed가 true이면 배경과 글자색을 반전한다.
  */
 type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost' | 'rose';
 
-/** active는 사용 가능, loading은 처리 중, inactive는 비활성 상태입니다. */
+/** active는 사용 가능, loading은 처리 중, inactive는 비활성 상태 */
 type ButtonStatus = 'active' | 'loading' | 'inactive';
 
 /** 최소 높이·내부 여백·모서리·아이콘 크기를 함께 결정합니다. */
 type ButtonSize = 'sm' | 'md' | 'lg';
 type ButtonSizeToken =
-  'minHeight' | 'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconSize' | 'spinnerSize';
+  'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconSize' | 'spinnerSize';
 
 /**
- * 사이즈별 치수. rem 값은 기본 글꼴 16px 기준으로 주석의 px에 대응합니다.
+ * 사이즈별 치수.
  *
- * sm은 추천 카드의 버튼, md는 상세 액션, lg는 가이드·재시도 버튼을 기준으로 합니다.
- * md의 좌우 여백은 상세 페이지의 3열 배치에 맞춰 작게 유지합니다.
- * height 대신 min-height를 사용해 내용에 따라 높이가 늘어나도록 합니다.
- * 사용자가 글꼴 크기를 키워도 버튼이 함께 커져서 글자가 잘리지 않아요.
+ * rem 값은 기본 글꼴 16px 기준으로 주석의 px에 대응한다.
+ * height가 아니라 paddingY를 사용해서 높이를 지정한다. (글자가 커져도 버튼에 짤리지 않게 하기 위해)
  */
 const BUTTON_SIZE = {
   lg: {
-    minHeight: '3.25rem' /* 52px */,
     paddingX: '1.25rem' /* 20px */,
-    paddingY: '0rem',
+    paddingY: '1rem' /* 16px */,
     borderRadius: '0.875rem' /* 14px */,
     gap: '0.5rem' /* 8px */,
     iconSize: '1.375rem' /* 22px */,
     spinnerSize: '1.375rem' /* 22px */,
   },
   md: {
-    minHeight: '3rem' /* 48px */,
     paddingX: '0.25rem' /* 4px */,
-    paddingY: '0rem',
+    paddingY: '0.75rem' /* 12px */,
     borderRadius: '0.75rem' /* 12px */,
     gap: '0.25rem' /* 4px */,
     iconSize: '1.125rem' /* 18px */,
     spinnerSize: '1.125rem' /* 18px */,
   },
   sm: {
-    minHeight: '2.75rem' /* 44px */,
     paddingX: '0.625rem' /* 10px */,
-    paddingY: '0rem',
+    paddingY: '0.5rem' /* 8px */,
     borderRadius: '0.75rem' /* 12px */,
     gap: '0.375rem' /* 6px */,
     iconSize: '1rem' /* 16px */,
@@ -70,8 +65,10 @@ const BUTTON_SIZE = {
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
 /**
- * 외형과 상태별 색상. 로딩 중에는 기본 색상을 유지합니다.
- * 테두리는 inset 그림자로 표시해 상태가 바뀌어도 버튼 크기가 달라지지 않습니다.
+ * 외형과 상태별 색상.
+ *
+ * hover와 클릭에는 같은 색상을 사용한다.
+ * 로딩·비활성 상태에는 hover와 클릭 색상을 적용하지 않는다.
  */
 const buttonAppearance = {
   brand: {
@@ -79,6 +76,11 @@ const buttonAppearance = {
       background-color: ${color.background.brand};
       color: ${color.text.inverse};
       box-shadow: none;
+
+      &:hover:not(:disabled),
+      &:active:not(:disabled) {
+        background-color: ${color.background.brandHovered};
+      }
     `,
     loading: css`
       background-color: ${color.background.brand};
@@ -96,6 +98,11 @@ const buttonAppearance = {
       background-color: ${color.background.brandSubtle};
       color: ${color.text.brand};
       box-shadow: inset 0 0 0 1px ${color.border.brandSubtle};
+
+      &:hover:not(:disabled),
+      &:active:not(:disabled) {
+        background-color: ${color.background.brandSubtleHovered};
+      }
     `,
     loading: css`
       background-color: ${color.background.brandSubtle};
@@ -113,6 +120,11 @@ const buttonAppearance = {
       background-color: ${color.background.default};
       color: ${color.text.secondary};
       box-shadow: inset 0 0 0 1px ${color.border.default};
+
+      &:hover:not(:disabled),
+      &:active:not(:disabled) {
+        background-color: ${color.background.subtle};
+      }
     `,
     loading: css`
       background-color: ${color.background.default};
@@ -130,6 +142,11 @@ const buttonAppearance = {
       background-color: transparent;
       color: ${color.text.secondary};
       box-shadow: none;
+
+      &:hover:not(:disabled),
+      &:active:not(:disabled) {
+        background-color: ${color.background.subtle};
+      }
     `,
     loading: css`
       background-color: transparent;
@@ -147,11 +164,33 @@ const buttonAppearance = {
       background-color: ${palette.rose50};
       color: ${palette.rose500};
       box-shadow: inset 0 0 0 1px ${palette.rose200};
+
+      &:hover:not(:disabled),
+      &:active:not(:disabled) {
+        background-color: ${palette.rose100};
+      }
+
+      &[aria-pressed='true'] {
+        background-color: ${palette.rose500};
+        color: ${color.text.inverse};
+        box-shadow: inset 0 0 0 1px ${palette.rose500};
+
+        &:hover:not(:disabled),
+        &:active:not(:disabled) {
+          background-color: ${palette.rose600};
+        }
+      }
     `,
     loading: css`
       background-color: ${palette.rose50};
       color: ${palette.rose500};
       box-shadow: inset 0 0 0 1px ${palette.rose200};
+
+      &[aria-pressed='true'] {
+        background-color: ${palette.rose500};
+        color: ${color.text.inverse};
+        box-shadow: inset 0 0 0 1px ${palette.rose500};
+      }
     `,
     inactive: css`
       background-color: ${palette.rose50};
@@ -161,7 +200,7 @@ const buttonAppearance = {
   },
 } satisfies Record<ButtonVariant, Record<ButtonStatus, string>>;
 
-/** 버튼 본체의 공통 스타일, 크기와 상태별 커서를 결정합니다. */
+/** 버튼 본체의 공통 스타일, 크기와 상태별 커서를 결정한다. */
 const root = (size: ButtonSize, status: ButtonStatus) => {
   const sizeToken = BUTTON_SIZE[size];
 
@@ -170,7 +209,6 @@ const root = (size: ButtonSize, status: ButtonStatus) => {
     align-items: center;
     justify-content: center;
     min-width: 0;
-    min-height: ${sizeToken.minHeight};
     white-space: nowrap;
     gap: ${sizeToken.gap};
     padding: ${sizeToken.paddingY} ${sizeToken.paddingX};
@@ -182,17 +220,12 @@ const root = (size: ButtonSize, status: ButtonStatus) => {
 
     &:focus-visible {
       outline: 0.1875rem solid ${color.focus.ring};
-      outline-offset: 0.125rem;
-    }
-
-    @media (max-width: 22.5rem) {
-      font-size: ${fontSize[12]};
-      padding-inline: ${size === 'md' ? '0.125rem' : sizeToken.paddingX};
+      outline-offset: 0.0625rem;
     }
   `;
 };
 
-/** 아이콘 영역의 크기를 고정하고 SVG와 이미지가 영역 안에 맞도록 합니다. */
+/** 아이콘 영역의 크기를 고정하고 SVG와 이미지가 영역 안에 맞도록 조정 */
 const iconStyle = (size: ButtonSize) => {
   const sizeToken = BUTTON_SIZE[size];
 
@@ -203,18 +236,6 @@ const iconStyle = (size: ButtonSize) => {
     flex-shrink: 0;
     width: ${sizeToken.iconSize};
     height: ${sizeToken.iconSize};
-
-    @media (max-width: 22.5rem) {
-      width: ${size === 'md' ? '1rem' : sizeToken.iconSize};
-      height: ${size === 'md' ? '1rem' : sizeToken.iconSize};
-    }
-
-    > svg,
-    > img {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
   `;
 };
 
@@ -229,7 +250,6 @@ export const Button = ({
   ...props
 }: Props) => {
   const status: ButtonStatus = isLoading ? 'loading' : disabled ? 'inactive' : 'active';
-
   const appearance = buttonAppearance[variant][status];
 
   return (
