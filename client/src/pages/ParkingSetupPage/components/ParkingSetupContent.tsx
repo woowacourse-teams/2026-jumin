@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 
 import type { Destination } from '../../../../api/contracts';
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
-import { SearchBar } from '../../../../shared/components/SearchBar';
+import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
 import type { ParkingSearchCondition, ParkingSetupView } from '../../../../shared/types/navigation';
 import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';

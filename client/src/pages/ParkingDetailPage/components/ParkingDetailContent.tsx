@@ -4,25 +4,26 @@ import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/vi
 import type { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
-import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
 import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
   type BottomSheetSnap,
-} from '../../../../shared/components/BottomSheet';
+} from '../../../../shared/components/ui/BottomSheet';
 import { useCallback, useEffect, useState } from 'react';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
-import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { DestinationMapOverlay } from '../../../../shared/components/service/destination/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
-import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
-import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
-import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { ParkingDetailActions } from '../../../../shared/components/service/parking/ParkingDetailActions';
+import { ParkingReportAction } from '../../../../shared/components/service/parking/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
-import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
+import { RoadViewOverlay } from '../../../../shared/components/service/parking/RoadViewOverlay';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -152,16 +153,12 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
         <section className={sheetContentStyle}>
           <ParkingDetailActions
+            parkingLotId={parkingLotDetail.id}
+            likeCount={parkingLike.likeCount}
+            likedByMe={parkingLike.likedByMe}
             onDirections={handleRecommendDirectionButtonClick}
             onRoadView={handleRoadViewButtonClick}
-          >
-            <ParkingLikeButton
-              key={parkingLotDetail.id}
-              parkingLotId={parkingLotDetail.id}
-              likeCount={parkingLike.likeCount}
-              likedByMe={parkingLike.likedByMe}
-            />
-          </ParkingDetailActions>
+          />
           <div className={scrollContentStyle}>
             <div className={feeCardStyle}>
               <div className={totalFeeStyle}>
@@ -284,9 +281,9 @@ const scrollContentStyle = css`
 const feeCardStyle = css`
   overflow: hidden;
 
-  background: #fff;
+  background: ${color.background.default};
 
-  border: 1px solid #dfe4ef;
+  border: 1px solid ${color.border.default};
 
   border-radius: 18px;
 
@@ -310,18 +307,16 @@ const feeRuleListStyle = css`
   dd {
     margin: 0;
 
-    font-size: 14px;
-    line-height: 1.35;
+    ${typography.bodySmall};
   }
 
   dt {
-    color: #768197;
-    font-weight: 500;
+    color: ${color.text.secondary};
   }
 
   dd {
-    color: #25314a;
-    font-weight: 800;
+    ${typography.bodySmallStrong};
+    color: ${color.text.primary};
   }
 `;
 
@@ -333,18 +328,14 @@ const totalFeeStyle = css`
   min-height: 64px;
   padding: 0 18px;
 
-  color: #18233d;
-  font-size: 15px;
-  font-weight: 800;
+  ${typography.bodySmallStrong};
+  color: ${color.text.primary};
 
-  background: #f0f2ff;
+  background: ${color.background.brandSubtle};
 
   strong {
-    color: #4356d8;
-
-    font-size: 17px;
-
-    font-weight: 800;
+    ${typography.titleCard};
+    color: ${color.text.brand};
   }
 `;
 
@@ -362,14 +353,13 @@ const detailsStyle = css`
   dt,
   dd {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.35;
+    ${typography.bodySmall};
   }
   dt {
-    color: #8a94a8;
+    color: ${color.text.secondary};
   }
   dd {
-    color: #2f3b55;
-    font-weight: 750;
+    ${typography.bodySmallStrong};
+    color: ${color.text.primary};
   }
 `;

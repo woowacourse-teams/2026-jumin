@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { GuideModal } from '../../shared/components/Modal/GuideModal';
+import { GuideModal } from '../../shared/components/service/guide/GuideModal';
 import { useModal } from '../../shared/hooks/useModal';
 
 const GuideModalHarness = () => {

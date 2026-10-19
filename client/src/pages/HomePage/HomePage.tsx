@@ -4,12 +4,12 @@ import { css } from '@emotion/css';
 import { useCallback, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
-import { type BottomSheetSnap } from '../../../shared/components/BottomSheet';
+import { type BottomSheetSnap } from '../../../shared/components/ui/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { BottomNav } from '../../../shared/components/BottomNav';
-import { SearchBar } from '../../../shared/components/SearchBar';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
+import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
 import type { ParkingLotViewport } from '../../../api/contracts';
 import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
@@ -17,6 +17,8 @@ import { trackEvent } from '../../../shared/analytics';
 import { eventName } from '../../../shared/monitoring/constants';
 import type { ParkingViewportFilters } from '../../../api/parkingLots';
 import { ParkingFilterBar } from './components/ParkingFilterBar';
+import { typography } from '../../theme/typography';
+import { color } from '../../theme/color';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -204,10 +206,8 @@ const zoomGuideStyle = css`
   margin: 0;
   padding: 10px 16px;
 
-  color: #101b37;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.primary};
   text-align: center;
   word-break: keep-all;
 

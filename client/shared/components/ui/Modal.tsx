@@ -1,5 +1,7 @@
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 interface Props {
   onClose: () => void;
@@ -46,7 +48,7 @@ const overlayStyle = css`
   padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 
-  background: rgb(16 27 55 / 48%);
+  background: ${color.overlay.scrim};
 `;
 
 const modalStyle = css`
@@ -58,8 +60,8 @@ const modalStyle = css`
   box-sizing: border-box;
   overflow-y: auto;
 
-  color: #18233d;
-  background: #fff;
+  color: ${color.text.primary};
+  background: ${color.background.default};
   border: 0;
   border-radius: 24px;
   box-shadow: 0 24px 64px rgb(16 27 55 / 24%);
@@ -78,9 +80,9 @@ const closeButtonStyle = css`
   height: 36px;
   padding: 0;
 
-  color: #7f8a9f;
+  color: ${color.icon.default};
   font-family: inherit;
-  font-size: 26px;
+  font-size: 1.625rem;
   line-height: 1;
 
   background: transparent;
@@ -92,27 +94,25 @@ const closeButtonStyle = css`
   -webkit-tap-highlight-color: transparent;
 
   &:hover {
-    color: #18233d;
-    background: #f5f6fb;
+    color: ${color.text.primary};
+    background: ${color.background.subtle};
   }
 
   &:active {
-    background: #e9ecf4;
+    background: ${color.background.subtle};
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
   }
 `;
 
 const labelStyle = css`
   margin: 0 44px 18px 0;
 
-  color: #101b37;
+  ${typography.titleSection};
+  color: ${color.text.primary};
   font-family: inherit;
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.4;
   letter-spacing: -0.4px;
 `;
 
@@ -124,15 +124,13 @@ const contentStyle = css`
 
 const labelWithDescriptionStyle = css`
   margin: 0 40px 6px 0;
-  color: #18233d;
-  line-height: 1.35;
+  color: ${color.text.primary};
   letter-spacing: -0.5px;
 `;
 
 const descriptionStyle = css`
   margin: 0 0 14px;
 
-  color: #8a94a8;
-  font-size: 12px;
-  line-height: 1.5;
+  ${typography.caption};
+  color: ${color.text.secondary};
 `;

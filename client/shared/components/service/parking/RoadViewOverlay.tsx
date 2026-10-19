@@ -4,7 +4,10 @@ import { css } from '@emotion/css';
 import * as Sentry from '@sentry/react';
 import ReactModal from 'react-modal';
 
-import { loadNaverMaps } from '../maps/loadNaverMaps';
+import { loadNaverMaps } from '../../../maps/loadNaverMaps';
+import { color } from '../../../../src/theme/color';
+import { fontSize, fontWeight } from '../../../../src/theme/font';
+import { typography } from '../../../../src/theme/typography';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -168,7 +171,7 @@ const overlayStyle = css`
   inset: 0;
   z-index: 3000;
 
-  background: #101b37;
+  background: ${color.background.inverse};
 
   @media (min-width: 431px) and (hover: hover) and (pointer: fine) {
     inset: 50% auto auto 50%;
@@ -188,7 +191,7 @@ const contentStyle = css`
   padding: 0;
   overflow: hidden;
 
-  background: #101b37;
+  background: ${color.background.inverse};
   outline: none;
 `;
 
@@ -205,7 +208,7 @@ const headerStyle = css`
 
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 24px;
 
-  color: #fff;
+  color: ${color.text.inverse};
   background: linear-gradient(rgb(16 27 55 / 80%), rgb(16 27 55 / 0%));
   pointer-events: none;
 `;
@@ -219,10 +222,10 @@ const closeButtonStyle = css`
   height: 44px;
   padding: 0;
 
-  color: #fff;
+  color: ${color.icon.inverse};
   font-family: inherit;
-  font-size: 32px;
-  font-weight: 300;
+  font-size: ${fontSize[30]};
+  font-weight: ${fontWeight[400]};
   line-height: 1;
 
   background: rgb(16 27 55 / 64%);
@@ -251,23 +254,20 @@ const headerTextStyle = css`
   }
 
   h2 {
-    font-size: 17px;
-    font-weight: 800;
-    line-height: 1.35;
+    ${typography.titleCard};
   }
 
   p {
     margin-top: 3px;
     color: rgb(255 255 255 / 78%);
-    font-size: 12px;
-    line-height: 1.4;
+    ${typography.caption};
   }
 `;
 
 const panoramaStyle = css`
   width: 100%;
   height: 100%;
-  background: #202a43;
+  background: ${color.background.inverse};
 `;
 
 const statusStyle = css`
@@ -279,7 +279,7 @@ const statusStyle = css`
 
   padding: 18px 20px;
 
-  color: #18233d;
+  color: ${color.text.primary};
   text-align: center;
 
   background: rgb(255 255 255 / 94%);
@@ -289,8 +289,6 @@ const statusStyle = css`
 
   p {
     margin: 0;
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.5;
+    ${typography.label};
   }
 `;

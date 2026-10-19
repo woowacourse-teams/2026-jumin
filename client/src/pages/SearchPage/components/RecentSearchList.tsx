@@ -1,6 +1,9 @@
 import { css } from '@emotion/css';
 import type { Destination } from '../../../../api/contracts';
 import { RecentSearchRow } from './RecentSearchRow';
+import { color } from '../../../theme/color';
+import { fontWeight } from '../../../theme/font';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   recentSearches: Destination[];
@@ -22,15 +25,15 @@ export const RecentSearchList = ({ recentSearches, onSelect, onRemove, onClear }
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 20px 8px;
+        padding: 16px 24px 8px;
       `}
     >
       <h2
         className={css`
           margin: 0;
-          color: #344054;
-          font-size: 12px;
-          font-weight: 600;
+          ${typography.caption};
+          color: ${color.text.primary};
+          font-weight: ${fontWeight[700]};
         `}
       >
         최근 검색
@@ -40,9 +43,9 @@ export const RecentSearchList = ({ recentSearches, onSelect, onRemove, onClear }
           padding: 0;
           border: 0;
           background: transparent;
-          color: #98a2b3;
+          ${typography.caption};
+          color: ${color.text.secondary};
           cursor: pointer;
-          font-size: 12px;
         `}
         type="button"
         onClick={onClear}

@@ -4,7 +4,7 @@ import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMa
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 
-import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { DestinationMapOverlay } from '../../../../shared/components/service/destination/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 

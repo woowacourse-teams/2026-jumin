@@ -2,9 +2,11 @@ import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { BottomNav } from '../../../shared/components/BottomNav';
-import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
-import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { RecentHistoryRow } from '../../../shared/components/service/RecentHistoryRow';
+import { color } from '../../theme/color';
+import { typography } from '../../theme/typography';
 import {
   loadRecentParkingUses,
   type RecentParkingLot,
@@ -86,9 +88,9 @@ const pageStyle = css`
   flex-direction: column;
   overflow: hidden;
 
-  color: #18233d;
+  color: ${color.text.primary};
 
-  background: #fff;
+  background: ${color.background.default};
 `;
 
 const headerStyle = css`
@@ -110,8 +112,8 @@ const backButtonStyle = css`
   padding: 0;
   margin-bottom: 10px;
 
-  color: #43506a;
-  font-size: 36px;
+  color: ${color.icon.default};
+  font-size: 2.25rem;
   line-height: 1;
 
   background: transparent;
@@ -124,8 +126,7 @@ const backButtonStyle = css`
 const titleStyle = css`
   margin: 0 0 0 6px;
 
-  font-size: 20px;
-  font-weight: 800;
+  ${typography.titleSection};
   letter-spacing: -0.4px;
 `;
 
@@ -146,8 +147,8 @@ const listStyle = css`
 const emptyMessageStyle = css`
   margin: 72px 20px 0;
 
-  color: #98a2b3;
-  font-size: 14px;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
   text-align: center;
 `;
 

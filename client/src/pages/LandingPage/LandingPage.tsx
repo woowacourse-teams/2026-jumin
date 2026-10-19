@@ -5,6 +5,9 @@ import brandMark from '../../../assets/icons/brandMark.svg';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 import parkingHero from '../../../assets/parking-hero.jpg';
 import { LandingGuide } from './components/LandingGuide';
+import { color } from '../../theme/color';
+import { fontSize, fontWeight, lineHeight } from '../../theme/font';
+import { typography } from '../../theme/typography';
 
 export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
@@ -119,15 +122,15 @@ applyLandingRootStyles();
 
 const styles = {
   page: css`
-    --landing-primary: #4356d8;
-    --landing-ink: #18233d;
+    --landing-primary: ${color.text.brand};
+    --landing-ink: ${color.text.primary};
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
     color: var(--landing-ink);
-    background: #fff;
+    background: ${color.background.default};
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
 
@@ -143,7 +146,7 @@ const styles = {
     }
     a:focus-visible,
     button:focus-visible {
-      outline: 3px solid #99a6ff;
+      outline: 3px solid ${color.border.focused};
       outline-offset: 6px;
     }
 
@@ -163,8 +166,9 @@ const styles = {
     left: 16px;
     z-index: 5;
     padding: 12px 18px;
-    color: #18233d !important;
-    background: #fff;
+    ${typography.bodySmall};
+    color: ${color.text.primary} !important;
+    background: ${color.background.default};
     border-radius: 8px;
     transform: translateY(-180%);
     &:focus {
@@ -176,8 +180,8 @@ const styles = {
     display: flex;
     min-height: max(700px, 100svh);
     flex-direction: column;
-    color: #fff;
-    background: #161d25;
+    color: ${color.text.inverse};
+    background: ${color.background.inverse};
     isolation: isolate;
 
     &::after {
@@ -227,8 +231,8 @@ const styles = {
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
-    font-size: 25px;
-    font-weight: 800;
+    font-size: 1.5625rem;
+    font-weight: ${fontWeight[800]};
     letter-spacing: -1.1px;
     img {
       filter: brightness(0) invert(1);
@@ -236,7 +240,7 @@ const styles = {
 
     @media (max-width: 700px) {
       gap: 8px;
-      font-size: 21px;
+      font-size: 1.3125rem;
       img {
         width: 23px;
         height: 26px;
@@ -247,20 +251,19 @@ const styles = {
     display: flex;
     align-items: center;
     gap: 36px;
-    font-size: 15px;
-    font-weight: 600;
+    ${typography.label};
     a {
       padding: 12px 0;
     }
     a:hover {
-      color: #c9d0ff;
+      color: ${color.text.inverseSecondary};
     }
     span {
       margin-left: 8px;
     }
 
     @media (max-width: 700px) {
-      font-size: 13px;
+      font-size: ${fontSize[12]};
       a:not(:last-child) {
         display: none;
       }
@@ -277,9 +280,8 @@ const styles = {
 
     h1 {
       margin: 24px 0 28px;
-      font-size: clamp(44px, 4.7vw, 70px);
-      font-weight: 800;
-      line-height: 1.23;
+      ${typography.titlePage};
+      font-size: clamp(2.75rem, 4.7vw, 4.375rem);
       letter-spacing: -2.8px;
     }
 
@@ -299,29 +301,28 @@ const styles = {
       padding: 64px 0 100px;
       h1 {
         margin: 20px 0 22px;
-        font-size: clamp(31px, 7.7vw, 50px);
-        line-height: 1.3;
+        font-size: clamp(1.9375rem, 7.7vw, 3.125rem);
         letter-spacing: -1.4px;
       }
     }
   `,
   heroEyebrow: css`
-    color: #d6dbed;
-    font-size: 16px;
-    font-weight: 600;
+    ${typography.body};
+    color: ${color.text.inverseSecondary};
+    font-weight: ${fontWeight[700]};
     letter-spacing: -0.2px;
     @media (max-width: 700px) {
-      font-size: 13px;
+      font-size: ${fontSize[14]};
     }
   `,
   heroDescription: css`
-    color: #e0e4ee;
-    font-size: 19px;
-    line-height: 1.7;
+    ${typography.body};
+    color: ${color.text.inverseSecondary};
+    font-size: ${fontSize[18]};
     letter-spacing: -0.4px;
     @media (max-width: 700px) {
       max-width: 300px;
-      font-size: 15px;
+      font-size: ${fontSize[16]};
     }
   `,
   actions: css`
@@ -345,8 +346,8 @@ const styles = {
     justify-content: center;
     gap: 28px;
     padding: 0 28px;
-    font-size: 16px;
-    font-weight: 700;
+    ${typography.label};
+    font-size: ${fontSize[16]};
     border: 1px solid transparent;
     border-radius: 10px;
     cursor: pointer;
@@ -354,8 +355,8 @@ const styles = {
       background 160ms ease,
       transform 160ms ease;
     span {
-      font-size: 21px;
-      font-weight: 400;
+      font-size: ${fontSize[20]};
+      font-weight: ${fontWeight[400]};
     }
     &:hover {
       transform: translateY(-2px);
@@ -366,34 +367,36 @@ const styles = {
     }
     @media (max-width: 700px) {
       min-height: 56px;
-      font-size: 15px;
+      font-size: ${fontSize[14]};
     }
   `,
   primaryButton: css`
     min-width: 250px;
-    color: #fff;
-    background: var(--landing-primary);
+    color: ${color.text.inverse};
+    background: ${color.background.brand};
     &:hover {
-      background: #3548c8;
+      background: ${color.background.brandHovered};
+    }
+    &:active {
+      background: ${color.background.brandPressed};
     }
   `,
   installButton: css`
     min-width: 190px;
-    color: #4d4d4d;
-    background: #ffffff;
+    color: ${color.text.secondary};
+    background: ${color.background.default};
     &:hover {
-      background: #acacac;
+      background: ${color.background.subtle};
     }
     &:disabled {
-      color: #e0e4ee;
+      color: ${color.text.disabled};
     }
   `,
   installMessage: css`
     max-width: 450px;
     margin-top: 14px !important;
-    color: #fff;
-    font-size: 14px;
-    line-height: 1.6;
+    ${typography.bodySmall};
+    color: ${color.text.inverse};
     &:empty {
       display: none;
     }
@@ -407,11 +410,11 @@ const styles = {
     flex-direction: column;
     gap: 10px;
     padding: 10px;
-    color: #e0e4ee !important;
-    font-size: 12px;
+    ${typography.caption};
+    color: ${color.text.inverseSecondary} !important;
     transform: translateX(-50%);
     span {
-      font-size: 22px;
+      font-size: ${fontSize[20]};
     }
     @media (max-width: 700px) {
       bottom: max(20px, env(safe-area-inset-bottom, 0px));
@@ -424,9 +427,8 @@ const styles = {
     text-align: center;
     h2 {
       margin: 20px 0 24px;
-      font-size: clamp(32px, 3.8vw, 48px);
-      font-weight: 800;
-      line-height: 1.3;
+      ${typography.titlePage};
+      font-size: clamp(2rem, 3.8vw, 3rem);
       letter-spacing: -1.8px;
     }
     @media (max-width: 700px) {
@@ -439,32 +441,29 @@ const styles = {
   `,
   introSolution: css`
     margin: 28px 0 0 !important;
-    font-size: 20px;
-    font-weight: 600;
-    line-height: 1.75;
+    ${typography.body};
+    font-size: ${fontSize[20]};
+    font-weight: ${fontWeight[700]};
     letter-spacing: -0.5px;
     strong {
       color: var(--landing-primary);
-      font-weight: 700;
+      font-weight: ${fontWeight[700]};
     }
     @media (max-width: 700px) {
       margin-top: 24px !important;
-      font-size: 17px;
+      font-size: ${fontSize[18]};
     }
   `,
   eyebrow: css`
     color: var(--landing-primary);
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.6;
+    ${typography.label};
   `,
   description: css`
-    color: #667086;
-    font-size: 17px;
-    line-height: 1.85;
+    ${typography.body};
+    color: ${color.text.secondary};
     letter-spacing: -0.4px;
     @media (max-width: 700px) {
-      font-size: 15px;
+      font-size: ${fontSize[14]};
     }
   `,
   closing: css`
@@ -473,13 +472,13 @@ const styles = {
     flex-direction: column;
     gap: 36px;
     padding: 96px 24px;
-    color: #fff;
-    background: var(--landing-primary);
+    color: ${color.text.inverse};
+    background: ${color.background.brand};
     text-align: center;
     h2 {
-      font-size: clamp(30px, 3.6vw, 46px);
-      font-weight: 800;
-      line-height: 1.35;
+      ${typography.titlePage};
+      font-size: clamp(${fontSize[30]}, 3.6vw, 2.875rem);
+      line-height: ${lineHeight[140]};
       letter-spacing: -1.5px;
     }
     @media (max-width: 700px) {
@@ -488,9 +487,9 @@ const styles = {
   `,
   closingButton: css`
     color: var(--landing-primary) !important;
-    background: #fff;
+    background: ${color.background.default};
     &:hover {
-      background: #f0f2ff;
+      background: ${color.background.brandSubtle};
     }
   `,
   footer: css`
@@ -501,8 +500,8 @@ const styles = {
     gap: 24px;
     margin: 0 auto;
     padding: 44px 56px calc(44px + env(safe-area-inset-bottom, 0px));
-    color: #7a8292;
-    font-size: 12px;
+    ${typography.caption};
+    color: ${color.text.secondary};
     @media (max-width: 700px) {
       align-items: flex-start;
       flex-direction: column;
@@ -515,8 +514,7 @@ const styles = {
     align-items: center;
     gap: 8px;
     color: var(--landing-ink) !important;
-    font-size: 18px;
-    font-weight: 800;
+    ${typography.titleCard};
     letter-spacing: -0.7px;
   `,
 };

@@ -1,4 +1,7 @@
 import { css } from '@emotion/css';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
+
 interface Props {
   name: string;
   address?: string;
@@ -24,7 +27,7 @@ export const DestinationConfirmSheet = ({
         z-index: 1;
         padding: 24px 16px max(20px, env(safe-area-inset-bottom, 0px));
         border-radius: 28px 28px 0 0;
-        background: white;
+        background: ${color.background.default};
         box-sizing: border-box;
       `}
       aria-label="선택한 목적지"
@@ -42,8 +45,8 @@ export const DestinationConfirmSheet = ({
           padding: 0;
           border: 0;
           background: transparent;
-          color: #98a2b3;
-          font-size: 22px;
+          color: ${color.icon.default};
+          ${typography.titleSection}
           cursor: pointer;
         `}
         type="button"
@@ -56,9 +59,8 @@ export const DestinationConfirmSheet = ({
       <h1
         className={css`
           margin: 0 40px 4px 0;
-          color: #14294c;
-          font-size: 18px;
-          line-height: 1.4;
+          ${typography.titleCard};
+          color: ${color.text.primary};
         `}
       >
         {name}
@@ -68,8 +70,8 @@ export const DestinationConfirmSheet = ({
           className={css`
             margin: 0;
             overflow: hidden;
-            color: #7f8b9d;
-            font-size: 12px;
+            ${typography.caption};
+            color: ${color.text.secondary};
             text-overflow: ellipsis;
             white-space: nowrap;
           `}
@@ -85,18 +87,28 @@ export const DestinationConfirmSheet = ({
           margin-top: 20px;
           border: 0;
           border-radius: 12px;
-          background: #4356d8;
-          color: white;
-          font-size: 14px;
-          font-weight: 700;
+          background: ${color.background.brand};
+          color: ${color.text.inverse};
+          ${typography.label};
           cursor: pointer;
 
-          &:hover,
-          &:focus-visible {
-            background: #1249c4;
+          &:hover:not(:disabled),
+          &:focus-visible:not(:disabled) {
+            background: ${color.background.brandHovered};
           }
+
+          &:active:not(:disabled) {
+            background: ${color.background.brandPressed};
+          }
+
+          &:focus-visible {
+            outline: 3px solid ${color.focus.ring};
+            outline-offset: 3px;
+          }
+
           &:disabled {
-            background: #aeb7d8;
+            color: ${color.text.disabled};
+            background: ${color.background.disabled};
             cursor: not-allowed;
           }
         `}
@@ -122,10 +134,8 @@ const mapGuideStyle = css`
   margin: 0;
   padding: 10px 16px;
 
-  color: #101b37;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.primary};
   text-align: center;
   word-break: keep-all;
 

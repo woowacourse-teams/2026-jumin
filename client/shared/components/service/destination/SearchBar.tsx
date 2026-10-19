@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
-import searchIcon from '../../assets/icons/searchIcon.svg';
+import searchIcon from '../../../../assets/icons/searchIcon.svg';
+import { color } from '../../../../src/theme/color';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;
@@ -31,9 +33,9 @@ export const SearchBar = ({
       padding: 0 16px;
       box-sizing: border-box;
       box-shadow: ${showShadow ? '5px 5px 15px rgba(0, 0, 0, 0.3)' : 'none'};
-      border: 1px solid #4356d8;
+      border: 1px solid ${color.border.brand};
       border-radius: 16px;
-      background: white;
+      background: ${color.background.default};
       pointer-events: auto;
     `}
     onClick={onClick}
@@ -57,7 +59,13 @@ export const SearchBar = ({
         border: 0;
         outline: 0;
         background: transparent;
-        font-size: 16px;
+        ${typography.body};
+        color: ${color.text.primary};
+
+        &::placeholder {
+          color: ${color.text.placeholder};
+          opacity: 1;
+        }
       `}
       aria-label="목적지 검색"
       placeholder="어디에 방문하세요?"

@@ -1,6 +1,8 @@
 import { css } from '@emotion/css';
-import { ParkingReportModal } from '../../src/pages/ParkingDetailPage/components/ParkingReportModal';
-import { useParkingReport } from '../hooks/useParkingReport';
+import { ParkingReportModal } from '../../../../src/pages/ParkingDetailPage/components/ParkingReportModal';
+import { useParkingReport } from '../../../hooks/useParkingReport';
+import { color } from '../../../../src/theme/color';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   parkingLotId: number;
@@ -31,8 +33,8 @@ const reportActionStyle = css`
   gap: 8px;
   margin-top: auto;
   padding-top: 24px;
-  color: #697386;
-  font-size: 12px;
+  ${typography.caption};
+  color: ${color.text.secondary};
 `;
 
 const reportButtonStyle = css`
@@ -40,11 +42,9 @@ const reportButtonStyle = css`
   min-height: 48px;
   padding: 0 8px;
 
-  color: #697386;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.secondary};
   text-align: center;
 
   background: none;
@@ -53,11 +53,11 @@ const reportButtonStyle = css`
   cursor: pointer;
 
   &:hover {
-    color: #4356d8;
+    color: ${color.text.brand};
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 3px;
   }
 `;

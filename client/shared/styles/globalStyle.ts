@@ -1,4 +1,5 @@
 import { injectGlobal } from '@emotion/css';
+import { color } from '../../src/theme/color';
 
 export const applyGlobalStyles = () => injectGlobal`
   * {
@@ -14,7 +15,7 @@ export const applyGlobalStyles = () => injectGlobal`
 
   body {
     overflow: hidden;
-    background: #eef2f7;
+    background: ${color.background.subtle};
   }
 
   #root {

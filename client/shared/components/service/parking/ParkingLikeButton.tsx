@@ -1,6 +1,9 @@
 import { css } from '@emotion/css';
-import type { ParkingLikeState } from '../../api/contracts';
-import { useParkingLike } from '../hooks/useParkingLike';
+import type { ParkingLikeState } from '../../../../api/contracts';
+import { useParkingLike } from '../../../hooks/useParkingLike';
+import { color } from '../../../../src/theme/color';
+import { palette } from '../../../../src/theme/palette';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props extends ParkingLikeState {
   parkingLotId: number;
@@ -47,18 +50,17 @@ const buttonStyle = css`
   width: 100%;
   min-height: 48px;
   padding: 0 4px;
-  color: #c92a5c;
+  color: ${palette.rose500};
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  background: #fff0f5;
-  border: 1px solid #ffc9dc;
+  ${typography.label};
+  background: ${palette.rose50};
+  border: 1px solid ${palette.rose200};
   border-radius: 12px;
   cursor: pointer;
   overflow-wrap: anywhere;
 
   &:hover:not(:disabled) {
-    background: #ffe3ed;
+    background: ${palette.rose100};
   }
 
   svg {
@@ -73,12 +75,12 @@ const buttonStyle = css`
   }
 
   &[aria-pressed='true'] {
-    color: #fff;
-    background: #c92a5c;
-    border-color: #c92a5c;
+    color: ${color.text.inverse};
+    background: ${palette.rose500};
+    border-color: ${palette.rose500};
 
     &:hover:not(:disabled) {
-      background: #b42351;
+      background: ${palette.rose600};
     }
 
     svg {
@@ -99,7 +101,6 @@ const buttonStyle = css`
 
 const errorStyle = css`
   margin: 8px 0 0;
-  color: #c02b3c;
-  font-size: 12px;
-  line-height: 1.5;
+  ${typography.caption};
+  color: ${color.text.error};
 `;

@@ -8,9 +8,10 @@ import type { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
-import { ConditionBar } from '../../../shared/components/ConditionBar';
+import { ConditionBar } from '../../../shared/components/service/ConditionBar';
+import { color } from '../../theme/color';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
@@ -61,6 +62,6 @@ const pageStyle = css`
   height: 100%;
 
   overflow: hidden;
-  color: #14213d;
+  color: ${color.text.primary};
   background: transparent;
 `;

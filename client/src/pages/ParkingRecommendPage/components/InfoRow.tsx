@@ -1,6 +1,8 @@
 import { css, cx } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
 
 interface Props {
@@ -91,8 +93,8 @@ const rowStyle = (isActive: boolean) => css`
   min-height: 90px;
   padding: 12px 8px;
 
-  background: ${isActive ? '#f1f3ff' : '#ffffff'};
-  border: 2px solid ${isActive ? '#4356d8' : 'transparent'};
+  background: ${isActive ? color.background.selectedSubtle : color.background.default};
+  border: 2px solid ${isActive ? color.border.selected : 'transparent'};
   border-radius: 14px;
   user-select: none;
   -webkit-user-drag: none;
@@ -125,7 +127,7 @@ const selectButtonStyle = css`
   -webkit-touch-callout: none;
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: -3px;
   }
 `;
@@ -146,8 +148,8 @@ const locationIconContainerStyle = css`
   justify-content: center;
   width: 52px;
   height: 58px;
-  color: #1677ff;
-  background: #edf5ff;
+  color: ${color.icon.selected};
+  background: ${color.background.brandSubtle};
   border-radius: 14px;
   pointer-events: none;
 
@@ -165,10 +167,8 @@ const nameStyle = css`
   margin: 0;
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.35;
+  ${typography.bodyStrong};
+  color: ${color.text.primary};
   letter-spacing: -0.4px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -182,15 +182,13 @@ const metadataStyle = css`
 
   margin: 5px 0 0;
 
-  color: #697386;
-  font-size: 13px;
-  line-height: 1.3;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
   white-space: nowrap;
 
   strong {
-    color: #101b37;
-    font-size: 13px;
-    font-weight: 800;
+    ${typography.bodySmallStrong};
+    color: ${color.text.primary};
   }
 `;
 
@@ -221,13 +219,13 @@ const actionButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;
 
 const detailButtonStyle = css`
-  color: #697386;
+  color: ${color.icon.default};
   background: transparent;
 
   svg {
@@ -236,14 +234,19 @@ const detailButtonStyle = css`
   }
 
   &:hover {
-    color: #4356d8;
-    background: #f1f3ff;
+    color: ${color.icon.selected};
+    background: ${color.background.brandSubtle};
+  }
+
+  &:active {
+    color: ${color.icon.selected};
+    background: ${color.background.brandSubtlePressed};
   }
 `;
 
 const directionsButtonStyle = css`
-  color: #ffffff;
-  background: #4356d8;
+  color: ${color.icon.inverse};
+  background: ${color.background.brand};
 
   svg {
     width: 18px;
@@ -251,6 +254,10 @@ const directionsButtonStyle = css`
   }
 
   &:hover {
-    background: #3548c8;
+    background: ${color.background.brandHovered};
+  }
+
+  &:active {
+    background: ${color.background.brandPressed};
   }
 `;

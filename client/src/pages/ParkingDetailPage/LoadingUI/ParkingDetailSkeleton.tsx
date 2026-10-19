@@ -1,6 +1,7 @@
 import { css, cx, keyframes } from '@emotion/css';
 
-import { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/BottomSheet';
+import { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
+import { color } from '../../../theme/color';
 
 const FEE_RULE_COUNT = 3;
 const DETAIL_ROW_COUNT = 3;
@@ -61,7 +62,12 @@ const shimmer = keyframes`
 `;
 
 const skeletonBlockStyle = css`
-  background: linear-gradient(90deg, #e5e8f0 25%, #f7f8fb 50%, #e5e8f0 75%);
+  background: linear-gradient(
+    90deg,
+    ${color.border.default} 25%,
+    ${color.background.subtle} 50%,
+    ${color.border.default} 75%
+  );
   background-size: 200% 100%;
   animation: ${shimmer} 1.4s ease-in-out infinite;
 
@@ -82,7 +88,7 @@ const sheetStyle = css`
   flex-direction: column;
   pointer-events: none;
 
-  background: #ffffff;
+  background: ${color.background.default};
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
 `;
@@ -98,7 +104,7 @@ const handleStyle = css`
   width: 40px;
   height: 4px;
 
-  background: #d9deeb;
+  background: ${color.border.default};
   border-radius: 999px;
 `;
 
@@ -113,7 +119,7 @@ const contentStyle = css`
 const feeCardStyle = css`
   overflow: hidden;
 
-  border: 1px solid #dfe4ef;
+  border: 1px solid ${color.border.default};
   border-radius: 18px;
 `;
 
@@ -124,7 +130,7 @@ const totalFeeStyle = css`
   justify-content: space-between;
   padding: 0 18px;
 
-  background: #f0f2ff;
+  background: ${color.background.brandSubtle};
 `;
 
 const totalFeeLabelStyle = css`

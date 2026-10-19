@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { color } from '../../src/theme/color';
 
 const SEARCH_RADIUS_METERS = 600;
 
@@ -16,10 +17,10 @@ export const SearchRadiusCircle = ({ map, latitude, longitude }: Props) => {
       map,
       center: new naver.maps.LatLng(latitude, longitude),
       radius: SEARCH_RADIUS_METERS,
-      strokeColor: '#4356d8',
+      strokeColor: color.border.brand,
       strokeOpacity: 0.7,
       strokeWeight: 2,
-      fillColor: '#4356d8',
+      fillColor: color.background.brand,
       fillOpacity: 0.08,
       clickable: false,
       zIndex: 1,

@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { ConditionBar } from '../../shared/components/ConditionBar';
+import { ConditionBar } from '../../shared/components/service/ConditionBar';
 import { renderWithProviders } from '../renderWithProviders';
 
 describe('검색 조건 헤더', () => {

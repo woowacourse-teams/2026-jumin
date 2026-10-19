@@ -1,7 +1,9 @@
 import { css } from '@emotion/css';
-import backIcon from '../../assets/icons/backIcon.svg';
+import backIcon from '../../../assets/icons/backIcon.svg';
 import { useNavigate } from 'react-router';
 import type { ReactNode } from 'react';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 interface Props {
   title: string;
@@ -54,7 +56,7 @@ const headerStyle = css`
   min-height: 52px;
   padding: 16px 22px;
 
-  background: #ffffff;
+  background: ${color.background.default};
   border-radius: 24px;
   box-shadow: 0 8px 24px rgb(16 27 55 / 10%);
 `;
@@ -74,11 +76,11 @@ const backButtonStyle = css`
   cursor: pointer;
 
   &:hover {
-    background: #f5f6fb;
+    background: ${color.background.subtle};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 `;
@@ -99,10 +101,8 @@ const destinationStyle = css`
   margin: 0;
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.3;
+  ${typography.titleCard};
+  color: ${color.text.primary};
   letter-spacing: -0.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -112,10 +112,8 @@ const descriptionStyle = css`
   min-width: 0;
   margin: 0;
 
-  color: #697386;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.4;
+  ${typography.body};
+  color: ${color.text.secondary};
 `;
 
 const descriptionRowStyle = css`

@@ -3,6 +3,8 @@ import { css } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
 
 interface Props {
@@ -78,8 +80,8 @@ const cardStyle = (isActive: boolean) => css`
   min-height: 168px;
   padding: 14px 16px 16px;
 
-  background: #ffffff;
-  border: ${isActive ? '4px' : ' 2px'} solid #4356d8;
+  background: ${color.background.default};
+  border: ${isActive ? '4px' : ' 2px'} solid ${color.border.brand};
 
   border-radius: 24px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
@@ -107,10 +109,8 @@ const nameStyle = css`
   margin: 0;
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.3;
+  ${typography.titleCard};
+  color: ${color.text.primary};
   letter-spacing: -0.4px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -121,10 +121,8 @@ const descriptionStyle = css`
 
   margin: 4px 0 12px;
 
-  color: #4356d8;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.brand};
 `;
 
 const priceStyle = css`
@@ -132,10 +130,8 @@ const priceStyle = css`
 
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.25;
+  ${typography.titleSection};
+  color: ${color.text.primary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
@@ -145,9 +141,8 @@ const distanceStyle = css`
 
   margin: 2px 0 0;
 
-  color: #697386;
-  font-size: 14px;
-  line-height: 1.4;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
 `;
 
 const navigateButtonStyle = css`
@@ -161,21 +156,24 @@ const navigateButtonStyle = css`
   margin-left: 8px;
   padding: 0 10px;
 
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
+  ${typography.label};
+  color: ${color.text.inverse};
 
-  background: #4356d8;
+  background: ${color.background.brand};
   border: 0;
   border-radius: 13px;
   cursor: pointer;
 
   &:hover {
-    background: #3548c8;
+    background: ${color.background.brandHovered};
+  }
+
+  &:active {
+    background: ${color.background.brandPressed};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 
@@ -192,19 +190,24 @@ const detailButtonStyle = css`
   height: 44px;
   margin: -6px -6px -2px 0;
   padding: 0;
-  color: #697386;
+  color: ${color.icon.default};
   background: transparent;
   border: 0;
   border-radius: 13px;
   cursor: pointer;
 
   &:hover {
-    color: #4356d8;
-    background: #f1f3ff;
+    color: ${color.icon.selected};
+    background: ${color.background.brandSubtle};
+  }
+
+  &:active {
+    color: ${color.icon.selected};
+    background: ${color.background.brandSubtlePressed};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 `;

@@ -1,11 +1,13 @@
 import { css, cx } from '@emotion/css';
 import { NavLink } from 'react-router';
-import activeHomeIcon from '../../assets/icons/activeHome.svg';
-import activeSettingIcon from '../../assets/icons/activeSetting.svg';
-import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
-import homeIcon from '../../assets/icons/home.svg';
-import settingIcon from '../../assets/icons/setting.svg';
-import recentUseIcon from '../../assets/icons/recentUse.svg';
+import activeHomeIcon from '../../../assets/icons/activeHome.svg';
+import activeSettingIcon from '../../../assets/icons/activeSetting.svg';
+import activeRecentUseIcon from '../../../assets/icons/activeRecentUse.svg';
+import homeIcon from '../../../assets/icons/home.svg';
+import settingIcon from '../../../assets/icons/setting.svg';
+import recentUseIcon from '../../../assets/icons/recentUse.svg';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 const menus = [
   {
@@ -70,7 +72,7 @@ const navigationStyle = css`
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
 
-  background: white;
+  background: ${color.background.default};
 `;
 
 const navigationItemStyle = css`
@@ -82,9 +84,9 @@ const navigationItemStyle = css`
 
   padding: 0;
 
-  color: #8a94a2;
   font: inherit;
-  font-size: 12px;
+  ${typography.caption};
+  color: ${color.text.secondary};
   text-decoration: none;
 
   background: transparent;
@@ -96,7 +98,7 @@ const navigationItemStyle = css`
   &:hover,
   &:focus-visible,
   &.active {
-    color: #4356d8;
+    color: ${color.text.selected};
 
     .default-icon {
       opacity: 0;

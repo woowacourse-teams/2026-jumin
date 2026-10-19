@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
-import { screen } from '@testing-library/react';
+import { jest } from '@jest/globals';
+import { act, screen, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 
 import { ParkingInformationContent } from '../../src/pages/HomePage/components/ParkingInformationContent';
 import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
@@ -8,6 +10,7 @@ import { renderWithProviders } from '../renderWithProviders';
 
 import userEvent from '@testing-library/user-event';
 import { mockGeolocation } from '../testData';
+import { server } from '../msw/server';
 
 const renderParkingInformation = (parkingLotId = 101) => {
   const parkingLot = parkingViewportLots.find(({ id }) => id === parkingLotId);
@@ -36,6 +39,44 @@ describe('홈페이지 주차장 상세정보', () => {
       'aria-pressed',
       'false',
     );
+    const actions = screen.getByRole('region', { name: '주차장 빠른 메뉴' });
+    expect(within(actions).getAllByRole('button')).toHaveLength(3);
+    expect(actions).toHaveStyle({
+      gridTemplateColumns: 'minmax(0, 2fr) repeat(2, minmax(0, 1fr))',
+    });
+  });
+
+  it('주차장을 바꾸면 이전 좋아요의 예약 요청과 선택 상태를 초기화한다', async () => {
+    const requested = jest.fn();
+    server.use(
+      http.put('/api/parking/101/like', () => {
+        requested();
+        return HttpResponse.error();
+      }),
+    );
+    const first = parkingViewportLots.find(({ id }) => id === 101);
+    const next = parkingViewportLots.find(({ id }) => id === 102);
+    const firstDetail = viewportParkingLotDetailFixtures[101];
+    const nextDetail = viewportParkingLotDetailFixtures[102];
+    if (!first || !next || !firstDetail || !nextDetail) {
+      throw new Error('주차장 전환 테스트에 필요한 목 데이터가 없습니다.');
+    }
+    const { rerender } = renderWithProviders(
+      <ParkingInformationContent parkingLot={first} data={firstDetail} />,
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: '좋아요 12개' }));
+    expect(screen.getByRole('button', { name: '좋아요 13개' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    rerender(<ParkingInformationContent parkingLot={next} data={nextDetail} />);
+    expect(screen.getByRole('button', { name: '좋아요 12개' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+    expect(requested).not.toHaveBeenCalled();
   });
 
   it('뷰포트 목록의 모든 주차장에 대한 상세 데이터가 있다', () => {

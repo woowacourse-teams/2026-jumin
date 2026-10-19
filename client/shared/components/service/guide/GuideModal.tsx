@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
 
-import guide1Image from '../../../assets/guideImage/guide1.png';
-import guide2Image from '../../../assets/guideImage/guide2.png';
-import guide3Image from '../../../assets/guideImage/guide3.png';
+import guide1Image from '../../../../assets/guideImage/guide1.png';
+import guide2Image from '../../../../assets/guideImage/guide2.png';
+import guide3Image from '../../../../assets/guideImage/guide3.png';
+import { color } from '../../../../src/theme/color';
+import { fontSize } from '../../../../src/theme/font';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   onClose: () => void;
@@ -104,7 +107,7 @@ const overlayStyle = css`
   place-items: center;
   padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
 
-  background: rgb(16 27 55 / 60%);
+  background: ${color.overlay.scrim};
 `;
 
 const modalStyle = css`
@@ -113,8 +116,8 @@ const modalStyle = css`
   padding: 8px 18px 18px;
   overflow-y: auto;
 
-  color: #18233d;
-  background: #fff;
+  color: ${color.text.primary};
+  background: ${color.background.default};
   border-radius: 24px;
   box-shadow: 0 24px 64px rgb(16 27 55 / 24%);
   outline: none;
@@ -135,15 +138,15 @@ const skipButtonStyle = css`
   min-height: 44px;
   padding: 0 4px;
 
-  color: #697386;
-  font: inherit;
-  font-size: 13px;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
+  font-family: inherit;
   background: none;
   border: 0;
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 `;
@@ -174,19 +177,17 @@ const copyStyle = css`
 const titleStyle = css`
   margin: 0;
 
-  color: #18233d;
-  font-size: clamp(16px, 4.4vw, 18px);
-  font-weight: 800;
-  line-height: 1.4;
+  ${typography.titleCard};
+  color: ${color.text.primary};
+  font-size: clamp(${fontSize[16]}, 4.4vw, ${fontSize[18]});
   word-break: keep-all;
 `;
 
 const descriptionStyle = css`
   margin: 8px 0 0;
 
-  color: #697386;
-  font-size: 13px;
-  line-height: 1.5;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
   word-break: keep-all;
 `;
 
@@ -211,13 +212,13 @@ const screenReaderOnlyStyle = css`
 const dotStyle = css`
   width: 6px;
   height: 6px;
-  background: #cbd2e2;
+  background: ${color.border.default};
   border-radius: 999px;
 `;
 
 const activeDotStyle = css`
   width: 18px;
-  background: #4356d8;
+  background: ${color.background.selected};
 `;
 
 const actionsStyle = css`
@@ -231,22 +232,22 @@ const previousButtonStyle = css`
   min-height: 52px;
   place-items: center;
 
-  color: #43506a;
-  font: inherit;
-  font-size: 28px;
-  background: #fff;
-  border: 1px solid #d9deeb;
+  color: ${color.icon.default};
+  font-family: inherit;
+  font-size: 1.75rem;
+  background: ${color.background.default};
+  border: 1px solid ${color.border.default};
   border-radius: 14px;
   cursor: pointer;
 
   &:disabled {
-    color: #aab4c2;
-    border-color: #e9edf5;
+    color: ${color.text.disabled};
+    border-color: ${color.border.default};
     cursor: default;
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 `;
@@ -255,21 +256,24 @@ const nextButtonStyle = css`
   min-height: 52px;
   padding: 0 12px;
 
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  background: #4356d8;
+  ${typography.label};
+  color: ${color.text.inverse};
+  font-family: inherit;
+  background: ${color.background.brand};
   border: 0;
   border-radius: 14px;
   cursor: pointer;
 
   &:hover {
-    background: #3548c8;
+    background: ${color.background.brandHovered};
+  }
+
+  &:active {
+    background: ${color.background.brandPressed};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.border.focused};
     outline-offset: 2px;
   }
 `;

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useQuery } from '@tanstack/react-query';
 import { delay, http, HttpResponse } from 'msw';
 import type { ParkingLikeState } from '../../api/contracts';
-import { ParkingLikeButton } from '../../shared/components/ParkingLikeButton';
+import { ParkingLikeButton } from '../../shared/components/service/parking/ParkingLikeButton';
 import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
 import { server } from '../msw/server';
 
