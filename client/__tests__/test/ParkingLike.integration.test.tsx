@@ -5,6 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import { delay, http, HttpResponse } from 'msw';
 import type { ParkingLikeState } from '../../api/contracts';
 import { ParkingLikeButton } from '../../shared/components/service/parking/ParkingLikeButton';
+
+import { color } from '../../src/theme/color';
+import { palette } from '../../src/theme/palette';
 import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
 import { server } from '../msw/server';
 
