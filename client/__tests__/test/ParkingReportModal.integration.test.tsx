@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
-import { ParkingReportAction } from '../../shared/components/ParkingReportAction';
+import { ParkingReportAction } from '../../shared/components/service/parking/ParkingReportAction';
 import { renderWithProviders } from '../renderWithProviders';
 import { setMockScenario } from '../testData';
 import { server } from '../msw/server';

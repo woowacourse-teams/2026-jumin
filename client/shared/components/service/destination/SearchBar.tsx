@@ -1,8 +1,8 @@
 import { css } from '@emotion/css';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
-import searchIcon from '../../assets/icons/searchIcon.svg';
-import { color } from '../../src/theme/color';
-import { typography } from '../../src/theme/typography';
+import searchIcon from '../../../../assets/icons/searchIcon.svg';
+import { color } from '../../../../src/theme/color';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   onClick?: MouseEventHandler<HTMLDivElement>;

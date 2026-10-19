@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { css } from '@emotion/css';
-import { Modal } from '../../../../shared/components/Modal/Modal';
+import { Modal } from '../../../../shared/components/ui/Modal';
 import type { ParkingReport } from '../../../../shared/hooks/useParkingReport';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';

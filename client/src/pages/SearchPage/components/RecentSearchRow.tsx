@@ -1,5 +1,5 @@
 import type { Destination } from '../../../../api/contracts';
-import { RecentHistoryRow } from '../../../../shared/components/RecentHistoryRow';
+import { RecentHistoryRow } from '../../../../shared/components/service/RecentHistoryRow';
 
 interface Props {
   destination: Destination;

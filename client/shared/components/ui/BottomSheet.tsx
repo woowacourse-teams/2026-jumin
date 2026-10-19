@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
-import { color } from '../../src/theme/color';
+import { color } from '../../../src/theme/color';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
 const PEEK_HEIGHT = 110;

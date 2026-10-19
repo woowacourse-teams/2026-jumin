@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { Destination } from '../../../../api/contracts';
 import { useEffect, useState } from 'react';
 import { destinationSearchQueryOptions } from '../../../../api/queries/destinationSearchQuery';
-import { SearchBar } from '../../../../shared/components/SearchBar';
+import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
 import { recentSearchesSchema } from '../../../../api/parkingLotsSchema';

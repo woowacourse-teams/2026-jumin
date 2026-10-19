@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
 
-import guide1Image from '../../../assets/guideImage/guide1.png';
-import guide2Image from '../../../assets/guideImage/guide2.png';
-import guide3Image from '../../../assets/guideImage/guide3.png';
-import { color } from '../../../src/theme/color';
-import { fontSize } from '../../../src/theme/font';
-import { typography } from '../../../src/theme/typography';
+import guide1Image from '../../../../assets/guideImage/guide1.png';
+import guide2Image from '../../../../assets/guideImage/guide2.png';
+import guide3Image from '../../../../assets/guideImage/guide3.png';
+import { color } from '../../../../src/theme/color';
+import { fontSize } from '../../../../src/theme/font';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   onClose: () => void;

@@ -5,9 +5,9 @@ import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
-import { ConditionBar } from '../../../shared/components/ConditionBar';
+import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
-import { ErrorCard } from '../../../shared/components/ErrorCard';
+import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';

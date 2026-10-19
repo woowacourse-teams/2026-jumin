@@ -4,10 +4,10 @@ import { css } from '@emotion/css';
 import * as Sentry from '@sentry/react';
 import ReactModal from 'react-modal';
 
-import { loadNaverMaps } from '../maps/loadNaverMaps';
-import { color } from '../../src/theme/color';
-import { fontSize, fontWeight } from '../../src/theme/font';
-import { typography } from '../../src/theme/typography';
+import { loadNaverMaps } from '../../../maps/loadNaverMaps';
+import { color } from '../../../../src/theme/color';
+import { fontSize, fontWeight } from '../../../../src/theme/font';
+import { typography } from '../../../../src/theme/typography';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');

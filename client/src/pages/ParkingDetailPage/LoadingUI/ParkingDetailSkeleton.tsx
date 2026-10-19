@@ -1,6 +1,6 @@
 import { css, cx, keyframes } from '@emotion/css';
 
-import { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/BottomSheet';
+import { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
 import { color } from '../../../theme/color';
 
 const FEE_RULE_COUNT = 3;

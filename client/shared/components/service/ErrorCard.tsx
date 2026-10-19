@@ -1,8 +1,8 @@
 import { css } from '@emotion/css';
 
-import brandMark from '../../assets/icons/brandMark.svg';
-import { color } from '../../src/theme/color';
-import { typography } from '../../src/theme/typography';
+import brandMark from '../../../assets/icons/brandMark.svg';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 interface Props {
   label: string;

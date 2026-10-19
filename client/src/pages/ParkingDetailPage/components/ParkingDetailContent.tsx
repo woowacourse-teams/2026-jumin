@@ -4,25 +4,25 @@ import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/vi
 import type { ParkingDetailCondition } from '../../../../shared/types/navigation';
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
-import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
 import BottomSheet, {
   BOTTOM_SHEET_HEIGHT,
   type BottomSheetSnap,
-} from '../../../../shared/components/BottomSheet';
+} from '../../../../shared/components/ui/BottomSheet';
 import { useCallback, useEffect, useState } from 'react';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
-import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { DestinationMapOverlay } from '../../../../shared/components/service/destination/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { useModal } from '../../../../shared/hooks/useModal';
-import { ParkingDetailActions } from '../../../../shared/components/ParkingDetailActions';
-import { ParkingLikeButton } from '../../../../shared/components/ParkingLikeButton';
-import { ParkingReportAction } from '../../../../shared/components/ParkingReportAction';
+import { ParkingDetailActions } from '../../../../shared/components/service/parking/ParkingDetailActions';
+import { ParkingLikeButton } from '../../../../shared/components/service/parking/ParkingLikeButton';
+import { ParkingReportAction } from '../../../../shared/components/service/parking/ParkingReportAction';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
-import { RoadViewOverlay } from '../../../../shared/components/RoadViewOverlay';
+import { RoadViewOverlay } from '../../../../shared/components/service/parking/RoadViewOverlay';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 

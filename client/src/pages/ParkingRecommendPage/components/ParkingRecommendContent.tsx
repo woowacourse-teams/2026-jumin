@@ -7,7 +7,7 @@ import { useOutletContext } from 'react-router';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
 import { trackEvent } from '../../../../shared/analytics';
-import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/BottomSheet';
+import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 import type {
@@ -20,7 +20,7 @@ import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { useParkingRecommendView } from '../hooks/useParkingRecommendView';
 import { useParkingRecommendScrollRestore } from '../hooks/useParkingRecommendScrollRestore';
-import { DeepLinkModal } from '../../../../shared/components/Modal/DeepLinkModal';
+import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';

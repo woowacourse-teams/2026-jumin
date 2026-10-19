@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import { useNavigate } from 'react-router';
 import type { Destination } from '../../../api/contracts';
-import { BottomNav } from '../../../shared/components/BottomNav';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
 

@@ -2,9 +2,9 @@ import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { BottomNav } from '../../../shared/components/BottomNav';
-import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
-import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { RecentHistoryRow } from '../../../shared/components/service/RecentHistoryRow';
 import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 import {

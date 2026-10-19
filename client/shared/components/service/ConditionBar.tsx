@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
-import backIcon from '../../assets/icons/backIcon.svg';
+import backIcon from '../../../assets/icons/backIcon.svg';
 import { useNavigate } from 'react-router';
 import type { ReactNode } from 'react';
-import { color } from '../../src/theme/color';
-import { typography } from '../../src/theme/typography';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 interface Props {
   title: string;

@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { ParkingLotViewport } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
-import BottomSheet, { type BottomSheetSnap } from '../../../../shared/components/BottomSheet';
-import { ErrorCard } from '../../../../shared/components/ErrorCard';
+import BottomSheet, { type BottomSheetSnap } from '../../../../shared/components/ui/BottomSheet';
+import { ErrorCard } from '../../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from '../../ParkingDetailPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
-import { ConditionBar } from '../../../../shared/components/ConditionBar';
+import { ConditionBar } from '../../../../shared/components/service/ConditionBar';
 
 const MARKER_GAP = 64;
 

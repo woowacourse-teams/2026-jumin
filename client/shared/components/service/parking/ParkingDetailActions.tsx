@@ -1,8 +1,8 @@
 import { css, cx } from '@emotion/css';
 import type { ReactNode } from 'react';
-import { color } from '../../src/theme/color';
-import { fontSize } from '../../src/theme/font';
-import { typography } from '../../src/theme/typography';
+import { color } from '../../../../src/theme/color';
+import { fontSize } from '../../../../src/theme/font';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   onDirections: () => void;

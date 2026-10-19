@@ -1,13 +1,13 @@
 import { css, cx } from '@emotion/css';
 import { NavLink } from 'react-router';
-import activeHomeIcon from '../../assets/icons/activeHome.svg';
-import activeSettingIcon from '../../assets/icons/activeSetting.svg';
-import activeRecentUseIcon from '../../assets/icons/activeRecentUse.svg';
-import homeIcon from '../../assets/icons/home.svg';
-import settingIcon from '../../assets/icons/setting.svg';
-import recentUseIcon from '../../assets/icons/recentUse.svg';
-import { color } from '../../src/theme/color';
-import { typography } from '../../src/theme/typography';
+import activeHomeIcon from '../../../assets/icons/activeHome.svg';
+import activeSettingIcon from '../../../assets/icons/activeSetting.svg';
+import activeRecentUseIcon from '../../../assets/icons/activeRecentUse.svg';
+import homeIcon from '../../../assets/icons/home.svg';
+import settingIcon from '../../../assets/icons/setting.svg';
+import recentUseIcon from '../../../assets/icons/recentUse.svg';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
 
 const menus = [
   {

@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
-import type { ParkingLikeState } from '../../api/contracts';
-import { useParkingLike } from '../hooks/useParkingLike';
-import { color } from '../../src/theme/color';
-import { palette } from '../../src/theme/palette';
-import { typography } from '../../src/theme/typography';
+import type { ParkingLikeState } from '../../../../api/contracts';
+import { useParkingLike } from '../../../hooks/useParkingLike';
+import { color } from '../../../../src/theme/color';
+import { palette } from '../../../../src/theme/palette';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props extends ParkingLikeState {
   parkingLotId: number;

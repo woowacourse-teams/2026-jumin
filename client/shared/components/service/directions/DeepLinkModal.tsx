@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react';
 import { css, cx } from '@emotion/css';
 import Modal from 'react-modal';
 
-import { trackEvent } from '../../analytics';
+import { trackEvent } from '../../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
-import { eventName } from '../../monitoring/constants';
-import { color } from '../../../src/theme/color';
-import { typography } from '../../../src/theme/typography';
+import { eventName } from '../../../monitoring/constants';
+import { color } from '../../../../src/theme/color';
+import { typography } from '../../../../src/theme/typography';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
