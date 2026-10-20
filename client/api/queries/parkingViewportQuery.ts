@@ -5,23 +5,24 @@ import type {
   ParkingViewportQueryParams,
 } from '../../shared/types/queryKeys';
 import { normalizeViewport } from '../../src/pages/HomePage/utils/normalizeViewport';
+import { parkingKeys } from './parkingKeys';
 
 export const parkingViewportQueryOptions = (
   viewport: ParkingViewportQueryParams,
   filters?: ParkingViewportFilters,
 ) => {
   const normalizedViewport = normalizeViewport(viewport);
-  const activeFilters = filters ?? {
-    freeOnly: viewport.freeOnly ?? false,
-    excludeMechanical: viewport.excludeMechanical ?? false,
+  const request = {
+    ...normalizedViewport,
+    freeOnly: filters?.freeOnly ?? viewport.freeOnly ?? false,
+    excludeMechanical: filters?.excludeMechanical ?? viewport.excludeMechanical ?? false,
   };
 
   return queryOptions({
     // 같은 영역이어도 필터가 다르면 별도 응답을 캐시한다.
-    queryKey: ['parking-lots', 'viewport', normalizedViewport, activeFilters],
+    queryKey: parkingKeys.viewport(request),
 
-    queryFn: ({ signal }) =>
-      getParkingLotsInViewport({ ...normalizedViewport, ...activeFilters }, signal),
+    queryFn: ({ signal }) => getParkingLotsInViewport(request, signal),
 
     meta: {
       feature: 'parking-map',
