@@ -1,7 +1,6 @@
 import { css, cx } from '@emotion/css';
 import type { ComponentProps, ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
-import { fontSize } from '../../../src/theme/font';
 import { palette } from '../../../src/theme/palette';
 import { typography } from '../../../src/theme/typography';
 
