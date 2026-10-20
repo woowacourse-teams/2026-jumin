@@ -19,8 +19,6 @@ export const ParkingLikeButton = ({ parkingLotId, likeCount, likedByMe }: Props)
         className={buttonStyle}
         aria-label={`좋아요 ${like.likeCount.toLocaleString('ko-KR')}개`}
         aria-pressed={like.likedByMe}
-        aria-busy={like.isPending}
-        disabled={like.isPending}
         onClick={like.toggle}
         icon={
           <svg

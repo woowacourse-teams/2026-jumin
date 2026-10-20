@@ -6,8 +6,6 @@ import { delay, http, HttpResponse } from 'msw';
 import type { ParkingLikeState } from '../../api/contracts';
 import { ParkingLikeButton } from '../../shared/components/service/parking/ParkingLikeButton';
 
-import { color } from '../../src/theme/color';
-import { palette } from '../../src/theme/palette';
 import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
 import { server } from '../msw/server';
 
@@ -65,7 +63,7 @@ describe('주차장 좋아요 버튼', () => {
         return HttpResponse.json({ parkingLotId: 101, likeCount: 13, likedByMe: true });
       }),
     );
-    renderWithProviders(<LikeDetail />);
+    const { queryClient } = renderWithProviders(<LikeDetail />);
     const user = userEvent.setup();
     const button = screen.getByRole('button', { name: '좋아요 12개' });
     await user.click(button);
@@ -74,7 +72,12 @@ describe('주차장 좋아요 버튼', () => {
     expect(requested).not.toHaveBeenCalled();
 
     await waitFor(() => expect(requested).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(button).not.toBeDisabled());
+    await waitFor(() =>
+      expect(queryClient.getQueryData(viewportKey)).toEqual({
+        likeCount: 13,
+        likedByMe: true,
+      }),
+    );
     expect(button).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -110,14 +113,13 @@ describe('주차장 좋아요 버튼', () => {
     expect(button).toHaveAttribute('aria-pressed', 'true');
     await user.click(button);
     await waitFor(() => expect(requested).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(button).not.toBeDisabled());
-    expect(button).toHaveAccessibleName('좋아요 11개');
+    await waitFor(() => expect(button).toHaveAccessibleName('좋아요 11개'));
     expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('실패하면 상태와 개수를 복구하고 오류를 표시하며 다시 시도할 수 있다', async () => {
     server.use(http.put('/api/parking/101/like', () => HttpResponse.error()));
-    renderWithProviders(<LikeDetail />);
+    const { queryClient } = renderWithProviders(<LikeDetail />);
     const user = userEvent.setup();
     const button = screen.getByRole('button', { name: '좋아요 12개' });
     await user.click(button);
@@ -136,28 +138,13 @@ describe('주차장 좋아요 버튼', () => {
     );
     await user.click(button);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    await waitFor(() => expect(button).not.toBeDisabled());
-    expect(button).toHaveAccessibleName('좋아요 13개');
-  });
-
-  it('요청 중에는 추가 클릭을 막는다', async () => {
-    const requested = jest.fn();
-    server.use(
-      http.put('/api/parking/101/like', async () => {
-        requested();
-        await delay(400);
-        return HttpResponse.json({ parkingLotId: 101, likeCount: 13, likedByMe: true });
+    await waitFor(() =>
+      expect(queryClient.getQueryData(viewportKey)).toEqual({
+        likeCount: 13,
+        likedByMe: true,
       }),
     );
-    renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    await user.click(button);
-    await waitFor(() => expect(button).toBeDisabled());
-    await user.click(button);
-    await waitFor(() => expect(button).not.toBeDisabled());
-    expect(requested).toHaveBeenCalledTimes(1);
-    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(button).toHaveAccessibleName('좋아요 13개');
   });
 
   it('전송 전에 상세 화면을 닫으면 예약된 요청을 취소한다', async () => {
