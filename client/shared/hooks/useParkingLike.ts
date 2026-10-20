@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ParkingLikeState } from '../../api/contracts';
 import { updateParkingLike } from '../../api/parkingLikes';
+import { parkingKeys } from '../../api/queries/parkingKeys';
 
 const LIKE_DEBOUNCE_DELAY = 300;
 
@@ -11,7 +12,7 @@ export const useParkingLike = (parkingLotId: number, confirmed: ParkingLikeState
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestInFlight = useRef(false);
 
-  const detailFilter = { queryKey: ['parking-lots', 'viewport-detail', parkingLotId] };
+  const detailFilter = { queryKey: parkingKeys.viewportDetail(parkingLotId) };
 
   const mutation = useMutation({
     mutationFn: (likedByMe: boolean) => updateParkingLike(parkingLotId, likedByMe),
