@@ -4,13 +4,6 @@ import { color } from '../../../src/theme/color';
 import { palette } from '../../../src/theme/palette';
 import { typography } from '../../../src/theme/typography';
 
-interface Props extends ComponentProps<'button'> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  isLoading?: boolean;
-  icon?: ReactNode;
-}
-
 /**
  * 버튼의 외형.
  *
@@ -25,10 +18,9 @@ type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost' | 'rose';
 /** active는 사용 가능, loading은 처리 중, inactive는 비활성 상태 */
 type ButtonStatus = 'active' | 'loading' | 'inactive';
 
-/** 최소 높이·내부 여백·모서리·아이콘 크기를 함께 결정합니다. */
+/** 내부 여백·모서리·아이콘 영역 크기를 함께 결정한다. */
 type ButtonSize = 'sm' | 'md' | 'lg';
-type ButtonSizeToken =
-  'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconSize' | 'spinnerSize';
+type ButtonSizeToken = 'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconSize';
 
 /**
  * 사이즈별 치수.
@@ -38,12 +30,11 @@ type ButtonSizeToken =
  */
 const BUTTON_SIZE = {
   lg: {
-    paddingX: '1.25rem' /* 20px */,
+    paddingX: '0.5rem' /* 8px */,
     paddingY: '1rem' /* 16px */,
     borderRadius: '0.875rem' /* 14px */,
     gap: '0.5rem' /* 8px */,
     iconSize: '1.375rem' /* 22px */,
-    spinnerSize: '1.375rem' /* 22px */,
   },
   md: {
     paddingX: '0.25rem' /* 4px */,
@@ -51,15 +42,13 @@ const BUTTON_SIZE = {
     borderRadius: '0.75rem' /* 12px */,
     gap: '0.25rem' /* 4px */,
     iconSize: '1.125rem' /* 18px */,
-    spinnerSize: '1.125rem' /* 18px */,
   },
   sm: {
-    paddingX: '0.625rem' /* 10px */,
+    paddingX: '0.0125rem' /* 2px */,
     paddingY: '0.5rem' /* 8px */,
     borderRadius: '0.75rem' /* 12px */,
     gap: '0.375rem' /* 6px */,
     iconSize: '1rem' /* 16px */,
-    spinnerSize: '1rem' /* 16px */,
   },
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
@@ -199,8 +188,20 @@ const buttonAppearance = {
   },
 } satisfies Record<ButtonVariant, Record<ButtonStatus, string>>;
 
-/** 버튼 본체의 공통 스타일, 크기와 상태별 커서를 결정한다. */
-const root = (size: ButtonSize, status: ButtonStatus) => {
+interface Props extends ComponentProps<'button'> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  isLoading?: boolean;
+  icon?: ReactNode;
+  /**
+   * 부모의 사용 가능한 너비를 채운다.
+   * @default false
+   * */
+  isFullWidth?: boolean;
+}
+
+/** 버튼 본체의 공통 스타일, 크기와 너비, 상태별 커서를 결정한다. */
+const root = (size: ButtonSize, status: ButtonStatus, isFullWidth: boolean) => {
   const sizeToken = BUTTON_SIZE[size];
 
   return css`
@@ -208,6 +209,7 @@ const root = (size: ButtonSize, status: ButtonStatus) => {
     align-items: center;
     justify-content: center;
     min-width: 0;
+    ${isFullWidth ? 'width: 100%;' : ''}
     white-space: nowrap;
     gap: ${sizeToken.gap};
     padding: ${sizeToken.paddingY} ${sizeToken.paddingX};
@@ -224,7 +226,7 @@ const root = (size: ButtonSize, status: ButtonStatus) => {
   `;
 };
 
-/** 아이콘 영역의 크기를 고정하고 SVG와 이미지가 영역 안에 맞도록 조정 */
+/** 아이콘을 감싸는 영역의 크기. SVG·이미지 자체의 크기는 전달한 요소에서 지정한다. */
 const iconStyle = (size: ButtonSize) => {
   const sizeToken = BUTTON_SIZE[size];
 
@@ -238,11 +240,17 @@ const iconStyle = (size: ButtonSize) => {
   `;
 };
 
+/**
+ * 실행 버튼. 기본 type은 button이다.
+ * 위치와 바깥 여백, 최대 너비는 사용처의 className이나 style로 지정한다.
+ */
 export const Button = ({
+  type = 'button',
   variant = 'brand',
   size = 'md',
   isLoading = false,
   disabled = false,
+  isFullWidth = false,
   icon,
   className,
   children,
@@ -254,9 +262,10 @@ export const Button = ({
   return (
     <button
       {...props}
+      type={type}
       disabled={disabled || isLoading}
       aria-busy={isLoading}
-      className={cx(root(size, status), appearance, className)}
+      className={cx(root(size, status, isFullWidth), appearance, className)}
     >
       {!isLoading && icon && (
         <span aria-hidden="true" className={iconStyle(size)}>
