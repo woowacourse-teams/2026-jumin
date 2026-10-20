@@ -1,5 +1,5 @@
 import { css, cx } from '@emotion/css';
-import type { ComponentProps } from 'react';
+import type { ElementType, HTMLAttributes, Ref } from 'react';
 
 const ALIGN = {
   start: 'flex-start',
@@ -16,7 +16,10 @@ const JUSTIFY = {
   between: 'space-between',
 };
 
-export interface Props extends ComponentProps<'div'> {
+export interface Props extends HTMLAttributes<HTMLElement> {
+  /** 렌더링할 태그 또는 컴포넌트. 생략하면 div를 사용한다. */
+  as?: ElementType;
+
   /**
    * Row의 세로·Stack의 가로 정렬을 지정한다. 기본값은 stretch로 적용된다.
    * @default "stretch"
@@ -25,7 +28,7 @@ export interface Props extends ComponentProps<'div'> {
 
   /**
    * Row의 가로·Stack의 세로 정렬을 지정한다. 기본값은 start로 적용된다.
-   * @default "flex-start"
+   * @default "start"
    */
   justify?: keyof typeof JUSTIFY;
 
@@ -52,7 +55,9 @@ const root = (
  * 자식을 가로로 배치한다.
  * 정렬·간격을 관리한다.
  * 크기·여백·색상은 className·style로 지정한다.
- * 기본 div 속성과 ref를 전달한다.
+ * 기본 태그는 div이며, as로 태그를 바꿀 수 있다.
+ * 공통 HTML 속성과 ref를 전달하며, 태그별 전용 속성은 추론하지 않는다.
+ * 커스텀 컴포넌트는 className과 전달받은 HTML 속성을 렌더링 요소에 연결해야 한다.
  *
  * @example
  * <Row align="center" justify="between" gap={16}>
@@ -61,9 +66,10 @@ const root = (
  * </Row>
  */
 export const Row = ({
+  as: Component = 'div',
   align = 'stretch',
   justify = 'start',
   gap = 0,
   className,
   ...props
-}: Props) => <div {...props} className={cx(root(align, justify, gap), className)} />;
+}: Props) => <Component {...props} className={cx(root(align, justify, gap), className)} />;
