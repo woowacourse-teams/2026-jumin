@@ -264,7 +264,7 @@ export const Button = ({
       {...props}
       type={type}
       disabled={disabled || isLoading}
-      aria-busy={isLoading}
+      aria-busy={isLoading || (props['aria-busy'] ?? false)}
       className={cx(root(size, status, isFullWidth), appearance, className)}
     >
       {!isLoading && icon && (
