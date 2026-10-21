@@ -1,13 +1,7 @@
 import { css, cx } from '@emotion/css';
 import { NavLink } from 'react-router';
 import type { IconType } from 'react-icons';
-import {
-  HistoryIcon,
-  HomeFilledIcon,
-  HomeIcon,
-  SettingsFilledIcon,
-  SettingsIcon,
-} from '../ui/icons';
+import { HistoryIcon, HomeIcon, SettingsFilledIcon, SettingsIcon } from '../ui/icons';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
 
@@ -22,7 +16,7 @@ const menus = [
     path: '/',
     label: '홈',
     icon: HomeIcon,
-    activeIcon: HomeFilledIcon,
+    activeIcon: HomeIcon,
   },
   {
     path: '/recent',

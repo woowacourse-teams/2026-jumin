@@ -14,8 +14,6 @@ export {
   HiOutlineClock as HistoryIcon,
   HiOutlineCog6Tooth as SettingsIcon,
   HiCog6Tooth as SettingsFilledIcon,
-  HiOutlineHome as HomeIcon,
-  HiHome as HomeFilledIcon,
   HiOutlineBookOpen as GuideIcon,
   HiOutlineArrowDownTray as InstallIcon,
   HiOutlineChatBubbleLeftRight as FeedbackIcon,
@@ -26,3 +24,5 @@ export {
   HiOutlineCheck as CheckIcon,
   HiOutlineArrowDown as ArrowDownIcon,
 } from 'react-icons/hi2';
+
+export { TiHome as HomeIcon } from 'react-icons/ti';
