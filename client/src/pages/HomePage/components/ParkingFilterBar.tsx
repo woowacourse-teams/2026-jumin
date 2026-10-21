@@ -1,4 +1,6 @@
 import { css } from '@emotion/css';
+import type { IconType } from 'react-icons';
+import { FreeParkingIcon, MechanicalParkingIcon } from '../../../../shared/components/ui/icons';
 import type { ParkingViewportFilters } from '../../../../api/parkingLots';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
@@ -13,14 +15,19 @@ type FilterKey = keyof ParkingViewportFilters;
 const filterOptions: Array<{
   key: FilterKey;
   label: string;
-  icon: string;
+  icon: IconType;
   color: string;
 }> = [
-  { key: 'freeOnly', label: '무료 주차장', icon: '$', color: color.parkingFilter.freeOnly },
+  {
+    key: 'freeOnly',
+    label: '무료 주차장',
+    icon: FreeParkingIcon,
+    color: color.parkingFilter.freeOnly,
+  },
   {
     key: 'excludeMechanical',
     label: '기계식 제외',
-    icon: '▤',
+    icon: MechanicalParkingIcon,
     color: color.parkingFilter.excludeMechanical,
   },
 ];
@@ -33,7 +40,7 @@ export const ParkingFilterBar = ({ filters, onChange }: Props) => {
 
   return (
     <div className={filterBarStyle} role="group" aria-label="주차장 필터">
-      {filterOptions.map(({ key, label, icon, color: accentColor }) => {
+      {filterOptions.map(({ key, label, icon: Icon, color: accentColor }) => {
         const isSelected = filters[key];
 
         return (
@@ -45,7 +52,7 @@ export const ParkingFilterBar = ({ filters, onChange }: Props) => {
             onClick={() => toggleFilter(key)}
           >
             <span className={filterIconStyle(accentColor, isSelected)} aria-hidden="true">
-              {icon}
+              <Icon size={16} />
             </span>
             {label}
           </button>

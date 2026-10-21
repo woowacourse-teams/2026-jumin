@@ -6,7 +6,7 @@ import ReactModal from 'react-modal';
 
 import { loadNaverMaps } from '../../../maps/loadNaverMaps';
 import { color } from '../../../../src/theme/color';
-import { fontSize, fontWeight } from '../../../../src/theme/font';
+import { CloseIcon } from '../../ui/icons';
 import { typography } from '../../../../src/theme/typography';
 
 if (typeof document !== 'undefined') {
@@ -144,7 +144,7 @@ export const RoadViewOverlay = ({
           aria-label="로드뷰 닫기"
           onClick={onRequestClose}
         >
-          ×
+          <CloseIcon size={28} aria-hidden="true" />
         </button>
 
         <div className={headerTextStyle}>
@@ -223,10 +223,6 @@ const closeButtonStyle = css`
   padding: 0;
 
   color: ${color.icon.inverse};
-  font-family: inherit;
-  font-size: ${fontSize[30]};
-  font-weight: ${fontWeight[400]};
-  line-height: 1;
 
   background: rgb(16 27 55 / 64%);
   border: 1px solid rgb(255 255 255 / 25%);

@@ -3,6 +3,7 @@ import { css } from '@emotion/css';
 import brandMark from '../../../assets/icons/brandMark.svg';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
+import { RetryIcon } from '../ui/icons';
 
 interface Props {
   label: string;
@@ -19,17 +20,10 @@ export const ErrorCard = ({ label, onRetry }: Props) => (
     </div>
 
     <button className={retryButtonStyle} type="button" onClick={onRetry}>
-      <RetryIcon />
+      <RetryIcon size={22} aria-hidden="true" />
       다시 시도
     </button>
   </section>
-);
-
-const RetryIcon = () => (
-  <svg className={retryIconStyle} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M20 11a8 8 0 1 0-2.34 5.66" />
-    <path d="M20 4v7h-7" />
-  </svg>
 );
 
 const errorStyle = css`
@@ -119,14 +113,4 @@ const retryButtonStyle = css`
     outline: 3px solid ${color.focus.ring};
     outline-offset: 3px;
   }
-`;
-
-const retryIconStyle = css`
-  width: 22px;
-  height: 22px;
-
-  stroke: currentcolor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 `;

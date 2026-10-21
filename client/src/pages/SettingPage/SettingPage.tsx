@@ -2,9 +2,13 @@ import { css, cx } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import guideIcon from '../../../assets/icons/guideIcon.svg';
-import installIcon from '../../../assets/icons/installIcon.svg';
-import feedbackIcon from '../../../assets/icons/feedBackIcon.svg';
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  FeedbackIcon,
+  GuideIcon,
+  InstallIcon,
+} from '../../../shared/components/ui/icons';
 import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { GuideModal } from '../../../shared/components/service/guide/GuideModal';
 import { FEEDBACK_URL } from '../../../shared/constants/help';
@@ -34,7 +38,7 @@ export const SettingPage = () => {
             <span className={styles.introLabel}>주차장을 찾는 가장 간단한 방법</span>
             <strong className={styles.introTitle}>주차의민족 소개</strong>
             <span className={styles.introLink}>
-              서비스 알아보기 <span aria-hidden="true">›</span>
+              서비스 알아보기 <ChevronRightIcon size={16} aria-hidden="true" />
             </span>
           </span>
         </Link>
@@ -46,7 +50,7 @@ export const SettingPage = () => {
           <div className={styles.menu}>
             <button className={styles.item} type="button" onClick={guideModal.open}>
               <span className={styles.iconFrame}>
-                <img src={guideIcon} alt="" />
+                <GuideIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>가이드 보기</strong>
@@ -55,7 +59,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                ›
+                <ChevronRightIcon size={16} />
               </span>
             </button>
             <button
@@ -65,7 +69,7 @@ export const SettingPage = () => {
               onClick={() => void handleInstall()}
             >
               <span className={cx(styles.iconFrame, styles.installIconFrame)}>
-                <img src={installIcon} alt="" />
+                <InstallIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>
@@ -78,7 +82,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                {isInstalled ? '✓' : '›'}
+                {isInstalled ? <CheckIcon size={16} /> : <ChevronRightIcon size={16} />}
               </span>
             </button>
           </div>
@@ -98,7 +102,7 @@ export const SettingPage = () => {
               onClick={() => window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer')}
             >
               <span className={cx(styles.iconFrame, styles.feedbackIconFrame)}>
-                <img src={feedbackIcon} alt="" />
+                <FeedbackIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>피드백 보내기</strong>
@@ -107,7 +111,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                ›
+                <ChevronRightIcon size={16} />
               </span>
             </button>
           </div>
@@ -199,6 +203,9 @@ const styles = {
     letter-spacing: -0.6px;
   `,
   introLink: css`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-top: 6px;
     ${typography.bodySmallStrong};
     color: ${color.text.brand};
@@ -260,13 +267,9 @@ const styles = {
     width: 40px;
     height: 40px;
     place-items: center;
+    color: ${color.icon.default};
     background: ${color.background.brandSubtle};
     border-radius: 13px;
-
-    img {
-      width: 21px;
-      height: 21px;
-    }
   `,
   installIconFrame: css`
     background: ${palette.mint50};
@@ -283,9 +286,8 @@ const styles = {
     word-break: keep-all;
   `,
   chevron: css`
+    display: inline-flex;
     color: ${color.icon.default};
-    ${typography.titleSection}
-    line-height: 1;
   `,
   installMessage: css`
     margin: 0;

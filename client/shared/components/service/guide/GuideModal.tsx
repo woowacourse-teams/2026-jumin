@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { BackIcon } from '../../ui/icons';
 
 import guide1Image from '../../../../assets/guideImage/guide1.png';
 import guide2Image from '../../../../assets/guideImage/guide2.png';
@@ -84,7 +85,7 @@ export const GuideModal = ({ onClose }: Props) => {
           disabled={step === 0}
           onClick={() => setStep(step - 1)}
         >
-          ‹
+          <BackIcon size={24} aria-hidden="true" />
         </button>
         <button
           className={nextButtonStyle}
@@ -233,8 +234,6 @@ const previousButtonStyle = css`
   place-items: center;
 
   color: ${color.icon.default};
-  font-family: inherit;
-  font-size: 1.75rem;
   background: ${color.background.default};
   border: 1px solid ${color.border.default};
   border-radius: 14px;
