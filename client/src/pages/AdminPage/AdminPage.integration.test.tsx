@@ -447,27 +447,30 @@ describe('관리자 주차장 CSV 동기화', () => {
     expect(alert).toHaveTextContent('유효한 좌표여야 합니다.');
   });
 
-  it.each([409, 413, 415])('%i 응답에 통일된 안내를 표시하고 자동으로 재전송하지 않는다', async (status) => {
-    // given
-    let requests = 0;
-    server.use(
-      http.post('/api/admin/parking/csv/import', () => {
-        requests += 1;
-        return HttpResponse.json({ message: '서버별 오류 메시지' }, { status });
-      }),
-    );
-    renderAuthenticatedPage();
-    const user = await selectCsv();
+  it.each([409, 413, 415])(
+    '%i 응답에 통일된 안내를 표시하고 자동으로 재전송하지 않는다',
+    async (status) => {
+      // given
+      let requests = 0;
+      server.use(
+        http.post('/api/admin/parking/csv/import', () => {
+          requests += 1;
+          return HttpResponse.json({ message: '서버별 오류 메시지' }, { status });
+        }),
+      );
+      renderAuthenticatedPage();
+      const user = await selectCsv();
 
-    // when
-    await user.click(screen.getByRole('button', { name: 'CSV 동기화' }));
+      // when
+      await user.click(screen.getByRole('button', { name: 'CSV 동기화' }));
 
-    // then
-    expect(await screen.findByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.adminCsvImport);
-    expect(screen.getByRole('button', { name: 'CSV 동기화' })).toBeEnabled();
-    expect(requests).toBe(1);
-    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
-  });
+      // then
+      expect(await screen.findByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.adminCsvImport);
+      expect(screen.getByRole('button', { name: 'CSV 동기화' })).toBeEnabled();
+      expect(requests).toBe(1);
+      expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
+    },
+  );
 
   it.each<[string, () => Response]>([
     ['HTML 프록시 오류', () => HttpResponse.html('<h1>Bad Gateway</h1>', { status: 502 })],
