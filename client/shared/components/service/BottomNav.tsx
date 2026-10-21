@@ -1,11 +1,13 @@
 import { css, cx } from '@emotion/css';
 import { NavLink } from 'react-router';
-import activeHomeIcon from '../../../assets/icons/activeHome.svg';
-import activeSettingIcon from '../../../assets/icons/activeSetting.svg';
-import activeRecentUseIcon from '../../../assets/icons/activeRecentUse.svg';
-import homeIcon from '../../../assets/icons/home.svg';
-import settingIcon from '../../../assets/icons/setting.svg';
-import recentUseIcon from '../../../assets/icons/recentUse.svg';
+import type { IconType } from 'react-icons';
+import {
+  HistoryIcon,
+  HomeFilledIcon,
+  HomeIcon,
+  SettingsFilledIcon,
+  SettingsIcon,
+} from '../ui/icons';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
 
@@ -13,20 +15,20 @@ const menus = [
   {
     path: '/setting',
     label: '설정',
-    icon: settingIcon,
-    activeIcon: activeSettingIcon,
+    icon: SettingsIcon,
+    activeIcon: SettingsFilledIcon,
   },
   {
     path: '/',
     label: '홈',
-    icon: homeIcon,
-    activeIcon: activeHomeIcon,
+    icon: HomeIcon,
+    activeIcon: HomeFilledIcon,
   },
   {
     path: '/recent',
     label: '최근 이용',
-    icon: recentUseIcon,
-    activeIcon: activeRecentUseIcon,
+    icon: HistoryIcon,
+    activeIcon: HistoryIcon,
   },
 ];
 
@@ -42,18 +44,17 @@ export const BottomNav = () => (
 );
 
 interface NavigationIconProps {
-  icon: string;
-  activeIcon: string;
+  icon: IconType;
+  activeIcon: IconType;
 }
 
-const NavigationIcon = ({ icon, activeIcon }: NavigationIconProps) => (
+const NavigationIcon = ({ icon: Icon, activeIcon: ActiveIcon }: NavigationIconProps) => (
   <span className={iconContainerStyle}>
-    <img className={cx('default-icon', iconStyle)} src={icon} alt="" draggable={false} />
-    <img
+    <Icon className={cx('default-icon', iconStyle)} size={26} aria-hidden="true" />
+    <ActiveIcon
       className={cx('active-icon', iconStyle, activeIconStyle)}
-      src={activeIcon}
-      alt=""
-      draggable={false}
+      size={26}
+      aria-hidden="true"
     />
   </span>
 );
@@ -123,6 +124,7 @@ const iconStyle = css`
 
   width: 26px;
   height: 26px;
+  color: ${color.icon.default};
 
   pointer-events: none;
   user-select: none;
@@ -130,4 +132,5 @@ const iconStyle = css`
 
 const activeIconStyle = css`
   opacity: 0;
+  color: ${color.icon.selected};
 `;

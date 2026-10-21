@@ -1,5 +1,6 @@
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { CloseIcon } from './icons';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
 
@@ -29,7 +30,7 @@ export const Modal = ({ onClose, label, description, children }: Props) => {
         aria-label={`${label} 닫기`}
         onClick={onClose}
       >
-        ×
+        <CloseIcon size={24} aria-hidden="true" />
       </button>
 
       <section className={contentStyle}>{children}</section>
@@ -81,9 +82,6 @@ const closeButtonStyle = css`
   padding: 0;
 
   color: ${color.icon.default};
-  font-family: inherit;
-  font-size: 1.625rem;
-  line-height: 1;
 
   background: transparent;
   border: 0;

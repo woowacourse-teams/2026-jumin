@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
 import { useEffect, useSyncExternalStore } from 'react';
+import { ChevronRightIcon } from '../../../../shared/components/ui/icons';
 
 import brandMark from '../../../../assets/icons/brandMark.svg';
 import { color } from '../../../theme/color';
@@ -42,7 +43,7 @@ export const InstallAppButton = () => {
       </span>
 
       <span className={chevronStyle} aria-hidden="true">
-        ›
+        <ChevronRightIcon size={20} />
       </span>
     </button>
   );
@@ -136,9 +137,8 @@ const descriptionStyle = css`
 `;
 
 const chevronStyle = css`
+  display: inline-flex;
   justify-self: end;
 
   color: ${color.icon.default};
-  ${typography.titleSection}
-  line-height: 1;
 `;

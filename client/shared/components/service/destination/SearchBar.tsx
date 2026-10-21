@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
-import searchIcon from '../../../../assets/icons/searchIcon.svg';
+import { SearchIcon } from '../../ui/icons';
 import { color } from '../../../../src/theme/color';
 import { typography } from '../../../../src/theme/typography';
 
@@ -40,17 +40,17 @@ export const SearchBar = ({
     `}
     onClick={onClick}
   >
-    <img
+    <SearchIcon
+      size={20}
       className={css`
         width: 20px;
         height: 20px;
         flex-shrink: 0;
+        color: ${color.icon.selected};
         pointer-events: none;
         user-select: none;
       `}
-      src={searchIcon}
-      alt=""
-      draggable={false}
+      aria-hidden="true"
     />
     <input
       className={css`

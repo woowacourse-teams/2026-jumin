@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { color } from '../../../src/theme/color';
-import { fontSize } from '../../../src/theme/font';
+import { CloseIcon, HistoryIcon } from '../ui/icons';
 import { typography } from '../../../src/theme/typography';
 
 interface Props {
@@ -23,7 +23,7 @@ export const RecentHistoryRow = ({
   <li className={rowStyle}>
     <button className={contentButtonStyle} type="button" onClick={onSelect}>
       <span className={historyIconStyle} aria-hidden="true">
-        ◷
+        <HistoryIcon size={18} />
       </span>
 
       <span className={textContainerStyle}>
@@ -40,7 +40,7 @@ export const RecentHistoryRow = ({
         aria-label={removeLabel}
         onClick={onRemove}
       >
-        ×
+        <CloseIcon size={20} aria-hidden="true" />
       </button>
     )}
   </li>
@@ -79,12 +79,13 @@ const contentButtonStyle = css`
 `;
 
 const historyIconStyle = css`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   flex-shrink: 0;
 
   color: ${color.icon.default};
-  font-size: ${fontSize[18]};
-  text-align: center;
 `;
 
 const textContainerStyle = css`
@@ -120,13 +121,14 @@ const metadataStyle = css`
 `;
 
 const removeButtonStyle = css`
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   margin-right: 6px;
   flex-shrink: 0;
 
   color: ${color.icon.default};
-  font-size: ${fontSize[20]};
 
   background: transparent;
   border: 0;

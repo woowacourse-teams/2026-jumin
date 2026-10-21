@@ -1,5 +1,6 @@
 import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
+import { ArrowDownIcon } from '../../../shared/components/ui/icons';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
@@ -61,7 +62,7 @@ export const LandingPage = () => {
         </div>
 
         <a className={styles.scrollLink} href="#landing-intro">
-          서비스 알아보기 <span aria-hidden="true">↓</span>
+          서비스 알아보기 <ArrowDownIcon size={20} aria-hidden="true" />
         </a>
       </section>
 
@@ -413,9 +414,6 @@ const styles = {
     ${typography.caption};
     color: ${color.text.inverseSecondary} !important;
     transform: translateX(-50%);
-    span {
-      font-size: ${fontSize[20]};
-    }
     @media (max-width: 700px) {
       bottom: max(20px, env(safe-area-inset-bottom, 0px));
     }

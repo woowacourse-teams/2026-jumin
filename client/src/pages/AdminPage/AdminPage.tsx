@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { z } from 'zod';
+import { CheckIcon, UploadIcon } from '../../../shared/components/ui/icons';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
 import parkingGuide from '../../../assets/guideImage/guide3.png';
@@ -471,15 +472,7 @@ export const AdminPage = () => {
                           disabled={isImporting}
                         />
                         <span className={uploadIconStyle} aria-hidden="true">
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                            <path
-                              d="M12 15V3m0 0L7 8m5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"
-                              stroke="currentColor"
-                              strokeWidth="1.7"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <UploadIcon size={28} />
                         </span>
                         <strong className={fileInfoStyle}>
                           {file ? file.name : 'CSV 파일을 선택해 주세요'}
@@ -562,7 +555,9 @@ export const AdminPage = () => {
                 {result && (
                   <section className={cardStyle} aria-labelledby="admin-result-title">
                     <p className={successStyle} role="status">
-                      <span aria-hidden="true">✓</span>
+                      <span aria-hidden="true">
+                        <CheckIcon size={18} />
+                      </span>
                       CSV 동기화가 완료되었습니다.
                     </p>
                     <h2 id="admin-result-title" className={sectionTitleStyle}>

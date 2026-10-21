@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+import { CloseIcon } from '../../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
@@ -40,20 +41,21 @@ export const DestinationConfirmSheet = ({
           position: absolute;
           top: 16px;
           right: 16px;
+          display: grid;
+          place-items: center;
           width: 32px;
           height: 32px;
           padding: 0;
           border: 0;
           background: transparent;
           color: ${color.icon.default};
-          ${typography.titleSection}
           cursor: pointer;
         `}
         type="button"
         aria-label="목적지 선택 취소"
         onClick={onCancel}
       >
-        ×
+        <CloseIcon size={24} aria-hidden="true" />
       </button>
 
       <h1
