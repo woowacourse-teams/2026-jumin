@@ -19,10 +19,11 @@ export {
   HiOutlineChatBubbleLeftRight as FeedbackIcon,
   HiOutlineCurrencyDollar as FreeParkingIcon,
   HiOutlineBuildingOffice2 as MechanicalParkingIcon,
-  HiOutlineViewfinderCircle as CurrentLocationIcon,
   HiOutlineArrowUpTray as UploadIcon,
   HiOutlineCheck as CheckIcon,
   HiOutlineArrowDown as ArrowDownIcon,
 } from 'react-icons/hi2';
 
 export { TiHome as HomeIcon } from 'react-icons/ti';
+
+export { MdMyLocation as MyLocation } from 'react-icons/md';

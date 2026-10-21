@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { CurrentLocationIcon } from '../../../../shared/components/ui/icons';
+import { MyLocation } from '../../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
 
 interface Props {
@@ -27,7 +27,7 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
     aria-label="현재 위치로 이동"
     onClick={onClick}
   >
-    <CurrentLocationIcon
+    <MyLocation
       size={22}
       className={css`
         display: block;
