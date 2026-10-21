@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import type { Destination } from '../../../../api/contracts';
 import { color } from '../../../theme/color';
-import { fontSize } from '../../../theme/font';
+import { LocationIcon } from '../../../../shared/components/ui/icons';
 import { typography } from '../../../theme/typography';
 
 interface Props {
@@ -50,11 +50,10 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
             border-radius: 10px;
             background: ${color.background.brandSubtle};
             color: ${color.text.brand};
-            font-size: ${fontSize[16]};
           `}
           aria-hidden="true"
         >
-          ⌖
+          <LocationIcon size={18} />
         </span>
         <span
           className={css`

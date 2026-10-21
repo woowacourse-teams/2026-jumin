@@ -3,7 +3,11 @@ import { css, cx } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
+import {
+  DirectionsIcon,
+  InformationIcon,
+  LocationIcon,
+} from '../../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
@@ -42,10 +46,7 @@ export const InfoRow = ({
       />
 
       <span className={locationIconContainerStyle} aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z" />
-          <circle cx="12" cy="9" r="2.5" />
-        </svg>
+        <LocationIcon size={28} aria-hidden="true" />
       </span>
 
       <div className={informationStyle}>
@@ -66,7 +67,7 @@ export const InfoRow = ({
           aria-label={`${name} 상세정보`}
           onClick={() => onNavigate(parkingLot)}
         >
-          <InformationIcon />
+          <InformationIcon size={22} aria-hidden="true" />
         </button>
         <button
           className={cx(actionButtonStyle, directionsButtonStyle)}
@@ -74,7 +75,7 @@ export const InfoRow = ({
           aria-label={`${name} 길찾기`}
           onClick={() => onDirections(parkingLot)}
         >
-          <DirectionsIcon />
+          <DirectionsIcon size={18} aria-hidden="true" />
         </button>
       </div>
     </article>
@@ -156,10 +157,6 @@ const locationIconContainerStyle = css`
   svg {
     width: 28px;
     height: 28px;
-    stroke: currentColor;
-    stroke-width: 2.2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 `;
 

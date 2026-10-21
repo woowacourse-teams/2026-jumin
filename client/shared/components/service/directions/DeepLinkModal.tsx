@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { css, cx } from '@emotion/css';
 import Modal from 'react-modal';
+import { ChevronRightIcon, CloseIcon } from '../../ui/icons';
 
 import { trackEvent } from '../../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
@@ -142,7 +143,7 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
         aria-label="길찾기 앱 선택 닫기"
         onClick={onRequestClose}
       >
-        ×
+        <CloseIcon size={24} aria-hidden="true" />
       </button>
 
       <h2 className={titleStyle}>어떤 앱으로 갈까요?</h2>
@@ -162,7 +163,7 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
               <strong>{label}</strong>
             </span>
             <span className={chevronStyle} aria-hidden="true">
-              ›
+              <ChevronRightIcon size={16} />
             </span>
           </button>
         ))}

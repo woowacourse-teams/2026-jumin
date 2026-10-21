@@ -4,6 +4,7 @@ import { useParkingLike } from '../../../hooks/useParkingLike';
 import { color } from '../../../../src/theme/color';
 import { typography } from '../../../../src/theme/typography';
 import { Button } from '../../ui/Button';
+import { HeartFilledIcon, HeartIcon } from '../../ui/icons';
 
 interface Props extends ParkingLikeState {
   parkingLotId: number;
@@ -11,6 +12,7 @@ interface Props extends ParkingLikeState {
 
 export const ParkingLikeButton = ({ parkingLotId, likeCount, likedByMe }: Props) => {
   const like = useParkingLike(parkingLotId, { likeCount, likedByMe });
+  const LikeIcon = like.likedByMe ? HeartFilledIcon : HeartIcon;
 
   return (
     <div className={containerStyle}>
@@ -20,21 +22,9 @@ export const ParkingLikeButton = ({ parkingLotId, likeCount, likedByMe }: Props)
         aria-label={`좋아요 ${like.likeCount.toLocaleString('ko-KR')}개`}
         aria-pressed={like.likedByMe}
         onClick={like.toggle}
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            fill={like.likedByMe ? 'currentColor' : 'none'}
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
-          </svg>
-        }
+        icon={<LikeIcon size={18} aria-hidden="true" />}
       >
-        {like.likeCount.toLocaleString('ko-KR')}
+        <span>{like.likeCount.toLocaleString('ko-KR')}</span>
       </Button>
       {like.errorMessage && (
         <p role="alert" className={errorStyle}>

@@ -5,7 +5,7 @@ import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
+import { DirectionsIcon, InformationIcon } from '../../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
@@ -43,7 +43,7 @@ export const InfoCard = ({
           aria-label={`${name} 상세정보`}
           onClick={handleDetailButtonClick}
         >
-          <InformationIcon />
+          <InformationIcon size={24} aria-hidden="true" />
         </button>
       </header>
       <p className={descriptionStyle}>{description}</p>
@@ -59,7 +59,7 @@ export const InfoCard = ({
         aria-label={`${name} 길찾기`}
         onClick={() => onDirections(parkingLot)}
       >
-        <DirectionsIcon />
+        <DirectionsIcon size={20} aria-hidden="true" />
         길찾기
       </button>
     </article>

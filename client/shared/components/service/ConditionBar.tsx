@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import backIcon from '../../../assets/icons/backIcon.svg';
+import { BackIcon } from '../ui/icons';
 import { useNavigate } from 'react-router';
 import type { ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
@@ -23,7 +23,7 @@ export const ConditionBar = ({ title, description, onBack, action }: Props) => {
         aria-label="이전 화면으로 이동"
         onClick={handleBack}
       >
-        <img className={backIconStyle} src={backIcon} alt="" draggable={false} />
+        <BackIcon className={backIconStyle} size={16} aria-hidden="true" />
       </button>
 
       <div className={conditionStyle}>
@@ -86,8 +86,9 @@ const backButtonStyle = css`
 `;
 
 const backIconStyle = css`
-  width: 8px;
+  width: 16px;
   height: 16px;
+  color: ${color.icon.default};
 
   pointer-events: none;
   user-select: none;

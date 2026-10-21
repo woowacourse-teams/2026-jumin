@@ -1,6 +1,7 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { BackIcon } from '../../../shared/components/ui/icons';
 
 import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
@@ -41,7 +42,7 @@ export const RecentUsePage = () => {
           aria-label="이전 화면으로 이동"
           onClick={() => navigate(-1)}
         >
-          ‹
+          <BackIcon size={28} aria-hidden="true" />
         </button>
         <h1 className={titleStyle}>최근 이용</h1>
       </header>
@@ -113,8 +114,6 @@ const backButtonStyle = css`
   margin-bottom: 10px;
 
   color: ${color.icon.default};
-  font-size: 2.25rem;
-  line-height: 1;
 
   background: transparent;
   border: 0;
