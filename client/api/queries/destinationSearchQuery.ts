@@ -2,18 +2,13 @@ import { queryOptions } from '@tanstack/react-query';
 
 import type { DestinationSearchQueryKeyParams } from '../../shared/types/queryKeys';
 import { searchDestinations } from '../parkingLots';
+import { destinationKeys } from './destinationKeys';
 
 export const destinationSearchQueryOptions = (key: DestinationSearchQueryKeyParams) => {
   const normalizedQuery = key.query.trim();
 
   return queryOptions({
-    queryKey: [
-      'destinations',
-      'search',
-      {
-        query: normalizedQuery,
-      },
-    ],
+    queryKey: destinationKeys.search(normalizedQuery),
 
     queryFn: ({ signal }) => searchDestinations(normalizedQuery, signal),
 

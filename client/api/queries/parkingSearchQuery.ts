@@ -1,31 +1,21 @@
 import { queryOptions } from '@tanstack/react-query';
 
-import { searchParkingLots } from '../parkingLots';
+import { searchParkingLots, type ParkingSearchParams } from '../parkingLots';
 import type { ParkingSearchQueryKeyParams } from '../../shared/types/queryKeys';
+import { parkingKeys } from './parkingKeys';
 
-export const parkingSearchQueryOptions = (key: ParkingSearchQueryKeyParams) =>
-  queryOptions({
-    queryKey: [
-      'parking-lots',
-      'search',
-      {
-        destinationLatitude: key.destinationLatitude,
-        destinationLongitude: key.destinationLongitude,
-        entryAt: key.entryAt,
-        exitAt: key.exitAt,
-      },
-    ],
+export const parkingSearchQueryOptions = (params: ParkingSearchQueryKeyParams) => {
+  const request: ParkingSearchParams = {
+    destinationLatitude: params.destinationLatitude,
+    destinationLongitude: params.destinationLongitude,
+    entryAt: params.entryAt,
+    exitAt: params.exitAt,
+  };
 
-    queryFn: ({ signal }) =>
-      searchParkingLots(
-        {
-          destinationLatitude: key.destinationLatitude,
-          destinationLongitude: key.destinationLongitude,
-          entryAt: key.entryAt,
-          exitAt: key.exitAt,
-        },
-        signal,
-      ),
+  return queryOptions({
+    queryKey: parkingKeys.search(request),
+
+    queryFn: ({ signal }) => searchParkingLots(request, signal),
 
     meta: {
       feature: 'parking-recommendation',
@@ -35,3 +25,4 @@ export const parkingSearchQueryOptions = (key: ParkingSearchQueryKeyParams) =>
     staleTime: 60 * 1000,
     retry: 1,
   });
+};

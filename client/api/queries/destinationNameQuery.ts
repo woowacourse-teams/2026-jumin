@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import { getDestinationName } from '../parkingLots';
+import { destinationKeys } from './destinationKeys';
 
 interface DestinationNameQueryParams {
   latitude: number;
@@ -10,14 +11,7 @@ interface DestinationNameQueryParams {
 export const destinationNameQueryOptions = (params: DestinationNameQueryParams) => {
   return queryOptions({
     //좌표가 다르면 서로 다른 요청으로 구분되어야함
-    queryKey: [
-      'latitude',
-      'longitude',
-      {
-        latitude: params.latitude,
-        longitude: params.longitude,
-      },
-    ],
+    queryKey: destinationKeys.name(params.latitude, params.longitude),
 
     //Tanstack Query의 signal과 좌표를 API 함수에 전달
     queryFn: ({ signal }) => {
