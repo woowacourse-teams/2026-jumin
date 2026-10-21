@@ -7,6 +7,7 @@ import { SearchBar } from '../../../../shared/components/service/destination/Sea
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
 import { recentSearchesSchema } from '../../../../api/parkingLotsSchema';
+import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;
@@ -80,7 +81,7 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, SEARCH_DEBOUNCE_DELAY);
 
-  const { data, isFetching, isError, error } = useQuery(
+  const { data, isFetching, isError } = useQuery(
     destinationSearchQueryOptions({
       query: debouncedQuery,
     }),
@@ -94,12 +95,7 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   // 잠깐 표시되지 않도록 한다.
   const searchResults = isDebouncing ? [] : (data?.destinations ?? []);
 
-  const errorMessage =
-    !isDebouncing && isError
-      ? error instanceof Error
-        ? error.message
-        : '검색 결과를 불러오지 못했습니다.'
-      : '';
+  const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.destinationSearch : '';
 
   const handleEnter = () => {
     if (isSearching || !searchResults[0]) {

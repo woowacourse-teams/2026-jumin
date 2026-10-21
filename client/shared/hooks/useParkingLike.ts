@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ParkingLikeState } from '../../api/contracts';
 import { updateParkingLike } from '../../api/parkingLikes';
 import { parkingKeys } from '../../api/queries/parkingKeys';
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 
 const LIKE_DEBOUNCE_DELAY = 300;
 
@@ -68,6 +69,6 @@ export const useParkingLike = (parkingLotId: number, confirmed: ParkingLikeState
     likeCount: confirmed.likeCount + Number(likedByMe) - Number(confirmed.likedByMe),
     toggle,
     isPending: mutation.isPending,
-    errorMessage: mutation.isError ? '좋아요를 변경하지 못했어요. 다시 시도해주세요.' : null,
+    errorMessage: mutation.isError ? API_ERROR_MESSAGES.parkingLike : null,
   };
 };

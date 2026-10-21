@@ -11,6 +11,7 @@ import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
 
 export interface NavigationState {
   searchCondition: ParkingSearchCondition;
@@ -42,7 +43,7 @@ export const ParkingRecommendPage = () => {
           <ErrorBoundary
             onReset={reset}
             fallbackRender={({ resetErrorBoundary }) => (
-              <ErrorCard label="추천 주차장을 불러오지 못했어요" onRetry={resetErrorBoundary} />
+              <ErrorCard label={API_ERROR_MESSAGES.recommendation} onRetry={resetErrorBoundary} />
             )}
           >
             <Suspense fallback={<ParkingRecommendSkeleton />}>
