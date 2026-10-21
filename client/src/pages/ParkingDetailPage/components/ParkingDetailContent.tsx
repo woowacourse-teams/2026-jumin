@@ -22,6 +22,8 @@ import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
 import { RoadViewOverlay } from '../../../../shared/components/service/parking/RoadViewOverlay';
+import { Row } from '../../../../shared/components/ui/Row';
+import { Stack } from '../../../../shared/components/ui/Stack';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
@@ -151,7 +153,7 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
         zIndex={30}
       />
       <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
-        <section className={sheetContentStyle}>
+        <Stack as="section" className={sheetContentStyle}>
           <ParkingDetailActions
             parkingLotId={parkingLotDetail.id}
             likeCount={parkingLike.likeCount}
@@ -159,50 +161,50 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
             onDirections={handleRecommendDirectionButtonClick}
             onRoadView={handleRoadViewButtonClick}
           />
-          <div className={scrollContentStyle}>
+          <Stack className={scrollContentStyle}>
             <div className={feeCardStyle}>
-              <div className={totalFeeStyle}>
+              <Row align="center" justify="between" className={totalFeeStyle}>
                 <span>{durationLabel} 예상 요금</span>
                 <strong>{formatFee(parkingLotDetail.estimatedFee)}</strong>
-              </div>
+              </Row>
 
-              <dl className={feeRuleListStyle}>
+              <Stack as="dl" gap={18} className={feeRuleListStyle}>
                 {feeRule?.baseFreeMinutes !== null &&
                   feeRule?.baseFreeMinutes !== undefined &&
                   feeRule.baseFreeMinutes > 0 && (
-                    <div>
+                    <Row align="center" justify="between">
                       <dt>기본 무료 {feeRule.baseFreeMinutes}분</dt>
                       <dd>0원</dd>
-                    </div>
+                    </Row>
                   )}
 
                 {feeRule && feeRule.baseMinutes !== null && feeRule.baseFee !== null && (
-                  <div>
+                  <Row align="center" justify="between">
                     <dt>기본 {feeRule.baseMinutes}분</dt>
                     <dd>{formatFee(feeRule.baseFee)}</dd>
-                  </div>
+                  </Row>
                 )}
 
                 {feeRule &&
                   feeRule.additionalMinutes !== null &&
                   feeRule.additionalFee !== null && (
-                    <div>
+                    <Row align="center" justify="between">
                       <dt>추가 {feeRule.additionalMinutes}분당</dt>
                       <dd>{formatFee(feeRule.additionalFee)}</dd>
-                    </div>
+                    </Row>
                   )}
 
                 {!feeRule && (
-                  <div>
+                  <Row align="center" justify="between">
                     <dt>요금 규칙</dt>
                     <dd>미제공</dd>
-                  </div>
+                  </Row>
                 )}
-              </dl>
+              </Stack>
             </div>
 
-            <dl className={detailsStyle}>
-              <div>
+            <Stack as="dl" gap={12} className={detailsStyle}>
+              <Row align="center" justify="between">
                 <dt>도보 거리</dt>
 
                 <dd>
@@ -213,23 +215,23 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
                         'ko-KR',
                       )}m(${parkingLotDetail.walkingDurationMinutes}분)`}
                 </dd>
-              </div>
+              </Row>
 
-              <div>
+              <Row align="center" justify="between">
                 <dt>운영시간</dt>
 
                 <dd>{formatWeekdayHours(operation.weekday)}</dd>
-              </div>
+              </Row>
 
-              <div>
+              <Row align="center" justify="between">
                 <dt>잔여석</dt>
 
                 <dd>미제공</dd>
-              </div>
-            </dl>
+              </Row>
+            </Stack>
             <ParkingReportAction parkingLotId={parkingLotDetail.id} />
-          </div>
-        </section>
+          </Stack>
+        </Stack>
       </BottomSheet>
 
       {isRoadViewOpen && (
@@ -256,17 +258,11 @@ export const ParkingDetailContent = ({ map, detailCondition }: Props) => {
 };
 
 const sheetContentStyle = css`
-  display: flex;
-
-  flex-direction: column;
-
   height: 100%;
   min-height: 0;
 `;
 
 const scrollContentStyle = css`
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -291,17 +287,8 @@ const feeCardStyle = css`
 `;
 
 const feeRuleListStyle = css`
-  display: grid;
-  gap: 18px;
-
   margin: 0;
   padding: 20px 18px;
-
-  div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
 
   dt,
   dd {
@@ -321,10 +308,6 @@ const feeRuleListStyle = css`
 `;
 
 const totalFeeStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
   min-height: 64px;
   padding: 0 18px;
 
@@ -340,16 +323,7 @@ const totalFeeStyle = css`
 `;
 
 const detailsStyle = css`
-  display: grid;
-  gap: 12px;
   margin: 24px 0 0;
-  div {
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-  }
   dt,
   dd {
     margin: 0;
