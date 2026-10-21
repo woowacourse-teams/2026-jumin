@@ -45,14 +45,17 @@ const openDirectionsModal = async () => {
 
 describe('D. 주차장 상세정보', () => {
   it('상세 화면에서 좋아요한 상태를 같은 익명 ID로 다시 조회할 수 있다', async () => {
-    const { unmount } = renderDetailPage();
+    const { unmount, queryClient } = renderDetailPage();
     const user = userEvent.setup();
     const button = await screen.findByRole('button', { name: '좋아요 12개' });
     const guestId = localStorage.getItem('guestId');
 
     await user.click(button);
-    await waitFor(() => expect(button).toBeDisabled());
-    await waitFor(() => expect(button).not.toBeDisabled());
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['parking-lots', 'viewport-detail', 101])).toEqual(
+        expect.objectContaining({ likeCount: 13, likedByMe: true }),
+      ),
+    );
     expect(button).toHaveAccessibleName('좋아요 13개');
     expect(button).toHaveAttribute('aria-pressed', 'true');
 

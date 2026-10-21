@@ -74,7 +74,7 @@ const actionsStyle = css`
   flex-shrink: 0;
   align-items: start;
   gap: 8px;
-  margin-bottom: 16px;
+  margin: 4px 0px 16px 0px;
   padding-bottom: 14px;
   border-bottom: 1px solid ${color.border.default};
 `;
