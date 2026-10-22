@@ -61,7 +61,7 @@ jobs:
         working-directory: client
         env:
           NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
-        run: pnpm build
+        run: pnpm build:webpack
 
       - name: Validate build output
         working-directory: client

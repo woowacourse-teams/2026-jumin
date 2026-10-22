@@ -5,6 +5,7 @@
     "dev:e2e": "webpack serve --mode development --env mock=true --env e2e=true",
     "start": "webpack serve --mode development",
     "build": "pnpm typecheck && webpack --mode production",
+    "build:webpack": "webpack --mode production",
     "typecheck": "tsc --noEmit",
     "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config __tests__/jest.config.js --runInBand",
     "test:integration:watch": "NODE_OPTIONS=--experimental-vm-modules jest --config __tests__/jest.config.js --watch",
