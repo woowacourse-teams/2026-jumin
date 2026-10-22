@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { destinationNameQueryOptions } from '../../../../api/queries/destinationNameQuery';
 import type { ParkingSetupView } from '../../../../shared/types/navigation';
+import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
 
 interface Props {
   initialName: string;
@@ -29,7 +30,7 @@ export const useParkingSetupDestination = ({
     if (isFetching) {
       destinationName = '위치 확인중 ...';
     } else if (isError) {
-      destinationName = '위치 이름을 불러오지 못했습니다.';
+      destinationName = API_ERROR_MESSAGES.DESTINATION_NAME;
     } else if (data) {
       destinationName = data.displayName;
     }

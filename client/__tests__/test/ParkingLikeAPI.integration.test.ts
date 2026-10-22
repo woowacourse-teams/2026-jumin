@@ -86,23 +86,34 @@ describe('주차장 좋아요 API와 익명 ID', () => {
     });
   });
 
-  it.each([400, 404, 500])('HTTP %i 오류의 서버 메시지를 보존한다', async (status) => {
+  it.each([400, 404, 500])('HTTP %i 오류를 상태와 서버 메시지로 분류한다', async (status) => {
     server.use(
       http.put('/api/parking/101/like', () =>
         HttpResponse.json({ message: '좋아요 요청 오류' }, { status }),
       ),
     );
-    await expect(updateParkingLike(101, true)).rejects.toThrow('좋아요 요청 오류');
+    await expect(updateParkingLike(101, true)).rejects.toMatchObject({
+      failure: {
+        errorType: 'http',
+        status,
+        serverMessage: '좋아요 요청 오류',
+      },
+    });
   });
 
   it.each([
-    { parkingLotId: 101, likeCount: -1, likedByMe: true },
-    { parkingLotId: 101, likeCount: 1.5, likedByMe: true },
-    { parkingLotId: 101, likeCount: 13 },
-    { parkingLotId: 102, likeCount: 13, likedByMe: true },
-    { parkingLotId: 101, likeCount: 13, likedByMe: false },
-  ])('잘못된 좋아요 응답을 성공으로 처리하지 않는다 (사례 %#)', async (body) => {
+    [{ parkingLotId: 101, likeCount: -1, likedByMe: true }, 'schema'],
+    [{ parkingLotId: 101, likeCount: 1.5, likedByMe: true }, 'schema'],
+    [{ parkingLotId: 101, likeCount: 13 }, 'schema'],
+    [{ parkingLotId: 102, likeCount: 13, likedByMe: true }, 'mismatch'],
+    [{ parkingLotId: 101, likeCount: 13, likedByMe: false }, 'mismatch'],
+  ] as const)('잘못된 좋아요 응답을 실패 유형으로 분류한다 (사례 %#)', async (body, reason) => {
     server.use(http.put('/api/parking/101/like', () => HttpResponse.json(body)));
-    await expect(updateParkingLike(101, true)).rejects.toThrow('좋아요를 변경하지 못했어요.');
+    await expect(updateParkingLike(101, true)).rejects.toMatchObject({
+      failure: {
+        errorType: 'response',
+        reason,
+      },
+    });
   });
 });

@@ -12,6 +12,7 @@ import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
 import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { color } from '../../theme/color';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
@@ -42,7 +43,7 @@ export const ParkingDetailPage = () => {
           <ErrorBoundary
             onReset={reset}
             fallbackRender={({ resetErrorBoundary }) => (
-              <ErrorCard label="주차장 상세정보를 불러오지 못했어요" onRetry={resetErrorBoundary} />
+              <ErrorCard label={API_ERROR_MESSAGES.PARKING_DETAIL} onRetry={resetErrorBoundary} />
             )}
           >
             <Suspense fallback={<ParkingDetailSkeleton />}>

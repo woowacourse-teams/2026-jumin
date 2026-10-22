@@ -16,6 +16,7 @@ import {
 } from './parkingLotsSchema';
 import { parseApiResponse } from './parseApiResponse';
 import { getGuestId } from '../shared/utils/guestId';
+import { request } from './request';
 
 export interface ParkingSearchParams {
   destinationLatitude: number;
@@ -50,15 +51,11 @@ export const searchDestinations = async (
   query: string,
   signal?: AbortSignal,
 ): Promise<DestinationSearchResponse> => {
-  const response = await fetch(`/api/destinations/search?query=${encodeURIComponent(query)}`, {
+  const response = await request(`/api/destinations/search?query=${encodeURIComponent(query)}`, {
     signal,
   });
 
-  return parseApiResponse(
-    response,
-    destinationSearchSchema,
-    '목적지 검색 결과를 불러오지 못했습니다.',
-  );
+  return parseApiResponse(response, destinationSearchSchema);
 };
 
 export const getDestinationName = async (
@@ -66,12 +63,12 @@ export const getDestinationName = async (
   longitude: number,
   signal?: AbortSignal,
 ): Promise<DestinationNameResponse> => {
-  const response = await fetch(
+  const response = await request(
     `/api/destinations/reverse-geocode?latitude=${latitude}&longitude=${longitude}`,
     { signal },
   );
 
-  return parseApiResponse(response, destinationNameSchema, '목적지를 다시 설정해주세요.');
+  return parseApiResponse(response, destinationNameSchema);
 };
 
 // 주차장 목록을 가져오는 메서드
@@ -86,9 +83,9 @@ export async function searchParkingLots(
     exitAt: params.exitAt,
   });
 
-  const response = await fetch(`/api/parking/search?${searchParams.toString()}`, { signal });
+  const response = await request(`/api/parking/search?${searchParams.toString()}`, { signal });
 
-  return parseApiResponse(response, parkingSearchSchema, '주차장을 조회하지 못했습니다.');
+  return parseApiResponse(response, parkingSearchSchema);
 }
 
 // 주차장 상세정보를 가져오는 메서드
@@ -104,16 +101,12 @@ export async function getParkingLotDetail(
     exitAt: params.exitAt,
   });
 
-  const response = await fetch(`/api/parking/${parkingLotId}?${searchParams.toString()}`, {
+  const response = await request(`/api/parking/${parkingLotId}?${searchParams.toString()}`, {
     signal,
     headers: { 'X-Guest-Id': getGuestId() },
   });
 
-  return parseApiResponse(
-    response,
-    parkingLotDetailSchema,
-    '주차장 상세 정보를 조회하지 못했습니다.',
-  );
+  return parseApiResponse(response, parkingLotDetailSchema);
 }
 
 // 현재 뷰포트 내 주차장 목록을 가져오는 메서드
@@ -132,13 +125,9 @@ export const getParkingLotsInViewport = async (
   if (params.freeOnly) searchParams.set('freeOnly', 'true');
   if (params.excludeMechanical) searchParams.set('excludeMechanical', 'true');
 
-  const response = await fetch(`/api/parking/viewport?${searchParams}`, { signal });
+  const response = await request(`/api/parking/viewport?${searchParams}`, { signal });
 
-  return parseApiResponse(
-    response,
-    parkingLotViewportResponseSchema,
-    '현재 지도 영역의 주차장을 불러오지 못했습니다.',
-  );
+  return parseApiResponse(response, parkingLotViewportResponseSchema);
 };
 
 // 홈페이지에서 주차장 상세정보를 가져오는 메서드
@@ -146,14 +135,10 @@ export async function getViewportParkingLotDetail(
   parkingLotId: number,
   signal?: AbortSignal,
 ): Promise<ViewportParkingLotDetailResponse> {
-  const response = await fetch(`/api/parking/viewport/${parkingLotId}`, {
+  const response = await request(`/api/parking/viewport/${parkingLotId}`, {
     signal,
     headers: { 'X-Guest-Id': getGuestId() },
   });
 
-  return parseApiResponse(
-    response,
-    viewportParkingLotDetailSchema,
-    '주차장 상세 정보를 조회하지 못했습니다.',
-  );
+  return parseApiResponse(response, viewportParkingLotDetailSchema);
 }

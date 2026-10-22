@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes, useLocation, useNavigate } from 'react-router';
 
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import type { ParkingDetailCondition, RecommendView } from '../../shared/types/navigation';
 import {
   ParkingRecommendPage,
@@ -265,7 +266,7 @@ describe('C. 추천 주차장', () => {
 
     const error = await screen.findByRole('alert');
     expect(
-      within(error).getByRole('heading', { name: '추천 주차장을 불러오지 못했어요' }),
+      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.RECOMMENDATION }),
     ).toBeInTheDocument();
 
     setMockScenario('success');

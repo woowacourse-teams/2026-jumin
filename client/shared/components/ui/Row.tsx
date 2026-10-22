@@ -1,5 +1,5 @@
 import { css, cx } from '@emotion/css';
-import type { ElementType, HTMLAttributes, Ref } from 'react';
+import type { ElementType, HTMLAttributes } from 'react';
 
 const ALIGN = {
   start: 'flex-start',

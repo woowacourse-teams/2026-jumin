@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes, useLocation } from 'react-router';
 
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import type { Destination } from '../../api/contracts';
 import { SearchPage } from '../../src/pages/SearchPage/SearchPage';
 import { renderWithProviders } from '../renderWithProviders';
@@ -57,9 +58,7 @@ describe('A. 목적지 검색', () => {
     renderSearchPage();
     const user = await search('강남역');
 
-    expect(
-      await screen.findByText('목적지를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(API_ERROR_MESSAGES.DESTINATION_SEARCH)).toBeInTheDocument();
 
     setMockScenario('success');
     const input = screen.getByRole('textbox', { name: '목적지 검색' });

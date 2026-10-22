@@ -21,7 +21,7 @@ export const SearchResultList = ({
 }: Props) => {
   const getMessage = () => {
     if (query.length < 2) return '검색어를 2글자 이상 입력해 주세요.';
-    if (isSearching) return '검색 중...';
+    if (isSearching) return '검색중...';
     if (errorMessage) return errorMessage;
     if (searchResults.length === 0) return '검색 결과가 없습니다.';
 

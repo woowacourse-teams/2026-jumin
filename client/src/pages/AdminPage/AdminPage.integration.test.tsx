@@ -3,6 +3,8 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { ADMIN_MESSAGES } from './adminMessages';
 import { renderWithProviders } from '../../../__tests__/renderWithProviders';
 import { server } from '../../../__tests__/msw/server';
 import { AdminPage } from './AdminPage';
@@ -154,7 +156,7 @@ describe('관리자 로그인', () => {
     await user.click(screen.getByRole('button', { name: '로그인' }));
 
     // then
-    expect(await screen.findByRole('alert')).toHaveTextContent('관리자 인증에 실패했습니다.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.ADMIN_LOGIN);
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
     expect(screen.getByRole('button', { name: '로그인' })).toBeEnabled();
 
@@ -412,10 +414,10 @@ describe('관리자 주차장 CSV 동기화', () => {
     // then
     expect(await screen.findByRole('heading', { name: '관리자 로그인' })).toBeInTheDocument();
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
-    expect(screen.getByRole('alert')).toHaveTextContent('관리자 인증이 필요합니다.');
+    expect(screen.getByRole('alert')).toHaveTextContent(ADMIN_MESSAGES.SESSION_EXPIRED);
   });
 
-  it('CSV 검증 오류는 서버 메시지와 필드별 오류를 보여준다', async () => {
+  it('CSV 검증 오류는 통일된 안내와 서버 필드별 오류를 보여준다', async () => {
     // given
     server.use(
       http.post('/api/admin/parking/csv/import', () =>
@@ -439,38 +441,39 @@ describe('관리자 주차장 CSV 동기화', () => {
 
     // then
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('CSV 데이터를 확인해주세요.');
+    expect(alert).toHaveTextContent(API_ERROR_MESSAGES.ADMIN_CSV_IMPORT);
     expect(alert).toHaveTextContent('headers.parking_lots.name');
     expect(alert).toHaveTextContent('필수 헤더가 없습니다.');
     expect(alert).toHaveTextContent('rows[2].parking_lots.latitude');
     expect(alert).toHaveTextContent('유효한 좌표여야 합니다.');
   });
 
-  it.each<[number, string]>([
-    [409, '다른 CSV를 동기화하고 있습니다.'],
-    [413, 'CSV 파일 크기가 허용 범위를 초과했습니다.'],
-    [415, '지원하지 않는 CSV 파일 형식입니다.'],
-  ])('%i 응답의 안내를 보존하고 자동으로 재전송하지 않는다', async (status, message) => {
-    // given
-    let requests = 0;
-    server.use(
-      http.post('/api/admin/parking/csv/import', () => {
-        requests += 1;
-        return HttpResponse.json({ message }, { status });
-      }),
-    );
-    renderAuthenticatedPage();
-    const user = await selectCsv();
+  it.each([409, 413, 415])(
+    '%i 응답에 통일된 안내를 표시하고 자동으로 재전송하지 않는다',
+    async (status) => {
+      // given
+      let requests = 0;
+      server.use(
+        http.post('/api/admin/parking/csv/import', () => {
+          requests += 1;
+          return HttpResponse.json({ message: '서버별 오류 메시지' }, { status });
+        }),
+      );
+      renderAuthenticatedPage();
+      const user = await selectCsv();
 
-    // when
-    await user.click(screen.getByRole('button', { name: 'CSV 동기화' }));
+      // when
+      await user.click(screen.getByRole('button', { name: 'CSV 동기화' }));
 
-    // then
-    expect(await screen.findByRole('alert')).toHaveTextContent(message);
-    expect(screen.getByRole('button', { name: 'CSV 동기화' })).toBeEnabled();
-    expect(requests).toBe(1);
-    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
-  });
+      // then
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        API_ERROR_MESSAGES.ADMIN_CSV_IMPORT,
+      );
+      expect(screen.getByRole('button', { name: 'CSV 동기화' })).toBeEnabled();
+      expect(requests).toBe(1);
+      expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
+    },
+  );
 
   it.each<[string, () => Response]>([
     ['HTML 프록시 오류', () => HttpResponse.html('<h1>Bad Gateway</h1>', { status: 502 })],
@@ -753,7 +756,7 @@ describe('관리자 주차장 제보 목록', () => {
 
     // then
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('제보 목록을 조회할 권한이 없습니다.');
+    expect(alert).toHaveTextContent(API_ERROR_MESSAGES.ADMIN_REVIEWS);
     expect(screen.queryByText('접수된 제보가 없습니다.')).not.toBeInTheDocument();
     expect(requests).toBe(1);
 
@@ -817,7 +820,7 @@ describe('관리자 주차장 제보 목록', () => {
     await user.click(screen.getByRole('button', { name: '새로고침' }));
 
     // then
-    expect(await screen.findByRole('alert')).toHaveTextContent('제보를 불러올 수 없습니다.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.ADMIN_REVIEWS);
     expect(screen.getAllByRole('article')).toHaveLength(2);
     expect(requests).toBe(2);
 
@@ -902,7 +905,7 @@ describe('관리자 주차장 제보 목록', () => {
 
     // then
     expect(await screen.findByRole('heading', { name: '관리자 로그인' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('관리자 인증이 필요합니다.');
+    expect(screen.getByRole('alert')).toHaveTextContent(ADMIN_MESSAGES.SESSION_EXPIRED);
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
 
@@ -1121,7 +1124,7 @@ describe('관리자 주차장 제보 목록', () => {
     await user.click(screen.getByRole('tab', { name: 'CSV 동기화' }));
 
     // then
-    expect(screen.getByRole('alert')).toHaveTextContent('CSV를 확인해 주세요.');
+    expect(screen.getByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.ADMIN_CSV_IMPORT);
   });
 
   it('CSV 동기화 중에는 제보 탭으로 전환하거나 제보를 조회할 수 없다', async () => {

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useModal } from './useModal';
 import { useMutation } from '@tanstack/react-query';
 import { submitParkingReport } from '../../api/reportParkingData';
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 
 export type ParkingReport = ReturnType<typeof useParkingReport>;
 
@@ -63,6 +64,6 @@ export const useParkingReport = ({ parkingLotId }: { parkingLotId: number }) => 
     isPending: mutation.isPending,
     isSuccess: mutation.isSuccess,
     error: mutation.error,
-    errorMessage: mutation.error?.message ?? null,
+    errorMessage: mutation.isError ? API_ERROR_MESSAGES.PARKING_REPORT : null,
   };
 };

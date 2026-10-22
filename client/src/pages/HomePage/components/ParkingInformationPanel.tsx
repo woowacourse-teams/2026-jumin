@@ -8,6 +8,7 @@ import { ErrorCard } from '../../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from '../../ParkingDetailPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
 import { ConditionBar } from '../../../../shared/components/service/ConditionBar';
+import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
 
 const MARKER_GAP = 64;
 
@@ -60,7 +61,7 @@ export const ParkingInformationPanel = ({
     if (detailQuery.isError) {
       return (
         <ErrorCard
-          label="주차장 정보를 불러오지 못했어요"
+          label={API_ERROR_MESSAGES.HOME_PARKING_DETAIL}
           onRetry={() => {
             void detailQuery.refetch();
           }}

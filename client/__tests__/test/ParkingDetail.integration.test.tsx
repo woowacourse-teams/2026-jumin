@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router';
 import { http, HttpResponse } from 'msw';
 
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import { ParkingDetailPage } from '../../src/pages/ParkingDetailPage/ParkingDetailPage';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
 import { server } from '../msw/server';
@@ -136,7 +137,7 @@ describe('D. 주차장 상세정보', () => {
 
     const error = await screen.findByRole('alert');
     expect(
-      within(error).getByRole('heading', { name: '주차장 상세정보를 불러오지 못했어요' }),
+      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.PARKING_DETAIL }),
     ).toBeInTheDocument();
 
     setMockScenario('success');
