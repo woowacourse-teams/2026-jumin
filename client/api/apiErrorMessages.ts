@@ -14,5 +14,4 @@ export const API_ERROR_MESSAGES = {
   adminCsvImportUnknown:
     '업로드 결과를 확인할 수 없습니다. 데이터가 반영되었을 수 있으니 확인 후 다시 업로드해 주세요.',
   adminReviews: '제보 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
-  adminSessionExpired: '인증이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.',
 } as const;

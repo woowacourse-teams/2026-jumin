@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { ADMIN_MESSAGES } from './adminMessages';
 import { renderWithProviders } from '../../../__tests__/renderWithProviders';
 import { server } from '../../../__tests__/msw/server';
 import { AdminPage } from './AdminPage';
@@ -413,7 +414,7 @@ describe('관리자 주차장 CSV 동기화', () => {
     // then
     expect(await screen.findByRole('heading', { name: '관리자 로그인' })).toBeInTheDocument();
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
-    expect(screen.getByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.adminSessionExpired);
+    expect(screen.getByRole('alert')).toHaveTextContent(ADMIN_MESSAGES.sessionExpired);
   });
 
   it('CSV 검증 오류는 통일된 안내와 서버 필드별 오류를 보여준다', async () => {
@@ -902,7 +903,7 @@ describe('관리자 주차장 제보 목록', () => {
 
     // then
     expect(await screen.findByRole('heading', { name: '관리자 로그인' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(API_ERROR_MESSAGES.adminSessionExpired);
+    expect(screen.getByRole('alert')).toHaveTextContent(ADMIN_MESSAGES.sessionExpired);
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
 

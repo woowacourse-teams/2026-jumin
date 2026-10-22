@@ -3,6 +3,7 @@ import type { Destination } from '../../../../api/contracts';
 import { SearchResultRow } from './SearchResultRow';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
+import { SEARCH_MESSAGES } from '../searchMessages';
 
 interface Props {
   query: string;
@@ -20,10 +21,10 @@ export const SearchResultList = ({
   onSelect,
 }: Props) => {
   const getMessage = () => {
-    if (query.length < 2) return '검색어를 2글자 이상 입력해 주세요.';
-    if (isSearching) return '검색 중...';
+    if (query.length < 2) return SEARCH_MESSAGES.queryTooShort;
+    if (isSearching) return SEARCH_MESSAGES.searching;
     if (errorMessage) return errorMessage;
-    if (searchResults.length === 0) return '검색 결과가 없습니다.';
+    if (searchResults.length === 0) return SEARCH_MESSAGES.noSearchResults;
 
     return '';
   };

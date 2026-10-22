@@ -14,6 +14,7 @@ import brandMark from '../../../assets/icons/brandMark.svg';
 import parkingGuide from '../../../assets/guideImage/guide3.png';
 import { ApiError, type FieldError } from '../../../api/apiError';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { ADMIN_MESSAGES } from './adminMessages';
 
 import {
   getParkingReviews,
@@ -99,19 +100,19 @@ const saveSession = (session: AdminSession) => {
 const validateFile = (file: File): AdminUploadError | null => {
   if (!file.name.toLowerCase().endsWith('.csv')) {
     return {
-      message: '.csv 확장자의 파일을 선택해 주세요.',
+      message: ADMIN_MESSAGES.csvExtensionRequired,
       errors: [],
     };
   }
   if (file.size === 0) {
     return {
-      message: '빈 CSV 파일은 업로드할 수 없습니다.',
+      message: ADMIN_MESSAGES.csvCannotBeEmpty,
       errors: [],
     };
   }
   if (file.size > MAX_FILE_SIZE) {
     return {
-      message: 'CSV 파일은 최대 30MiB까지 업로드할 수 있습니다.',
+      message: ADMIN_MESSAGES.csvSizeLimitExceeded,
       errors: [],
     };
   }
@@ -184,7 +185,7 @@ export const AdminPage = () => {
   const loadReviews = async () => {
     if (!session || reviewRequest.current) return;
     if (session.expiresAt <= Date.now()) {
-      logout(API_ERROR_MESSAGES.adminSessionExpired);
+      logout(ADMIN_MESSAGES.sessionExpired);
       return;
     }
 
@@ -200,7 +201,7 @@ export const AdminPage = () => {
     } catch (error) {
       if (reviewRequest.current !== controller || controller.signal.aborted) return;
       if (getHttpStatus(error) === 401) {
-        logout(API_ERROR_MESSAGES.adminSessionExpired);
+        logout(ADMIN_MESSAGES.sessionExpired);
         return;
       }
       setReviewError(API_ERROR_MESSAGES.adminReviews);
@@ -216,7 +217,7 @@ export const AdminPage = () => {
     if (isImporting || requestPending.current || tab === activeTab) return;
     if (!session) return;
     if (tab === 'reviews' && session.expiresAt <= Date.now()) {
-      logout(API_ERROR_MESSAGES.adminSessionExpired);
+      logout(ADMIN_MESSAGES.sessionExpired);
       return;
     }
 
@@ -254,7 +255,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current) return;
     if (!loginId.trim() || password.length === 0) {
-      setLoginError('관리자 ID와 비밀번호를 입력해 주세요.');
+      setLoginError(ADMIN_MESSAGES.loginCredentialsRequired);
       return;
     }
 
@@ -292,7 +293,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current || !session || !file) return;
     if (session.expiresAt <= Date.now()) {
-      logout(API_ERROR_MESSAGES.adminSessionExpired);
+      logout(ADMIN_MESSAGES.sessionExpired);
       return;
     }
 
@@ -313,7 +314,7 @@ export const AdminPage = () => {
       const status = getHttpStatus(error);
 
       if (status === 401) {
-        logout(API_ERROR_MESSAGES.adminSessionExpired);
+        logout(ADMIN_MESSAGES.sessionExpired);
         return;
       }
 
