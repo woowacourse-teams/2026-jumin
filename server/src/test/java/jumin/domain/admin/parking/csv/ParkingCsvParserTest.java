@@ -41,25 +41,25 @@ class ParkingCsvParserTest {
     @ParameterizedTest
     @CsvSource(value = {"true, true", "false, false", "'', NULL", "'   ', NULL"}, nullValues = "NULL")
     @DisplayName("공영 여부를 true와 false 또는 미확인 null로 변환한다")
-    void reads_nullable_public_parking_flag(String value, Boolean expected) {
+    void reads_nullable_is_public_flag(String value, Boolean expected) {
         // given
         Map<String, String> row = validRow("A", "주소");
-        row.put("parking_lots.public_parking", value);
+        row.put("parking_lots.is_public", value);
 
         // when
         ParkingCsvRow result = parser.parse(file(csv(List.of(row)))).rows().getFirst();
 
         // then
-        assertThat(result.lot().publicParking()).isEqualTo(expected);
+        assertThat(result.lot().isPublic()).isEqualTo(expected);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"TRUE", "FALSE", "Y", "N", "1", "0", "공영", "민영", "미확인", "null"})
     @DisplayName("공영 여부는 소문자 true와 false 또는 빈 값만 허용한다")
-    void rejects_invalid_public_parking_flag(String value) {
+    void rejects_invalid_is_public_flag(String value) {
         // given
         Map<String, String> row = validRow("A", "주소");
-        row.put("parking_lots.public_parking", value);
+        row.put("parking_lots.is_public", value);
 
         // when
         ParkingCsvException exception = parseFailure(csv(List.of(row)));
@@ -67,15 +67,15 @@ class ParkingCsvParserTest {
         // then
         assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(exception.getErrors()).extracting(ValidationErrorField::getField)
-                .containsExactly("rows[2].parking_lots.public_parking");
+                .containsExactly("rows[2].parking_lots.is_public");
     }
 
     @Test
     @DisplayName("공영 여부 헤더가 없는 CSV는 422 헤더 오류로 거절한다")
-    void rejects_csv_without_public_parking_header() {
+    void rejects_csv_without_is_public_header() {
         // given
         List<String> headers = new ArrayList<>(ParkingCsvColumn.headers());
-        headers.remove("parking_lots.public_parking");
+        headers.remove("parking_lots.is_public");
 
         // when
         ParkingCsvException exception = parseFailure(csv(headers, List.of(validRow("A", "주소"))));
@@ -83,7 +83,7 @@ class ParkingCsvParserTest {
         // then
         assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(exception.getErrors()).extracting(ValidationErrorField::getField)
-                .containsExactly("headers.parking_lots.public_parking");
+                .containsExactly("headers.parking_lots.is_public");
     }
 
     @ParameterizedTest

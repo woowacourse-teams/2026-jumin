@@ -60,7 +60,7 @@ class ParkingLotRepositoryTest {
         insertParkingLot("viewport-inactive", "viewport 비활성", "서울시 테스트 주소", false, 37.4990, 127.0279);
         insertParkingLot("viewport-missing-location", "viewport 위치 없음", "서울시 테스트 주소", true, null, null);
         insertParkingLot("viewport-missing-address", "viewport 주소 없음", null, true, 37.4990, 127.0279);
-        jdbcTemplate.update("update parking_lots set public_parking = true");
+        jdbcTemplate.update("update parking_lots set is_public = true");
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
@@ -261,9 +261,9 @@ class ParkingLotRepositoryTest {
         insertFilterCandidate("민영 무료", false, false, false, false);
         insertFilterCandidate("미확인 무료", false, false, false, false);
         insertParkingLot("공영 운영정보 없음", "공영 운영정보 없음", "서울시 테스트 주소", true, 37.4990, 127.0279);
-        jdbcTemplate.update("update parking_lots set public_parking = true where name in (?, ?, ?, ?)",
+        jdbcTemplate.update("update parking_lots set is_public = true where name in (?, ?, ?, ?)",
                 "공영 무료", "공영 무료 기계식", "공영 유료", "공영 운영정보 없음");
-        jdbcTemplate.update("update parking_lots set public_parking = false where name = ?", "민영 무료");
+        jdbcTemplate.update("update parking_lots set is_public = false where name = ?", "민영 무료");
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
@@ -276,7 +276,7 @@ class ParkingLotRepositoryTest {
 
     @Test
     @DisplayName("공영 값이 없으면 DB와 엔티티에서 미확인 null로 유지한다")
-    void retains_unknown_public_parking_flag_as_null() {
+    void retains_unknown_is_public_flag_as_null() {
         // given
         insertParkingLot("unknown-public", "공영 미확인", "서울시 테스트 주소", true, 37.4990, 127.0279);
 
@@ -284,11 +284,11 @@ class ParkingLotRepositoryTest {
         ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId("unknown-public")).orElseThrow();
 
         // then
-        assertThat(parkingLot.getPublicParking()).isNull();
+        assertThat(parkingLot.getIsPublic()).isNull();
         assertThat(jdbcTemplate.queryForObject(
-                "select public_parking from parking_lots where id = ?", Boolean.class, parkingLot.getId()
+                "select is_public from parking_lots where id = ?", Boolean.class, parkingLot.getId()
         )).isNull();
-        assertThat(new ParkingLot().getPublicParking()).isNull();
+        assertThat(new ParkingLot().getIsPublic()).isNull();
     }
 
     @Test

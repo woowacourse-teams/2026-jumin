@@ -61,7 +61,7 @@ final class ParkingCsvRowReader {
         Double longitude = coordinate(LONGITUDE, -180, 180);
         Integer capacity = nonNegativeInteger(CAPACITY);
         boolean mechanical = parseYesNo(MECHANICAL);
-        Boolean publicParking = bool(PUBLIC_PARKING, false);
+        Boolean isPublic = bool(IS_PUBLIC, false);
         Boolean active = bool(ACTIVE, true);
         Instant lotCheckedAt = instant(LOT_SOURCE_CHECKED_AT);
         ParkingOperationValues operation = new ParkingOperationValues(
@@ -79,7 +79,7 @@ final class ParkingCsvRowReader {
             return null;
         }
         ParkingLotValues lot = new ParkingLotValues(source, externalId, name, sido, sigungu,
-                address, latitude, longitude, capacity, mechanical, publicParking, active, lotCheckedAt);
+                address, latitude, longitude, capacity, mechanical, isPublic, active, lotCheckedAt);
         return new ParkingCsvRow(record.getRecordNumber(), lot, operation);
     }
 

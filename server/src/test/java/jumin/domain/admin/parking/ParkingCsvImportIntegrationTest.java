@@ -54,7 +54,7 @@ class ParkingCsvImportIntegrationTest {
             "parking_lots.longitude",
             "parking_lots.capacity",
             "parking_lots.mechanical",
-            "parking_lots.public_parking",
+            "parking_lots.is_public",
             "parking_lots.active",
             "parking_lots.source_checked_at",
             "parking_lots.created_at",
@@ -379,7 +379,7 @@ class ParkingCsvImportIntegrationTest {
 
     @Test
     @DisplayName("공영 여부를 업로드하고 세 지도 필터 조합과 변경 및 재업로드를 반영한다")
-    void imports_public_parking_and_filters_updated_classification() throws Exception {
+    void imports_is_public_and_filters_updated_classification() throws Exception {
         // given
         String initial = csv(
                 csvRow("PUBLIC", 1, 0, "N", "true", "false", "false", "false"),
@@ -406,7 +406,7 @@ class ParkingCsvImportIntegrationTest {
         assertThat(JsonPath.<Integer>read(initialResult.body(), "$.totalCount")).isEqualTo(1);
         assertThat(JsonPath.<List<Integer>>read(initialResult.body(), "$.parkingLots[*].id"))
                 .containsExactly(((Number) initialPublic.get("id")).intValue());
-        assertThat(lot("UNKNOWN").get("public_parking")).isNull();
+        assertThat(lot("UNKNOWN").get("is_public")).isNull();
 
         // given
         String updated = csv(
@@ -425,7 +425,7 @@ class ParkingCsvImportIntegrationTest {
         assertThat(updateResponse.statusCode()).isEqualTo(200);
         assertCount(updateResponse, "updatedCount", 2);
         assertCount(updateResponse, "unchangedCount", 3);
-        assertThat(lot("PUBLIC").get("public_parking")).isEqualTo(false);
+        assertThat(lot("PUBLIC").get("is_public")).isEqualTo(false);
         assertThat(lot("PUBLIC").get("id")).isEqualTo(initialPublic.get("id"));
         assertThat(lot("PRIVATE").get("id")).isEqualTo(initialPrivate.get("id"));
         assertThat(updatedResult.statusCode()).isEqualTo(200);
@@ -488,13 +488,13 @@ class ParkingCsvImportIntegrationTest {
 
     private String csvRow(
             String label, int addressNumber, int baseFee,
-            String mechanical, String publicParking, String weekdayPaid, String saturdayPaid, String holidayPaid
+            String mechanical, String isPublic, String weekdayPaid, String saturdayPaid, String holidayPaid
     ) {
         return ("ignored-csv-id,DATA_GO_KR,CSV-DEMO-%s,CSV 샘플 %s 주차장,"
                 + "서울특별시,중구,서울특별시 중구 CSV샘플로 %d,37.5665,126.9780,10,%s,%s,true,"
                 + "2026-09-28T18:42:55+09:00,,,ignored-csv-fk,,30,%d,,,,,%s,%s,%s,"
                 + "OPEN,09:00,18:00:00,,,,,,,2026-09-28T09:42:55Z,,")
-                .formatted(label, label, addressNumber, mechanical, publicParking, baseFee,
+                .formatted(label, label, addressNumber, mechanical, isPublic, baseFee,
                         weekdayPaid, saturdayPaid, holidayPaid);
     }
 
@@ -529,7 +529,7 @@ class ParkingCsvImportIntegrationTest {
     }
 
     private Map<String, Object> lot(String label) {
-        return jdbc.queryForMap("SELECT id, active, mechanical, public_parking, created_at, updated_at FROM parking_lots "
+        return jdbc.queryForMap("SELECT id, active, mechanical, is_public, created_at, updated_at FROM parking_lots "
                 + "WHERE source_external_id = ?", "CSV-DEMO-" + label);
     }
 

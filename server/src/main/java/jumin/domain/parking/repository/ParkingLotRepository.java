@@ -73,7 +73,7 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
                       )
               ))
               and (:excludeMechanical = false or parking_lot.mechanical = false)
-              and (:isPublic = false or parking_lot.public_parking = true)
+              and (:isPublic = false or parking_lot.is_public = true)
             order by parking_lot.id
             """, nativeQuery = true)
     List<ParkingLot> findActiveWithinViewport(
