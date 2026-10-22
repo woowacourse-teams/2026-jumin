@@ -1,84 +1,46 @@
 import { jest } from '@jest/globals';
-import { act, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { useQuery } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import type { PropsWithChildren } from 'react';
 import { delay, http, HttpResponse } from 'msw';
-import type { ParkingLikeState } from '../../api/contracts';
-import { ParkingLikeButton } from '../../shared/components/service/parking/ParkingLikeButton';
 
-import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
+import type { ParkingLikeState } from '../../api/contracts';
+import { useParkingLike } from '../../shared/hooks/useParkingLike';
+import { createTestQueryClient } from '../renderWithProviders';
 import { server } from '../msw/server';
 
 const initialLike: ParkingLikeState = { likeCount: 12, likedByMe: false };
-const viewportKey = ['parking-lots', 'viewport-detail', 101];
-const otherViewportKey = ['parking-lots', 'viewport-detail', 102];
 
-const LikeDetail = ({ parkingLotId = 101, likedByMe = false }) => {
-  const { data } = useQuery({
-    queryKey: ['parking-lots', 'viewport-detail', parkingLotId],
-    queryFn: () => ({ ...initialLike, likedByMe }),
-    initialData: { ...initialLike, likedByMe },
-    staleTime: Infinity,
-  });
-  return <ParkingLikeButton key={parkingLotId} parkingLotId={parkingLotId} {...data} />;
+const renderLikeHook = (confirmed: ParkingLikeState = initialLike) => {
+  const queryClient = createTestQueryClient();
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  return renderHook(() => useParkingLike(101, confirmed), { wrapper });
 };
 
 const waitForDebounce = () => act(() => new Promise((resolve) => setTimeout(resolve, 400)));
 
-describe('주차장 좋아요 버튼', () => {
-  it('서버의 좋아요 수를 상세 캐시에 반영하고 다른 주차장의 캐시는 유지한다', async () => {
-    const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-    queryClient.setQueryData(viewportKey, { ...initialLike, name: '주차장' });
-    queryClient.setQueryData(otherViewportKey, initialLike);
-    renderWithProviders(<LikeDetail />, { queryClient });
-    server.use(
-      http.put('/api/parking/101/like', async () => {
-        await delay(150);
-        return HttpResponse.json({ parkingLotId: 101, likeCount: 20, likedByMe: true });
-      }),
-    );
-
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    expect(button).toHaveTextContent(/^12$/);
-    expect(button).toHaveAttribute('aria-pressed', 'false');
-    await user.click(button);
-    expect(button).toHaveAccessibleName('좋아요 13개');
-    expect(button).toHaveAttribute('aria-pressed', 'true');
-
-    await waitFor(() => expect(button).toHaveAccessibleName('좋아요 20개'));
-    expect(queryClient.getQueryData(otherViewportKey)).toEqual(initialLike);
-    expect(queryClient.getQueryData(viewportKey)).toEqual({
-      name: '주차장',
-      likeCount: 20,
-      likedByMe: true,
-    });
-  });
-
-  it('300ms 안의 연속 클릭은 마지막 상태로 한 번만 요청한다', async () => {
+describe('주차장 좋아요 훅', () => {
+  it('클릭하면 서버 요청 전까지 낙관적 상태를 반환한다', async () => {
     const requested = jest.fn();
     server.use(
-      http.put('/api/parking/101/like', () => {
+      http.put('/api/parking/101/like', async () => {
         requested();
+        await delay(50);
         return HttpResponse.json({ parkingLotId: 101, likeCount: 13, likedByMe: true });
       }),
     );
-    const { queryClient } = renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    await user.click(button);
-    await user.click(button);
-    await user.click(button);
+    const { result } = renderLikeHook();
+
+    act(() => result.current.toggle());
+
+    expect(result.current.likedByMe).toBe(true);
+    expect(result.current.likeCount).toBe(13);
     expect(requested).not.toHaveBeenCalled();
 
     await waitFor(() => expect(requested).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(queryClient.getQueryData(viewportKey)).toEqual({
-        likeCount: 13,
-        likedByMe: true,
-      }),
-    );
-    expect(button).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('연속 클릭으로 원래 상태가 되면 요청하지 않는다', async () => {
@@ -86,20 +48,21 @@ describe('주차장 좋아요 버튼', () => {
     server.use(
       http.put('/api/parking/101/like', () => {
         requested();
-        return HttpResponse.error();
+        return HttpResponse.json({ parkingLotId: 101, likeCount: 13, likedByMe: true });
       }),
     );
-    renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    await user.dblClick(button);
+    const { result } = renderLikeHook();
+
+    act(() => result.current.toggle());
+    act(() => result.current.toggle());
     await waitForDebounce();
+
     expect(requested).not.toHaveBeenCalled();
-    expect(button).toHaveAccessibleName('좋아요 12개');
-    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(result.current.likedByMe).toBe(false);
+    expect(result.current.likeCount).toBe(12);
   });
 
-  it('이미 좋아요한 주차장은 DELETE로 취소한다', async () => {
+  it('이미 좋아요한 상태에서 클릭하면 취소 요청을 보낸다', async () => {
     const requested = jest.fn();
     server.use(
       http.delete('/api/parking/101/like', () => {
@@ -107,47 +70,29 @@ describe('주차장 좋아요 버튼', () => {
         return HttpResponse.json({ parkingLotId: 101, likeCount: 11, likedByMe: false });
       }),
     );
-    renderWithProviders(<LikeDetail likedByMe />);
-    const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    expect(button).toHaveAttribute('aria-pressed', 'true');
-    await user.click(button);
+    const { result } = renderLikeHook({ likeCount: 12, likedByMe: true });
+
+    act(() => result.current.toggle());
+    expect(result.current.likedByMe).toBe(false);
+    expect(result.current.likeCount).toBe(11);
+
     await waitFor(() => expect(requested).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(button).toHaveAccessibleName('좋아요 11개'));
-    expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('실패하면 상태와 개수를 복구하고 오류를 표시하며 다시 시도할 수 있다', async () => {
+  it('요청이 실패하면 오류를 반환하고 낙관적 상태를 되돌린다', async () => {
     server.use(http.put('/api/parking/101/like', () => HttpResponse.error()));
-    const { queryClient } = renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    const button = screen.getByRole('button', { name: '좋아요 12개' });
-    await user.click(button);
-    expect(await screen.findByRole('alert')).toHaveTextContent('좋아요를 변경하지 못했어요.');
-    expect(button).toHaveAccessibleName('좋아요 12개');
-    expect(button).toHaveAttribute('aria-pressed', 'false');
+    const { result } = renderLikeHook();
 
-    server.use(
-      http.put('/api/parking/101/like', () =>
-        HttpResponse.json({
-          parkingLotId: 101,
-          likeCount: 13,
-          likedByMe: true,
-        }),
-      ),
-    );
-    await user.click(button);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    act(() => result.current.toggle());
     await waitFor(() =>
-      expect(queryClient.getQueryData(viewportKey)).toEqual({
-        likeCount: 13,
-        likedByMe: true,
-      }),
+      expect(result.current.errorMessage).toBe('좋아요를 변경하지 못했어요. 다시 시도해주세요.'),
     );
-    expect(button).toHaveAccessibleName('좋아요 13개');
+
+    expect(result.current.likedByMe).toBe(false);
+    expect(result.current.likeCount).toBe(12);
   });
 
-  it('전송 전에 상세 화면을 닫으면 예약된 요청을 취소한다', async () => {
+  it('언마운트하면 예약된 요청을 취소한다', async () => {
     const requested = jest.fn();
     server.use(
       http.put('/api/parking/101/like', () => {
@@ -155,31 +100,12 @@ describe('주차장 좋아요 버튼', () => {
         return HttpResponse.error();
       }),
     );
-    const { unmount } = renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: '좋아요 12개' }));
+    const { result, unmount } = renderLikeHook();
+
+    act(() => result.current.toggle());
     unmount();
     await waitForDebounce();
-    expect(requested).not.toHaveBeenCalled();
-  });
 
-  it('다른 주차장으로 바꾸면 이전 주차장의 예약 요청과 낙관적 상태를 취소한다', async () => {
-    const requested = jest.fn();
-    server.use(
-      http.put('/api/parking/101/like', () => {
-        requested();
-        return HttpResponse.error();
-      }),
-    );
-    const { rerender } = renderWithProviders(<LikeDetail />);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: '좋아요 12개' }));
-    rerender(<LikeDetail parkingLotId={102} />);
-    await waitForDebounce();
     expect(requested).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: '좋아요 12개' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
   });
 });
