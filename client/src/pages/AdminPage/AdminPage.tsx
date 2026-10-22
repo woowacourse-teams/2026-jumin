@@ -100,19 +100,19 @@ const saveSession = (session: AdminSession) => {
 const validateFile = (file: File): AdminUploadError | null => {
   if (!file.name.toLowerCase().endsWith('.csv')) {
     return {
-      message: ADMIN_MESSAGES.csvExtensionRequired,
+      message: ADMIN_MESSAGES.CSV_EXTENSION_REQUIRED,
       errors: [],
     };
   }
   if (file.size === 0) {
     return {
-      message: ADMIN_MESSAGES.csvCannotBeEmpty,
+      message: ADMIN_MESSAGES.CSV_CANNOT_BE_EMPTY,
       errors: [],
     };
   }
   if (file.size > MAX_FILE_SIZE) {
     return {
-      message: ADMIN_MESSAGES.csvSizeLimitExceeded,
+      message: ADMIN_MESSAGES.CSV_SIZE_LIMIT_EXCEEDED,
       errors: [],
     };
   }
@@ -185,7 +185,7 @@ export const AdminPage = () => {
   const loadReviews = async () => {
     if (!session || reviewRequest.current) return;
     if (session.expiresAt <= Date.now()) {
-      logout(ADMIN_MESSAGES.sessionExpired);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -201,10 +201,10 @@ export const AdminPage = () => {
     } catch (error) {
       if (reviewRequest.current !== controller || controller.signal.aborted) return;
       if (getHttpStatus(error) === 401) {
-        logout(ADMIN_MESSAGES.sessionExpired);
+        logout(ADMIN_MESSAGES.SESSION_EXPIRED);
         return;
       }
-      setReviewError(API_ERROR_MESSAGES.adminReviews);
+      setReviewError(API_ERROR_MESSAGES.ADMIN_REVIEWS);
     } finally {
       if (reviewRequest.current === controller) {
         reviewRequest.current = null;
@@ -217,7 +217,7 @@ export const AdminPage = () => {
     if (isImporting || requestPending.current || tab === activeTab) return;
     if (!session) return;
     if (tab === 'reviews' && session.expiresAt <= Date.now()) {
-      logout(ADMIN_MESSAGES.sessionExpired);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -255,7 +255,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current) return;
     if (!loginId.trim() || password.length === 0) {
-      setLoginError(ADMIN_MESSAGES.loginCredentialsRequired);
+      setLoginError(ADMIN_MESSAGES.LOGIN_CREDENTIAL_REQUIRED);
       return;
     }
 
@@ -274,7 +274,7 @@ export const AdminPage = () => {
       setPassword('');
       if (pageRef.current) pageRef.current.scrollTop = 0;
     } catch {
-      setLoginError(API_ERROR_MESSAGES.adminLogin);
+      setLoginError(API_ERROR_MESSAGES.ADMIN_LOGIN);
     } finally {
       requestPending.current = false;
       setIsLoggingIn(false);
@@ -293,7 +293,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current || !session || !file) return;
     if (session.expiresAt <= Date.now()) {
-      logout(ADMIN_MESSAGES.sessionExpired);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -314,14 +314,14 @@ export const AdminPage = () => {
       const status = getHttpStatus(error);
 
       if (status === 401) {
-        logout(ADMIN_MESSAGES.sessionExpired);
+        logout(ADMIN_MESSAGES.SESSION_EXPIRED);
         return;
       }
 
       const isClientError = status !== null && status < 500;
       const message = isClientError
-        ? API_ERROR_MESSAGES.adminCsvImport
-        : API_ERROR_MESSAGES.adminCsvImportUnknown;
+        ? API_ERROR_MESSAGES.ADMIN_CSV_IMPORT
+        : API_ERROR_MESSAGES.ADMIN_CSV_IMPORT_UNKNOWN;
 
       setUploadError({
         message,

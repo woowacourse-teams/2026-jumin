@@ -64,6 +64,6 @@ export const useParkingReport = ({ parkingLotId }: { parkingLotId: number }) => 
     isPending: mutation.isPending,
     isSuccess: mutation.isSuccess,
     error: mutation.error,
-    errorMessage: mutation.isError ? API_ERROR_MESSAGES.parkingReport : null,
+    errorMessage: mutation.isError ? API_ERROR_MESSAGES.PARKING_REPORT : null,
   };
 };

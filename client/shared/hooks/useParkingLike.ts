@@ -69,6 +69,6 @@ export const useParkingLike = (parkingLotId: number, confirmed: ParkingLikeState
     likeCount: confirmed.likeCount + Number(likedByMe) - Number(confirmed.likedByMe),
     toggle,
     isPending: mutation.isPending,
-    errorMessage: mutation.isError ? API_ERROR_MESSAGES.parkingLike : null,
+    errorMessage: mutation.isError ? API_ERROR_MESSAGES.PARKING_LIKE : null,
   };
 };

@@ -30,7 +30,7 @@ export const useParkingSetupDestination = ({
     if (isFetching) {
       destinationName = '위치 확인중 ...';
     } else if (isError) {
-      destinationName = API_ERROR_MESSAGES.destinationName;
+      destinationName = API_ERROR_MESSAGES.DESTINATION_NAME;
     } else if (data) {
       destinationName = data.displayName;
     }

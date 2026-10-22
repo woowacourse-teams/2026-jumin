@@ -43,7 +43,7 @@ export const ParkingRecommendPage = () => {
           <ErrorBoundary
             onReset={reset}
             fallbackRender={({ resetErrorBoundary }) => (
-              <ErrorCard label={API_ERROR_MESSAGES.recommendation} onRetry={resetErrorBoundary} />
+              <ErrorCard label={API_ERROR_MESSAGES.RECOMMENDATION} onRetry={resetErrorBoundary} />
             )}
           >
             <Suspense fallback={<ParkingRecommendSkeleton />}>

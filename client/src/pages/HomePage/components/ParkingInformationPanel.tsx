@@ -61,7 +61,7 @@ export const ParkingInformationPanel = ({
     if (detailQuery.isError) {
       return (
         <ErrorCard
-          label={API_ERROR_MESSAGES.homeParkingDetail}
+          label={API_ERROR_MESSAGES.HOME_PARKING_DETAIL}
           onRetry={() => {
             void detailQuery.refetch();
           }}

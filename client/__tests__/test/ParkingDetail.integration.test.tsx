@@ -137,7 +137,7 @@ describe('D. 주차장 상세정보', () => {
 
     const error = await screen.findByRole('alert');
     expect(
-      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.parkingDetail }),
+      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.PARKING_DETAIL }),
     ).toBeInTheDocument();
 
     setMockScenario('success');

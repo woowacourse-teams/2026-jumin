@@ -266,7 +266,7 @@ describe('C. 추천 주차장', () => {
 
     const error = await screen.findByRole('alert');
     expect(
-      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.recommendation }),
+      within(error).getByRole('heading', { name: API_ERROR_MESSAGES.RECOMMENDATION }),
     ).toBeInTheDocument();
 
     setMockScenario('success');

@@ -43,7 +43,7 @@ export const ParkingDetailPage = () => {
           <ErrorBoundary
             onReset={reset}
             fallbackRender={({ resetErrorBoundary }) => (
-              <ErrorCard label={API_ERROR_MESSAGES.parkingDetail} onRetry={resetErrorBoundary} />
+              <ErrorCard label={API_ERROR_MESSAGES.PARKING_DETAIL} onRetry={resetErrorBoundary} />
             )}
           >
             <Suspense fallback={<ParkingDetailSkeleton />}>

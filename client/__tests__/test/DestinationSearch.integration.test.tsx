@@ -58,7 +58,7 @@ describe('A. 목적지 검색', () => {
     renderSearchPage();
     const user = await search('강남역');
 
-    expect(await screen.findByText(API_ERROR_MESSAGES.destinationSearch)).toBeInTheDocument();
+    expect(await screen.findByText(API_ERROR_MESSAGES.DESTINATION_SEARCH)).toBeInTheDocument();
 
     setMockScenario('success');
     const input = screen.getByRole('textbox', { name: '목적지 검색' });

@@ -95,7 +95,7 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   // 잠깐 표시되지 않도록 한다.
   const searchResults = isDebouncing ? [] : (data?.destinations ?? []);
 
-  const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.destinationSearch : '';
+  const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.DESTINATION_SEARCH : '';
 
   const handleEnter = () => {
     if (isSearching || !searchResults[0]) {
