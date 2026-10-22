@@ -360,7 +360,7 @@ class ParkingCsvDifferTest {
                                  String sourceExternalId, Instant checkedAt) {
         return new ParkingLotValues(
                 source, sourceExternalId, name, "서울특별시", "중구", address,
-                37.5, 127.0, 100, false, active, checkedAt
+                37.5, 127.0, 100, false, null, active, checkedAt
         );
     }
 

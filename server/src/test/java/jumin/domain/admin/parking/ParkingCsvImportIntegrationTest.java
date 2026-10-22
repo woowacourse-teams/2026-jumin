@@ -54,6 +54,7 @@ class ParkingCsvImportIntegrationTest {
             "parking_lots.longitude",
             "parking_lots.capacity",
             "parking_lots.mechanical",
+            "parking_lots.is_public",
             "parking_lots.active",
             "parking_lots.source_checked_at",
             "parking_lots.created_at",
@@ -376,6 +377,88 @@ class ParkingCsvImportIntegrationTest {
                 .allSatisfy(score -> assertThat(score.doubleValue()).isEqualTo(0.16666666666666666));
     }
 
+    @Test
+    @DisplayName("공영 여부를 업로드하고 세 지도 필터 조합과 변경 및 재업로드를 반영한다")
+    void imports_is_public_and_filters_updated_classification() throws Exception {
+        // given
+        String initial = csv(
+                csvRow("PUBLIC", 1, 0, "N", "true", "false", "false", "false"),
+                csvRow("MECHANICAL", 2, 0, "Y", "true", "false", "false", "false"),
+                csvRow("PAID", 3, 1000, "N", "true", "true", "true", "true"),
+                csvRow("PRIVATE", 4, 0, "N", "false", "false", "false", "false"),
+                csvRow("UNKNOWN", 5, 0, "N", "", "false", "false", "false")
+        );
+        assertThat(upload("public-initial.csv", initial).statusCode()).isEqualTo(200);
+        Map<String, Object> initialPublic = lot("PUBLIC");
+        Map<String, Object> initialPrivate = lot("PRIVATE");
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port
+                        + "/api/parking/viewport?westLongitude=126.97&southLatitude=37.56"
+                        + "&eastLongitude=126.99&northLatitude=37.58"
+                        + "&isPublic=true&freeOnly=true&excludeMechanical=true"))
+                .GET()
+                .build();
+
+        // when
+        HttpResponse<String> initialResult = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // then
+        assertThat(initialResult.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Integer>read(initialResult.body(), "$.totalCount")).isEqualTo(1);
+        assertThat(JsonPath.<List<Integer>>read(initialResult.body(), "$.parkingLots[*].id"))
+                .containsExactly(((Number) initialPublic.get("id")).intValue());
+        assertThat(lot("UNKNOWN").get("is_public")).isNull();
+
+        // given
+        String updated = csv(
+                csvRow("PUBLIC", 1, 0, "N", "false", "false", "false", "false"),
+                csvRow("MECHANICAL", 2, 0, "Y", "true", "false", "false", "false"),
+                csvRow("PAID", 3, 1000, "N", "true", "true", "true", "true"),
+                csvRow("PRIVATE", 4, 0, "N", "true", "false", "false", "false"),
+                csvRow("UNKNOWN", 5, 0, "N", "", "false", "false", "false")
+        );
+
+        // when
+        HttpResponse<String> updateResponse = upload("public-updated.csv", updated);
+        HttpResponse<String> updatedResult = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // then
+        assertThat(updateResponse.statusCode()).isEqualTo(200);
+        assertCount(updateResponse, "updatedCount", 2);
+        assertCount(updateResponse, "unchangedCount", 3);
+        assertThat(lot("PUBLIC").get("is_public")).isEqualTo(false);
+        assertThat(lot("PUBLIC").get("id")).isEqualTo(initialPublic.get("id"));
+        assertThat(lot("PRIVATE").get("id")).isEqualTo(initialPrivate.get("id"));
+        assertThat(updatedResult.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Integer>read(updatedResult.body(), "$.totalCount")).isEqualTo(1);
+        assertThat(JsonPath.<List<Integer>>read(updatedResult.body(), "$.parkingLots[*].id"))
+                .containsExactly(((Number) initialPrivate.get("id")).intValue());
+
+        // given
+        Map<String, Object> updatedPrivate = lot("PRIVATE");
+
+        // when
+        HttpResponse<String> repeated = upload("public-updated.csv", updated);
+
+        // then
+        assertThat(repeated.statusCode()).isEqualTo(200);
+        assertCount(repeated, "updatedCount", 0);
+        assertCount(repeated, "unchangedCount", 5);
+        assertThat(lot("PRIVATE")).isEqualTo(updatedPrivate);
+
+        // given
+        assertThat(upload("unknown.csv", csv(
+                csvRow("UNKNOWN", 5, 0, "N", "", "false", "false", "false")
+        )).statusCode()).isEqualTo(200);
+
+        // when
+        HttpResponse<String> emptyResult = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // then
+        assertThat(emptyResult.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<Integer>read(emptyResult.body(), "$.totalCount")).isZero();
+        assertThat(JsonPath.<List<Object>>read(emptyResult.body(), "$.parkingLots")).isEmpty();
+    }
+
     private String initialCsv() {
         return csv(csvRow("A", 1, 1000), csvRow("B", 2, 2000), csvRow("C", 3, 3000));
     }
@@ -400,11 +483,19 @@ class ParkingCsvImportIntegrationTest {
             String label, int addressNumber, int baseFee,
             String mechanical, String weekdayPaid, String saturdayPaid, String holidayPaid
     ) {
+        return csvRow(label, addressNumber, baseFee, mechanical, "", weekdayPaid, saturdayPaid, holidayPaid);
+    }
+
+    private String csvRow(
+            String label, int addressNumber, int baseFee,
+            String mechanical, String isPublic, String weekdayPaid, String saturdayPaid, String holidayPaid
+    ) {
         return ("ignored-csv-id,DATA_GO_KR,CSV-DEMO-%s,CSV 샘플 %s 주차장,"
-                + "서울특별시,중구,서울특별시 중구 CSV샘플로 %d,37.5665,126.9780,10,%s,true,"
+                + "서울특별시,중구,서울특별시 중구 CSV샘플로 %d,37.5665,126.9780,10,%s,%s,true,"
                 + "2026-09-28T18:42:55+09:00,,,ignored-csv-fk,,30,%d,,,,,%s,%s,%s,"
                 + "OPEN,09:00,18:00:00,,,,,,,2026-09-28T09:42:55Z,,")
-                .formatted(label, label, addressNumber, mechanical, baseFee, weekdayPaid, saturdayPaid, holidayPaid);
+                .formatted(label, label, addressNumber, mechanical, isPublic, baseFee,
+                        weekdayPaid, saturdayPaid, holidayPaid);
     }
 
     private HttpResponse<String> upload(String name, String csv) throws Exception {
@@ -438,7 +529,7 @@ class ParkingCsvImportIntegrationTest {
     }
 
     private Map<String, Object> lot(String label) {
-        return jdbc.queryForMap("SELECT id, active, mechanical, created_at, updated_at FROM parking_lots "
+        return jdbc.queryForMap("SELECT id, active, mechanical, is_public, created_at, updated_at FROM parking_lots "
                 + "WHERE source_external_id = ?", "CSV-DEMO-" + label);
     }
 
