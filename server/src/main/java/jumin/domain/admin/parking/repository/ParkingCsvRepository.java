@@ -38,7 +38,8 @@ public class ParkingCsvRepository {
     private static final long IMPORT_LOCK_KEY = 138_2026_0928L;
     private static final List<String> LOT_COLUMNS = List.of(
             "source", "source_external_id", "name", "sido", "sigungu", "address",
-            "latitude", "longitude", "capacity", "mechanical", "active", "source_checked_at", "created_at", "updated_at"
+            "latitude", "longitude", "capacity", "mechanical", "public_parking", "active",
+            "source_checked_at", "created_at", "updated_at"
     );
     private static final List<String> OPERATION_COLUMNS = List.of(
             "parking_lot_id", "base_free_minutes", "base_minutes", "base_fee", "additional_minutes",
@@ -50,7 +51,7 @@ public class ParkingCsvRepository {
     );
     private static final String SELECT_ALL = """
             SELECT l.id, l.source, l.source_external_id, l.name, l.sido, l.sigungu, l.address,
-                   l.latitude, l.longitude, l.capacity, l.mechanical, l.active,
+                   l.latitude, l.longitude, l.capacity, l.mechanical, l.public_parking, l.active,
                    l.source_checked_at AS lot_source_checked_at,
                    o.parking_lot_id AS operation_id,
                    o.base_free_minutes, o.base_minutes, o.base_fee, o.additional_minutes, o.additional_fee,
@@ -68,7 +69,7 @@ public class ParkingCsvRepository {
             SET source = :source, source_external_id = :source_external_id, name = :name,
                 sido = :sido, sigungu = :sigungu, address = :address,
                 latitude = :latitude, longitude = :longitude, capacity = :capacity,
-                mechanical = :mechanical, active = :active,
+                mechanical = :mechanical, public_parking = :public_parking, active = :active,
                 source_checked_at = :source_checked_at, updated_at = :updated_at
             WHERE id = :id
             """;
@@ -116,6 +117,7 @@ public class ParkingCsvRepository {
                     resultSet.getObject("longitude", Double.class),
                     resultSet.getObject("capacity", Integer.class),
                     resultSet.getBoolean("mechanical"),
+                    resultSet.getObject("public_parking", Boolean.class),
                     resultSet.getBoolean("active"),
                     readInstant(resultSet, "lot_source_checked_at")
             );
@@ -280,6 +282,7 @@ public class ParkingCsvRepository {
                 .addValue("longitude", lot.longitude(), Types.DOUBLE)
                 .addValue("capacity", lot.capacity(), Types.INTEGER)
                 .addValue("mechanical", lot.mechanical(), Types.BOOLEAN)
+                .addValue("public_parking", lot.publicParking(), Types.BOOLEAN)
                 .addValue("active", lot.active(), Types.BOOLEAN)
                 .addValue("source_checked_at", lot.sourceCheckedAt().atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("created_at", timestamp, Types.TIMESTAMP_WITH_TIMEZONE)

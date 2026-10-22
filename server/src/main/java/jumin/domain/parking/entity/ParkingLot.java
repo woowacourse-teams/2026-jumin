@@ -54,6 +54,9 @@ public class ParkingLot extends BaseEntity {
     @Column(name = "mechanical", nullable = false)
     private boolean mechanical; // 기계식 여부, 기본값은 false
 
+    @Column(name = "public_parking")
+    private Boolean publicParking; // 공영 여부, null은 미확인
+
     @Column(name = "active", nullable = false)
     private boolean isActive = true; // 서비스 사용 여부
 

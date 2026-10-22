@@ -26,6 +26,8 @@ import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -213,7 +215,7 @@ class ParkingCsvRepositoryTest {
         ParkingLotValues old = row.lot();
         ParkingCsvRow cleared = new ParkingCsvRow(row.rowNumber(), new ParkingLotValues(
                 old.source(), old.sourceExternalId(), old.name(), null, null, old.address(),
-                null, null, null, old.mechanical(), old.active(), old.sourceCheckedAt()
+                null, null, null, old.mechanical(), old.publicParking(), old.active(), old.sourceCheckedAt()
         ), row.operation());
 
         // when
@@ -442,6 +444,66 @@ class ParkingCsvRepositoryTest {
         }
     }
 
+    @ParameterizedTest
+    @CsvSource(value = {
+            "NULL, true", "NULL, false", "true, false", "false, true", "true, NULL", "false, NULL"
+    }, nullValues = "NULL")
+    @DisplayName("공영 여부의 세 상태를 저장하고 변경 후 동일 입력은 재저장하지 않는다")
+    void persists_public_parking_changes_and_skips_unchanged_input(Boolean before, Boolean after) {
+        // given
+        sync(List.of(row("공영 변경", 1000, false, before)), FIRST_UPLOAD_AT);
+        ParkingDbRow initial = repository.findAll().getFirst();
+        assertThat(initial.lot().publicParking()).isEqualTo(before);
+        ParkingCsvRow changed = row("공영 변경", 1000, false, after);
+
+        // when
+        ParkingChanges updated = sync(List.of(changed), NEXT_UPLOAD_AT);
+        ParkingChanges repeated = sync(List.of(changed), NEXT_UPLOAD_AT.plusSeconds(3600));
+
+        // then
+        ParkingDbRow saved = repository.findAll().getFirst();
+        assertThat(updated.updated()).hasSize(1);
+        assertThat(saved.id()).isEqualTo(initial.id());
+        assertThat(saved.lot().publicParking()).isEqualTo(after);
+        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.unchangedCount()).isEqualTo(1);
+        assertThat(timestamps(saved.id(), "parking_lots")).containsExactly(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT);
+        assertThat(timestamps(saved.id(), "parking_operations")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
+    }
+
+    @Test
+    @DisplayName("V13은 기존 행과 값이 생략된 신규 행의 공영 여부를 null로 유지한다")
+    void migration_preserves_unknown_public_parking_and_accepts_all_three_states() throws Exception {
+        // given
+        String migration = new ClassPathResource("db/migration/V13__add_parking_public_parking.sql")
+                .getContentAsString(StandardCharsets.UTF_8);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            try {
+                statement.execute("CREATE SCHEMA public_parking_migration_test");
+                statement.execute("SET LOCAL search_path TO public_parking_migration_test");
+                statement.execute("CREATE TABLE parking_lots (id INTEGER PRIMARY KEY)");
+                statement.execute("INSERT INTO parking_lots VALUES (1), (2)");
+
+                // when
+                statement.execute(migration);
+                statement.execute("INSERT INTO parking_lots (id) VALUES (3)");
+                statement.execute("INSERT INTO parking_lots VALUES (4, TRUE), (5, FALSE), (6, NULL)");
+
+                // then
+                try (ResultSet rows = statement.executeQuery("SELECT public_parking FROM parking_lots ORDER BY id")) {
+                    List<Boolean> flags = new ArrayList<>();
+                    while (rows.next()) {
+                        flags.add(rows.getObject("public_parking", Boolean.class));
+                    }
+                    assertThat(flags).containsExactly(null, null, null, true, false, null);
+                }
+            } finally {
+                connection.rollback();
+            }
+        }
+    }
+
     private ParkingChanges sync(List<ParkingCsvRow> rows, Instant now) {
         ParkingChanges changes = differ.compare(repository.findAll(), rows);
         repository.save(changes, now);
@@ -453,9 +515,13 @@ class ParkingCsvRepositoryTest {
     }
 
     private ParkingCsvRow row(String name, int fee, boolean mechanical) {
+        return row(name, fee, mechanical, null);
+    }
+
+    private ParkingCsvRow row(String name, int fee, boolean mechanical, Boolean publicParking) {
         ParkingLotValues lot = new ParkingLotValues(
                 ParkingDataSource.DATA_GO_KR, "shared-source-id", name, "서울특별시", "강남구",
-                "서울시 테스트 주소", 37.4981, 127.0279, 100, mechanical, true, SOURCE_CHECKED_AT
+                "서울시 테스트 주소", 37.4981, 127.0279, 100, mechanical, publicParking, true, SOURCE_CHECKED_AT
         );
         ParkingScheduleValues schedule = new ParkingScheduleValues(
                 ParkingOperationStatus.OPEN, LocalTime.of(9, 0), LocalTime.of(18, 0)
