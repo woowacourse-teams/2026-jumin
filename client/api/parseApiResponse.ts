@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { ApiError, type FieldError } from './apiError';
+import { ApiError } from './apiError';
 import { isAbortError } from './isAbortError';
 
 const fieldErrorSchema = z.object({
@@ -8,11 +8,30 @@ const fieldErrorSchema = z.object({
   message: z.string(),
 });
 
-const apiErrorResponseSchema = z.object({
-  message: z.string().optional(),
-  code: z.string().optional(),
-  errors: z.array(fieldErrorSchema).optional(),
-});
+const messageSchema = z.string().nullish();
+const codeSchema = z.string().nullish();
+const fieldErrorsSchema = z.array(fieldErrorSchema);
+
+function parseApiErrorResponse(data: unknown) {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return {
+      serverMessage: undefined,
+      serverCode: undefined,
+      fieldErrors: [],
+    };
+  }
+
+  const response = data as Record<string, unknown>;
+  const messageResult = messageSchema.safeParse(response.message);
+  const codeResult = codeSchema.safeParse(response.code);
+  const fieldErrorsResult = fieldErrorsSchema.safeParse(response.errors);
+
+  return {
+    serverMessage: messageResult.success && messageResult.data ? messageResult.data : undefined,
+    serverCode: codeResult.success && codeResult.data ? codeResult.data : undefined,
+    fieldErrors: fieldErrorsResult.success ? fieldErrorsResult.data : [],
+  };
+}
 
 export async function throwIfHttpError(response: Response): Promise<void> {
   if (response.ok) {
@@ -38,26 +57,13 @@ export async function throwIfHttpError(response: Response): Promise<void> {
     );
   }
 
-  const result = apiErrorResponseSchema.safeParse(data);
-
-  if (!result.success) {
-    throw new ApiError(
-      {
-        errorType: 'http',
-        status: response.status,
-        fieldErrors: [],
-      },
-      result.error,
-    );
-  }
-
-  const fieldErrors: FieldError[] = result.data.errors ?? [];
+  const { serverMessage, serverCode, fieldErrors } = parseApiErrorResponse(data);
 
   throw new ApiError({
     errorType: 'http',
     status: response.status,
-    serverMessage: result.data.message,
-    serverCode: result.data.code,
+    serverMessage,
+    serverCode,
     fieldErrors,
   });
 }
