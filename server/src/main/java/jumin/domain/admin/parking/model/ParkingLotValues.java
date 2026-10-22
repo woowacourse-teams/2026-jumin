@@ -14,6 +14,7 @@ public record ParkingLotValues(
         Double longitude,
         Integer capacity,
         boolean mechanical,
+        Boolean isPublic,
         boolean active,
         Instant sourceCheckedAt
 ) {

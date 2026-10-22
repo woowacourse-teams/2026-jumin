@@ -329,6 +329,7 @@ class ParkingSearchServiceTest {
                 37.5750,
                 false,
                 false,
+                false,
                 2
         )).thenReturn(List.of(first, second));
 
@@ -338,6 +339,7 @@ class ParkingSearchServiceTest {
                 37.5600,
                 126.9900,
                 37.5750,
+                false,
                 false,
                 false
         ));
@@ -359,13 +361,13 @@ class ParkingSearchServiceTest {
         // given
         ParkingLot parkingLot = parkingLotWithCapacity(1L, capacity);
         when(parkingLotRepository.findActiveWithinViewport(
-                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyInt()
+                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyBoolean(), anyInt()
         ))
                 .thenReturn(List.of(parkingLot));
 
         // when
         ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false
+                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
         ));
 
         // then
@@ -376,23 +378,28 @@ class ParkingSearchServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"false, false", "true, false", "false, true", "true, true"})
+    @CsvSource({
+            "false, false, false", "true, false, false", "false, true, false", "true, true, false",
+            "false, false, true", "true, false, true", "false, true, true", "true, true, true"
+    })
     @DisplayName("필터를 조회에 전달하고 조회 결과의 개수와 LOD 점수를 반환한다")
-    void returns_scored_results_for_viewport_filters(boolean freeOnly, boolean excludeMechanical) {
+    void returns_scored_results_for_viewport_filters(
+            boolean freeOnly, boolean excludeMechanical, boolean isPublic
+    ) {
         // given
         ParkingLot parkingLot = parkingLotWithCapacity(1L, 50);
         when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, 2
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic, 2
         )).thenReturn(List.of(parkingLot));
 
         // when
         ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic
         ));
 
         // then
         verify(parkingLotRepository).findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, 2
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic, 2
         );
         assertThat(result.totalCount()).isEqualTo(1);
         assertThat(result.parkingLots().getFirst().score()).isEqualTo(0.5);
@@ -404,13 +411,13 @@ class ParkingSearchServiceTest {
     void returns_empty_viewport_response() {
         // given
         when(parkingLotRepository.findActiveWithinViewport(
-                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyInt()
+                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyBoolean(), anyInt()
         ))
                 .thenReturn(List.of());
 
         // when
         ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false
+                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
         ));
 
         // then
@@ -426,20 +433,20 @@ class ParkingSearchServiceTest {
         ParkingLot parkingLot = parkingLotWithCapacity(1L, 100);
         ParkingLot larger = parkingLotWithCapacity(2L, 1_000);
         when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false, 2
+                126.9700, 37.5600, 126.9900, 37.5750, false, false, false, 2
         ))
                 .thenReturn(List.of(parkingLot));
         when(parkingLotRepository.findActiveWithinViewport(
-                126.9600, 37.5500, 127.0100, 37.5800, false, false, 2
+                126.9600, 37.5500, 127.0100, 37.5800, false, false, false, 2
         ))
                 .thenReturn(List.of(larger, parkingLot));
 
         // when
         ParkingLotViewportResponses narrow = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false
+                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
         ));
         ParkingLotViewportResponses wide = service.searchViewport(new ParkingLotViewportRequest(
-                126.9600, 37.5500, 127.0100, 37.5800, false, false
+                126.9600, 37.5500, 127.0100, 37.5800, false, false, false
         ));
 
         // then
@@ -466,18 +473,18 @@ class ParkingSearchServiceTest {
         // given
         when(clock.instant()).thenReturn(Instant.parse(instant));
         when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false, dayOfWeek
+                126.9700, 37.5600, 126.9900, 37.5750, true, false, false, dayOfWeek
         )).thenReturn(List.of(parkingLotWithCapacity(1L, 50)));
 
         // when
         ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false
+                126.9700, 37.5600, 126.9900, 37.5750, true, false, false
         ));
 
         // then
         verify(clock).instant();
         verify(parkingLotRepository).findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false, dayOfWeek
+                126.9700, 37.5600, 126.9900, 37.5750, true, false, false, dayOfWeek
         );
         assertThat(result.totalCount()).isEqualTo(1);
         assertThat(result.parkingLots().getFirst().score()).isEqualTo(0.5);
@@ -563,6 +570,7 @@ class ParkingSearchServiceTest {
                 126.9700,
                 37.5750,
                 false,
+                false,
                 false
         );
 
@@ -583,6 +591,7 @@ class ParkingSearchServiceTest {
                 37.5750,
                 126.9900,
                 37.5600,
+                false,
                 false,
                 false
         );

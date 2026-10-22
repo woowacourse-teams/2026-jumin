@@ -27,10 +27,13 @@ public record ParkingLotViewportRequest(
 
         Boolean freeOnly,
 
-        Boolean excludeMechanical
+        Boolean excludeMechanical,
+
+        Boolean isPublic
 ) {
     public ParkingLotViewportRequest {
         freeOnly = Boolean.TRUE.equals(freeOnly);
         excludeMechanical = Boolean.TRUE.equals(excludeMechanical);
+        isPublic = Boolean.TRUE.equals(isPublic);
     }
 }

@@ -15,6 +15,7 @@ public enum ParkingCsvColumn {
     LONGITUDE("parking_lots.longitude"),
     CAPACITY("parking_lots.capacity"),
     MECHANICAL("parking_lots.mechanical"),
+    IS_PUBLIC("parking_lots.is_public"),
     ACTIVE("parking_lots.active"),
     LOT_SOURCE_CHECKED_AT("parking_lots.source_checked_at"),
     LOT_CREATED_AT("parking_lots.created_at"),

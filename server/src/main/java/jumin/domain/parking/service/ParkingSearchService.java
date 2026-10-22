@@ -106,6 +106,7 @@ public class ParkingSearchService {
                         request.northLatitude(),
                         request.freeOnly(),
                         request.excludeMechanical(),
+                        request.isPublic(),
                         today.getDayOfWeek().getValue()
                 ).stream()
                 .map(parkingLot -> ParkingLotViewportResponse.from(

@@ -265,14 +265,20 @@ class ParkingSearchControllerTest {
                 126.9900,
                 37.5750,
                 false,
+                false,
                 false
         ));
     }
 
     @ParameterizedTest
-    @CsvSource({"true, false", "false, true", "true, true", "false, false"})
+    @CsvSource({
+            "false, false, false", "true, false, false", "false, true, false", "true, true, false",
+            "false, false, true", "true, false, true", "false, true, true", "true, true, true"
+    })
     @DisplayName("viewport 필터의 true와 false 값을 서비스에 전달한다")
-    void passes_viewport_filters_to_service(boolean freeOnly, boolean excludeMechanical) throws Exception {
+    void passes_viewport_filters_to_service(
+            boolean freeOnly, boolean excludeMechanical, boolean isPublic
+    ) throws Exception {
         // given
         when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
                 .thenReturn(ParkingLotViewportResponses.from(List.of()));
@@ -284,17 +290,18 @@ class ParkingSearchControllerTest {
                 .queryParam("eastLongitude", "126.9900")
                 .queryParam("northLatitude", "37.5750")
                 .queryParam("freeOnly", Boolean.toString(freeOnly))
-                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical)));
+                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical))
+                .queryParam("isPublic", Boolean.toString(isPublic)));
 
         // then
         response.andExpect(status().isOk());
         verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic
         ));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @ValueSource(strings = {"freeOnly", "excludeMechanical", "isPublic"})
     @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
@@ -313,12 +320,12 @@ class ParkingSearchControllerTest {
         response.andExpect(status().isOk());
         verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750,
-                filter.equals("freeOnly"), filter.equals("excludeMechanical")
+                filter.equals("freeOnly"), filter.equals("excludeMechanical"), filter.equals("isPublic")
         ));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @ValueSource(strings = {"freeOnly", "excludeMechanical", "isPublic"})
     @DisplayName("viewport 필터를 불리언으로 변환할 수 없으면 400을 반환한다")
     void rejects_invalid_viewport_filter(String filter) throws Exception {
         // when
