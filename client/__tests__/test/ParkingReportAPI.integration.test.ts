@@ -81,6 +81,25 @@ describe('주차장 데이터 신고 API', () => {
     });
   });
 
+  it('message가 null이어도 정상적인 필드 오류를 보존한다', async () => {
+    const fieldErrors = [{ field: '위도', message: '유효한 좌표가 아닙니다.' }];
+
+    server.use(
+      http.post('/api/parking/review', () =>
+        HttpResponse.json({ message: null, errors: fieldErrors }, { status: 400 }),
+      ),
+    );
+
+    await expect(submitParkingReport(101, '요금 정보가 달라요.')).rejects.toMatchObject({
+      failure: {
+        errorType: 'http',
+        status: 400,
+        serverMessage: undefined,
+        fieldErrors,
+      },
+    });
+  });
+
   it.each(['', '<html>Bad Gateway</html>'])(
     '오류 응답을 JSON으로 읽지 못하면 HTTP 분류와 파싱 원인을 보존한다 (사례 %#)',
     async (body) => {

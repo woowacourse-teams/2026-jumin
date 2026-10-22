@@ -11,13 +11,22 @@ const fieldErrorSchema = z.object({
 const messageSchema = z.string().nullish();
 const codeSchema = z.string().nullish();
 const fieldErrorsSchema = z.array(fieldErrorSchema);
+const apiErrorResponseSchema = z.object({
+  message: messageSchema,
+  code: codeSchema,
+  errors: fieldErrorsSchema,
+});
 
 function parseApiErrorResponse(data: unknown) {
+  const validationResult = apiErrorResponseSchema.safeParse(data);
+  const validationError = validationResult.success ? undefined : validationResult.error;
+
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
     return {
       serverMessage: undefined,
       serverCode: undefined,
       fieldErrors: [],
+      validationError,
     };
   }
 
@@ -30,6 +39,7 @@ function parseApiErrorResponse(data: unknown) {
     serverMessage: messageResult.success && messageResult.data ? messageResult.data : undefined,
     serverCode: codeResult.success && codeResult.data ? codeResult.data : undefined,
     fieldErrors: fieldErrorsResult.success ? fieldErrorsResult.data : [],
+    validationError,
   };
 }
 
@@ -57,15 +67,18 @@ export async function throwIfHttpError(response: Response): Promise<void> {
     );
   }
 
-  const { serverMessage, serverCode, fieldErrors } = parseApiErrorResponse(data);
+  const { serverMessage, serverCode, fieldErrors, validationError } = parseApiErrorResponse(data);
 
-  throw new ApiError({
-    errorType: 'http',
-    status: response.status,
-    serverMessage,
-    serverCode,
-    fieldErrors,
-  });
+  throw new ApiError(
+    {
+      errorType: 'http',
+      status: response.status,
+      serverMessage,
+      serverCode,
+      fieldErrors,
+    },
+    validationError,
+  );
 }
 
 export async function parseApiResponse<Schema extends z.ZodType>(
