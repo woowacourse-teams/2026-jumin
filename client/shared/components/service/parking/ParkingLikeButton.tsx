@@ -41,6 +41,17 @@ const containerStyle = css`
 
 const buttonStyle = css`
   width: 100%;
+
+  &[aria-pressed='true'] {
+    background-color: ${color.background.default};
+    color: ${color.parkingLike.selected};
+    box-shadow: inset 0 0 0 1px ${color.parkingLike.selected};
+
+    &:hover:not(:disabled),
+    &:active:not(:disabled) {
+      background-color: ${color.background.subtle};
+    }
+  }
 `;
 
 const errorStyle = css`

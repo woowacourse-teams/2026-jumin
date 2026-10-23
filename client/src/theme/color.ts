@@ -28,6 +28,11 @@ export const color = {
     excludeMechanical: { icon: palette.gray700 },
   },
 
+  parkingLike: {
+    /** 좋아요를 누른 버튼의 하트·숫자·테두리. */
+    selected: palette.red600,
+  },
+
   background: {
     default: palette.white,
     subtle: palette.gray50,
