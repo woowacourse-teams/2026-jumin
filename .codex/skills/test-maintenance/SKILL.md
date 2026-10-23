@@ -46,6 +46,8 @@ Test the smallest public boundary that proves the requirement:
 - Test pure functions with representative inputs, boundary values, and failure cases.
 - Test user-visible behavior only when it is a meaningful user flow, not as a blanket component-rendering check.
 
+When a test verifies an application-facing error message, reuse the repository's existing message constant instead of duplicating the string in the test. Search for feature-specific constants such as `API_ERROR_MESSAGES` and import the same source in the expectation or MSW setup. Keep a hardcoded message only when the test specifically verifies that a server-provided message is passed through, parsed, or transformed; make that purpose explicit and do not use it as a duplicate of a client-facing fallback message.
+
 Avoid assertions coupled to implementation details such as `location.state` object shape, private helper names, internal call order, React state setter calls, query cache internals, CSS selectors, pixel dimensions of SDK markers, or incidental DOM structure. If one of these is the actual public contract, document that reason before retaining the assertion.
 
 ### 4. Make the smallest justified test change
@@ -82,6 +84,7 @@ Keep the report about test intent and observable contracts. Do not claim that a 
 | Component only renders static UI | Remove or do not add a CI test; use Storybook when visual coverage is needed. |
 | Internal state or library changes, same behavior | Keep the expected behavior; rewrite only assertions coupled to internals. |
 | API method, URL, body, response, or error contract changes | Update the API/MSW test and its fixtures to the new contract. |
+| Existing client-facing error message is covered by a test | Import and reuse the existing error-message constant; do not duplicate the literal string. |
 | New important function or domain rule | Add focused pure-function tests for normal and boundary cases. |
 | New async hook behavior | Add or update a hook test for success, failure, cancellation, or recovery as applicable. |
 | Critical end-to-end flow changes | Update the focused E2E test only when the user flow changed. |

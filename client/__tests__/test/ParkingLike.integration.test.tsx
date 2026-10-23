@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { delay, http, HttpResponse } from 'msw';
 
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import type { ParkingLikeState } from '../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../api/queries/viewportParkingLotDetailQuery';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
@@ -131,9 +132,7 @@ describe('주차장 좋아요 훅', () => {
     const { result } = renderLikeHook();
 
     act(() => result.current.toggle());
-    await waitFor(() =>
-      expect(result.current.errorMessage).toBe('좋아요를 변경하지 못했어요. 다시 시도해주세요.'),
-    );
+    await waitFor(() => expect(result.current.errorMessage).toBe(API_ERROR_MESSAGES.PARKING_LIKE));
 
     expect(result.current.likedByMe).toBe(false);
     expect(result.current.likeCount).toBe(12);
