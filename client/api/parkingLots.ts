@@ -17,6 +17,7 @@ import {
 import { parseApiResponse } from './parseApiResponse';
 import { getGuestId } from '../shared/utils/guestId';
 import { request } from './request';
+import type { ParkingFilters } from '../shared/types/parkingFilters';
 
 export interface ParkingSearchParams {
   destinationLatitude: number;
@@ -39,10 +40,7 @@ export interface ParkingViewportParams {
   eastLongitude: number;
 }
 
-export interface ParkingViewportFilters {
-  freeOnly: boolean;
-  excludeMechanical: boolean;
-}
+export type ParkingViewportFilters = ParkingFilters;
 
 export type ParkingViewportRequestParams = ParkingViewportParams & Partial<ParkingViewportFilters>;
 

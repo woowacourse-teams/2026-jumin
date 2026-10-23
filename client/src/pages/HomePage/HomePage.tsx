@@ -15,8 +15,8 @@ import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
 import { trackEvent } from '../../../shared/analytics';
 import { eventName } from '../../../shared/monitoring/constants';
-import type { ParkingViewportFilters } from '../../../api/parkingLots';
-import { ParkingFilterBar } from './components/ParkingFilterBar';
+import type { ParkingFilters } from '../../../shared/types/parkingFilters';
+import { ParkingFilterBar } from '../../../shared/components/service/parking/ParkingFilterBar';
 import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
 
@@ -30,7 +30,7 @@ const currentLocationIcon = {
 
 const MIN_PARKING_MARKER_ZOOM = 15;
 
-const DEFAULT_PARKING_FILTERS: ParkingViewportFilters = {
+const DEFAULT_PARKING_FILTERS: ParkingFilters = {
   freeOnly: false,
   excludeMechanical: false,
 };
@@ -44,8 +44,7 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
-  const [parkingFilters, setParkingFilters] =
-    useState<ParkingViewportFilters>(DEFAULT_PARKING_FILTERS);
+  const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
   const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
@@ -153,7 +152,11 @@ export const HomePage = () => {
       {selectedParkingLot === null && (
         <div className={headerStyle}>
           <SearchBar onClick={handleSearchBarClick} />
-          <ParkingFilterBar filters={parkingFilters} onChange={setParkingFilters} />
+          <ParkingFilterBar
+            className={parkingFilterBarStyle}
+            filters={parkingFilters}
+            onChange={setParkingFilters}
+          />
         </div>
       )}
       <footer className={footerStyle}>
@@ -189,6 +192,11 @@ const headerStyle = css`
   position: relative;
   z-index: 1;
   width: 100%;
+`;
+
+const parkingFilterBarStyle = css`
+  width: min(358px, calc(100% - 32px));
+  margin: 10px auto 0;
 `;
 
 const zoomGuideContainerStyle = css`

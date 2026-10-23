@@ -147,7 +147,7 @@ const styles = {
     }
     a:focus-visible,
     button:focus-visible {
-      outline: 3px solid ${color.border.focused};
+      outline: 3px solid ${color.focus.ring};
       outline-offset: 6px;
     }
 

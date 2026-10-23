@@ -147,7 +147,7 @@ const skipButtonStyle = css`
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid ${color.border.focused};
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;
@@ -213,7 +213,7 @@ const screenReaderOnlyStyle = css`
 const dotStyle = css`
   width: 6px;
   height: 6px;
-  background: ${color.border.default};
+  background: ${color.background.muted};
   border-radius: 999px;
 `;
 
@@ -246,7 +246,7 @@ const previousButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 2px solid ${color.border.focused};
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;
@@ -272,7 +272,7 @@ const nextButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 2px solid ${color.border.focused};
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;

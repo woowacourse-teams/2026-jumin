@@ -46,7 +46,7 @@ export const SearchBar = ({
         width: 20px;
         height: 20px;
         flex-shrink: 0;
-        color: ${color.icon.selected};
+        color: ${color.icon.brand};
         pointer-events: none;
         user-select: none;
       `}
