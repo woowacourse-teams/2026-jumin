@@ -196,8 +196,9 @@ const headerStyle = css`
 `;
 
 const parkingFilterBarStyle = css`
-  width: min(358px, calc(100% - 32px));
-  margin: 10px auto 0;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 4px 16px 8px;
 `;
 
 const zoomGuideContainerStyle = css`
