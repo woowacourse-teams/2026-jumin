@@ -1,7 +1,6 @@
 import { css, cx } from '@emotion/css';
 import type { ComponentProps, ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
-import { palette } from '../../../src/theme/palette';
 import { typography } from '../../../src/theme/typography';
 
 /**
@@ -9,11 +8,10 @@ import { typography } from '../../../src/theme/typography';
  *
  * - brand: 길찾기·다음·신고처럼 브랜드색으로 강조하는 실행 버튼
  * - subtle: 로드뷰처럼 연한 브랜드 배경과 테두리를 사용하는 버튼
- * - outline: 흰 배경과 중립색 테두리를 사용하는 보조 버튼
+ * - outline: 흰 배경과 중립색 테두리의 보조 버튼. aria-pressed가 true이면 선택색을 사용한다.
  * - ghost: 배경 없이 글자나 아이콘을 표시하는 버튼
- * - rose: 분홍색 버튼. aria-pressed가 true이면 배경과 글자색을 반전한다.
  */
-type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost' | 'rose';
+type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost';
 
 /** active는 사용 가능, loading은 처리 중, inactive는 비활성 상태 */
 type ButtonStatus = 'active' | 'loading' | 'inactive';
@@ -113,11 +111,28 @@ const buttonAppearance = {
       &:active:not(:disabled) {
         background-color: ${color.background.subtle};
       }
+
+      &[aria-pressed='true'] {
+        background-color: ${color.background.selectedSubtle};
+        color: ${color.text.selected};
+        box-shadow: inset 0 0 0 1px ${color.border.selected};
+
+        &:hover:not(:disabled),
+        &:active:not(:disabled) {
+          background-color: ${color.background.brandSubtleHovered};
+        }
+      }
     `,
     loading: css`
       background-color: ${color.background.default};
       color: ${color.text.secondary};
       box-shadow: inset 0 0 0 1px ${color.border.default};
+
+      &[aria-pressed='true'] {
+        background-color: ${color.background.selectedSubtle};
+        color: ${color.text.selected};
+        box-shadow: inset 0 0 0 1px ${color.border.selected};
+      }
     `,
     inactive: css`
       background-color: ${color.background.default};
@@ -145,45 +160,6 @@ const buttonAppearance = {
       background-color: transparent;
       color: ${color.text.disabled};
       box-shadow: none;
-    `,
-  },
-  rose: {
-    active: css`
-      background-color: ${palette.rose50};
-      color: ${palette.rose500};
-      box-shadow: inset 0 0 0 1px ${palette.rose200};
-
-      &:hover:not(:disabled),
-      &:active:not(:disabled) {
-        background-color: ${palette.rose100};
-      }
-
-      &[aria-pressed='true'] {
-        background-color: ${palette.rose500};
-        color: ${color.text.inverse};
-        box-shadow: inset 0 0 0 1px ${palette.rose500};
-
-        &:hover:not(:disabled),
-        &:active:not(:disabled) {
-          background-color: ${palette.rose600};
-        }
-      }
-    `,
-    loading: css`
-      background-color: ${palette.rose50};
-      color: ${palette.rose500};
-      box-shadow: inset 0 0 0 1px ${palette.rose200};
-
-      &[aria-pressed='true'] {
-        background-color: ${palette.rose500};
-        color: ${color.text.inverse};
-        box-shadow: inset 0 0 0 1px ${palette.rose500};
-      }
-    `,
-    inactive: css`
-      background-color: ${palette.rose50};
-      color: ${color.text.disabled};
-      box-shadow: inset 0 0 0 1px ${palette.rose200};
     `,
   },
 } satisfies Record<ButtonVariant, Record<ButtonStatus, string>>;

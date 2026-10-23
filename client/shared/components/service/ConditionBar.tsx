@@ -80,7 +80,7 @@ const backButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 2px solid ${color.border.focused};
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;

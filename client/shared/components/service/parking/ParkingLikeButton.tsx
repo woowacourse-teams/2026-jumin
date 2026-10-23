@@ -17,7 +17,7 @@ export const ParkingLikeButton = ({ parkingLotId, likeCount, likedByMe }: Props)
   return (
     <div className={containerStyle}>
       <Button
-        variant="rose"
+        variant="outline"
         className={buttonStyle}
         aria-label={`좋아요 ${like.likeCount.toLocaleString('ko-KR')}개`}
         aria-pressed={like.likedByMe}
