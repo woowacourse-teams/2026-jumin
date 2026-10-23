@@ -54,7 +54,7 @@ export const ParkingFilterBar = ({ filters, onChange, className }: Props) => {
             onClick={() => toggleFilter(key)}
           >
             <span className={filterIconStyle(iconColor)} aria-hidden="true">
-              <Icon size={26} />
+              <Icon size={22} />
             </span>
             {label}
           </button>
@@ -121,9 +121,6 @@ const filterIconStyle = (iconColor: string) => css`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
-  width: 22px;
-  height: 22px;
 
   color: ${iconColor};
   ${typography.label};
