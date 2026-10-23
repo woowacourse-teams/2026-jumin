@@ -1,16 +1,10 @@
 import '@testing-library/jest-dom';
 import { cleanup, configure } from '@testing-library/react';
-import ReactModal from 'react-modal';
 
 import { server } from './msw/server';
 import { resetParkingLikes } from '../mocks/handlers/parkingLikeHandlers';
 
 configure({ asyncUtilTimeout: 4_000 });
-
-const modalAppRoot = document.createElement('div');
-modalAppRoot.id = 'root';
-document.body.append(modalAppRoot);
-ReactModal.setAppElement(modalAppRoot);
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
@@ -28,15 +22,4 @@ afterEach(() => {
 
 afterAll(() => {
   server.close();
-});
-
-Object.defineProperties(HTMLElement.prototype, {
-  scrollTo: {
-    configurable: true,
-    value: () => undefined,
-  },
-  scrollBy: {
-    configurable: true,
-    value: () => undefined,
-  },
 });
