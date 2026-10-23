@@ -128,15 +128,3 @@ const filterIconStyle = (iconColor: string) => css`
   background: transparent;
   border-radius: 50%;
 `;
-
-const selectionIndicatorStyle = (isSelected: boolean) => css`
-  display: inline-flex;
-  flex: 0 0 14px;
-  align-items: center;
-  justify-content: center;
-
-  width: 14px;
-  height: 14px;
-  visibility: ${isSelected ? 'visible' : 'hidden'};
-  color: ${color.icon.selected};
-`;
