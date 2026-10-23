@@ -22,9 +22,10 @@ export const color = {
     inverse: palette.white,
   },
 
+  /** 필터 종류를 나타내는 고유색. 선택 표시는 공통 selected 토큰을 사용한다. */
   parkingFilter: {
-    freeOnly: palette.green500,
-    excludeMechanical: palette.gray700,
+    freeOnly: { icon: palette.green500 },
+    excludeMechanical: { icon: palette.gray700 },
   },
 
   background: {
