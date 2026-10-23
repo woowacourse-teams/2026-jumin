@@ -26,6 +26,7 @@ export const color = {
   parkingFilter: {
     freeOnly: { icon: palette.green500 },
     excludeMechanical: { icon: palette.gray700 },
+    isPublic: { icon: palette.blue500 },
   },
 
   parkingLike: {

@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import type { IconType } from 'react-icons';
-import { FreeParkingIcon, MechanicalParkingIcon } from '../../ui/icons';
+import { FreeParkingIcon, MechanicalParkingIcon, PublicParkingIcon } from '../../ui/icons';
 import type { ParkingFilters } from '../../../types/parkingFilters';
 import { color } from '../../../../src/theme/color';
 import { typography } from '../../../../src/theme/typography';
@@ -31,6 +31,12 @@ const filterOptions: Array<{
     label: '기계식 제외',
     icon: MechanicalParkingIcon,
     iconColor: color.parkingFilter.excludeMechanical.icon,
+  },
+  {
+    key: 'isPublic',
+    label: '공영 주차장',
+    icon: PublicParkingIcon,
+    iconColor: color.parkingFilter.isPublic.icon,
   },
 ];
 

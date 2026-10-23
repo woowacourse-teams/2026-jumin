@@ -19,7 +19,6 @@ interface Props extends Omit<ComponentProps<typeof Button>, 'onClick'> {
 /**
  * 선택과 해제가 가능한 outline 버튼.
  * 크기·아이콘·포커스는 Button을 재사용하고, pressed로 선택 스타일을 결정한다.
- * aria-pressed는 같은 선택 상태를 보조 기술에 전달한다.
  * 내부 상태를 만들지 않으며, 도메인별 선택색은 className으로 지정한다.
  */
 export const ToggleButton = ({
