@@ -1,10 +1,12 @@
 import { jest } from '@jest/globals';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { delay, http, HttpResponse } from 'msw';
 
 import type { ParkingLikeState } from '../../api/contracts';
+import { viewportParkingLotDetailQueryOptions } from '../../api/queries/viewportParkingLotDetailQuery';
+import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { useParkingLike } from '../../shared/hooks/useParkingLike';
 import { createTestQueryClient } from '../renderWithProviders';
 import { server } from '../msw/server';
@@ -18,6 +20,30 @@ const renderLikeHook = (confirmed: ParkingLikeState = initialLike) => {
   );
 
   return renderHook(() => useParkingLike(101, confirmed), { wrapper });
+};
+
+const renderLikeWithDetail = () => {
+  const queryClient = createTestQueryClient();
+  const detailQuery = viewportParkingLotDetailQueryOptions(101);
+
+  queryClient.setQueryData(detailQuery.queryKey, viewportParkingLotDetailFixtures[101]);
+
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  return renderHook(
+    () => {
+      const { data: detail } = useQuery({ ...detailQuery, enabled: false });
+      const like = useParkingLike(101, {
+        likeCount: detail?.likeCount ?? initialLike.likeCount,
+        likedByMe: detail?.likedByMe ?? initialLike.likedByMe,
+      });
+
+      return { like, detail };
+    },
+    { wrapper },
+  );
 };
 
 const waitForDebounce = () => act(() => new Promise((resolve) => setTimeout(resolve, 400)));
@@ -41,6 +67,27 @@ describe('주차장 좋아요 훅', () => {
     expect(requested).not.toHaveBeenCalled();
 
     await waitFor(() => expect(requested).toHaveBeenCalledTimes(1));
+  });
+
+  it('서버 응답값을 상세 조회 캐시에 반영한다', async () => {
+    server.use(
+      http.put('/api/parking/101/like', async () => {
+        await delay(50);
+        return HttpResponse.json({ parkingLotId: 101, likeCount: 15, likedByMe: true });
+      }),
+    );
+    const { result } = renderLikeWithDetail();
+
+    act(() => result.current.like.toggle());
+
+    expect(result.current.like.likedByMe).toBe(true);
+    expect(result.current.like.likeCount).toBe(13);
+
+    await waitFor(() => {
+      expect(result.current.detail?.likeCount).toBe(15);
+      expect(result.current.detail?.likedByMe).toBe(true);
+      expect(result.current.like.likeCount).toBe(15);
+    });
   });
 
   it('연속 클릭으로 원래 상태가 되면 요청하지 않는다', async () => {
