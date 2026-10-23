@@ -43,7 +43,7 @@ interface Props {
 export const ViewportParkingMarkers = ({
   map,
   viewport,
-  filters = { freeOnly: false, excludeMechanical: false },
+  filters = { freeOnly: false, excludeMechanical: false, isPublic: false },
   selectedParkingLotId,
   onSelect,
 }: Props) => {

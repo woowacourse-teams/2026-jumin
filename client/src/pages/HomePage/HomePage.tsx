@@ -33,6 +33,7 @@ const MIN_PARKING_MARKER_ZOOM = 15;
 const DEFAULT_PARKING_FILTERS: ParkingFilters = {
   freeOnly: false,
   excludeMechanical: false,
+  isPublic: false,
 };
 
 interface MapLocation {

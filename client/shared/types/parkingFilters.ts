@@ -2,4 +2,5 @@
 export interface ParkingFilters {
   freeOnly: boolean;
   excludeMechanical: boolean;
+  isPublic: boolean;
 }

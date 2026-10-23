@@ -122,6 +122,7 @@ export const getParkingLotsInViewport = async (
   // 서버의 기본값을 유지해 활성화된 필터만 요청에 포함한다.
   if (params.freeOnly) searchParams.set('freeOnly', 'true');
   if (params.excludeMechanical) searchParams.set('excludeMechanical', 'true');
+  if (params.isPublic) searchParams.set('isPublic', 'true');
 
   const response = await request(`/api/parking/viewport?${searchParams}`, { signal });
 
