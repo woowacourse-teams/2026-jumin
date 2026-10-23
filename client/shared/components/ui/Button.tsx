@@ -8,7 +8,7 @@ import { typography } from '../../../src/theme/typography';
  *
  * - brand: 길찾기·다음·신고처럼 브랜드색으로 강조하는 실행 버튼
  * - subtle: 로드뷰처럼 연한 브랜드 배경과 테두리를 사용하는 버튼
- * - outline: 흰 배경과 중립색 테두리의 보조 버튼. aria-pressed가 true이면 선택색을 사용한다.
+ * - outline: 흰 배경과 중립색 테두리의 보조 버튼
  * - ghost: 배경 없이 글자나 아이콘을 표시하는 버튼
  */
 type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost';
@@ -111,28 +111,11 @@ const buttonAppearance = {
       &:active:not(:disabled) {
         background-color: ${color.background.subtle};
       }
-
-      &[aria-pressed='true'] {
-        background-color: ${color.background.selectedSubtle};
-        color: ${color.text.selected};
-        box-shadow: inset 0 0 0 1px ${color.border.selected};
-
-        &:hover:not(:disabled),
-        &:active:not(:disabled) {
-          background-color: ${color.background.brandSubtleHovered};
-        }
-      }
     `,
     loading: css`
       background-color: ${color.background.default};
       color: ${color.text.secondary};
       box-shadow: inset 0 0 0 1px ${color.border.default};
-
-      &[aria-pressed='true'] {
-        background-color: ${color.background.selectedSubtle};
-        color: ${color.text.selected};
-        box-shadow: inset 0 0 0 1px ${color.border.selected};
-      }
     `,
     inactive: css`
       background-color: ${color.background.default};
