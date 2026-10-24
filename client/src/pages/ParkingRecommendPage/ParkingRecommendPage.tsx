@@ -28,7 +28,7 @@ export const ParkingRecommendPage = () => {
   const searchCondition = navigationState?.searchCondition;
 
   if (!searchCondition) {
-    return <Navigate to={STEP_PATH.setup} />;
+    return <Navigate to={STEP_PATH.setup} replace />;
   }
 
   return (

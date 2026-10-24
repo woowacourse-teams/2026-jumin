@@ -28,7 +28,7 @@ export const ParkingDetailPage = () => {
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
 
   if (!detailCondition) {
-    return <Navigate to={STEP_PATH.recommend} />;
+    return <Navigate to={STEP_PATH.recommend} replace />;
   }
 
   return (
