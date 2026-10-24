@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
   MOVE_POLICY,
@@ -6,9 +7,8 @@ import {
   type MoveRule,
   type Step,
 } from '../policy/movePolicy';
-import { useCallback } from 'react';
 
-/** 정책 상 화면 이름을 실제 라우팅 경로로 변환 */
+/** 정책 상 화면 이름을 실제 라우팅 경로로 변환한다. */
 const STEP_PATH = {
   home: '/',
   search: '/search',
@@ -17,16 +17,15 @@ const STEP_PATH = {
   detail: '/parkingDetail',
 } satisfies Record<Step, string>;
 
-/** 제네릭 화면·액션으로 조회할 수 있도록 mapped type으로 받는다. */
 const policyByStep: MovePolicy = MOVE_POLICY;
 
 /**
- * 현재 화면에서 허용된 액션을 받아 정책에 따라 화면을 이동한다.
+ * 현재 화면의 액션을 받아 React Router로 이동을 실행한다.
  * 이동 대상과 push·replace·뒤로가기 방식은 MOVE_POLICY에서 결정한다.
  * 같은 화면으로 이동할 때는 현재 URL의 쿼리와 해시를 보존한다.
  * state를 전달하면 이동할 히스토리 엔트리에 함께 저장한다.
  */
-export const useStepNavigate = <From extends Step>(from: From) => {
+export const useStepNavigation = <From extends Step>(from: From) => {
   const navigate = useNavigate();
   const { pathname, search, hash } = useLocation();
 
@@ -51,5 +50,5 @@ export const useStepNavigate = <From extends Step>(from: From) => {
     [from, navigate, pathname, search, hash],
   );
 
-  return move;
+  return { move };
 };

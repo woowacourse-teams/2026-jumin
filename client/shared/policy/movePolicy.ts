@@ -17,6 +17,7 @@ export type MovePolicy = {
   [From in Step]: Record<ActionByStep[From], MoveRule>;
 };
 
+/** 주차장 탐색 흐름에 맞는 단계별 전이, 히스토리 제어, 상태 복원 전용으로만 정책을 정의 */
 export const MOVE_POLICY = {
   home: {
     OPEN_SEARCH: { target: 'search', method: 'push' },
@@ -33,9 +34,9 @@ export const MOVE_POLICY = {
     SAVE_VIEW: { target: 'setup', method: 'replace' },
   },
   recommend: {
+    BACK: { method: 'back' },
     OPEN_DETAIL: { target: 'detail', method: 'push' },
     SAVE_VIEW: { target: 'recommend', method: 'replace' },
-    BACK: { method: 'back' },
   },
   detail: {
     BACK: { method: 'back' },
