@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 
 import { css } from '@emotion/css';
 
-import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
+import { Navigate, useLocation, useOutletContext } from 'react-router';
 
 import type { ParkingDetailCondition } from '../../../shared/types/navigation';
 import { ParkingDetailContent } from './components/ParkingDetailContent';
@@ -13,13 +13,14 @@ import { ParkingDetailSkeleton } from './LoadingUI/ParkingDetailSkeleton';
 import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { color } from '../../theme/color';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 interface NavigationState {
   detailCondition?: ParkingDetailCondition;
 }
 
 export const ParkingDetailPage = () => {
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('detail');
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const detailCondition = navigationState?.detailCondition;
@@ -27,7 +28,7 @@ export const ParkingDetailPage = () => {
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
 
   if (!detailCondition) {
-    return <Navigate to="/parkingsetup" replace />;
+    return <Navigate to={STEP_PATH.recommend} />;
   }
 
   return (
@@ -35,7 +36,7 @@ export const ParkingDetailPage = () => {
       <ConditionBar
         title={detailCondition.parkingLotName}
         description={detailCondition.destinationName}
-        onBack={() => navigate(-1)}
+        onBack={() => move('BACK')}
       />
 
       <QueryErrorResetBoundary>

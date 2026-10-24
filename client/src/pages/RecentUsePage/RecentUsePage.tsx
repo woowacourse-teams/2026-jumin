@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { BackIcon } from '../../../shared/components/ui/icons';
 
 import { BottomNav } from '../../../shared/components/service/BottomNav';
@@ -22,7 +22,6 @@ const formatMonthDay = (usedAt: string) =>
   }).format(new Date(usedAt));
 
 export const RecentUsePage = () => {
-  const navigate = useNavigate();
   const [recentParkingUses, setRecentParkingUses] = useState(loadRecentParkingUses);
   const [selectedParkingLot, setSelectedParkingLot] = useState<RecentParkingLot | null>(null);
 
@@ -36,14 +35,9 @@ export const RecentUsePage = () => {
   return (
     <main className={pageStyle}>
       <header className={headerStyle}>
-        <button
-          className={backButtonStyle}
-          type="button"
-          aria-label="이전 화면으로 이동"
-          onClick={() => navigate(-1)}
-        >
+        <Link className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" to="/">
           <BackIcon size={28} aria-hidden="true" />
-        </button>
+        </Link>
         <h1 className={titleStyle}>최근 이용</h1>
       </header>
 

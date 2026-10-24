@@ -1,17 +1,15 @@
 import { css } from '@emotion/css';
-import { useNavigate } from 'react-router';
 import type { Destination } from '../../../api/contracts';
 import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
+import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 export const SearchPage = () => {
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('search');
 
   const handleDestinationSelect = (destination: Destination) => {
-    navigate('/parkingsetup', {
-      state: { destination },
-    });
+    move('SELECT_DESTINATION', { destination });
   };
 
   return (
