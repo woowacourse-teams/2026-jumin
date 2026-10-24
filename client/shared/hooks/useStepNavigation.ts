@@ -9,7 +9,7 @@ import {
 } from '../policy/movePolicy';
 
 /** 정책 상 화면 이름을 실제 라우팅 경로로 변환한다. */
-const STEP_PATH = {
+export const STEP_PATH = {
   home: '/',
   search: '/search',
   setup: '/parkingsetup',
