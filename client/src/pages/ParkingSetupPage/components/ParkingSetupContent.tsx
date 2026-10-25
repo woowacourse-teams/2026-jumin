@@ -9,13 +9,13 @@ import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
 import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
-import type { ParkingSetupView } from '../types/view';
+import type { Coordinates, ParkingSetupView } from '../types/view';
 
 interface Props {
   map: naver.maps.Map | null;
   destination: Destination;
   setupView?: ParkingSetupView;
-  onSetupViewChange: (view: ParkingSetupView) => void;
+  onSelectedLocationChange: (location: Coordinates) => void;
   onSearch: () => void;
   onRecommend: (searchCondition: ParkingSearchCondition) => void;
 }
@@ -24,7 +24,7 @@ export const ParkingSetupContent = ({
   map,
   destination,
   setupView,
-  onSetupViewChange,
+  onSelectedLocationChange,
   onSearch,
   onRecommend,
 }: Props) => {
@@ -36,7 +36,7 @@ export const ParkingSetupContent = ({
   useParkingSetupMap({
     map,
     selectedLocation,
-    onSetupViewChange,
+    onDragEnd: onSelectedLocationChange,
   });
 
   const { destinationName, address, isFetching, isError } = useParkingSetupDestination({

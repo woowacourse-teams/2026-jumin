@@ -1,6 +1,8 @@
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 export interface ParkingSetupView {
-  selectedLocation: {
-    latitude: number;
-    longitude: number;
-  };
+  selectedLocation: Coordinates;
 }

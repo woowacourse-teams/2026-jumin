@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-rout
 
 import type { Destination } from '../../../api/contracts';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
-import type { ParkingSetupView } from './types/view';
+import type { Coordinates, ParkingSetupView } from './types/view';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 interface NavigationState {
@@ -23,11 +23,13 @@ export const ParkingSetupPage = () => {
 
   const navigate = useNavigate();
 
-  const handleSetupViewChange = useCallback(
-    (setupView: ParkingSetupView) => {
+  const handleSelectedLocationChange = useCallback(
+    (selectedLocation: Coordinates) => {
       move('SAVE_VIEW', {
         ...navigationState,
-        setupView,
+        setupView: {
+          selectedLocation,
+        },
       });
     },
     [move, navigationState],
@@ -42,7 +44,7 @@ export const ParkingSetupPage = () => {
       map={map}
       destination={destination}
       setupView={navigationState?.setupView}
-      onSetupViewChange={handleSetupViewChange}
+      onSelectedLocationChange={handleSelectedLocationChange}
       onSearch={() => navigate('/search')}
       onRecommend={(searchCondition) => {
         navigate('/parkingRecommend', {
