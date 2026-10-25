@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type { Destination } from '../../../api/contracts';
-import type { ParkingSetupView } from '../../../shared/types/navigation';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
+import type { ParkingSetupView } from './types/view';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 interface NavigationState {

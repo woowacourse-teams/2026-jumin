@@ -23,11 +23,3 @@ export type RecommendView = {
   parkingLotId: number | null;
   recommendationType: RecommendationType;
 };
-
-export interface ParkingSetupView {
-  selectedLocation: {
-    latitude: number;
-    longitude: number;
-  };
-  hasMovedMap: boolean;
-}

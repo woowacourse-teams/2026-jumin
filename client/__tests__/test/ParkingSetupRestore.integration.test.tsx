@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { Route, Routes, useOutletContext } from 'react-router';
 
 import { MapLayout } from '../../shared/maps/MapLayout';
-import type { ParkingSetupView } from '../../shared/types/navigation';
+import type { ParkingSetupView } from '../../src/pages/ParkingSetupPage/types/view';
 import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/ParkingRecommendPage';
 import { ParkingSetupPage } from '../../src/pages/ParkingSetupPage/ParkingSetupPage';
 import { destinationFixtures } from '../../mocks/fixtures/destinations';
@@ -33,7 +33,6 @@ const movedLocation = { latitude: 37.51, longitude: 127.04 };
 const movedName = '지도에서 이동한 목적지';
 const savedView: ParkingSetupView = {
   selectedLocation: movedLocation,
-  hasMovedMap: true,
 };
 
 const createMockMap = () => {

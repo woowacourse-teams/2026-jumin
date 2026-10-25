@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect } from 'react';
-
-import type { ParkingSetupView } from '../../../../shared/types/navigation';
+import type { ParkingSetupView } from '../types/view';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -35,7 +34,6 @@ export const useParkingSetupMap = ({ map, selectedLocation, onSetupViewChange }:
           latitude: center.lat(),
           longitude: center.lng(),
         },
-        hasMovedMap: true,
       });
     });
 
