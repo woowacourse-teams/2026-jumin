@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { parkingSearchEmpty, parkingSearchSuccess } from '../fixtures/parkingSearch';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
+import { relocateParkingLocation } from '../utils/relocateParkingLocation';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
@@ -81,7 +82,8 @@ const validateParkingSearchRequest = (url: URL): FieldError[] => {
 
 export const parkingSearchHandlers = [
   http.get('/api/parking/search', async ({ request }) => {
-    const errors = validateParkingSearchRequest(new URL(request.url));
+    const url = new URL(request.url);
+    const errors = validateParkingSearchRequest(url);
 
     if (errors.length > 0) {
       return HttpResponse.json<ValidationErrorResponse>(
@@ -111,8 +113,21 @@ export const parkingSearchHandlers = [
 
     await delay(scenario === 'parking-slow' ? 2000 : 400);
 
-    return HttpResponse.json(
-      scenario === 'parking-empty' ? parkingSearchEmpty : parkingSearchSuccess,
-    );
+    if (scenario === 'parking-empty') {
+      return HttpResponse.json(parkingSearchEmpty);
+    }
+
+    const destination = {
+      latitude: Number(url.searchParams.get('destinationLatitude')),
+      longitude: Number(url.searchParams.get('destinationLongitude')),
+    };
+
+    return HttpResponse.json({
+      ...parkingSearchSuccess,
+      parkingLots: parkingSearchSuccess.parkingLots.map((parkingLot) => ({
+        ...parkingLot,
+        location: relocateParkingLocation(parkingLot.location, destination),
+      })),
+    });
   }),
 ];
