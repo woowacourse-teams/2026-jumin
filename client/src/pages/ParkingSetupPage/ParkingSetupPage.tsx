@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-rout
 import type { Destination } from '../../../api/contracts';
 import type { ParkingSetupView } from '../../../shared/types/navigation';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
+import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 interface NavigationState {
   destination?: Destination;
@@ -11,6 +12,7 @@ interface NavigationState {
 }
 
 export const ParkingSetupPage = () => {
+  const { move } = useStepNavigation('setup');
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const destination = navigationState?.destination;
@@ -23,15 +25,12 @@ export const ParkingSetupPage = () => {
 
   const handleSetupViewChange = useCallback(
     (setupView: ParkingSetupView) => {
-      navigate('/parkingsetup', {
-        replace: true,
-        state: {
-          ...navigationState,
-          setupView,
-        },
+      move('SAVE_VIEW', {
+        ...navigationState,
+        setupView,
       });
     },
-    [navigate, navigationState],
+    [move, navigationState],
   );
 
   if (!destination) {
