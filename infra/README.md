@@ -100,8 +100,7 @@ secret으로 전달합니다.
 - GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
   data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
   서버 workflow가 Alloy를 함께 배포합니다.
-- GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
-  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
+- GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `LOCAL_SEARCH_REST_API_KEY`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
   `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
 
@@ -131,8 +130,7 @@ secret으로 전달합니다.
 - GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
   data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
   서버 workflow가 Alloy를 함께 배포합니다.
-- GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`,
-  `LOCAL_SEARCH_CLIENT_ID`, `LOCAL_SEARCH_CLIENT_SECRET`,
+- GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `LOCAL_SEARCH_REST_API_KEY`,
   `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
   `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
 - 운영 RDS에 `postgis`와 `pgrouting` 확장이 설치되어 있고, 애플리케이션 DB 사용자가
@@ -443,3 +441,5 @@ GitHub Actions에서는 OSM 다운로드·변환·적재를 실행하지 않습�
 스크립트는 다운로드·검증 후 기존 보행망 전체를 트랜잭션으로 교체합니다.
 교체 트랜잭션이 실패하면 롤백되어 기존 데이터를 보존합니다.
 신규 환경은 마이그레이션과 최초 적재를 완료한 후 검색 서비스를 개방합니다.
+
+목적지 검색의 환경변수와 로컬 검증 방법은 [서버 환경변수 안내](../server/README.md#환경변수)를 참고합니다.
