@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 
 import type { ParkingSetupView } from '../../../../shared/types/navigation';
 
@@ -12,8 +12,8 @@ interface Props {
 export const useParkingSetupMap = ({ map, selectedLocation, onSetupViewChange }: Props) => {
   const { latitude, longitude } = selectedLocation;
 
-  // 기존 지도를 검색 좌표 또는 저장된 좌표로 맞춘다.
-  useEffect(() => {
+  // 지도 준비 또는 화면 복귀 후, 페인트 전에 선택 좌표를 반영한다.
+  useLayoutEffect(() => {
     if (!map) return;
 
     const center = map.getCenter() as naver.maps.LatLng;
