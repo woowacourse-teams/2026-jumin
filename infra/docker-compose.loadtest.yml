@@ -57,8 +57,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${LOADTEST_DB_NAME:-jumin_loadtest}
       DB_USERNAME: ${LOADTEST_DB_USERNAME:-loadtest}
       DB_PASSWORD: ${LOADTEST_DB_PASSWORD:-loadtest-only-password}
-      LOCAL_SEARCH_CLIENT_ID: loadtest-only
-      LOCAL_SEARCH_CLIENT_SECRET: loadtest-only
+      LOCAL_SEARCH_REST_API_KEY: loadtest-only
       LOCAL_SEARCH_BASE_URL: http://nginx
       REVERSE_GEOCODING_CLIENT_ID: loadtest-only
       REVERSE_GEOCODING_CLIENT_SECRET: loadtest-only
