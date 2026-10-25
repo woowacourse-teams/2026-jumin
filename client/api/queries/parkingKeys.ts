@@ -18,6 +18,7 @@ export const parkingKeys = {
         eastLongitude: params.eastLongitude,
         freeOnly: params.freeOnly ?? false,
         excludeMechanical: params.excludeMechanical ?? false,
+        isPublic: params.isPublic ?? false,
       },
     ] as const,
 

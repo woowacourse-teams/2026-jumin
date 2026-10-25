@@ -44,9 +44,9 @@ const shimmer = keyframes`
 const skeletonBlockStyle = css`
   background: linear-gradient(
     90deg,
-    ${color.border.default} 25%,
+    ${color.background.muted} 25%,
     ${color.background.subtle} 50%,
-    ${color.border.default} 75%
+    ${color.background.muted} 75%
   );
   background-size: 200% 100%;
   animation: ${shimmer} 1.4s ease-in-out infinite;
@@ -162,6 +162,6 @@ const handleStyle = css`
   width: 40px;
   height: 4px;
 
-  background: ${color.border.default};
+  background: ${color.background.muted};
   border-radius: 999px;
 `;

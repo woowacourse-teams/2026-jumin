@@ -16,6 +16,7 @@ export const parkingViewportQueryOptions = (
     ...normalizedViewport,
     freeOnly: filters?.freeOnly ?? viewport.freeOnly ?? false,
     excludeMechanical: filters?.excludeMechanical ?? viewport.excludeMechanical ?? false,
+    isPublic: filters?.isPublic ?? viewport.isPublic ?? false,
   };
 
   return queryOptions({

@@ -152,7 +152,7 @@ const handleStyle = css`
   width: 40px;
   height: 4px;
 
-  background-color: ${color.border.default};
+  background-color: ${color.background.muted};
   border-radius: 999px;
 `;
 

@@ -72,6 +72,7 @@ export const parkingViewportHandlers = [
     const bounds = parseViewportBounds(url);
     const freeOnly = url.searchParams.get('freeOnly') === 'true';
     const excludeMechanical = url.searchParams.get('excludeMechanical') === 'true';
+    const isPublic = url.searchParams.get('isPublic') === 'true';
 
     if (isFieldErrorArray(bounds)) {
       return HttpResponse.json(
@@ -103,7 +104,8 @@ export const parkingViewportHandlers = [
         longitude >= bounds.westLongitude &&
         longitude <= bounds.eastLongitude &&
         (!freeOnly || parkingViewportFilterMetadata[id]?.isFreeToday) &&
-        (!excludeMechanical || !parkingViewportFilterMetadata[id]?.isMechanical),
+        (!excludeMechanical || !parkingViewportFilterMetadata[id]?.isMechanical) &&
+        (!isPublic || parkingViewportFilterMetadata[id]?.isPublic === true),
     );
 
     await delay(200);

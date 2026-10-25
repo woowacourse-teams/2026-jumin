@@ -149,7 +149,7 @@ const locationIconContainerStyle = css`
   justify-content: center;
   width: 52px;
   height: 58px;
-  color: ${color.icon.selected};
+  color: ${color.icon.brand};
   background: ${color.background.brandSubtle};
   border-radius: 14px;
   pointer-events: none;
@@ -231,12 +231,12 @@ const detailButtonStyle = css`
   }
 
   &:hover {
-    color: ${color.icon.selected};
+    color: ${color.icon.brand};
     background: ${color.background.brandSubtle};
   }
 
   &:active {
-    color: ${color.icon.selected};
+    color: ${color.icon.brand};
     background: ${color.background.brandSubtlePressed};
   }
 `;

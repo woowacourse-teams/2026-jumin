@@ -17,7 +17,7 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
       padding: 0;
       border: 0;
       border-radius: 14px;
-      color: ${color.icon.selected};
+      color: ${color.icon.brand};
       background: ${color.background.default};
       vertical-align: top;
       cursor: pointer;

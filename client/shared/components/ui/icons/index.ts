@@ -19,6 +19,7 @@ export {
   HiOutlineChatBubbleLeftRight as FeedbackIcon,
   HiOutlineCurrencyDollar as FreeParkingIcon,
   HiOutlineBuildingOffice2 as MechanicalParkingIcon,
+  HiOutlineBuildingLibrary as PublicParkingIcon,
   HiOutlineArrowUpTray as UploadIcon,
   HiOutlineCheck as CheckIcon,
   HiOutlineArrowDown as ArrowDownIcon,

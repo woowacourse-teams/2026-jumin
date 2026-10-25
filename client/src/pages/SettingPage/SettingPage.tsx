@@ -1,4 +1,4 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
@@ -15,7 +15,6 @@ import { FEEDBACK_URL } from '../../../shared/constants/help';
 import { useModal } from '../../../shared/hooks/useModal';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
 import { color } from '../../theme/color';
-import { palette } from '../../theme/palette';
 import { typography } from '../../theme/typography';
 
 export const SettingPage = () => {
@@ -68,7 +67,7 @@ export const SettingPage = () => {
               disabled={isInstalled || isInstalling}
               onClick={() => void handleInstall()}
             >
-              <span className={cx(styles.iconFrame, styles.installIconFrame)}>
+              <span className={styles.iconFrame}>
                 <InstallIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
@@ -101,7 +100,7 @@ export const SettingPage = () => {
               type="button"
               onClick={() => window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer')}
             >
-              <span className={cx(styles.iconFrame, styles.feedbackIconFrame)}>
+              <span className={styles.iconFrame}>
                 <FeedbackIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
@@ -171,7 +170,7 @@ const styles = {
     }
 
     &:focus-visible {
-      outline: 2px solid ${color.border.focused};
+      outline: 2px solid ${color.focus.ring};
       outline-offset: 3px;
     }
   `,
@@ -254,7 +253,7 @@ const styles = {
     }
 
     &:focus-visible {
-      outline: 2px solid ${color.border.focused};
+      outline: 2px solid ${color.focus.ring};
       outline-offset: -3px;
     }
 
@@ -270,12 +269,6 @@ const styles = {
     color: ${color.icon.default};
     background: ${color.background.brandSubtle};
     border-radius: 13px;
-  `,
-  installIconFrame: css`
-    background: ${palette.mint50};
-  `,
-  feedbackIconFrame: css`
-    background: ${palette.peach50};
   `,
   itemTitle: css`
     ${typography.label};

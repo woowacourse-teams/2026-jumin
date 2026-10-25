@@ -1,6 +1,5 @@
 import { css } from '@emotion/css';
 import { BackIcon } from '../ui/icons';
-import { useNavigate } from 'react-router';
 import type { ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
@@ -13,15 +12,13 @@ interface Props {
 }
 
 export const ConditionBar = ({ title, description, onBack, action }: Props) => {
-  const navigate = useNavigate(); // 뒤로가기 기능을 위한 navigate
-  const handleBack = onBack ?? (() => navigate(-1));
   return (
     <header className={headerStyle} aria-label="검색 조건">
       <button
         className={backButtonStyle}
         type="button"
         aria-label="이전 화면으로 이동"
-        onClick={handleBack}
+        onClick={onBack}
       >
         <BackIcon className={backIconStyle} size={16} aria-hidden="true" />
       </button>
@@ -80,7 +77,7 @@ const backButtonStyle = css`
   }
 
   &:focus-visible {
-    outline: 2px solid ${color.border.focused};
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 `;
