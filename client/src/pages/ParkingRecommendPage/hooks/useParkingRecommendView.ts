@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 
 import type {
   ParkingDetailCondition,
@@ -7,6 +7,7 @@ import type {
   RecommendView,
 } from '../../../../shared/types/navigation';
 import type { NavigationState } from '../ParkingRecommendPage';
+import { useStepNavigation } from '../../../../shared/hooks/useStepNavigation';
 
 const DEFAULT_RECOMMEND_VIEW: RecommendView = {
   snap: 'collapsed',
@@ -16,7 +17,7 @@ const DEFAULT_RECOMMEND_VIEW: RecommendView = {
 
 export const useParkingRecommendView = (searchCondition: ParkingSearchCondition) => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('recommend');
   const navigationState = location.state as NavigationState | null;
   const savedView = navigationState?.recommendView;
   const view = savedView ?? DEFAULT_RECOMMEND_VIEW;
@@ -34,23 +35,9 @@ export const useParkingRecommendView = (searchCondition: ParkingSearchCondition)
         return;
       }
 
-      navigate(
-        { pathname: location.pathname, search: location.search, hash: location.hash },
-        {
-          replace: true,
-          state: { ...navigationState, searchCondition, recommendView: nextView },
-        },
-      );
+      move('SAVE_VIEW', { ...navigationState, searchCondition, recommendView: nextView });
     },
-    [
-      view,
-      navigate,
-      location.pathname,
-      location.search,
-      location.hash,
-      navigationState,
-      searchCondition,
-    ],
+    [view, move, navigationState, searchCondition],
   );
 
   const openDetail = (detailCondition: ParkingDetailCondition) => {
@@ -63,8 +50,8 @@ export const useParkingRecommendView = (searchCondition: ParkingSearchCondition)
 
     // 추천 히스토리의 갱신이 반영된 뒤 상세 기록을 추가한다.
     // 상세 이동 시 이 훅이 언마운트되므로 대기 상태를 따로 초기화하지 않는다.
-    navigate('/parkingDetail', { state: { detailCondition: pendingDetail } });
-  }, [pendingDetail, savedView?.parkingLotId, navigate]);
+    move('OPEN_DETAIL', { detailCondition: pendingDetail });
+  }, [pendingDetail, savedView?.parkingLotId, move]);
 
   return { view, savedView, updateView, openDetail };
 };

@@ -1,4 +1,4 @@
-import { useNavigate, useOutletContext } from 'react-router';
+import { useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
 import { useCallback, useState } from 'react';
@@ -19,6 +19,7 @@ import type { ParkingFilters } from '../../../shared/types/parkingFilters';
 import { ParkingFilterBar } from '../../../shared/components/service/parking/ParkingFilterBar';
 import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
+import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -42,7 +43,7 @@ interface MapLocation {
 }
 
 export const HomePage = () => {
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('home');
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
   const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
@@ -116,7 +117,7 @@ export const HomePage = () => {
 
   const handleSearchBarClick = () => {
     trackEvent(eventName.DESTINATION_SEARCH_BAR);
-    navigate('/search');
+    move('OPEN_SEARCH');
   };
 
   return (
