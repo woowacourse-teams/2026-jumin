@@ -233,6 +233,8 @@ export const ParkingRecommendContent = ({
   }, [recommendedParkingLots.length]);
 
   const handleCardScroll = () => {
+    if (sheetSnap === 'expanded') return;
+
     const parkingLotId = getCenteredParkingLotId();
 
     if (parkingLotId === null || parkingLotId === activeParkingLotId) {
