@@ -1,19 +1,18 @@
-import { useEffect } from 'react';
-
-import type { ParkingSetupView } from '../../../../shared/types/navigation';
+import { useEffect, useLayoutEffect } from 'react';
+import type { Coordinates } from '../types/view';
 
 interface Props {
   map: naver.maps.Map | null;
-  selectedLocation: ParkingSetupView['selectedLocation'];
-  onSetupViewChange: (view: ParkingSetupView) => void;
+  selectedLocation: Coordinates;
+  onDragEnd: (location: Coordinates) => void;
 }
 
 /** 지도 중심 동기화, 드래그 이벤트, 옵션 설정 */
-export const useParkingSetupMap = ({ map, selectedLocation, onSetupViewChange }: Props) => {
+export const useParkingSetupMap = ({ map, selectedLocation, onDragEnd }: Props) => {
   const { latitude, longitude } = selectedLocation;
 
-  // 기존 지도를 검색 좌표 또는 저장된 좌표로 맞춘다.
-  useEffect(() => {
+  // 지도 준비 또는 화면 복귀 후, 페인트 전에 선택 좌표를 반영한다.
+  useLayoutEffect(() => {
     if (!map) return;
 
     const center = map.getCenter() as naver.maps.LatLng;
@@ -30,19 +29,16 @@ export const useParkingSetupMap = ({ map, selectedLocation, onSetupViewChange }:
     const listener = naver.maps.Event.addListener(map, 'dragend', () => {
       const center = map.getCenter() as naver.maps.LatLng;
 
-      onSetupViewChange({
-        selectedLocation: {
-          latitude: center.lat(),
-          longitude: center.lng(),
-        },
-        hasMovedMap: true,
+      onDragEnd({
+        latitude: center.lat(),
+        longitude: center.lng(),
       });
     });
 
     return () => {
       naver.maps.Event.removeListener(listener);
     };
-  }, [map, onSetupViewChange]);
+  }, [map, onDragEnd]);
 
   useEffect(() => {
     if (!map) return;

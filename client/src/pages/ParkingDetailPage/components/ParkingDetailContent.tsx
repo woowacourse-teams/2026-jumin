@@ -5,10 +5,7 @@ import type { ParkingDetailCondition } from '../../../../shared/types/navigation
 import type { ParkingOperationPeriod } from '../../../../api/contracts';
 import { css } from '@emotion/css';
 import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
-import BottomSheet, {
-  BOTTOM_SHEET_HEIGHT,
-  type BottomSheetSnap,
-} from '../../../../shared/components/ui/BottomSheet';
+import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
 import { useCallback, useEffect, useState } from 'react';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 
@@ -26,6 +23,7 @@ import { Row } from '../../../../shared/components/ui/Row';
 import { Stack } from '../../../../shared/components/ui/Stack';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
+import type { BottomSheetSnap } from '../../../../shared/types/ui';
 
 interface Props {
   map: naver.maps.Map | null;

@@ -1,18 +1,19 @@
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useCallback } from 'react';
 
 import { css } from '@emotion/css';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Navigate, useLocation } from 'react-router';
+import { Navigate, useLocation, useOutletContext } from 'react-router';
 
 import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { ParkingRecommendContent } from './components/ParkingRecommendContent';
 import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
-import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
 import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import type { RecommendView } from './types/view';
 
 export interface NavigationState {
   searchCondition: ParkingSearchCondition;
@@ -29,6 +30,21 @@ export const ParkingRecommendPage = () => {
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const searchCondition = navigationState?.searchCondition;
+
+  const { map } = useOutletContext<{
+    map: naver.maps.Map | null;
+  }>();
+
+  // 셋업 페이지와 마찬가지로 선택 주차장/추천 유형 변경 시의 view 저장 핸들러
+  const saveView = useCallback(
+    (recommendView: RecommendView) => {
+      move('SAVE_VIEW', {
+        ...navigationState,
+        recommendView,
+      });
+    },
+    [move, navigationState],
+  );
 
   if (!searchCondition) {
     return <Navigate to={STEP_PATH.setup} replace />;
@@ -53,8 +69,14 @@ export const ParkingRecommendPage = () => {
           >
             <Suspense fallback={<ParkingRecommendSkeleton />}>
               <ParkingRecommendContent
+                map={map}
                 searchCondition={searchCondition}
+                recommendView={navigationState?.recommendView}
                 conditionBarRef={conditionBarRef}
+                onSaveView={saveView}
+                onDetail={(detailCondition) => {
+                  move('OPEN_DETAIL', { detailCondition });
+                }}
               />
             </Suspense>
           </ErrorBoundary>
