@@ -2,8 +2,9 @@ import { useCallback } from 'react';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
 
 import type { Destination } from '../../../api/contracts';
-import type { ParkingSetupView } from '../../../shared/types/navigation';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
+import type { Coordinates, ParkingSetupView } from './types/view';
+import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 
 interface NavigationState {
   destination?: Destination;
@@ -11,6 +12,7 @@ interface NavigationState {
 }
 
 export const ParkingSetupPage = () => {
+  const { move } = useStepNavigation('setup');
   const { state } = useLocation();
   const navigationState = state as NavigationState | null;
   const destination = navigationState?.destination;
@@ -21,17 +23,16 @@ export const ParkingSetupPage = () => {
 
   const navigate = useNavigate();
 
-  const handleSetupViewChange = useCallback(
-    (setupView: ParkingSetupView) => {
-      navigate('/parkingsetup', {
-        replace: true,
-        state: {
-          ...navigationState,
-          setupView,
+  const handleSelectedLocationChange = useCallback(
+    (selectedLocation: Coordinates) => {
+      move('SAVE_VIEW', {
+        ...navigationState,
+        setupView: {
+          selectedLocation,
         },
       });
     },
-    [navigate, navigationState],
+    [move, navigationState],
   );
 
   if (!destination) {
@@ -43,7 +44,7 @@ export const ParkingSetupPage = () => {
       map={map}
       destination={destination}
       setupView={navigationState?.setupView}
-      onSetupViewChange={handleSetupViewChange}
+      onSelectedLocationChange={handleSelectedLocationChange}
       onSearch={() => navigate('/search')}
       onRecommend={(searchCondition) => {
         navigate('/parkingRecommend', {
