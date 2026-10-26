@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { useOutletContext } from 'react-router';
 
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { parkingSearchQueryOptions } from '../../../../api/queries/parkingSearchQuery';
@@ -13,26 +12,18 @@ import { InfoRow } from './InfoRow';
 import type {
   ParkingDetailCondition,
   ParkingSearchCondition,
-  RecommendationType,
 } from '../../../../shared/types/navigation';
 import { ParkingMarkers } from './ParkingMarkers';
 import { useMapClick } from '../../../../shared/hooks/useMapClick';
 import { eventName } from '../../../../shared/monitoring/constants';
-import { useParkingRecommendView } from '../hooks/useParkingRecommendView';
-import { useParkingRecommendScrollRestore } from '../hooks/useParkingRecommendScrollRestore';
 import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
 import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
+import type { RecommendationType, RecommendView } from '../types/view';
+import { useLocation, useNavigationType } from 'react-router';
+import type { BottomSheetSnap } from '../../../../shared/types/ui';
 import { getRecommendationMessage, getSortValue, sortParkingLots } from '../utils/sorting';
-
-type MapOutletContext = {
-  map: naver.maps.Map | null;
-};
-
-interface Props {
-  searchCondition: ParkingSearchCondition;
-}
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -59,27 +50,34 @@ const getHorizontalCenterOffset = (container: HTMLElement, item: Element) => {
   return itemRect.left + itemRect.width / 2 - (containerRect.left + containerRect.width / 2);
 };
 
-export const ParkingRecommendContent = ({ searchCondition }: Props) => {
+interface Props {
+  map: naver.maps.Map | null;
+  searchCondition: ParkingSearchCondition;
+  recommendView?: RecommendView;
+  onSaveView: (recommendView: RecommendView) => void;
+  onDetail: (detailCondition: ParkingDetailCondition) => void;
+}
+
+export const ParkingRecommendContent = ({
+  map,
+  searchCondition,
+  recommendView,
+  onSaveView,
+  onDetail,
+}: Props) => {
+  // 1. 도메인 복원 데이터: props(recommendView)에서 직접 파생 (useState 불필요!)
+  const recommendationType = recommendView?.recommendationType ?? 'DISTANCE';
+  const selectedParkingLotId = recommendView?.parkingLotId ?? null;
+
+  // 2.UI 데이터 (기본값 collapsed)
+  const sheetSnap = recommendView?.sheetSnap ?? 'collapsed';
+
   const { data } = useSuspenseQuery(parkingSearchQueryOptions(searchCondition));
   const [directionsParkingLot, setDirectionsParkingLot] = useState<ParkingLotSummary | null>(null);
 
   const cardListRef = useRef<HTMLUListElement>(null);
   const parkingListRef = useRef<HTMLUListElement>(null);
   const hasTrackedRecommendations = useRef(false);
-
-  const { map } = useOutletContext<MapOutletContext>();
-  const { view, savedView, updateView, openDetail } = useParkingRecommendView(searchCondition);
-  const { recommendationType, parkingLotId: selectedParkingLotId, snap: sheetSnap } = view;
-
-  const collapseBottomSheet = useCallback(() => {
-    updateView({ snap: 'collapsed' });
-  }, [updateView]);
-
-  useMapClick({
-    map,
-    enabled: sheetSnap === 'expanded',
-    onMapClick: collapseBottomSheet,
-  });
 
   const parkingLots = useMemo(
     () => sortParkingLots(data.parkingLots, recommendationType),
@@ -95,6 +93,130 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
   );
 
   const activeParkingLotId = selectedParkingLotId ?? parkingLots[0]?.id ?? null;
+
+  const { key } = useLocation();
+  const navigationType = useNavigationType();
+  const lastHandledKeyRef = useRef<string | null>(null);
+
+  const scrollCardToCenter = useCallback(
+    (parkingLotId: number) => {
+      const index = recommendedParkingLots.findIndex(({ id }) => id === parkingLotId);
+      const list = cardListRef.current;
+      const card = index >= 0 ? list?.children.item(index) : null;
+
+      if (!list || !card) return;
+
+      const offset = getHorizontalCenterOffset(list, card);
+
+      if (Math.abs(offset) > 1) {
+        list.scrollBy({ left: offset, behavior: 'smooth' });
+      }
+    },
+    [cardListRef, recommendedParkingLots],
+  );
+
+  const scrollRowIntoView = useCallback(
+    (parkingLotId: number) => {
+      const index = parkingLots.findIndex(({ id }) => id === parkingLotId);
+      const list = parkingListRef.current;
+      const row = index >= 0 ? list?.children.item(index) : null;
+
+      if (!list || !row) return;
+
+      const listRect = list.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const offset =
+        rowRect.top < listRect.top
+          ? rowRect.top - listRect.top
+          : rowRect.bottom > listRect.bottom
+            ? rowRect.bottom - listRect.bottom
+            : 0;
+
+      if (offset !== 0) {
+        list.scrollBy({ top: offset, behavior: 'smooth' });
+      }
+    },
+    [parkingListRef, parkingLots],
+  );
+
+  const getCenteredParkingLotId = useCallback((): number | null => {
+    const list = cardListRef.current;
+    if (!list) return null;
+
+    const cards = Array.from(list.children);
+    if (cards.length === 0) return null;
+
+    const index = cards.reduce((closestIndex, card, currentIndex) => {
+      const closestDistance = Math.abs(getHorizontalCenterOffset(list, cards[closestIndex]!));
+      const currentDistance = Math.abs(getHorizontalCenterOffset(list, card));
+
+      return currentDistance < closestDistance ? currentIndex : closestIndex;
+    }, 0);
+
+    return recommendedParkingLots[index]?.id ?? null;
+  }, [cardListRef, recommendedParkingLots]);
+
+  useMapClick({
+    map,
+    enabled: sheetSnap === 'expanded',
+    onMapClick: () => handleChangeBottomSheet('collapsed'),
+  });
+
+  /** 바텀시트 높이 변경 핸들러 */
+  const handleChangeBottomSheet = (snap: BottomSheetSnap) => {
+    onSaveView({
+      recommendationType,
+      parkingLotId: selectedParkingLotId,
+      sheetSnap: snap,
+    });
+  };
+
+  /** 추천 유형 변경 핸들러 */
+  const handleRecommendationTypeChange = (type: RecommendationType) => {
+    onSaveView({
+      recommendationType: type,
+      parkingLotId: null,
+      sheetSnap,
+    });
+  };
+
+  /** 주차장 선택 핸들러 */
+  const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
+    const isRecommended = recommendedParkingLots.some(({ id }) => id === parkingLot.id);
+
+    // UI 시트 상태 변경 & 도메인 식별자 히스토리 동기화
+    onSaveView({
+      recommendationType,
+      parkingLotId: parkingLot.id,
+      sheetSnap: isRecommended ? sheetSnap : 'expanded',
+    });
+
+    // 3. 바텀시트 목록 스크롤 동기화
+    scrollRowIntoView(parkingLot.id);
+
+    // 4. 추천 카드 가로 스크롤 동기화
+    if (isRecommended) {
+      scrollCardToCenter(parkingLot.id);
+    }
+  };
+
+  /** 상세정보 이동 핸들러 */
+  const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
+    const nextView: RecommendView = {
+      recommendationType,
+      parkingLotId: parkingLot.id,
+      sheetSnap,
+    };
+
+    const detailCondition: ParkingDetailCondition = {
+      ...searchCondition,
+      parkingLotId: parkingLot.id,
+      parkingLotName: parkingLot.name,
+    };
+
+    onSaveView(nextView);
+    onDetail(detailCondition);
+  };
 
   useEffect(() => {
     // 지도 생성 전이거나 활성화된 주차장이 없으면 카메라를 이동하지 않는다.
@@ -161,13 +283,6 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     sheetSnap,
   ]);
 
-  useLayoutEffect(() => {
-    parkingListRef.current?.scrollTo({
-      top: 0,
-      behavior: 'auto',
-    });
-  }, [recommendationType]);
-
   useEffect(() => {
     if (hasTrackedRecommendations.current || recommendedParkingLots.length === 0) {
       return;
@@ -177,98 +292,31 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
     trackEvent(eventName.PARKING_RECOMMENDATION_VIEWED);
   }, [recommendedParkingLots.length]);
 
-  const handleRecommendationTypeChange = (type: RecommendationType) => {
-    updateView({ recommendationType: type, parkingLotId: null });
-  };
+  useLayoutEffect(() => {
+    const isInitialMount = lastHandledKeyRef.current === null;
+    const isHistoryReturn = lastHandledKeyRef.current !== key && navigationType === 'POP';
 
-  useParkingRecommendScrollRestore({
-    savedView,
-    cardListRef,
-    parkingListRef,
-    recommendedParkingLots,
-    parkingLots,
-  });
+    lastHandledKeyRef.current = key;
 
-  const handleParkingLotSelect = (parkingLot: ParkingLotSummary) => {
-    const isRecommended = recommendedParkingLots.some(({ id }) => id === parkingLot.id);
+    if (!isInitialMount && !isHistoryReturn) return;
+    if (selectedParkingLotId === null) return;
 
-    updateView({
-      parkingLotId: parkingLot.id,
-      snap: isRecommended ? sheetSnap : 'expanded',
+    scrollCardToCenter(selectedParkingLotId);
+    scrollRowIntoView(selectedParkingLotId);
+  }, [key, navigationType, selectedParkingLotId, scrollCardToCenter, scrollRowIntoView]);
+
+  const handleCardScroll = () => {
+    const parkingLotId = getCenteredParkingLotId();
+
+    if (parkingLotId === null || parkingLotId === activeParkingLotId) {
+      return;
+    }
+
+    onSaveView({
+      parkingLotId,
+      recommendationType,
+      sheetSnap,
     });
-
-    const index = parkingLots.findIndex(({ id }) => id === parkingLot.id);
-    const list = parkingListRef.current;
-    const row = index >= 0 ? list?.children.item(index) : null;
-
-    if (list && row) {
-      const listRect = list.getBoundingClientRect();
-      const rowRect = row.getBoundingClientRect();
-      const offset =
-        rowRect.top < listRect.top
-          ? rowRect.top - listRect.top
-          : rowRect.bottom > listRect.bottom
-            ? rowRect.bottom - listRect.bottom
-            : 0;
-
-      if (offset !== 0) {
-        list.scrollBy({ top: offset, behavior: 'smooth' });
-      }
-    }
-
-    const recommendationIndex = recommendedParkingLots.findIndex(
-      (recommendedParkingLot) => recommendedParkingLot.id === parkingLot.id,
-    );
-
-    const cardList = cardListRef.current;
-    const recommendationCard =
-      recommendationIndex >= 0 ? cardList?.children.item(recommendationIndex) : null;
-
-    if (!cardList || !recommendationCard) return;
-
-    const centerOffset = getHorizontalCenterOffset(cardList, recommendationCard);
-
-    if (Math.abs(centerOffset) > 1) {
-      cardList.scrollBy({
-        left: centerOffset,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-  const handleCardScroll = (event: React.UIEvent<HTMLUListElement>) => {
-    const cardList = event.currentTarget;
-    const cards = Array.from(cardList.children);
-
-    if (cards.length === 0) return;
-
-    const nextIndex = cards.reduce((closestIndex, card, index) => {
-      const closestDistance = Math.abs(getHorizontalCenterOffset(cardList, cards[closestIndex]!));
-
-      const currentDistance = Math.abs(getHorizontalCenterOffset(cardList, card));
-
-      return currentDistance < closestDistance ? index : closestIndex;
-    }, 0);
-
-    const centeredParkingLot = recommendedParkingLots[nextIndex];
-
-    if (centeredParkingLot) {
-      updateView({ parkingLotId: centeredParkingLot.id });
-    }
-  };
-
-  const handleParkingLotDetail = (parkingLot: ParkingLotSummary) => {
-    const detailCondition: ParkingDetailCondition = {
-      parkingLotId: parkingLot.id,
-      parkingLotName: parkingLot.name,
-      destinationName: searchCondition.destinationName,
-      destinationLatitude: searchCondition.destinationLatitude,
-      destinationLongitude: searchCondition.destinationLongitude,
-      entryAt: searchCondition.entryAt,
-      exitAt: searchCondition.exitAt,
-    };
-
-    openDetail(detailCondition);
   };
 
   const handleParkingLotDirections = (parkingLot: ParkingLotSummary) => {
@@ -318,7 +366,7 @@ export const ParkingRecommendContent = ({ searchCondition }: Props) => {
         )}
       </section>
 
-      <BottomSheet snap={sheetSnap} onSnapChange={(snap) => updateView({ snap })}>
+      <BottomSheet snap={sheetSnap} onSnapChange={handleChangeBottomSheet}>
         <section
           id="parking-list-sheet"
           className={sheetContentStyle}
