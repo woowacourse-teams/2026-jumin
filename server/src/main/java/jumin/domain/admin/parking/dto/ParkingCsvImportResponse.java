@@ -1,7 +1,7 @@
 package jumin.domain.admin.parking.dto;
 
-import jumin.domain.admin.parking.model.ParkingChanges;
-import jumin.domain.admin.parking.model.ParkingCsvFile;
+import jumin.domain.admin.parking.model.ParkingCsvMetadata;
+import jumin.domain.admin.parking.model.ParkingSyncSummary;
 
 public record ParkingCsvImportResponse(
         String fileName,
@@ -9,9 +9,9 @@ public record ParkingCsvImportResponse(
         int csvRowCount,
         ParkingCsvSummaryResponse summary
 ) {
-    public static ParkingCsvImportResponse from(ParkingCsvFile file, ParkingChanges changes) {
+    public static ParkingCsvImportResponse from(ParkingCsvMetadata file, ParkingSyncSummary summary) {
         return new ParkingCsvImportResponse(
-                file.fileName(), file.fileSha256(), file.rows().size(), ParkingCsvSummaryResponse.from(changes)
+                file.fileName(), file.fileSha256(), file.rowCount(), ParkingCsvSummaryResponse.from(summary)
         );
     }
 }

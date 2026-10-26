@@ -32,7 +32,7 @@ dependencies {
 	implementation 'org.apache.commons:commons-csv:1.14.1'
 	implementation 'commons-io:commons-io:2.20.0'
 	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.postgresql:postgresql'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	annotationProcessor "io.github.openfeign.querydsl:querydsl-apt:${querydslVersion}:jpa"
 	annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
