@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import jumin.domain.admin.parking.model.ParkingChanges;
 import jumin.domain.admin.parking.model.ParkingCsvBatch;
 import jumin.domain.admin.parking.model.ParkingCsvKey;
 import jumin.domain.admin.parking.model.ParkingCsvRow;
@@ -24,7 +23,6 @@ import jumin.domain.admin.parking.model.ParkingLotValues;
 import jumin.domain.admin.parking.model.ParkingOperationValues;
 import jumin.domain.admin.parking.model.ParkingScheduleValues;
 import jumin.domain.admin.parking.model.ParkingSyncSummary;
-import jumin.domain.admin.parking.model.ParkingUpdate;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +31,6 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -83,30 +80,6 @@ public class ParkingCsvRepository {
                    o.source_checked_at AS operation_source_checked_at
             FROM parking_lots l
             LEFT JOIN parking_operations o ON o.parking_lot_id = l.id
-            """;
-    private static final String UPDATE_LOT = """
-            UPDATE parking_lots
-            SET source = :source, source_external_id = :source_external_id, name = :name,
-                sido = :sido, sigungu = :sigungu, address = :address,
-                latitude = :latitude, longitude = :longitude, capacity = :capacity,
-                mechanical = :mechanical, is_public = :is_public, active = :active,
-                source_checked_at = :source_checked_at, updated_at = :updated_at
-            WHERE id = :id
-            """;
-    private static final String UPDATE_OPERATION = """
-            UPDATE parking_operations
-            SET base_free_minutes = :base_free_minutes, base_minutes = :base_minutes, base_fee = :base_fee,
-                additional_minutes = :additional_minutes, additional_fee = :additional_fee,
-                daily_max_fee = :daily_max_fee, monthly_fee = :monthly_fee,
-                weekday_paid = :weekday_paid, saturday_paid = :saturday_paid, holiday_paid = :holiday_paid,
-                weekday_status = :weekday_status, weekday_open_time = :weekday_open_time,
-                weekday_close_time = :weekday_close_time,
-                weekend_status = :weekend_status, weekend_open_time = :weekend_open_time,
-                weekend_close_time = :weekend_close_time,
-                holiday_status = :holiday_status, holiday_open_time = :holiday_open_time,
-                holiday_close_time = :holiday_close_time,
-                source_checked_at = :source_checked_at, updated_at = :updated_at
-            WHERE parking_lot_id = :parking_lot_id
             """;
     private static final String DEACTIVATE_LOT = """
             UPDATE parking_lots SET active = FALSE, updated_at = ? WHERE id = ?
@@ -429,10 +402,6 @@ public class ParkingCsvRepository {
         jdbcTemplate.getJdbcTemplate().execute("DROP TABLE parking_csv_staging, parking_csv_keys, parking_csv_matches");
     }
 
-    public List<ParkingDbRow> findAll() {
-        return jdbcTemplate.query(SELECT_ROWS + " ORDER BY l.id", new MapSqlParameterSource(), this::readRow);
-    }
-
     public Long findMaxId() {
         return jdbcTemplate.queryForObject("SELECT MAX(id) FROM parking_lots", new MapSqlParameterSource(), Long.class);
     }
@@ -472,14 +441,6 @@ public class ParkingCsvRepository {
         return new ParkingDbRow(resultSet.getLong("id"), lot, operation);
     }
 
-    public void save(ParkingChanges changes, Instant now) {
-        requireTransaction();
-        insertNewParkingLots(changes.added(), now);
-        List<Long> parkingLotIdsToRefresh = updateExistingParkingLots(changes.updated(), now);
-        deactivateMissingParkingLots(changes.deactivated(), now);
-        refreshWalkingNodeCandidates(parkingLotIdsToRefresh);
-    }
-
     public void insertNewParkingLots(List<ParkingCsvRow> rows, Instant now) {
         requireTransaction();
         for (int offset = 0; offset < rows.size(); offset += BATCH_SIZE) {
@@ -514,35 +475,6 @@ public class ParkingCsvRepository {
             insertOperations(operationParameters);
             refreshWalkingNodeCandidates(parkingLotIdsToRefresh);
         }
-    }
-
-    private List<Long> updateExistingParkingLots(List<ParkingUpdate> updates, Instant now) {
-        List<MapSqlParameterSource> lotUpdates = new ArrayList<>();
-        List<MapSqlParameterSource> operationUpdates = new ArrayList<>();
-        List<MapSqlParameterSource> missingOperations = new ArrayList<>();
-        List<Long> parkingLotIdsToRefresh = new ArrayList<>();
-        for (ParkingUpdate update : updates) {
-            long id = update.before().id();
-            if (update.lotChanged()) {
-                lotUpdates.add(lotParameters(update.after().lot(), now).addValue("id", id, Types.BIGINT));
-            }
-            if (update.coordinatesChanged()) {
-                parkingLotIdsToRefresh.add(id);
-            }
-            if (!update.operationChanged()) {
-                continue;
-            }
-            MapSqlParameterSource parameters = operationParameters(id, update.after().operation(), now);
-            if (update.before().operation() == null) {
-                missingOperations.add(parameters);
-                continue;
-            }
-            operationUpdates.add(parameters);
-        }
-        batchUpdate(UPDATE_LOT, lotUpdates);
-        batchUpdate(UPDATE_OPERATION, operationUpdates);
-        insertOperations(missingOperations);
-        return parkingLotIdsToRefresh;
     }
 
     private void refreshWalkingNodeCandidates(List<Long> parkingLotIds) {
@@ -582,18 +514,6 @@ public class ParkingCsvRepository {
             int inserted = jdbcTemplate.update(sql, insertParameters);
             if (inserted != batch.size()) {
                 throw new IllegalStateException("운영정보 저장 건수가 요청한 건수와 다릅니다.");
-            }
-        }
-    }
-
-    private void batchUpdate(String sql, List<MapSqlParameterSource> parameters) {
-        for (int offset = 0; offset < parameters.size(); offset += BATCH_SIZE) {
-            SqlParameterSource[] batch = parameters.subList(offset, Math.min(offset + BATCH_SIZE, parameters.size()))
-                    .toArray(SqlParameterSource[]::new);
-            for (int updated : jdbcTemplate.batchUpdate(sql, batch)) {
-                if (updated != 1 && updated != Statement.SUCCESS_NO_INFO) {
-                    throw new IllegalStateException("비교한 주차장 데이터를 갱신할 수 없습니다.");
-                }
             }
         }
     }

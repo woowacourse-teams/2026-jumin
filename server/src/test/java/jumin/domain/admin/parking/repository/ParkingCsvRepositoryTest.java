@@ -1,6 +1,7 @@
 package jumin.domain.admin.parking.repository;
 
 import static jumin.domain.admin.parking.csv.ParkingCsvParserTestSupport.parseAndCollect;
+import static jumin.domain.admin.parking.repository.ParkingCsvDatabaseTestSupport.findAll;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,6 +12,7 @@ import java.sql.Savepoint;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -35,6 +37,7 @@ import jumin.domain.admin.parking.model.ParkingScheduleValues;
 import jumin.domain.admin.parking.model.ParkingSyncSummary;
 import jumin.domain.admin.parking.model.ParkingUpdate;
 import jumin.domain.admin.parking.service.ParkingCsvDiffer;
+import jumin.domain.admin.parking.service.ParkingCsvSyncService;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -94,7 +97,7 @@ class ParkingCsvRepositoryTest {
 
         // when
         sync(List.of(row), FIRST_UPLOAD_AT);
-        ParkingDbRow saved = repository.findAll().getFirst();
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
 
         // then
         assertThat(saved.id()).isPositive();
@@ -119,17 +122,17 @@ class ParkingCsvRepositoryTest {
         // given
         ParkingCsvRow row = row("변경 없는 주차장", 1000);
         sync(List.of(row), FIRST_UPLOAD_AT);
-        long id = repository.findAll().getFirst().id();
+        long id = findAll(jdbcTemplate).getFirst().id();
 
         // when
-        ParkingChanges changes = sync(List.of(row), NEXT_UPLOAD_AT);
+        ParkingSyncSummary changes = sync(List.of(row), NEXT_UPLOAD_AT);
 
         // then
         assertThat(changes.unchangedCount()).isEqualTo(1);
-        assertThat(changes.added()).isEmpty();
-        assertThat(changes.updated()).isEmpty();
-        assertThat(changes.deactivated()).isEmpty();
-        assertThat(repository.findAll().getFirst().id()).isEqualTo(id);
+        assertThat(changes.addedCount()).isZero();
+        assertThat(changes.updatedCount()).isZero();
+        assertThat(changes.deactivatedCount()).isZero();
+        assertThat(findAll(jdbcTemplate).getFirst().id()).isEqualTo(id);
         assertThat(timestamps(id, "parking_lots")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
         assertThat(timestamps(id, "parking_operations")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
     }
@@ -139,13 +142,13 @@ class ParkingCsvRepositoryTest {
     void updates_only_operation_when_fee_changes() {
         // given
         sync(List.of(row("요금 수정", 1000)), FIRST_UPLOAD_AT);
-        long id = repository.findAll().getFirst().id();
+        long id = findAll(jdbcTemplate).getFirst().id();
 
         // when
         sync(List.of(row("요금 수정", 1500)), NEXT_UPLOAD_AT);
 
         // then
-        ParkingDbRow saved = repository.findAll().getFirst();
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
         assertThat(saved.id()).isEqualTo(id);
         assertThat(saved.operation().baseFee()).isEqualTo(1500);
         assertThat(timestamps(id, "parking_lots")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
@@ -162,18 +165,18 @@ class ParkingCsvRepositoryTest {
         long returningId = findByName(returning.lot().name()).id();
 
         // when
-        ParkingChanges missing = sync(List.of(remaining), NEXT_UPLOAD_AT);
+        ParkingSyncSummary missing = sync(List.of(remaining), NEXT_UPLOAD_AT);
         ParkingDbRow inactive = findByName(returning.lot().name());
-        ParkingChanges stillMissing = sync(List.of(remaining), NEXT_UPLOAD_AT.plusSeconds(1));
+        ParkingSyncSummary stillMissing = sync(List.of(remaining), NEXT_UPLOAD_AT.plusSeconds(1));
         Instant inactiveUpdatedAt = timestamps(returningId, "parking_lots").get(1);
         sync(List.of(returning, remaining), NEXT_UPLOAD_AT.plusSeconds(2));
 
         // then
-        assertThat(missing.deactivated()).hasSize(1);
+        assertThat(missing.deactivatedCount()).isEqualTo(1);
         assertThat(inactive.lot().active()).isFalse();
         assertThat(inactive.lot().sourceCheckedAt()).isEqualTo(SOURCE_CHECKED_AT);
         assertThat(inactive.operation()).isEqualTo(returning.operation());
-        assertThat(stillMissing.deactivated()).isEmpty();
+        assertThat(stillMissing.deactivatedCount()).isZero();
         assertThat(inactiveUpdatedAt).isEqualTo(NEXT_UPLOAD_AT);
         ParkingDbRow reactivated = findByName(returning.lot().name());
         assertThat(reactivated.id()).isEqualTo(returningId);
@@ -186,13 +189,13 @@ class ParkingCsvRepositoryTest {
     void permits_renamed_lot_with_same_source_external_id() {
         // given
         sync(List.of(row("변경 전 이름", 1000)), FIRST_UPLOAD_AT);
-        long oldId = repository.findAll().getFirst().id();
+        long oldId = findAll(jdbcTemplate).getFirst().id();
 
         // when
         sync(List.of(row("변경 후 이름", 1000)), NEXT_UPLOAD_AT);
 
         // then
-        assertThat(repository.findAll()).hasSize(2);
+        assertThat(findAll(jdbcTemplate)).hasSize(2);
         assertThat(findByName("변경 전 이름").lot().active()).isFalse();
         ParkingDbRow newLot = findByName("변경 후 이름");
         assertThat(newLot.id()).isNotEqualTo(oldId);
@@ -206,16 +209,16 @@ class ParkingCsvRepositoryTest {
         // given
         ParkingCsvRow row = row("운영정보 누락", 1000);
         sync(List.of(row), FIRST_UPLOAD_AT);
-        long id = repository.findAll().getFirst().id();
+        long id = findAll(jdbcTemplate).getFirst().id();
         jdbcTemplate.update("DELETE FROM parking_operations WHERE parking_lot_id = ?", id);
-        ParkingDbRow before = repository.findAll().getFirst();
+        ParkingDbRow before = findAll(jdbcTemplate).getFirst();
 
         // when
         sync(List.of(row), NEXT_UPLOAD_AT);
 
         // then
         assertThat(before.operation()).isNull();
-        ParkingDbRow after = repository.findAll().getFirst();
+        ParkingDbRow after = findAll(jdbcTemplate).getFirst();
         assertThat(after.id()).isEqualTo(id);
         assertThat(after.operation()).isEqualTo(row.operation());
         assertThat(timestamps(id, "parking_lots")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
@@ -228,7 +231,7 @@ class ParkingCsvRepositoryTest {
         // given
         ParkingCsvRow row = row("선택값 초기화", 1000);
         sync(List.of(row), FIRST_UPLOAD_AT);
-        long id = repository.findAll().getFirst().id();
+        long id = findAll(jdbcTemplate).getFirst().id();
         ParkingLotValues old = row.lot();
         ParkingCsvRow cleared = new ParkingCsvRow(row.rowNumber(), new ParkingLotValues(
                 old.source(), old.sourceExternalId(), old.name(), null, null, old.address(),
@@ -239,7 +242,7 @@ class ParkingCsvRepositoryTest {
         sync(List.of(cleared), NEXT_UPLOAD_AT);
 
         // then
-        ParkingDbRow saved = repository.findAll().getFirst();
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
         assertThat(saved.lot()).isEqualTo(cleared.lot());
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT location IS NULL FROM parking_lots WHERE id = ?", Boolean.class, id
@@ -264,7 +267,7 @@ class ParkingCsvRepositoryTest {
 
         // when
         sync(List.of(row), FIRST_UPLOAD_AT);
-        ParkingOperationValues saved = repository.findAll().getFirst().operation();
+        ParkingOperationValues saved = findAll(jdbcTemplate).getFirst().operation();
 
         // then
         assertThat(saved).isEqualTo(operation);
@@ -352,14 +355,8 @@ class ParkingCsvRepositoryTest {
     ) {
         // given
         ParkingCsvRow row = parseBoundaryRow(lotSourceTime, operationSourceTime);
-        repository.createStaging();
-        repository.stageRows(List.of(row));
-        repository.prepareStaging();
-        repository.matchStagedRows();
-        List<ParkingCsvRow> added = repository.findUnmatchedStagedRows(0, row.rowNumber());
-        repository.insertNewParkingLots(added, FIRST_UPLOAD_AT);
-        repository.dropStaging();
-        List<ParkingDbRow> before = repository.findAll();
+        sync(List.of(row), FIRST_UPLOAD_AT);
+        List<ParkingDbRow> before = findAll(jdbcTemplate);
         ParkingChanges expected = differ.compare(before, List.of(row));
         assertThat(expected.updated()).hasSize(1);
 
@@ -375,7 +372,7 @@ class ParkingCsvRepositoryTest {
 
             // then
             assertThat(batch.summary()).isEqualTo(expectedSummary(expected));
-            assertThat(repository.findAll()).containsExactlyElementsOf(before);
+            assertThat(findAll(jdbcTemplate)).containsExactlyElementsOf(before);
             Instant lotUpdatedAt = FIRST_UPLOAD_AT;
             Instant operationUpdatedAt = FIRST_UPLOAD_AT;
             if (expected.updated().getFirst().lotChanged()) {
@@ -427,12 +424,12 @@ class ParkingCsvRepositoryTest {
         // given
         ParkingCsvRow row = parseBoundaryRow(SOURCE_CHECKED_AT.toString(), SOURCE_CHECKED_AT.toString());
         sync(List.of(row), FIRST_UPLOAD_AT);
-        long id = repository.findAll().getFirst().id();
+        long id = findAll(jdbcTemplate).getFirst().id();
         jdbcTemplate.update("""
                 UPDATE parking_lots SET latitude = '-0'::DOUBLE PRECISION, longitude = '-0'::DOUBLE PRECISION
                 WHERE id = ?
                 """, id);
-        ParkingChanges expected = differ.compare(repository.findAll(), List.of(row));
+        ParkingChanges expected = differ.compare(findAll(jdbcTemplate), List.of(row));
         repository.createStaging();
         repository.stageRows(List.of(row));
         repository.prepareStaging();
@@ -577,15 +574,16 @@ class ParkingCsvRepositoryTest {
         Instant createdAt = FIRST_UPLOAD_AT.plusNanos(123456000);
         Instant updatedAt = NEXT_UPLOAD_AT.plusNanos(654321000);
         sync(original, createdAt);
-        List<ParkingDbRow> before = repository.findAll();
+        List<ParkingDbRow> before = findAll(jdbcTemplate);
 
         // when
-        ParkingChanges changes = sync(changed, updatedAt);
-        ParkingChanges repeated = sync(changed, updatedAt.plusSeconds(1));
+        ParkingSyncSummary changes = sync(changed, updatedAt);
+        ParkingSyncSummary repeated = sync(changed, updatedAt.plusSeconds(1));
 
         // then
-        assertThat(changes.updated()).hasSize(3);
-        List<ParkingDbRow> saved = repository.findAll();
+        assertThat(changes.updatedCount()).isEqualTo(2);
+        assertThat(changes.deactivatedCount()).isEqualTo(1);
+        List<ParkingDbRow> saved = findAll(jdbcTemplate);
         assertThat(saved).hasSize(3);
         for (int index = 0; index < changed.size(); index++) {
             assertThat(saved.get(index)).isEqualTo(new ParkingDbRow(
@@ -597,7 +595,7 @@ class ParkingCsvRepositoryTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT location IS NULL FROM parking_lots WHERE id = ?", Boolean.class, before.get(1).id()
         )).isTrue();
-        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.updatedCount()).isZero();
         assertThat(repeated.unchangedCount()).isEqualTo(3);
     }
 
@@ -614,7 +612,7 @@ class ParkingCsvRepositoryTest {
         sync(rows, FIRST_UPLOAD_AT);
 
         // then
-        List<ParkingDbRow> savedRows = repository.findAll();
+        List<ParkingDbRow> savedRows = findAll(jdbcTemplate);
         assertThat(savedRows).hasSize(1001);
         for (ParkingDbRow saved : savedRows) {
             int expectedFee = Integer.parseInt(saved.lot().name().substring("일괄 주차장 ".length()));
@@ -636,18 +634,18 @@ class ParkingCsvRepositoryTest {
             changed.add(row("전체 수정 " + index, index + 1000, true));
         }
         sync(original, FIRST_UPLOAD_AT);
-        List<ParkingDbRow> before = repository.findAll();
+        List<ParkingDbRow> before = findAll(jdbcTemplate);
 
         // when
-        ParkingChanges changes = sync(changed, NEXT_UPLOAD_AT);
-        ParkingChanges repeated = sync(changed, NEXT_UPLOAD_AT.plusSeconds(1));
+        ParkingSyncSummary changes = sync(changed, NEXT_UPLOAD_AT);
+        ParkingSyncSummary repeated = sync(changed, NEXT_UPLOAD_AT.plusSeconds(1));
 
         // then
-        assertThat(changes.updated()).hasSize(1001);
-        assertThat(changes.added()).isEmpty();
-        assertThat(changes.deactivated()).isEmpty();
+        assertThat(changes.updatedCount()).isEqualTo(1001);
+        assertThat(changes.addedCount()).isZero();
+        assertThat(changes.deactivatedCount()).isZero();
         assertThat(changes.unchangedCount()).isZero();
-        List<ParkingDbRow> saved = repository.findAll();
+        List<ParkingDbRow> saved = findAll(jdbcTemplate);
         assertThat(saved).hasSize(1001);
         for (int index = 0; index < saved.size(); index++) {
             assertThat(saved.get(index)).isEqualTo(new ParkingDbRow(
@@ -656,7 +654,7 @@ class ParkingCsvRepositoryTest {
         }
         assertThat(timestamps("parking_lots")).containsOnly(List.of(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT));
         assertThat(timestamps("parking_operations")).containsOnly(List.of(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT));
-        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.updatedCount()).isZero();
         assertThat(repeated.unchangedCount()).isEqualTo(1001);
     }
 
@@ -671,17 +669,17 @@ class ParkingCsvRepositoryTest {
             changed.add(row("혼합 수정 " + index, index + 1000));
         }
         sync(original, FIRST_UPLOAD_AT);
-        List<ParkingDbRow> before = repository.findAll();
+        List<ParkingDbRow> before = findAll(jdbcTemplate);
         jdbcTemplate.update("DELETE FROM parking_operations WHERE parking_lot_id <= ?", before.get(500).id());
 
         // when
-        ParkingChanges changes = sync(changed, NEXT_UPLOAD_AT);
+        ParkingSyncSummary changes = sync(changed, NEXT_UPLOAD_AT);
 
         // then
-        assertThat(changes.updated()).hasSize(1001);
-        assertThat(changes.added()).isEmpty();
-        assertThat(changes.deactivated()).isEmpty();
-        List<ParkingDbRow> saved = repository.findAll();
+        assertThat(changes.updatedCount()).isEqualTo(1001);
+        assertThat(changes.addedCount()).isZero();
+        assertThat(changes.deactivatedCount()).isZero();
+        List<ParkingDbRow> saved = findAll(jdbcTemplate);
         List<List<Instant>> operationTimestamps = timestamps("parking_operations");
         assertThat(saved).hasSize(1001);
         assertThat(operationTimestamps).hasSize(1001);
@@ -707,17 +705,17 @@ class ParkingCsvRepositoryTest {
             rows.add(row("일괄 누락 " + index, index));
         }
         sync(rows, FIRST_UPLOAD_AT);
-        List<ParkingDbRow> before = repository.findAll();
+        List<ParkingDbRow> before = findAll(jdbcTemplate);
 
         // when
-        ParkingChanges changes = sync(List.of(), NEXT_UPLOAD_AT);
-        ParkingChanges repeated = sync(List.of(), NEXT_UPLOAD_AT.plusSeconds(1));
+        ParkingSyncSummary changes = sync(List.of(), NEXT_UPLOAD_AT);
+        ParkingSyncSummary repeated = sync(List.of(), NEXT_UPLOAD_AT.plusSeconds(1));
 
         // then
-        assertThat(changes.deactivated()).hasSize(1001);
-        assertThat(changes.added()).isEmpty();
-        assertThat(changes.updated()).isEmpty();
-        List<ParkingDbRow> saved = repository.findAll();
+        assertThat(changes.deactivatedCount()).isEqualTo(1001);
+        assertThat(changes.addedCount()).isZero();
+        assertThat(changes.updatedCount()).isZero();
+        List<ParkingDbRow> saved = findAll(jdbcTemplate);
         assertThat(saved).hasSize(1001);
         for (int index = 0; index < saved.size(); index++) {
             assertThat(saved.get(index).id()).isEqualTo(before.get(index).id());
@@ -730,7 +728,7 @@ class ParkingCsvRepositoryTest {
         }
         assertThat(timestamps("parking_lots")).containsOnly(List.of(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT));
         assertThat(timestamps("parking_operations")).containsOnly(List.of(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT));
-        assertThat(repeated.deactivated()).isEmpty();
+        assertThat(repeated.deactivatedCount()).isZero();
     }
 
     @ParameterizedTest(name = "운영정보 누락 여부: {0}")
@@ -751,18 +749,18 @@ class ParkingCsvRepositoryTest {
             transaction.executeWithoutResult(status -> {
                 sync(original, FIRST_UPLOAD_AT);
                 if (missingOperation) {
-                    long lastId = repository.findAll().getLast().id();
+                    long lastId = findAll(jdbcTemplate).getLast().id();
                     jdbcTemplate.update("DELETE FROM parking_operations WHERE parking_lot_id = ?", lastId);
                 }
             });
-            List<ParkingDbRow> before = repository.findAll();
+            List<ParkingDbRow> before = findAll(jdbcTemplate);
             List<List<Instant>> lotTimestamps = timestamps("parking_lots");
             List<List<Instant>> operationTimestamps = timestamps("parking_operations");
 
             // when & then
             assertThatThrownBy(() -> transaction.executeWithoutResult(status -> sync(changed, NEXT_UPLOAD_AT)))
                     .isInstanceOf(DataIntegrityViolationException.class);
-            assertThat(repository.findAll()).containsExactlyElementsOf(before);
+            assertThat(findAll(jdbcTemplate)).containsExactlyElementsOf(before);
             assertThat(timestamps("parking_lots")).isEqualTo(lotTimestamps);
             assertThat(timestamps("parking_operations")).isEqualTo(operationTimestamps);
         } finally {
@@ -786,7 +784,7 @@ class ParkingCsvRepositoryTest {
         // when & then
         assertThatThrownBy(() -> transaction.executeWithoutResult(status -> sync(rows, FIRST_UPLOAD_AT)))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(repository.findAll()).isEmpty();
+        assertThat(findAll(jdbcTemplate)).isEmpty();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM parking_operations", Integer.class
         )).isZero();
@@ -870,15 +868,15 @@ class ParkingCsvRepositoryTest {
     void persists_mechanical_flag_changes() {
         // given
         sync(List.of(row("기계식 변경", 1000, true)), FIRST_UPLOAD_AT);
-        ParkingDbRow initial = repository.findAll().getFirst();
+        ParkingDbRow initial = findAll(jdbcTemplate).getFirst();
         assertThat(initial.lot().mechanical()).isTrue();
 
         // when
-        ParkingChanges updated = sync(List.of(row("기계식 변경", 1000, false)), NEXT_UPLOAD_AT);
+        ParkingSyncSummary updated = sync(List.of(row("기계식 변경", 1000, false)), NEXT_UPLOAD_AT);
 
         // then
-        assertThat(updated.updated()).hasSize(1);
-        ParkingDbRow saved = repository.findAll().getFirst();
+        assertThat(updated.updatedCount()).isEqualTo(1);
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
         assertThat(saved.id()).isEqualTo(initial.id());
         assertThat(saved.lot().mechanical()).isFalse();
         assertThat(timestamps(saved.id(), "parking_operations")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
@@ -893,12 +891,12 @@ class ParkingCsvRepositoryTest {
 
         // when
         sync(List.of(nonMechanical), NEXT_UPLOAD_AT);
-        ParkingChanges repeated = sync(List.of(nonMechanical), NEXT_UPLOAD_AT.plusSeconds(3600));
+        ParkingSyncSummary repeated = sync(List.of(nonMechanical), NEXT_UPLOAD_AT.plusSeconds(3600));
 
         // then
-        ParkingDbRow saved = repository.findAll().getFirst();
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
         assertThat(saved.lot().mechanical()).isFalse();
-        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.updatedCount()).isZero();
         assertThat(repeated.unchangedCount()).isEqualTo(1);
         assertThat(timestamps(saved.id(), "parking_lots")).containsExactly(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT);
     }
@@ -946,20 +944,20 @@ class ParkingCsvRepositoryTest {
     void persists_is_public_changes_and_skips_unchanged_input(Boolean before, Boolean after) {
         // given
         sync(List.of(row("공영 변경", 1000, false, before)), FIRST_UPLOAD_AT);
-        ParkingDbRow initial = repository.findAll().getFirst();
+        ParkingDbRow initial = findAll(jdbcTemplate).getFirst();
         assertThat(initial.lot().isPublic()).isEqualTo(before);
         ParkingCsvRow changed = row("공영 변경", 1000, false, after);
 
         // when
-        ParkingChanges updated = sync(List.of(changed), NEXT_UPLOAD_AT);
-        ParkingChanges repeated = sync(List.of(changed), NEXT_UPLOAD_AT.plusSeconds(3600));
+        ParkingSyncSummary updated = sync(List.of(changed), NEXT_UPLOAD_AT);
+        ParkingSyncSummary repeated = sync(List.of(changed), NEXT_UPLOAD_AT.plusSeconds(3600));
 
         // then
-        ParkingDbRow saved = repository.findAll().getFirst();
-        assertThat(updated.updated()).hasSize(1);
+        ParkingDbRow saved = findAll(jdbcTemplate).getFirst();
+        assertThat(updated.updatedCount()).isEqualTo(1);
         assertThat(saved.id()).isEqualTo(initial.id());
         assertThat(saved.lot().isPublic()).isEqualTo(after);
-        assertThat(repeated.updated()).isEmpty();
+        assertThat(repeated.updatedCount()).isZero();
         assertThat(repeated.unchangedCount()).isEqualTo(1);
         assertThat(timestamps(saved.id(), "parking_lots")).containsExactly(FIRST_UPLOAD_AT, NEXT_UPLOAD_AT);
         assertThat(timestamps(saved.id(), "parking_operations")).containsExactly(FIRST_UPLOAD_AT, FIRST_UPLOAD_AT);
@@ -998,10 +996,46 @@ class ParkingCsvRepositoryTest {
         }
     }
 
-    private ParkingChanges sync(List<ParkingCsvRow> rows, Instant now) {
-        ParkingChanges changes = differ.compare(repository.findAll(), rows);
-        repository.save(changes, now);
-        return changes;
+    private ParkingSyncSummary sync(List<ParkingCsvRow> rows, Instant now) {
+        ParkingChanges expected = differ.compare(findAll(jdbcTemplate), rows);
+        repository.createStaging();
+        List<ParkingCsvRow> batch = new ArrayList<>(500);
+        for (int index = 0; index < rows.size(); index++) {
+            ParkingCsvRow row = rows.get(index);
+            batch.add(new ParkingCsvRow(index + 2L, row.lot(), row.operation()));
+            if (batch.size() == 500) {
+                repository.stageRows(batch);
+                batch.clear();
+            }
+        }
+        repository.stageRows(batch);
+        repository.prepareStaging();
+        ParkingCsvSyncService syncService = new ParkingCsvSyncService(repository, Clock.fixed(now, ZoneOffset.UTC));
+        ParkingSyncSummary actual = syncService.syncStaged();
+        repository.dropStaging();
+        // 이전 Java 비교 결과는 검증 기준으로만 사용하고 저장은 실제 DB 동기화 경로로 수행한다.
+        assertThat(actual).isEqualTo(expectedSummary(expected));
+        return actual;
+    }
+
+    private ParkingSyncSummary expectedSummary(ParkingChanges changes) {
+        int updated = 0;
+        int reactivated = 0;
+        int deactivated = changes.deactivated().size();
+        for (ParkingUpdate update : changes.updated()) {
+            if (!update.before().lot().active() && update.after().lot().active()) {
+                reactivated++;
+                continue;
+            }
+            if (update.before().lot().active() && !update.after().lot().active()) {
+                deactivated++;
+                continue;
+            }
+            updated++;
+        }
+        return new ParkingSyncSummary(
+                changes.added().size(), updated, reactivated, deactivated, changes.unchangedCount()
+        );
     }
 
     private static Stream<Arguments> temporalBindingCases() {
@@ -1081,7 +1115,7 @@ class ParkingCsvRepositoryTest {
     }
 
     private ParkingDbRow findByName(String name) {
-        return repository.findAll()
+        return findAll(jdbcTemplate)
                 .stream()
                 .filter(row -> row.lot().name().equals(name))
                 .findFirst()
@@ -1188,25 +1222,5 @@ class ParkingCsvRepositoryTest {
     }
 
     private record TemporalValues(Instant sourceTime, LocalTime scheduleTime, String scheduleText) {
-    }
-
-    private ParkingSyncSummary expectedSummary(ParkingChanges changes) {
-        int updated = 0;
-        int reactivated = 0;
-        int deactivated = changes.deactivated().size();
-        for (ParkingUpdate update : changes.updated()) {
-            if (!update.before().lot().active() && update.after().lot().active()) {
-                reactivated++;
-                continue;
-            }
-            if (update.before().lot().active() && !update.after().lot().active()) {
-                deactivated++;
-                continue;
-            }
-            updated++;
-        }
-        return new ParkingSyncSummary(
-                changes.added().size(), updated, reactivated, deactivated, changes.unchangedCount()
-        );
     }
 }

@@ -20,11 +20,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.admin.parking.model.ParkingCsvFile;
-import jumin.domain.admin.parking.model.ParkingCsvKey;
 import jumin.domain.admin.parking.model.ParkingCsvMetadata;
 import jumin.domain.admin.parking.model.ParkingCsvRow;
-import jumin.domain.admin.parking.model.ParkingKey;
 import jumin.domain.admin.parking.support.ParkingText;
 import jumin.global.response.ValidationErrorField;
 import org.apache.commons.csv.CSVException;
@@ -49,12 +46,6 @@ public class ParkingCsvParser {
             throw new IllegalArgumentException(
                     "CSV 파일 크기 제한은 0보다 크고 %d바이트보다 작아야 합니다.".formatted(Integer.MAX_VALUE));
         }
-    }
-
-    public ParkingCsvFile parse(MultipartFile file) {
-        CollectingRowSink sink = new CollectingRowSink();
-        ParkingCsvMetadata metadata = parse(file, sink);
-        return new ParkingCsvFile(metadata.fileName(), metadata.fileSha256(), sink.rows);
     }
 
     /**
@@ -285,37 +276,5 @@ public class ParkingCsvParser {
 
     private ParkingCsvException unsupportedEncoding() {
         return new ParkingCsvException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UTF-8 또는 UTF-8 BOM 인코딩만 지원합니다.");
-    }
-
-    private static final class CollectingRowSink implements ParkingCsvRowSink {
-
-        private final List<ParkingCsvRow> rows = new ArrayList<>();
-        private final Map<ParkingKey, List<Long>> keyRows = new LinkedHashMap<>();
-
-        @Override
-        public void accept(ParkingCsvRow row) {
-            rows.add(row);
-        }
-
-        @Override
-        public void registerKey(ParkingCsvKey key) {
-            keyRows.computeIfAbsent(key.key(), ignored -> new ArrayList<>()).add(key.rowNumber());
-        }
-
-        @Override
-        public void finish() {
-            // accept와 registerKey에서 즉시 수집하므로 남은 버퍼가 없다.
-        }
-
-        @Override
-        public List<Long> findDuplicateRowNumbers() {
-            List<Long> duplicateRowNumbers = new ArrayList<>();
-            for (List<Long> rowNumbers : keyRows.values()) {
-                if (rowNumbers.size() > 1) {
-                    duplicateRowNumbers.addAll(rowNumbers);
-                }
-            }
-            return duplicateRowNumbers;
-        }
     }
 }
