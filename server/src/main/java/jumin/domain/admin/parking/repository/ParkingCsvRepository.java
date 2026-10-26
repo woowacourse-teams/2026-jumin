@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import jumin.domain.admin.parking.model.ParkingChanges;
+import jumin.domain.admin.parking.model.ParkingCsvKey;
 import jumin.domain.admin.parking.model.ParkingCsvRow;
 import jumin.domain.admin.parking.model.ParkingDbRow;
 import jumin.domain.admin.parking.model.ParkingKey;
@@ -24,6 +25,7 @@ import jumin.domain.admin.parking.model.ParkingUpdate;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -49,7 +51,19 @@ public class ParkingCsvRepository {
             "holiday_status", "holiday_open_time", "holiday_close_time",
             "source_checked_at", "created_at", "updated_at"
     );
-    private static final String SELECT_ALL = """
+    private static final List<String> STAGING_COLUMNS = List.of(
+            "row_number", "id", "source", "source_external_id", "name", "sido", "sigungu", "address",
+            "latitude", "longitude", "capacity", "mechanical", "is_public", "active", "lot_source_checked_at", "operation_id",
+            "base_free_minutes", "base_minutes", "base_fee", "additional_minutes", "additional_fee",
+            "daily_max_fee", "monthly_fee", "weekday_paid", "saturday_paid", "holiday_paid",
+            "weekday_status", "weekday_open_time", "weekday_close_time",
+            "weekend_status", "weekend_open_time", "weekend_close_time",
+            "holiday_status", "holiday_open_time", "holiday_close_time", "operation_source_checked_at"
+    );
+    private static final String COPY_STAGING = "COPY parking_csv_staging ("
+            + String.join(", ", STAGING_COLUMNS) + ") FROM STDIN (FORMAT binary)";
+    private static final String COPY_KEYS = "COPY parking_csv_keys (row_number, name, address) FROM STDIN (FORMAT binary)";
+    private static final String SELECT_ROWS = """
             SELECT l.id, l.source, l.source_external_id, l.name, l.sido, l.sigungu, l.address,
                    l.latitude, l.longitude, l.capacity, l.mechanical, l.is_public, l.active,
                    l.source_checked_at AS lot_source_checked_at,
@@ -62,7 +76,6 @@ public class ParkingCsvRepository {
                    o.source_checked_at AS operation_source_checked_at
             FROM parking_lots l
             LEFT JOIN parking_operations o ON o.parking_lot_id = l.id
-            ORDER BY l.id
             """;
     private static final String UPDATE_LOT = """
             UPDATE parking_lots
@@ -104,29 +117,99 @@ public class ParkingCsvRepository {
         return Boolean.TRUE.equals(locked);
     }
 
-    public List<ParkingDbRow> findAll() {
-        return jdbcTemplate.query(SELECT_ALL, new MapSqlParameterSource(), (resultSet, rowNumber) -> {
-            ParkingLotValues lot = new ParkingLotValues(
-                    ParkingDataSource.valueOf(ParkingKey.normalize(resultSet.getString("source"))),
-                    ParkingKey.normalize(resultSet.getString("source_external_id")),
-                    ParkingKey.normalize(resultSet.getString("name")),
-                    ParkingKey.normalize(resultSet.getString("sido")),
-                    ParkingKey.normalize(resultSet.getString("sigungu")),
-                    ParkingKey.normalize(resultSet.getString("address")),
-                    resultSet.getObject("latitude", Double.class),
-                    resultSet.getObject("longitude", Double.class),
-                    resultSet.getObject("capacity", Integer.class),
-                    resultSet.getBoolean("mechanical"),
-                    resultSet.getObject("is_public", Boolean.class),
-                    resultSet.getBoolean("active"),
-                    readInstant(resultSet, "lot_source_checked_at")
-            );
-            ParkingOperationValues operation = null;
-            if (resultSet.getObject("operation_id") != null) {
-                operation = readOperation(resultSet);
-            }
-            return new ParkingDbRow(resultSet.getLong("id"), lot, operation);
+    public void createStaging() {
+        requireTransaction();
+        jdbcTemplate.getJdbcTemplate().execute("""
+                CREATE TEMP TABLE parking_csv_staging ON COMMIT DROP AS
+                SELECT 0::BIGINT AS row_number, source_rows.* FROM (
+                """ + SELECT_ROWS + ") source_rows WITH NO DATA");
+        jdbcTemplate.getJdbcTemplate().execute(
+                "ALTER TABLE parking_csv_staging ADD PRIMARY KEY (row_number)"
+        );
+        jdbcTemplate.getJdbcTemplate().execute("""
+                CREATE TEMP TABLE parking_csv_keys (
+                    row_number BIGINT PRIMARY KEY,
+                    name BYTEA,
+                    address BYTEA
+                ) ON COMMIT DROP
+                """);
+    }
+
+    public void stageRows(List<ParkingCsvRow> rows) {
+        requireTransaction();
+        requireStagingBatchSize(rows.size());
+        if (rows.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.getJdbcTemplate().execute((ConnectionCallback<Void>) connection -> {
+            ParkingCsvStagingWriter.copyRows(connection, COPY_STAGING, rows);
+            return null;
         });
+    }
+
+    public void stageKeys(List<ParkingCsvKey> keys) {
+        requireTransaction();
+        requireStagingBatchSize(keys.size());
+        if (keys.isEmpty()) {
+            return;
+        }
+        jdbcTemplate.getJdbcTemplate().execute((ConnectionCallback<Void>) connection -> {
+            ParkingCsvStagingWriter.copyKeys(connection, COPY_KEYS, keys);
+            return null;
+        });
+    }
+
+    public List<Long> findDuplicateRowNumbers() {
+        requireTransaction();
+        return jdbcTemplate.queryForList("""
+                SELECT row_number
+                FROM (
+                    SELECT row_number,
+                           COUNT(*) OVER (PARTITION BY name, address) AS key_count,
+                           MIN(row_number) OVER (PARTITION BY name, address) AS first_row
+                    FROM (
+                        SELECT row_number, convert_to(name, 'UTF8') AS name,
+                               convert_to(address, 'UTF8') AS address
+                        FROM parking_csv_staging
+                        UNION ALL
+                        SELECT invalid.row_number, invalid.name, invalid.address
+                        FROM parking_csv_keys invalid
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM parking_csv_staging valid
+                            WHERE valid.row_number = invalid.row_number
+                        )
+                    ) all_keys
+                ) keys
+                WHERE key_count > 1
+                ORDER BY first_row, row_number
+                """, new MapSqlParameterSource(), Long.class);
+    }
+
+    public List<ParkingDbRow> findAll() {
+        return jdbcTemplate.query(SELECT_ROWS + " ORDER BY l.id", new MapSqlParameterSource(), this::readRow);
+    }
+
+    private ParkingDbRow readRow(ResultSet resultSet, int rowNumber) throws SQLException {
+        ParkingLotValues lot = new ParkingLotValues(
+                ParkingDataSource.valueOf(ParkingKey.normalize(resultSet.getString("source"))),
+                ParkingKey.normalize(resultSet.getString("source_external_id")),
+                ParkingKey.normalize(resultSet.getString("name")),
+                ParkingKey.normalize(resultSet.getString("sido")),
+                ParkingKey.normalize(resultSet.getString("sigungu")),
+                ParkingKey.normalize(resultSet.getString("address")),
+                resultSet.getObject("latitude", Double.class),
+                resultSet.getObject("longitude", Double.class),
+                resultSet.getObject("capacity", Integer.class),
+                resultSet.getBoolean("mechanical"),
+                resultSet.getObject("is_public", Boolean.class),
+                resultSet.getBoolean("active"),
+                readInstant(resultSet, "lot_source_checked_at")
+        );
+        ParkingOperationValues operation = null;
+        if (resultSet.getObject("operation_id") != null) {
+            operation = readOperation(resultSet);
+        }
+        return new ParkingDbRow(resultSet.getLong("id"), lot, operation);
     }
 
     public void save(ParkingChanges changes, Instant now) {
@@ -356,6 +439,12 @@ public class ParkingCsvRepository {
 
     private Instant readInstant(ResultSet resultSet, String column) throws SQLException {
         return resultSet.getObject(column, OffsetDateTime.class).toInstant();
+    }
+
+    private void requireStagingBatchSize(int size) {
+        if (size > BATCH_SIZE) {
+            throw new IllegalArgumentException("CSV 임시 저장 배치는 500건 이하여야 합니다.");
+        }
     }
 
     private void requireTransaction() {

@@ -3,21 +3,27 @@ package jumin.domain.admin.parking.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
-import java.nio.charset.StandardCharsets;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import jumin.TestcontainersConfiguration;
 import jumin.domain.admin.parking.model.ParkingChanges;
+import jumin.domain.admin.parking.model.ParkingCsvKey;
 import jumin.domain.admin.parking.model.ParkingCsvRow;
 import jumin.domain.admin.parking.model.ParkingDbRow;
+import jumin.domain.admin.parking.model.ParkingKey;
 import jumin.domain.admin.parking.model.ParkingLotValues;
 import jumin.domain.admin.parking.model.ParkingOperationValues;
 import jumin.domain.admin.parking.model.ParkingScheduleValues;
@@ -27,7 +33,9 @@ import jumin.domain.parking.entity.ParkingOperationStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -504,6 +512,188 @@ class ParkingCsvRepositoryTest {
         }
     }
 
+    @Test
+    @DisplayName("임시 적재 배치의 모든 필드와 null, 소수초를 행별로 구분하여 보존한다")
+    void stages_distinct_nullable_values_without_reusing_previous_row_parameters() {
+        // given
+        List<ParkingCsvRow> rows = bindingRows();
+        repository.createStaging();
+
+        // when
+        repository.stageRows(rows);
+        List<ParkingCsvRow> staged = readStagedRows();
+
+        // then
+        assertThat(staged).containsExactlyElementsOf(rows);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT id FROM parking_csv_staging ORDER BY row_number", Long.class
+        )).containsExactly(2L, 7L, 11L);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT operation_id FROM parking_csv_staging ORDER BY row_number", Long.class
+        )).containsExactly(2L, 7L, 11L);
+    }
+
+    @ParameterizedTest(name = "원본 시각: {0}, 운영 시각: {1}")
+    @MethodSource("temporalBindingCases")
+    @DisplayName("임시 적재 시각의 지원 범위와 반올림 결과가 기존 JDBC 바인딩과 같다")
+    void stages_temporal_boundaries_with_jdbc_rounding(Instant sourceTime, LocalTime scheduleTime) {
+        // given
+        TemporalValues expected = jdbcTemplate.query("SELECT ?::timestamptz AS source_time, ?::time AS schedule_time",
+                statement -> {
+                    statement.setObject(1, sourceTime.atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE);
+                    statement.setObject(2, scheduleTime, Types.TIME);
+                }, resultSet -> {
+                    resultSet.next();
+                    return new TemporalValues(
+                            resultSet.getObject("source_time", OffsetDateTime.class).toInstant(),
+                            resultSet.getObject("schedule_time", LocalTime.class),
+                            resultSet.getString("schedule_time")
+                    );
+                });
+        ParkingCsvRow base = row("시각 경계값", 1000);
+        ParkingLotValues old = base.lot();
+        ParkingLotValues lot = new ParkingLotValues(
+                old.source(), old.sourceExternalId(), old.name(), old.sido(), old.sigungu(), old.address(),
+                old.latitude(), old.longitude(), old.capacity(), old.mechanical(), old.isPublic(), old.active(), sourceTime
+        );
+        ParkingScheduleValues schedule = new ParkingScheduleValues(ParkingOperationStatus.OPEN, scheduleTime, scheduleTime);
+        ParkingOperationValues operation = new ParkingOperationValues(
+                null, null, null, null, null, null, null, null, null, null,
+                schedule, schedule, schedule, sourceTime
+        );
+        repository.createStaging();
+
+        // when
+        repository.stageRows(List.of(new ParkingCsvRow(2, lot, operation)));
+        ParkingCsvRow saved = readStagedRows().getFirst();
+
+        // then
+        assertThat(saved.lot().sourceCheckedAt()).isEqualTo(expected.sourceTime());
+        assertThat(saved.operation().sourceCheckedAt()).isEqualTo(expected.sourceTime());
+        ParkingScheduleValues expectedSchedule = new ParkingScheduleValues(
+                ParkingOperationStatus.OPEN, expected.scheduleTime(), expected.scheduleTime()
+        );
+        assertThat(saved.operation().weekday()).isEqualTo(expectedSchedule);
+        assertThat(saved.operation().weekend()).isEqualTo(expectedSchedule);
+        assertThat(saved.operation().holiday()).isEqualTo(expectedSchedule);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT weekday_open_time::text FROM parking_csv_staging", String.class
+        )).isEqualTo(expected.scheduleText());
+    }
+
+    @Test
+    @DisplayName("바이너리 식별키의 null, NUL, UTF-8을 보존하고 처음 등장한 키 순서로 중복을 반환한다")
+    void stages_binary_keys_without_losing_null_or_utf8_values_and_duplicate_order() {
+        // given
+        ParkingKey nulKey = new ParkingKey("한글\u0000주차장", "주소😀");
+        ParkingKey nullName = new ParkingKey(null, "주소만 있음");
+        ParkingKey nullAddress = new ParkingKey("이름만 있음", null);
+        ParkingKey bothNull = new ParkingKey(null, null);
+        List<ParkingCsvKey> keys = List.of(
+                new ParkingCsvKey(2, nulKey),
+                new ParkingCsvKey(3, nullName),
+                new ParkingCsvKey(4, nullAddress),
+                new ParkingCsvKey(5, bothNull),
+                new ParkingCsvKey(6, new ParkingKey("다른 주차장", "다른 주소")),
+                new ParkingCsvKey(7, nullName),
+                new ParkingCsvKey(8, nulKey),
+                new ParkingCsvKey(9, nullAddress),
+                new ParkingCsvKey(10, bothNull)
+        );
+        repository.createStaging();
+
+        // when
+        repository.stageKeys(keys);
+        List<Long> duplicates = repository.findDuplicateRowNumbers();
+
+        // then
+        assertThat(duplicates).containsExactly(2L, 8L, 3L, 7L, 4L, 9L, 5L, 10L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM parking_csv_keys WHERE row_number = 2", byte[].class
+        )).isEqualTo(nulKey.name().getBytes(StandardCharsets.UTF_8));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT address FROM parking_csv_keys WHERE row_number = 2", byte[].class
+        )).isEqualTo(nulKey.address().getBytes(StandardCharsets.UTF_8));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name IS NULL AND address IS NULL FROM parking_csv_keys WHERE row_number = 5", Boolean.class
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("정상 행과 검증 실패 행의 키를 함께 비교하고 같은 행을 두 번 세지 않는다")
+    void detects_duplicates_across_staged_rows_and_invalid_keys() {
+        // given
+        ParkingCsvRow first = row("정상 중복", 1000);
+        ParkingCsvRow mixed = row("검증 실패와 중복", 2000);
+        ParkingCsvRow unique = row("중복 없는 행", 3000);
+        List<ParkingCsvRow> rows = List.of(
+                first,
+                new ParkingCsvRow(4, mixed.lot(), mixed.operation()),
+                new ParkingCsvRow(8, first.lot(), first.operation()),
+                new ParkingCsvRow(11, unique.lot(), unique.operation())
+        );
+        List<ParkingCsvKey> keys = List.of(
+                new ParkingCsvKey(3, new ParkingKey("NUL\0오류", "주소")),
+                new ParkingCsvKey(5, mixed.key()),
+                new ParkingCsvKey(7, new ParkingKey("NUL\0오류", "주소")),
+                new ParkingCsvKey(11, unique.key())
+        );
+        repository.createStaging();
+
+        // when
+        repository.stageRows(rows);
+        repository.stageKeys(keys);
+        List<Long> duplicates = repository.findDuplicateRowNumbers();
+
+        // then
+        assertThat(duplicates).containsExactly(2L, 8L, 3L, 7L, 4L, 5L);
+    }
+
+    @Test
+    @DisplayName("큰 식별키와 UTF-8 경계 문자를 기존 문자열 인코딩과 동일한 바이트로 저장한다")
+    void stages_long_keys_and_surrogate_boundaries_with_standard_utf8_encoding() {
+        // given
+        List<String> values = List.of(
+                "",
+                "ASCII".repeat(205),
+                "한".repeat(1024),
+                "한".repeat(1023) + "😀끝",
+                "😀".repeat(1024),
+                "문자😀\u0000".repeat(4096),
+                "\uD800",
+                "\uDC00",
+                "\uD800\uD800A\uDC00",
+                "A".repeat(1023) + "\uD800끝",
+                "A".repeat(1023) + "😀",
+                "A".repeat(1024) + "\uDC00",
+                "마지막 값"
+        );
+        List<ParkingCsvKey> keys = new ArrayList<>();
+        for (int index = 0; index < values.size(); index++) {
+            keys.add(new ParkingCsvKey(index + 2, new ParkingKey(
+                    values.get(index), values.get(values.size() - index - 1)
+            )));
+        }
+        repository.createStaging();
+
+        // when
+        repository.stageKeys(keys);
+        List<byte[]> names = jdbcTemplate.queryForList(
+                "SELECT name FROM parking_csv_keys ORDER BY row_number", byte[].class
+        );
+        List<byte[]> addresses = jdbcTemplate.queryForList(
+                "SELECT address FROM parking_csv_keys ORDER BY row_number", byte[].class
+        );
+
+        // then
+        assertThat(names).hasSize(values.size());
+        assertThat(addresses).hasSize(values.size());
+        for (int index = 0; index < values.size(); index++) {
+            assertThat(names.get(index)).isEqualTo(utf8OrNull(keys.get(index).key().name()));
+            assertThat(addresses.get(index)).isEqualTo(utf8OrNull(keys.get(index).key().address()));
+        }
+    }
+
     private ParkingChanges sync(List<ParkingCsvRow> rows, Instant now) {
         ParkingChanges changes = differ.compare(repository.findAll(), rows);
         repository.save(changes, now);
@@ -560,5 +750,105 @@ class ParkingCsvRepositoryTest {
         TransactionTemplate template = new TransactionTemplate(transactionManager);
         template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         return template;
+    }
+
+    private static Stream<Arguments> temporalBindingCases() {
+        return Stream.of(
+                Arguments.of(Instant.parse("1999-12-31T23:59:59.999999499Z"), LocalTime.of(23, 59, 59, 999999499)),
+                Arguments.of(Instant.parse("1999-12-31T23:59:59.999999500Z"), LocalTime.of(23, 59, 59, 999999500)),
+                Arguments.of(Instant.parse("1969-12-31T23:59:59.123456499Z"), LocalTime.of(9, 0, 0, 123456499)),
+                Arguments.of(Instant.parse("1969-12-31T23:59:59.123456500Z"), LocalTime.of(9, 0, 0, 123456500)),
+                Arguments.of(Instant.parse("-4712-01-01T00:00:00Z"), LocalTime.MIDNIGHT),
+                Arguments.of(Instant.parse("+294276-12-31T23:59:59.999999Z"), LocalTime.MAX)
+        );
+    }
+
+    private List<ParkingCsvRow> bindingRows() {
+        ParkingCsvRow populated = new ParkingCsvRow(2, new ParkingLotValues(
+                ParkingDataSource.SEOUL_PARKING_SITE, "binding-full", "바인딩 전체 값", "부산광역시", "해운대구",
+                "서울시 테스트 주소", 35.1631, 129.1635, 321, true, true, true,
+                SOURCE_CHECKED_AT.plusNanos(111111000)
+        ), new ParkingOperationValues(
+                11, 22, 3300, 44, 5500, 66000, 77000, true, false, true,
+                new ParkingScheduleValues(
+                        ParkingOperationStatus.OPEN, LocalTime.of(8, 1, 2, 123456000), LocalTime.of(21, 3, 4, 234567000)
+                ),
+                new ParkingScheduleValues(
+                        ParkingOperationStatus.CLOSED, LocalTime.of(9, 5, 6, 345678000), LocalTime.of(20, 7, 8, 456789000)
+                ),
+                new ParkingScheduleValues(
+                        ParkingOperationStatus.UNKNOWN, LocalTime.of(10, 9, 10, 567890000), LocalTime.of(19, 11, 12, 678901000)
+                ),
+                SOURCE_CHECKED_AT.plusSeconds(1).plusNanos(222222000)
+        ));
+        ParkingScheduleValues emptySchedule = new ParkingScheduleValues(null, null, null);
+        ParkingCsvRow cleared = new ParkingCsvRow(7, new ParkingLotValues(
+                ParkingDataSource.DATA_GO_KR, "binding-empty", "바인딩 선택값 없음", null, null,
+                "서울시 테스트 주소", null, null, null, false, null, false,
+                SOURCE_CHECKED_AT.plusSeconds(2).plusNanos(333333000)
+        ), new ParkingOperationValues(
+                null, null, null, null, null, null, null, null, null, null,
+                emptySchedule, emptySchedule, emptySchedule,
+                SOURCE_CHECKED_AT.plusSeconds(3).plusNanos(444444000)
+        ));
+        ParkingCsvRow partial = new ParkingCsvRow(11, new ParkingLotValues(
+                ParkingDataSource.SEOUL_PARKING_SITE, "binding-partial", "바인딩 부분 값", "인천광역시", null,
+                "서울시 테스트 주소", 37.4563, 126.7052, 654, false, false, true,
+                SOURCE_CHECKED_AT.plusSeconds(4).plusNanos(555555000)
+        ), new ParkingOperationValues(
+                9, null, 8800, null, 6600, null, 44000, false, true, null,
+                new ParkingScheduleValues(ParkingOperationStatus.OPEN, null, LocalTime.of(18, 0, 0, 789012000)),
+                new ParkingScheduleValues(null, LocalTime.of(7, 0, 0, 890123000), null),
+                new ParkingScheduleValues(ParkingOperationStatus.UNKNOWN, null, null),
+                SOURCE_CHECKED_AT.plusSeconds(5).plusNanos(666666000)
+        ));
+        return List.of(populated, cleared, partial);
+    }
+
+    private List<ParkingCsvRow> readStagedRows() {
+        return jdbcTemplate.query("SELECT * FROM parking_csv_staging ORDER BY row_number", (resultSet, rowNumber) ->
+                new ParkingCsvRow(resultSet.getLong("row_number"), new ParkingLotValues(
+                        ParkingDataSource.valueOf(resultSet.getString("source")),
+                        resultSet.getString("source_external_id"), resultSet.getString("name"),
+                        resultSet.getString("sido"), resultSet.getString("sigungu"), resultSet.getString("address"),
+                        resultSet.getObject("latitude", Double.class), resultSet.getObject("longitude", Double.class),
+                        resultSet.getObject("capacity", Integer.class), resultSet.getBoolean("mechanical"),
+                        resultSet.getObject("is_public", Boolean.class), resultSet.getBoolean("active"),
+                        resultSet.getObject("lot_source_checked_at", OffsetDateTime.class).toInstant()
+                ), new ParkingOperationValues(
+                        resultSet.getObject("base_free_minutes", Integer.class),
+                        resultSet.getObject("base_minutes", Integer.class), resultSet.getObject("base_fee", Integer.class),
+                        resultSet.getObject("additional_minutes", Integer.class),
+                        resultSet.getObject("additional_fee", Integer.class),
+                        resultSet.getObject("daily_max_fee", Integer.class), resultSet.getObject("monthly_fee", Integer.class),
+                        resultSet.getObject("weekday_paid", Boolean.class), resultSet.getObject("saturday_paid", Boolean.class),
+                        resultSet.getObject("holiday_paid", Boolean.class),
+                        readStagedSchedule(resultSet, "weekday"), readStagedSchedule(resultSet, "weekend"),
+                        readStagedSchedule(resultSet, "holiday"),
+                        resultSet.getObject("operation_source_checked_at", OffsetDateTime.class).toInstant()
+                ))
+        );
+    }
+
+    private ParkingScheduleValues readStagedSchedule(ResultSet resultSet, String prefix) throws SQLException {
+        String status = resultSet.getString(prefix + "_status");
+        ParkingOperationStatus operationStatus = null;
+        if (status != null) {
+            operationStatus = ParkingOperationStatus.valueOf(status);
+        }
+        return new ParkingScheduleValues(
+                operationStatus, resultSet.getObject(prefix + "_open_time", LocalTime.class),
+                resultSet.getObject(prefix + "_close_time", LocalTime.class)
+        );
+    }
+
+    private byte[] utf8OrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private record TemporalValues(Instant sourceTime, LocalTime scheduleTime, String scheduleText) {
     }
 }
