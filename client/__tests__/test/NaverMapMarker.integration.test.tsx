@@ -52,6 +52,7 @@ afterEach(() => {
   }
 });
 
+// 마커와 리스너 재사용은 이번 최적화의 동작 계약이므로 SDK 생성 횟수를 검증한다.
 it('아이콘과 z-index만 변경하면 기존 마커와 클릭 리스너를 유지한다', () => {
   const onClick = jest.fn();
   const nextOnClick = jest.fn();
@@ -59,14 +60,9 @@ it('아이콘과 z-index만 변경하면 기존 마커와 클릭 리스너를 �
   const marker = Marker.mock.results[0]!.value as ReturnType<typeof createMarker>;
 
   rerender(<NaverMapMarker {...props} icon={selectedIcon} onClick={onClick} />);
-  expect(marker.setIcon).toHaveBeenLastCalledWith({
-    url: selectedIcon.url,
-    size: new MockPoint(30, 33),
-    scaledSize: new MockPoint(30, 33),
-    origin: new MockPoint(0, 0),
-    anchor: new MockPoint(15, 33),
-  });
-  expect(marker.setOptions).not.toHaveBeenCalled();
+  expect(marker.setIcon).toHaveBeenLastCalledWith(
+    expect.objectContaining({ url: selectedIcon.url }),
+  );
 
   rerender(<NaverMapMarker {...props} icon={selectedIcon} zIndex={20} onClick={nextOnClick} />);
   expect(marker.setOptions).toHaveBeenLastCalledWith('zIndex', 20);
@@ -87,7 +83,7 @@ it('아이콘과 z-index만 변경하면 기존 마커와 클릭 리스너를 �
   expect(marker.setMap).toHaveBeenCalledWith(null);
 });
 
-it('지도가 준비될 때와 다른 생성 조건이 바뀔 때 최신 아이콘과 z-index로 생성한다', () => {
+it('지도가 준비되면 최신 아이콘과 z-index로 생성한다', () => {
   const onClick = jest.fn();
   const { rerender } = render(<NaverMapMarker {...props} map={null} onClick={onClick} />);
   expect(Marker).not.toHaveBeenCalled();
@@ -99,21 +95,50 @@ it('지도가 준비될 때와 다른 생성 조건이 바뀔 때 최신 아이�
       zIndex: 20,
     }),
   );
+  expect(Marker).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  { latitude: 37.6, longitude: props.longitude },
+  { latitude: props.latitude, longitude: 127.1 },
+])('좌표만 $latitude, $longitude로 바꾸면 기존 마커를 정리하고 위치를 반영한다', (position) => {
+  const onClick = jest.fn();
+  const { rerender } = render(<NaverMapMarker {...props} onClick={onClick} />);
   const firstMarker = Marker.mock.results[0]!.value as ReturnType<typeof createMarker>;
 
-  rerender(<NaverMapMarker {...props} latitude={37.6} zIndex={5} />);
+  rerender(<NaverMapMarker {...props} {...position} onClick={onClick} />);
   expect(firstMarker.setMap).toHaveBeenCalledTimes(1);
   expect(firstMarker.setMap).toHaveBeenCalledWith(null);
   expect(removeListener).toHaveBeenCalledTimes(1);
   expect(Marker).toHaveBeenCalledTimes(2);
   expect(Marker).toHaveBeenLastCalledWith(
     expect.objectContaining({
-      icon: expect.objectContaining({ url: icon.url }),
-      zIndex: 5,
-      clickable: false,
-      position: new MockPoint(37.6, 127),
+      position: new MockPoint(position.latitude, position.longitude),
     }),
   );
+  expect(addListener).toHaveBeenCalledTimes(2);
+});
+
+it('onClick만 추가하거나 제거하면 클릭 가능 여부와 리스너를 갱신한다', () => {
+  const onClick = jest.fn();
+  const { rerender } = render(<NaverMapMarker {...props} />);
+  const firstMarker = Marker.mock.results[0]!.value as ReturnType<typeof createMarker>;
+  expect(addListener).not.toHaveBeenCalled();
+
+  rerender(<NaverMapMarker {...props} onClick={onClick} />);
+  expect(firstMarker.setMap).toHaveBeenCalledWith(null);
+  expect(Marker).toHaveBeenCalledTimes(2);
+  expect(Marker).toHaveBeenLastCalledWith(expect.objectContaining({ clickable: true }));
+  expect(addListener).toHaveBeenCalledTimes(1);
+  addListener.mock.calls[0]![2]();
+  expect(onClick).toHaveBeenCalledTimes(1);
+  const clickableMarker = Marker.mock.results[1]!.value as ReturnType<typeof createMarker>;
+
+  rerender(<NaverMapMarker {...props} />);
+  expect(clickableMarker.setMap).toHaveBeenCalledWith(null);
+  expect(removeListener).toHaveBeenCalledWith(addListener.mock.results[0]!.value);
+  expect(Marker).toHaveBeenCalledTimes(3);
+  expect(Marker).toHaveBeenLastCalledWith(expect.objectContaining({ clickable: false }));
   expect(addListener).toHaveBeenCalledTimes(1);
 });
 

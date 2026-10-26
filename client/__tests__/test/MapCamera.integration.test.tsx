@@ -1,9 +1,17 @@
 import { jest } from '@jest/globals';
-import { cleanup, render, screen } from '@testing-library/react';
-import { createRef } from 'react';
+import { cleanup } from '@testing-library/react';
+import { Outlet, Route, Routes } from 'react-router';
 
-import { ConditionBar } from '../../shared/components/service/ConditionBar';
 import { getMapCenterForMarkerY } from '../../shared/maps/getMapCenterForMarkerY';
+import { ParkingInformationPanel } from '../../src/pages/HomePage/components/ParkingInformationPanel';
+import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/ParkingRecommendPage';
+import { parkingSearchQueryOptions } from '../../api/queries/parkingSearchQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../api/queries/viewportParkingLotDetailQuery';
+import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
+import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
+import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
+import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
+import { searchCondition } from '../testData';
 
 class MockPoint {
   constructor(
@@ -12,13 +20,28 @@ class MockPoint {
   ) {}
 }
 
+class MockOverlay {
+  setMap() {}
+  setIcon() {}
+  setOptions() {}
+}
+
 let originalNaver: PropertyDescriptor | undefined;
 
 beforeEach(() => {
   originalNaver = Object.getOwnPropertyDescriptor(globalThis, 'naver');
   Object.defineProperty(globalThis, 'naver', {
     configurable: true,
-    value: { maps: { Point: MockPoint } },
+    value: {
+      maps: {
+        Point: MockPoint,
+        LatLng: MockPoint,
+        Size: MockPoint,
+        Marker: MockOverlay,
+        Circle: MockOverlay,
+        Event: { addListener: () => ({}), removeListener: () => {} },
+      },
+    },
   });
 });
 
@@ -33,8 +56,7 @@ afterEach(() => {
 
 // 실제 지도를 띄우지 않고 높이·목표 위치별로 중심 계산에 사용한 픽셀 좌표를 검증한다.
 it.each([
-  { label: '홈 바텀시트 위', height: 800, targetY: 236, centerY: 514 },
-  { label: '추천 화면의 보이는 영역 중앙', height: 800, targetY: 210, centerY: 540 },
+  { label: '지도 중앙 위', height: 800, targetY: 236, centerY: 514 },
   { label: '높이가 다른 지도', height: 1000, targetY: 436, centerY: 414 },
   { label: '지도 중앙', height: 800, targetY: 400, centerY: 350 },
   { label: '지도 중앙 아래', height: 800, targetY: 600, centerY: 150 },
@@ -54,18 +76,102 @@ it.each([
   expect(fromOffsetToCoord).toHaveBeenCalledWith(new MockPoint(520, centerY));
 });
 
-it('검색 조건 바의 실제 요소를 ref로 전달하며 ref가 없는 기존 호출도 유지한다', () => {
-  const elementRef = createRef<HTMLElement>();
-  const onBack = jest.fn();
-  const { rerender } = render(
-    <ConditionBar elementRef={elementRef} title="강남역" onBack={onBack} />,
+const createMap = () => {
+  const element = document.createElement('div');
+  jest.spyOn(element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 400, 800));
+  const fromCoordToOffset = jest.fn(() => new MockPoint(520, 350));
+  const panTo = jest.fn();
+  const map = {
+    getSize: () => ({ height: 800 }),
+    getElement: () => element,
+    getProjection: () => ({
+      fromCoordToOffset,
+      fromOffsetToCoord: (point: naver.maps.Point) => point,
+    }),
+    panTo,
+  } as unknown as naver.maps.Map;
+
+  return { map, panTo, fromCoordToOffset };
+};
+
+it('홈 시트를 펼칠 때만 선택한 주차장을 시트 위로 이동시킨다', () => {
+  const { map, panTo, fromCoordToOffset } = createMap();
+  const parkingLot = parkingViewportLots[0]!;
+  const queryClient = createTestQueryClient();
+  queryClient.setQueryData(
+    viewportParkingLotDetailQueryOptions(parkingLot.id).queryKey,
+    viewportParkingLotDetailFixtures[parkingLot.id],
   );
+  const props = { map, parkingLot, onSnapChange: jest.fn(), onClose: jest.fn() };
+  const { rerender } = renderWithProviders(
+    <ParkingInformationPanel {...props} snap="collapsed" />,
+    { queryClient },
+  );
+  expect(panTo).not.toHaveBeenCalled();
 
-  expect(elementRef.current).toBe(screen.getByRole('banner', { name: '검색 조건' }));
+  rerender(<ParkingInformationPanel {...props} snap="expanded" />);
+  expect(fromCoordToOffset).toHaveBeenCalledWith(
+    new MockPoint(parkingLot.latitude, parkingLot.longitude),
+  );
+  // 높이 800에서 시트 높이 500과 간격 64를 제외한 Y=236에 마커가 보여야 한다.
+  expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 514), expect.anything());
+  const moveCount = panTo.mock.calls.length;
 
-  rerender(<ConditionBar title="강동역" onBack={onBack} />);
-
-  expect(elementRef.current).toBeNull();
-  expect(screen.getByRole('banner', { name: '검색 조건' })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: '강동역' })).toBeInTheDocument();
+  rerender(<ParkingInformationPanel {...props} snap="collapsed" />);
+  expect(panTo).toHaveBeenCalledTimes(moveCount);
 });
+
+it.each(['collapsed', 'expanded'] as const)(
+  '추천 시트가 %s일 때 선택한 주차장을 보이는 지도 영역으로 이동시킨다',
+  (sheetSnap) => {
+    const { map, panTo } = createMap();
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      parkingSearchQueryOptions(searchCondition).queryKey,
+      parkingSearchSuccess,
+    );
+    const parkingLot = parkingSearchSuccess.parkingLots[0]!;
+    const originalGetRect = HTMLElement.prototype.getBoundingClientRect;
+    // jsdom에는 레이아웃이 없으므로 검색 조건 바의 위치만 브라우저 좌표로 제공한다.
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.getAttribute('aria-label') === '검색 조건'
+        ? new DOMRect(0, 160, 400, 60)
+        : originalGetRect.call(this);
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<Outlet context={{ map }} />}>
+          <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
+        </Route>
+      </Routes>,
+      {
+        queryClient,
+        initialEntries: [
+          {
+            pathname: '/parkingRecommend',
+            state: {
+              searchCondition,
+              recommendView: {
+                parkingLotId: parkingLot.id,
+                recommendationType: 'DISTANCE',
+                sheetSnap,
+              },
+            },
+          },
+        ],
+      },
+    );
+
+    if (sheetSnap === 'collapsed') {
+      expect(panTo).toHaveBeenLastCalledWith(
+        new MockPoint(parkingLot.location.latitude, parkingLot.location.longitude),
+      );
+    } else {
+      // 지도 상단 100을 뺀 검색 바 하단 120과 시트 상단 300 사이의 중앙(Y=210).
+      expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 540), expect.anything());
+    }
+  },
+);
