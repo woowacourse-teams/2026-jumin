@@ -118,8 +118,27 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           ADMIN_TOKEN_SECRET: ${{ secrets.ADMIN_TOKEN_SECRET }}
           ADMIN_ENV_LABEL: dev
+          PARKING_AVAILABILITY_ENABLED: ${{ vars.PARKING_AVAILABILITY_ENABLED || 'false' }}
+          SEOUL_PARKING_API_KEY: ${{ secrets.SEOUL_PARKING_API_KEY || secrets.SEOUL_OPEN_DATA_API_KEY }}
+          BUSAN_PARKING_API_KEY: ${{ secrets.BUSAN_PARKING_API_KEY }}
         run: |
           set -Eeuo pipefail
+
+          case "${PARKING_AVAILABILITY_ENABLED}" in
+            true)
+              for required_variable in SEOUL_PARKING_API_KEY BUSAN_PARKING_API_KEY; do
+                if [[ -z "${!required_variable}" ]]; then
+                  echo "Missing required parking availability secret: ${required_variable}" >&2
+                  exit 1
+                fi
+              done
+              ;;
+            false) ;;
+            *)
+              echo "PARKING_AVAILABILITY_ENABLED must be true or false." >&2
+              exit 1
+              ;;
+          esac
 
           repository_root="${GITHUB_WORKSPACE:-$PWD}"
           release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
@@ -171,6 +190,9 @@ jobs:
             ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH}" \
             ADMIN_TOKEN_SECRET="${ADMIN_TOKEN_SECRET}" \
             ADMIN_ENV_LABEL="${ADMIN_ENV_LABEL}" \
+            PARKING_AVAILABILITY_ENABLED="${PARKING_AVAILABILITY_ENABLED}" \
+            SEOUL_PARKING_API_KEY="${SEOUL_PARKING_API_KEY}" \
+            BUSAN_PARKING_API_KEY="${BUSAN_PARKING_API_KEY}" \
             docker compose \
               --project-name jumin-dev \
               --file "${compose_file}" \
