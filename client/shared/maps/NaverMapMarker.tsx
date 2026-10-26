@@ -35,6 +35,9 @@ export const NaverMapMarker = ({
   zIndex,
   onClick,
 }: Props) => {
+  const markerRef = useRef<naver.maps.Marker | null>(null);
+  const iconRef = useRef(icon);
+  const zIndexRef = useRef(zIndex);
   const onClickRef = useRef(onClick);
   const clickable = onClick !== undefined;
 
@@ -43,16 +46,27 @@ export const NaverMapMarker = ({
   }, [onClick]);
 
   useEffect(() => {
+    iconRef.current = icon;
+    markerRef.current?.setIcon(createMarkerIcon(icon));
+  }, [icon]);
+
+  useEffect(() => {
+    zIndexRef.current = zIndex;
+    markerRef.current?.setOptions('zIndex', zIndex);
+  }, [zIndex]);
+
+  useEffect(() => {
     if (!map) return;
 
     const marker = new naver.maps.Marker({
       map,
       position: new naver.maps.LatLng(latitude, longitude),
-      icon: createMarkerIcon(icon),
+      icon: createMarkerIcon(iconRef.current),
       title,
       clickable,
-      zIndex,
+      zIndex: zIndexRef.current,
     });
+    markerRef.current = marker;
 
     const listener = clickable
       ? naver.maps.Event.addListener(marker, 'click', () => onClickRef.current?.())
@@ -61,8 +75,9 @@ export const NaverMapMarker = ({
     return () => {
       if (listener) naver.maps.Event.removeListener(listener);
       marker.setMap(null);
+      markerRef.current = null;
     };
-  }, [clickable, icon, latitude, longitude, map, title, zIndex]);
+  }, [clickable, latitude, longitude, map, title]);
 
   return null;
 };
