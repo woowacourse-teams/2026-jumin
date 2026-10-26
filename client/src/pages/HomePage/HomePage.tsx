@@ -4,7 +4,6 @@ import { css } from '@emotion/css';
 import { useCallback, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
-import { type BottomSheetSnap } from '../../../shared/components/ui/BottomSheet';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
 import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
@@ -20,6 +19,7 @@ import { ParkingFilterBar } from '../../../shared/components/service/parking/Par
 import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import type { BottomSheetSnap } from '../../../shared/types/ui';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,

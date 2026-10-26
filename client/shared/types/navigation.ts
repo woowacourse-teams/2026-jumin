@@ -15,19 +15,3 @@ export interface ParkingDetailCondition {
   entryAt: string;
   exitAt: string;
 }
-
-export type RecommendationType = 'PRICE' | 'DISTANCE' | 'BALANCED';
-
-export type RecommendView = {
-  snap: 'expanded' | 'collapsed';
-  parkingLotId: number | null;
-  recommendationType: RecommendationType;
-};
-
-export interface ParkingSetupView {
-  selectedLocation: {
-    latitude: number;
-    longitude: number;
-  };
-  hasMovedMap: boolean;
-}

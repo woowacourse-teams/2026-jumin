@@ -1,14 +1,12 @@
 import { css } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
+import type { BottomSheetSnap } from '../../types/ui';
 
 export const BOTTOM_SHEET_HEIGHT = 500;
 const PEEK_HEIGHT = 110;
 const COLLAPSED_Y = BOTTOM_SHEET_HEIGHT - PEEK_HEIGHT;
 const SNAP_THRESHOLD = 80;
-
-// 바텀시트 열렸는지 여부
-export type BottomSheetSnap = 'expanded' | 'collapsed';
 
 interface Props {
   children: ReactNode;
