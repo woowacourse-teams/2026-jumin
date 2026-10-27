@@ -3,8 +3,8 @@ package jumin.domain.destination.dto;
 import java.util.List;
 
 public record DestinationsResponse(
-    String query,
-    List<DestinationResponse> destinations
+        String query,
+        List<DestinationResponse> destinations
 ) {
 
     public DestinationsResponse {
@@ -12,6 +12,9 @@ public record DestinationsResponse(
     }
 
     public static DestinationsResponse from(String query, List<DestinationResponse> destinations) {
-        return new DestinationsResponse(query, destinations);
+        return new DestinationsResponse(
+                query,
+                destinations
+        );
     }
 }
