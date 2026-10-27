@@ -8,7 +8,7 @@ const addToHomescreenDist = path.dirname(require.resolve('pwa-add-to-homescreen'
 
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
-  const isMockEnabled = isDevelopment && (env?.mock === true || env?.mock === 'true');
+  const isMockEnabled = env?.mock === true || env?.mock === 'true';
   const isE2E = env?.e2e === true || env?.e2e === 'true';
   const uploadSourcemaps = process.env.SENTRY_UPLOAD_SOURCEMAPS === 'true';
 
@@ -79,7 +79,7 @@ module.exports = (env, argv) => {
         __SENTRY_ENVIRONMENT__: JSON.stringify(process.env.SENTRY_ENVIRONMENT ?? 'local'),
 
         __MSW_ENABLED__: JSON.stringify(isMockEnabled),
-        __PWA_ENABLED__: JSON.stringify(!isDevelopment),
+        __PWA_ENABLED__: JSON.stringify(!isDevelopment && !isMockEnabled),
         __GA_MEASUREMENT_ID__: JSON.stringify(process.env.GA_MEASUREMENT_ID ?? ''),
         __CLARITY_PROJECT_ID__: JSON.stringify(process.env.CLARITY_PROJECT_ID ?? ''),
         __NAVER_MAP_CLIENT_ID__: JSON.stringify(process.env.NAVER_MAP_CLIENT_ID ?? ''),
@@ -139,6 +139,7 @@ module.exports = (env, argv) => {
         {
           context: ['/api'],
           target: process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
+          changeOrigin: true,
         },
       ],
       port: 3000,
@@ -146,7 +147,10 @@ module.exports = (env, argv) => {
       hot: !isE2E,
       historyApiFallback: true,
       client: {
-        overlay: true,
+        overlay: {
+          errors: true,
+          warnings: false,
+        },
       },
     },
   };
