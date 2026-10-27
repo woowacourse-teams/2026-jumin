@@ -1,5 +1,7 @@
 import { css } from '@emotion/css';
 
+import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.svg';
+import dotParkingMarker from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
@@ -175,18 +177,54 @@ export const LandingTechnology = () => (
           </div>
           <div className={styles.map} aria-hidden="true">
             <span className={styles.mapArea}>지도로 주변 탐색</span>
-            <span className={styles.parkingPin} style={{ left: '22%', top: '48%' }}>
-              P
-            </span>
-            <span className={styles.parkingPin} style={{ left: '58%', top: '28%' }}>
-              P
-            </span>
-            <span className={styles.parkingPin} style={{ left: '72%', top: '64%' }}>
-              P
-            </span>
-            <span className={styles.parkingDot} style={{ left: '38%', top: '23%' }} />
-            <span className={styles.parkingDot} style={{ left: '44%', top: '73%' }} />
-            <span className={styles.parkingDot} style={{ left: '83%', top: '36%' }} />
+            <img
+              className={styles.mapMarker}
+              src={parkingMarker}
+              alt=""
+              width={25}
+              height={25}
+              style={{ left: '22%', top: '48%' }}
+            />
+            <img
+              className={styles.mapMarker}
+              src={parkingMarker}
+              alt=""
+              width={25}
+              height={25}
+              style={{ left: '58%', top: '28%' }}
+            />
+            <img
+              className={styles.mapMarker}
+              src={parkingMarker}
+              alt=""
+              width={25}
+              height={25}
+              style={{ left: '72%', top: '64%' }}
+            />
+            <img
+              className={styles.mapMarker}
+              src={dotParkingMarker}
+              alt=""
+              width={40}
+              height={40}
+              style={{ left: '38%', top: '23%' }}
+            />
+            <img
+              className={styles.mapMarker}
+              src={dotParkingMarker}
+              alt=""
+              width={40}
+              height={40}
+              style={{ left: '44%', top: '73%' }}
+            />
+            <img
+              className={styles.mapMarker}
+              src={dotParkingMarker}
+              alt=""
+              width={40}
+              height={40}
+              style={{ left: '83%', top: '36%' }}
+            />
             <span className={styles.mapStatus}>새 결과 요청 중 · 기존 후보 표시</span>
           </div>
           <figcaption className={styles.caption}>
@@ -426,25 +464,8 @@ const styles = {
     ${typography.caption};
     color: ${color.text.inverseSecondary};
   `,
-  parkingPin: css`
+  mapMarker: css`
     position: absolute;
-    display: grid;
-    width: 32px;
-    height: 36px;
-    place-items: center;
-    border: 2px solid ${color.border.brand};
-    border-radius: 10px 10px 10px 0;
-    color: ${color.text.inverse};
-    background: ${color.background.brand};
-    ${typography.bodyStrong};
-  `,
-  parkingDot: css`
-    position: absolute;
-    width: 9px;
-    height: 9px;
-    border: 2px solid ${color.border.brandSubtle};
-    border-radius: 50%;
-    background: ${color.background.brand};
   `,
   mapStatus: css`
     position: absolute;
