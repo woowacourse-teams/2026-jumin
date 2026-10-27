@@ -15,9 +15,7 @@ import jumin.domain.admin.parking.model.ParkingKey;
 import jumin.domain.admin.parking.model.ParkingUpdate;
 import jumin.global.response.ValidationErrorField;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Component;
 
-@Component
 public class ParkingCsvDiffer {
 
     public ParkingChanges compare(List<ParkingDbRow> databaseRows, List<ParkingCsvRow> csvRows) {
