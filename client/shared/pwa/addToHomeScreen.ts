@@ -26,6 +26,71 @@ export const initializeInstallGuide = () => {
   return installGuide;
 };
 
-export const showInstallGuide = () => {
-  initializeInstallGuide()?.show('ko');
+export const showInstallGuide = async () => {
+  await Promise.all([loadInstallGuideScript(), loadInstallGuideStyle()]);
+
+  const guide = initializeInstallGuide();
+
+  if (!guide) {
+    throw new Error('설치 안내를 초기화하지 못했어요.');
+  }
+
+  guide.show('ko');
+};
+
+let installGuideScriptPromise: Promise<void> | null = null;
+
+const loadInstallGuideScript = (): Promise<void> => {
+  if (typeof window.AddToHomeScreen === 'function') {
+    return Promise.resolve();
+  }
+
+  if (installGuideScriptPromise) {
+    return installGuideScriptPromise;
+  }
+
+  installGuideScriptPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+
+    script.src = '/vendor/add-to-homescreen/add-to-homescreen.min.js';
+
+    script.onload = () => resolve();
+
+    script.onerror = () => {
+      script.remove();
+      installGuideScriptPromise = null;
+      reject(new Error('설치 안내 스크립트를 불러오지 못했어요.'));
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return installGuideScriptPromise;
+};
+
+let installGuideStylePromise: Promise<void> | null = null;
+
+const loadInstallGuideStyle = (): Promise<void> => {
+  if (installGuideStylePromise) {
+    return installGuideStylePromise;
+  }
+
+  installGuideStylePromise = new Promise<void>((resolve, reject) => {
+    const link = document.createElement('link');
+
+    link.rel = 'stylesheet';
+    link.href = '/vendor/add-to-homescreen/add-to-homescreen.min.css';
+
+    link.onload = () => resolve();
+
+    link.onerror = () => {
+      link.remove();
+      installGuideStylePromise = null;
+      reject(new Error('설치 안내 스타일을 불러오지 못했어요.'));
+    };
+
+    document.head.appendChild(link);
+  });
+
+  return installGuideStylePromise;
 };

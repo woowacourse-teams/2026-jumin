@@ -51,7 +51,7 @@ export const getInstallAvailability = () => !isAndroid() || deferredInstallPromp
 export const requestPwaInstall = async () => {
   if (!deferredInstallPrompt) {
     if (!isAndroid()) {
-      showInstallGuide();
+      await showInstallGuide();
     }
 
     return 'unavailable' as const;
