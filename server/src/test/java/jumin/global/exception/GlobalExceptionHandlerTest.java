@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
+import jumin.domain.parking.viewport.ViewportUnavailableException;
 import jumin.global.response.ValidationErrorField;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,22 @@ class GlobalExceptionHandlerTest {
 
     @MockitoBean
     private ExceptionTestService exceptionTestService;
+
+    @Test
+    @DisplayName("viewport 과부하는 원인을 노출하지 않고 기존 503 응답을 유지한다")
+    void viewportOverloadPreserves503WithoutExposingCause() throws Exception {
+        given(exceptionTestService.business()).willThrow(new ViewportUnavailableException(
+                "전체 응답 준비 실패", new ViewportUnavailableException(
+                        ViewportUnavailableException.Reason.DB_QUEUE_FULL, "private query parameters")));
+
+        ResultActions result = mockMvc.perform(get("/test/business"));
+
+        result.andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("지도 조회가 일시적으로 지연되고 있습니다. 잠시 후 다시 시도해 주세요."))
+                .andExpect(jsonPath("$.cause").doesNotExist());
+        assertThat(result.andReturn().getResponse().getContentAsString())
+                .doesNotContain("private query parameters", "DB_QUEUE_FULL");
+    }
 
     @Test
     @DisplayName("CSV 서버 오류는 500으로 응답하고 내부 원인을 노출하지 않는다")

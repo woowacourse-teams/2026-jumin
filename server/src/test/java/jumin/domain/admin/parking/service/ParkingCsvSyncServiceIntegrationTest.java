@@ -29,6 +29,10 @@ import jumin.domain.admin.parking.model.ParkingOperationValues;
 import jumin.domain.admin.parking.model.ParkingScheduleValues;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
+import jumin.domain.parking.viewport.ViewportSquareGrid;
+import jumin.domain.parking.viewport.ViewportVersion;
+import jumin.domain.parking.viewport.ViewportVersionRepository;
+import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,17 +65,53 @@ class ParkingCsvSyncServiceIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private ViewportWriteCoordinator viewportWriter;
+
+    @Autowired
+    private ViewportVersionRepository viewportVersions;
+
+    @Autowired
+    private ViewportSquareGrid viewportGrid;
+
     @MockitoBean
     private Clock clock;
 
     @BeforeEach
     @AfterEach
     void clearParkingData() {
+        jdbc.update("UPDATE parking_viewport_cache_state SET projection_ready = FALSE WHERE id = 1");
         jdbc.update("DELETE FROM parking_operations");
         jdbc.update("DELETE FROM parking_lots");
         jdbc.update("DELETE FROM walking_edges");
         jdbc.update("DELETE FROM walking_nodes");
         jdbc.update("DELETE FROM walking_network_metadata");
+    }
+
+    @Test
+    @DisplayName("CSV 동기화는 준비된 캐시의 좌표 매핑과 버전을 함께 갱신한다")
+    void syncs_csv_with_prepared_viewport_mapping_and_version() {
+        // given
+        ParkingCsvRow original = row(1, 1, true);
+        ParkingCsvRow changed = row(1, 2, true);
+        sync(List.of(original), FIRST_UPLOAD_AT);
+        ViewportVersion before = viewportWriter.prepare();
+        assertThat(before.ready()).isTrue();
+
+        // when
+        ParkingCsvSummaryResponse summary = sync(List.of(changed), NEXT_UPLOAD_AT);
+        ViewportVersion after = viewportVersions.read();
+
+        // then
+        assertSummary(summary, 0, 1, 0, 0, 0);
+        assertThat(after.epoch()).isEqualTo(before.epoch());
+        assertThat(after.revision()).isEqualTo(before.revision() + 1);
+        assertThat(after.ready()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT viewport_grid_cell FROM parking_lots WHERE name = ?", Long.class,
+                changed.lot().name())).isEqualTo(viewportGrid.cellId(
+                        changed.lot().latitude(), changed.lot().longitude(), 1000));
+        assertSummary(sync(List.of(changed), NEXT_UPLOAD_AT), 0, 0, 0, 0, 1);
+        assertThat(viewportVersions.read()).isEqualTo(after);
     }
 
     @Test

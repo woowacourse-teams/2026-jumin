@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import jumin.TestcontainersConfiguration;
+import jumin.config.ViewportCacheProperties;
 import jumin.domain.admin.parking.csv.ParkingCsvColumn;
 import jumin.domain.admin.parking.csv.ParkingCsvParser;
 import jumin.domain.admin.parking.model.ParkingChanges;
@@ -40,6 +41,10 @@ import jumin.domain.admin.parking.service.ParkingCsvDiffer;
 import jumin.domain.admin.parking.service.ParkingCsvSyncService;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
+import jumin.domain.parking.viewport.ViewportSquareGrid;
+import jumin.domain.parking.viewport.ViewportMappingMaintainer;
+import jumin.domain.parking.viewport.ViewportVersionRepository;
+import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1010,7 +1015,11 @@ class ParkingCsvRepositoryTest {
         }
         repository.stageRows(batch);
         repository.prepareStaging();
-        ParkingCsvSyncService syncService = new ParkingCsvSyncService(repository, Clock.fixed(now, ZoneOffset.UTC));
+        ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(jdbcTemplate,
+                new ViewportVersionRepository(jdbcTemplate),
+                new ViewportMappingMaintainer(jdbcTemplate, new ViewportSquareGrid()), new ViewportCacheProperties());
+        ParkingCsvSyncService syncService = new ParkingCsvSyncService(
+                repository, Clock.fixed(now, ZoneOffset.UTC), viewportWriter);
         ParkingSyncSummary actual = syncService.syncStaged();
         repository.dropStaging();
         // 이전 Java 비교 결과는 검증 기준으로만 사용하고 저장은 실제 DB 동기화 경로로 수행한다.
