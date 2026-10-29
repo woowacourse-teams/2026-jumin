@@ -8,7 +8,6 @@ export const destinationFixtures: Destination[] = [
     roadAddress: '서울 강남구 강남대로 396',
     latitude: 37.4981,
     longitude: 127.0279,
-    provider: 'NAVER',
   },
   {
     destinationId: 'naver_12346',
@@ -17,7 +16,6 @@ export const destinationFixtures: Destination[] = [
     roadAddress: '서울 강남구 강남대로 396',
     latitude: 37.4979,
     longitude: 127.0276,
-    provider: 'NAVER',
   },
   {
     destinationId: 'naver_12347',
@@ -26,7 +24,6 @@ export const destinationFixtures: Destination[] = [
     roadAddress: '서울 강남구 학동로 지하 346',
     latitude: 37.5172,
     longitude: 127.0413,
-    provider: 'NAVER',
   },
   {
     destinationId: 'naver_12348',
@@ -35,6 +32,5 @@ export const destinationFixtures: Destination[] = [
     roadAddress: '서울 강남구 언주로 211',
     latitude: 37.4928,
     longitude: 127.0462,
-    provider: 'NAVER',
   },
 ];

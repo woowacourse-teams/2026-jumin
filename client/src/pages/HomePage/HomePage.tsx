@@ -117,7 +117,13 @@ export const HomePage = () => {
 
   const handleSearchBarClick = () => {
     trackEvent(eventName.DESTINATION_SEARCH_BAR);
-    move('OPEN_SEARCH');
+    if (!map) return;
+    const center = map.getCenter() as naver.maps.LatLng;
+    const params = new URLSearchParams({
+      lat: String(center.lat()),
+      lng: String(center.lng()),
+    });
+    move('OPEN_SEARCH', undefined, { search: `?${params.toString()}` });
   };
 
   return (

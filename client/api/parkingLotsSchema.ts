@@ -36,7 +36,6 @@ export const destinationSchema = z.object({
   roadAddress: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
-  provider: z.literal('NAVER'),
 });
 
 /**

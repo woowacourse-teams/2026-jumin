@@ -11,12 +11,14 @@ export const destinationKeys = {
       },
     ] as const,
 
-  search: (query: string) =>
+  search: (query: string, latitude: number, longitude: number) =>
     [
       ...destinationRoot,
       'search',
       {
         query,
+        latitude,
+        longitude,
       },
     ] as const,
 };
