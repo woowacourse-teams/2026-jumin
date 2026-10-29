@@ -48,7 +48,7 @@ class ParkingLotDetailControllerTest {
         when(parkingLotDetailService.getDetail(
                 any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
         ))
-                .thenReturn(detailResponse(310, 5));
+                .thenReturn(detailResponse(310, 5, 8));
 
         // when
         ResultActions response = mockMvc.perform(validRequest(1L));
@@ -58,6 +58,7 @@ class ParkingLotDetailControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.availableSpaces").value(8))
                 .andExpect(jsonPath("$.likeCount").value(3))
                 .andExpect(jsonPath("$.likedByMe").value(true))
                 .andExpect(jsonPath("$.distanceMeters").value(310))
@@ -69,6 +70,48 @@ class ParkingLotDetailControllerTest {
                 .andExpect(jsonPath("$.operation.weekday.openTime").value("00:00"))
                 .andExpect(jsonPath("$.operation.weekend.paid").doesNotExist())
                 .andExpect(jsonPath("$.operation.holiday.status").value("CLOSED"));
+    }
+
+    @Test
+    @DisplayName("만차인 주차장의 잔여석은 0으로 반환하고 운영 가능 상태를 유지한다")
+    void returns_zero_available_spaces_for_full_parking_lot() throws Exception {
+        // given
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
+                .thenReturn(detailResponse(310, 5, 0));
+
+        // when
+        ResultActions response = mockMvc.perform(validRequest(1L));
+
+        // then
+        response
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableSpaces").value(0))
+                .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.operation.availabilityStatus").value("AVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("제공할 잔여석이 없으면 필드를 생략하지 않고 null과 기존 상세 정보를 반환한다")
+    void returns_explicit_null_available_spaces_when_unavailable() throws Exception {
+        // given
+        when(parkingLotDetailService.getDetail(
+                any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
+        ))
+                .thenReturn(detailResponse(310, 5, null));
+
+        // when
+        ResultActions response = mockMvc.perform(validRequest(1L));
+
+        // then
+        response
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableSpaces").hasJsonPath())
+                .andExpect(jsonPath("$.availableSpaces").value(nullValue()))
+                .andExpect(jsonPath("$.capacity").value(42))
+                .andExpect(jsonPath("$.estimatedFee").value(6_000))
+                .andExpect(jsonPath("$.operation.availabilityStatus").value("AVAILABLE"));
     }
 
     @Test
@@ -115,7 +158,7 @@ class ParkingLotDetailControllerTest {
         when(parkingLotDetailService.getDetail(
                 any(Long.class), any(ParkingSearchRequest.class), any(UUID.class)
         ))
-                .thenReturn(detailResponse(null, null));
+                .thenReturn(detailResponse(null, null, 8));
 
         // when
         ResultActions response = mockMvc.perform(validRequest(1L));
@@ -125,6 +168,7 @@ class ParkingLotDetailControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("역삼문화공원 제1호 공영주차장"))
+                .andExpect(jsonPath("$.availableSpaces").value(8))
                 .andExpect(jsonPath("$.distanceMeters").hasJsonPath())
                 .andExpect(jsonPath("$.distanceMeters").value(nullValue()))
                 .andExpect(jsonPath("$.walkingDurationMinutes").hasJsonPath())
@@ -192,13 +236,16 @@ class ParkingLotDetailControllerTest {
                 .queryParam("exitAt", "2026-08-21T20:00:00+09:00");
     }
 
-    private ParkingLotDetailResponse detailResponse(Integer distanceMeters, Integer walkingDurationMinutes) {
+    private ParkingLotDetailResponse detailResponse(
+            Integer distanceMeters, Integer walkingDurationMinutes, Integer availableSpaces
+    ) {
         return new ParkingLotDetailResponse(
                 1L,
                 "역삼문화공원 제1호 공영주차장",
                 "서울 강남구 테헤란로7길 21",
                 new LocationResponse(37.4990, 127.0290),
                 42,
+                availableSpaces,
                 distanceMeters,
                 walkingDurationMinutes,
                 6_000,
