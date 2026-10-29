@@ -45,7 +45,7 @@ const goToRecommendedParkingDetail = async (page: Page) => {
 
   const recommendation = page.getByRole('region', { name: '주차장 전체 목록' });
   await recommendation.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
-  await expect(page).toHaveURL(/\/parkingRecommend$/);
+  await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
 };
 
@@ -77,6 +77,28 @@ test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => 
   await expect(detail.getByText('평일 24시간')).toBeVisible();
 });
 
+test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조회 조건을 유지한다', async ({ page }) => {
+  await page.goto('/');
+  await searchDestination(page);
+  await requestRecommendation(page);
+  const recommendationUrl = page.url();
+  const params = new URL(recommendationUrl).searchParams;
+  for (const key of ['lat', 'lng', 'name', 'entryAt', 'exitAt']) {
+    expect(params.get(key)).toBeTruthy();
+  }
+
+  const sharedPage = await page.context().newPage();
+  await sharedPage.goto(recommendationUrl);
+  await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
+  await expect(
+    sharedPage.getByRole('heading', { level: 1, name: params.get('name')! }),
+  ).toBeVisible();
+  await sharedPage.reload();
+  await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
+  await expect(sharedPage).toHaveURL(recommendationUrl);
+  await sharedPage.close();
+});
+
 test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과 정렬을 유지한다', async ({ page }) => {
   await page.goto('/');
   await searchDestination(page);
@@ -89,7 +111,7 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await select.click();
     await expect(select).toHaveAttribute('aria-pressed', 'true');
     await region.getByRole('button', { name: `${name} 상세정보` }).click();
-    await expect(page).toHaveURL(/\/parkingRecommend$/);
+    await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
     await expect(region).toBeHidden();

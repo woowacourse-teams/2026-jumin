@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
-import { Route, Routes, useLocation } from 'react-router';
+import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
@@ -13,6 +13,7 @@ import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/Parki
 import { ParkingSetupPage } from '../../src/pages/ParkingSetupPage/ParkingSetupPage';
 import { renderWithProviders } from '../renderWithProviders';
 import { server } from '../msw/server';
+import { createRecommendationUrl } from '../testData';
 
 const condition: ParkingSearchCondition = {
   destinationName: '강남역',
@@ -68,11 +69,14 @@ const map = {
   panTo: jest.fn(),
   panBy: jest.fn(),
   fitBounds: jest.fn(),
+  setCenter: jest.fn(),
+  setOptions: jest.fn(),
   destroy: jest.fn(),
 };
 const createMap = jest.fn(() => map);
 let originalNaver: PropertyDescriptor | undefined;
 let detailRequests: URL[];
+let searchRequests: URL[];
 let originalScrollBy: PropertyDescriptor | undefined;
 let originalScrollTo: PropertyDescriptor | undefined;
 
@@ -80,6 +84,7 @@ beforeEach(() => {
   markers = [];
   listeners = new Set();
   detailRequests = [];
+  searchRequests = [];
   originalNaver = Object.getOwnPropertyDescriptor(globalThis, 'naver');
   Object.defineProperty(globalThis, 'naver', {
     configurable: true,
@@ -122,7 +127,10 @@ beforeEach(() => {
     value: jest.fn(),
   });
   server.use(
-    http.get('/api/parking/search', () => HttpResponse.json(parkingSearchSuccess)),
+    http.get('/api/parking/search', ({ request }) => {
+      searchRequests.push(new URL(request.url));
+      return HttpResponse.json(parkingSearchSuccess);
+    }),
     http.get('/api/parking/:parkingLotId', ({ request, params }) => {
       detailRequests.push(new URL(request.url));
       return HttpResponse.json(parkingDetailFixtures[Number(params.parkingLotId)]);
@@ -142,13 +150,23 @@ afterEach(() => {
   else Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
 });
 
-const LocationProbe = () => <p aria-label="현재 경로">{useLocation().pathname}</p>;
-const renderRecommendation = (withState = true) =>
+const LocationProbe = () => {
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <p aria-label="현재 경로">{pathname + search}</p>
+      <button onClick={() => navigate(-1)}>브라우저 뒤로가기</button>
+    </>
+  );
+};
+const renderRecommendation = (url = createRecommendationUrl(condition)) =>
   renderWithProviders(
     <>
       <LocationProbe />
       <Routes>
         <Route path="/origin" element={<h1>이전 페이지</h1>} />
+        <Route path="/" element={<h1>홈 화면</h1>} />
         <Route path="/search" element={<h1>목적지 검색 화면</h1>} />
         <Route element={<MapLayout />}>
           <Route path="/parkingsetup" element={<ParkingSetupPage />} />
@@ -157,13 +175,7 @@ const renderRecommendation = (withState = true) =>
       </Routes>
     </>,
     {
-      initialEntries: [
-        '/origin',
-        {
-          pathname: '/parkingRecommend',
-          state: withState ? { searchCondition: condition } : undefined,
-        },
-      ],
+      initialEntries: ['/origin', url],
     },
   );
 
@@ -178,10 +190,14 @@ const openDetail = async (id: number) => {
 const closeDetail = () =>
   userEvent.setup().click(screen.getByRole('button', { name: '이전 화면으로 이동' }));
 
-it('상세 진입 때만 선택 ID와 검색 조건으로 조회하고, 다른 주차장의 상세를 구분한다', async () => {
+it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의 상세를 구분한다', async () => {
   renderRecommendation();
   await screen.findByRole('region', { name: '주차장 전체 목록' });
   expect(detailRequests).toHaveLength(0);
+  const searchParams = searchRequests[0]!.searchParams;
+  for (const [key, value] of Object.entries(condition)) {
+    if (key !== 'destinationName') expect(searchParams.get(key)).toBe(String(value));
+  }
   for (const id of [101, 102]) {
     await openDetail(id);
     await screen.findByText('기본 30분');
@@ -319,7 +335,24 @@ it('상세 로딩 중에도 추천으로 돌아와 다른 주차장을 열 수 �
   await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
 });
 
-it('필수 state 없는 추천 진입은 기존대로 목적지 검색으로 안내한다', async () => {
-  renderRecommendation(false);
-  await screen.findByRole('heading', { name: '목적지 검색 화면' });
+it('목적지 좌표가 없는 추천 URL은 홈으로 안내한다', async () => {
+  renderRecommendation('/parkingRecommend');
+  await screen.findByRole('heading', { name: '홈 화면' });
+  expect(searchRequests).toHaveLength(0);
+});
+
+it('날짜가 잘못된 추천 URL은 목적지를 보존해 셋업으로 교체한다', async () => {
+  renderRecommendation(createRecommendationUrl({ ...condition, entryAt: 'invalid' }));
+  await screen.findByRole('heading', { name: condition.destinationName });
+  const url = new URL(screen.getByLabelText('현재 경로').textContent!, 'http://localhost');
+  expect(url.pathname).toBe('/parkingsetup');
+  expect(url.searchParams.get('lat')).toBe(String(condition.destinationLatitude));
+  expect(url.searchParams.get('lng')).toBe(String(condition.destinationLongitude));
+  expect(url.searchParams.get('name')).toBe(condition.destinationName);
+  expect(url.searchParams.has('entryAt')).toBe(false);
+  expect(url.searchParams.has('exitAt')).toBe(false);
+  expect(searchRequests).toHaveLength(0);
+
+  await userEvent.setup().click(screen.getByRole('button', { name: '브라우저 뒤로가기' }));
+  await screen.findByRole('heading', { name: '이전 페이지' });
 });
