@@ -159,8 +159,7 @@ const filterStyle = css`
   grid-template-columns: repeat(3, 1fr);
   flex-shrink: 0;
   gap: 8px;
-  margin-top: 10px;
-  margin-bottom: 16px;
+  margin: 10px 24px 16px;
 `;
 
 const filterButtonStyle = (isSelected: boolean) => css`
@@ -188,14 +187,14 @@ const parkingListStyle = css`
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 0 max(28px, env(safe-area-inset-bottom));
   overflow-y: auto;
   list-style: none;
   overscroll-behavior: contain;
 `;
 
 const parkingItemStyle = (isRecommended: boolean) => css`
-  padding: ${isRecommended ? '0 8px 12px' : '0'};
+  padding: ${isRecommended ? '0 24px 12px' : '0 24px'};
   background: ${isRecommended ? color.background.brandSubtle : color.background.default};
 `;
 
@@ -207,7 +206,7 @@ const sectionTitleStyle = css`
 `;
 
 const emptyMessageStyle = css`
-  margin: 12px 0;
+  margin: 12px 24px;
   padding: 24px;
   ${typography.body};
   color: ${color.text.secondary};

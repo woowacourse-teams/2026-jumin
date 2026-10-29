@@ -138,7 +138,13 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
         isDetail={isDetail}
         onSelect={selectParkingLot}
       />
-      <BottomSheet snap={sheetSnap} onSnapChange={setSheetSnap}>
+      <BottomSheet
+        snap={sheetSnap}
+        onSnapChange={setSheetSnap}
+        contentClassName={
+          !isDetail && recommendationQuery.data ? recommendationContentStyle : undefined
+        }
+      >
         <div className={contentStyle} hidden={isDetail}>
           {recommendationQuery.data ? (
             <ParkingRecommendContent
@@ -191,6 +197,11 @@ const contentStyle = css`
   &[hidden] {
     display: none;
   }
+`;
+
+// 배경은 시트 끝까지 채우고, 실제 콘텐츠의 여백은 추천 목록 안에서 적용한다.
+const recommendationContentStyle = css`
+  padding: 0;
 `;
 
 const inlineErrorStyle = css`

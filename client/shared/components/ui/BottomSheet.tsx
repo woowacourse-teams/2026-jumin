@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 import React, { useEffect, useRef, type ReactNode } from 'react';
 import { color } from '../../../src/theme/color';
 import type { BottomSheetSnap } from '../../types/ui';
@@ -12,9 +12,10 @@ interface Props {
   children: ReactNode;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
+  contentClassName?: string;
 }
 
-export default function BottomSheet({ children, snap, onSnapChange }: Props) {
+export default function BottomSheet({ children, snap, onSnapChange, contentClassName }: Props) {
   const sheetRef = useRef<HTMLElement>(null);
 
   const sheetY = snap === 'expanded' ? 0 : COLLAPSED_Y;
@@ -100,7 +101,7 @@ export default function BottomSheet({ children, snap, onSnapChange }: Props) {
           <div className={handleStyle} />
         </div>
 
-        <div className={contentStyle}>{children}</div>
+        <div className={cx(contentStyle, contentClassName)}>{children}</div>
       </section>
     </>
   );
