@@ -20,6 +20,7 @@ import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
 import type { BottomSheetSnap } from '../../../shared/types/ui';
+import { buildQueryString } from '../../../shared/hooks/useQueryParams';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -117,13 +118,15 @@ export const HomePage = () => {
 
   const handleSearchBarClick = () => {
     trackEvent(eventName.DESTINATION_SEARCH_BAR);
+
     if (!map) return;
+
     const center = map.getCenter() as naver.maps.LatLng;
-    const params = new URLSearchParams({
+    const queryString = buildQueryString({
       lat: String(center.lat()),
       lng: String(center.lng()),
     });
-    move('OPEN_SEARCH', undefined, { search: `?${params.toString()}` });
+    move('OPEN_SEARCH', undefined, { search: queryString });
   };
 
   return (
