@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import type { Coordinates } from '../types/destination';
+import type { Coordinates } from '../../../../shared/types/coordinates';
 import { useQueryParams } from '../../../../shared/hooks/useQueryParams';
 
 /** URL에서 목적지 좌표를 추출하여 복원하는 훅 */
-export const useRestoreLocation = (): Coordinates | null => {
+export const useSearchLocationQuery = (): Coordinates | null => {
   const query = useQueryParams();
 
   return useMemo(() => {
