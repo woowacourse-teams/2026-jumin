@@ -1,14 +1,18 @@
 package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jumin.config.ViewportResponseCleanup;
+import jumin.domain.parking.viewport.ViewportBody;
+import jumin.domain.parking.viewport.ViewportSearchService;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
-import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ParkingSearchController {
 
     private final ParkingSearchService parkingSearchService;
+    private final ViewportSearchService viewportSearchService;
 
     @GetMapping("/search")
     public ResponseEntity<ParkingSearchResponse> search(@Valid @ModelAttribute ParkingSearchRequest request) {
@@ -29,10 +34,12 @@ public class ParkingSearchController {
     }
 
     @GetMapping("/viewport")
-    public ResponseEntity<ParkingLotViewportResponses> searchViewport(
-            @Valid @ModelAttribute ParkingLotViewportRequest request
+    public ResponseEntity<?> searchViewport(
+            @Valid @ModelAttribute ParkingLotViewportRequest request, HttpServletRequest servletRequest
     ) {
-        return ResponseEntity.ok(parkingSearchService.searchViewport(request));
+        ViewportBody body = viewportSearchService.search(request);
+        servletRequest.setAttribute(ViewportResponseCleanup.BODY_ATTRIBUTE, body);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body.value());
     }
 
     @GetMapping("/viewport/{parkingLotId}")

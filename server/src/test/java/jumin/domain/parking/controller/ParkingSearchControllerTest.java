@@ -22,6 +22,8 @@ import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.domain.parking.viewport.ViewportBody;
+import jumin.domain.parking.viewport.ViewportSearchService;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,9 @@ class ParkingSearchControllerTest {
 
     @MockitoBean
     private ParkingSearchService parkingSearchService;
+
+    @MockitoBean
+    private ViewportSearchService viewportSearchService;
 
     @Test
     @DisplayName("추천과 순위 필드가 없는 간결한 주차장 목록을 반환한다")
@@ -240,7 +245,8 @@ class ParkingSearchControllerTest {
                         score
                 ))
         );
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class))).thenReturn(result);
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenReturn(new ViewportBody(result, () -> { }));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -259,7 +265,7 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.parkingLots[0].score").isNumber())
                 .andExpect(jsonPath("$.parkingLots[0].score").value(score));
 
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700,
                 37.5600,
                 126.9900,
@@ -274,8 +280,8 @@ class ParkingSearchControllerTest {
     @DisplayName("viewport 필터의 true와 false 값을 서비스에 전달한다")
     void passes_viewport_filters_to_service(boolean freeOnly, boolean excludeMechanical) throws Exception {
         // given
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
-                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenReturn(new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { }));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -288,7 +294,7 @@ class ParkingSearchControllerTest {
 
         // then
         response.andExpect(status().isOk());
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
         ));
     }
@@ -298,8 +304,8 @@ class ParkingSearchControllerTest {
     @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
-                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenReturn(new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { }));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -311,10 +317,29 @@ class ParkingSearchControllerTest {
 
         // then
         response.andExpect(status().isOk());
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750,
                 filter.equals("freeOnly"), filter.equals("excludeMechanical")
         ));
+    }
+
+    @Test
+    @DisplayName("기존 viewport에서 사용하지 않는 공영 필터 파라미터는 무시한다")
+    void ignores_unrelated_public_filter_parameter() throws Exception {
+        // given
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenReturn(new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { }));
+
+        // when & then
+        mockMvc.perform(get("/api/parking/viewport")
+                        .queryParam("westLongitude", "126.9700")
+                        .queryParam("southLatitude", "37.5600")
+                        .queryParam("eastLongitude", "126.9900")
+                        .queryParam("northLatitude", "37.5750")
+                        .queryParam("isPublic", "true"))
+                .andExpect(status().isOk());
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750, false, false));
     }
 
     @ParameterizedTest
@@ -331,7 +356,7 @@ class ParkingSearchControllerTest {
 
         // then
         response.andExpect(status().isBadRequest());
-        verifyNoInteractions(parkingSearchService);
+        verifyNoInteractions(parkingSearchService, viewportSearchService);
     }
 
     @Test

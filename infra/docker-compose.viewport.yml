@@ -1,0 +1,10 @@
+services:
+  backend:
+    group_add: ['10001']
+    volumes:
+      - type: bind
+        source: ${VIEWPORT_RUNTIME_DIR:?VIEWPORT_RUNTIME_DIR is required}
+        target: /app/viewport-cache
+        read_only: true
+        bind:
+          create_host_path: false

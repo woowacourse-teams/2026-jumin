@@ -17,6 +17,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import jumin.TestcontainersConfiguration;
+import jumin.domain.parking.viewport.ViewportSquareGrid;
+import jumin.domain.parking.viewport.ViewportVersion;
+import jumin.domain.parking.viewport.ViewportVersionRepository;
+import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -91,6 +95,15 @@ class ParkingCsvImportIntegrationTest {
     @Autowired
     private JwtEncoder jwtEncoder;
 
+    @Autowired
+    private ViewportWriteCoordinator viewportWriter;
+
+    @Autowired
+    private ViewportVersionRepository viewportVersions;
+
+    @Autowired
+    private ViewportSquareGrid viewportGrid;
+
     @MockitoBean
     private Clock clock;
 
@@ -103,6 +116,7 @@ class ParkingCsvImportIntegrationTest {
     @BeforeEach
     void setUp() {
         when(clock.instant()).thenAnswer(invocation -> Instant.now());
+        jdbc.update("UPDATE parking_viewport_cache_state SET projection_ready = FALSE WHERE id = 1");
         jdbc.update("DELETE FROM parking_operations");
         jdbc.update("DELETE FROM parking_lots");
         Instant now = Instant.now();
@@ -157,6 +171,34 @@ class ParkingCsvImportIntegrationTest {
         assertCount(repeated, "deactivatedCount", 0);
         assertCount(repeated, "unchangedCount", 3);
         assertThat(snapshot()).isEqualTo(beforeRepeat);
+    }
+
+    @Test
+    @DisplayName("기존 CSV 업로드가 준비된 캐시 매핑과 버전을 같은 트랜잭션에 반영한다")
+    void existing_csv_upload_updates_prepared_viewport_mapping_and_version() throws Exception {
+        // given
+        assertThat(upload("initial.csv", initialCsv()).statusCode()).isEqualTo(200);
+        ViewportVersion prepared = viewportWriter.prepare();
+        assertThat(prepared.ready()).isTrue();
+        String moved = initialCsv().replace("37.5665,126.9780", "37.5765,126.9880");
+
+        // when
+        HttpResponse<String> changed = upload("moved.csv", moved);
+        ViewportVersion after = viewportVersions.read();
+
+        // then
+        assertThat(changed.statusCode()).isEqualTo(200);
+        assertThat(after.epoch()).isEqualTo(prepared.epoch());
+        assertThat(after.revision()).isEqualTo(prepared.revision() + 1);
+        assertThat(after.ready()).isTrue();
+        assertThat(jdbc.queryForList("SELECT viewport_grid_cell FROM parking_lots ORDER BY id", Long.class))
+                .containsExactly(viewportGrid.cellId(37.5765, 126.9880, 1000),
+                        viewportGrid.cellId(37.5765, 126.9880, 1000),
+                        viewportGrid.cellId(37.5765, 126.9880, 1000));
+        assertThat(upload("moved-again.csv", moved).statusCode()).isEqualTo(200);
+        assertThat(viewportVersions.read()).isEqualTo(after);
+        assertThat(upload("duplicate.csv", duplicateCsv()).statusCode()).isEqualTo(422);
+        assertThat(viewportVersions.read()).isEqualTo(after);
     }
 
     @Test
