@@ -1,51 +1,63 @@
 import { useCallback } from 'react';
-import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router';
+import { Navigate, useNavigate, useOutletContext, useSearchParams } from 'react-router';
 
-import type { Destination } from '../../../api/contracts';
 import { ParkingSetupContent } from './components/ParkingSetupContent';
-import type { Coordinates, ParkingSetupView } from './types/view';
+import type { Coordinates, SetupDestination } from './types/destination';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
-
-interface NavigationState {
-  destination?: Destination;
-  setupView?: ParkingSetupView;
-}
+import { useRestoreLocation } from './hooks/useRestoreLocation';
 
 export const ParkingSetupPage = () => {
   const { move } = useStepNavigation('setup');
-  const { state } = useLocation();
-  const navigationState = state as NavigationState | null;
-  const destination = navigationState?.destination;
+
+  const [params] = useSearchParams();
+  const name = params.get('name') ?? '';
+
+  const restoredLocation = useRestoreLocation();
 
   const { map } = useOutletContext<{
     map: naver.maps.Map | null;
   }>();
 
-  const navigate = useNavigate();
-
   const handleSelectedLocationChange = useCallback(
     (selectedLocation: Coordinates) => {
-      move('SAVE_VIEW', {
-        ...navigationState,
-        setupView: {
-          selectedLocation,
-        },
+      // 실제 좌표가 같으면 이름도 유지한다.
+      if (
+        Number(params.get('lat')) === selectedLocation.latitude &&
+        Number(params.get('lng')) === selectedLocation.longitude
+      ) {
+        return;
+      }
+
+      const nextParams = new URLSearchParams(params);
+
+      nextParams.set('lat', String(selectedLocation.latitude));
+      nextParams.set('lng', String(selectedLocation.longitude));
+      nextParams.delete('name');
+
+      move('CHANGE_DESTINATION', undefined, {
+        search: `?${nextParams.toString()}`,
       });
     },
-    [move, navigationState],
+    [move, params],
   );
 
-  if (!destination) {
+  const navigate = useNavigate();
+  if (!restoredLocation) {
     return <Navigate to="/search" replace />;
   }
+
+  const selectedLocation: SetupDestination = {
+    latitude: restoredLocation.latitude,
+    longitude: restoredLocation.longitude,
+    name,
+  };
 
   return (
     <ParkingSetupContent
       map={map}
-      destination={destination}
-      setupView={navigationState?.setupView}
+      location={selectedLocation}
       onSelectedLocationChange={handleSelectedLocationChange}
-      onSearch={() => navigate('/search')}
+      onSearch={() => move('BACK')}
       onRecommend={(searchCondition) => {
         navigate('/parkingRecommend', {
           state: { searchCondition },

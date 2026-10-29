@@ -9,7 +9,13 @@ export const SearchPage = () => {
   const { move } = useStepNavigation('search');
 
   const handleDestinationSelect = (destination: Destination) => {
-    move('SELECT_DESTINATION', { destination });
+    const params = new URLSearchParams({
+      lat: String(destination.latitude),
+      lng: String(destination.longitude),
+      name: destination.name,
+    });
+
+    move('SELECT_DESTINATION', undefined, { search: `?${params.toString()}` });
   };
 
   return (
