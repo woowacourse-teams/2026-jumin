@@ -25,9 +25,9 @@ PostgreSQL은 Docker Compose로 실행합니다.
 uname -m
 ```
 
-| 결과     | 실행 방식                                              |
-| -------- | ------------------------------------------------------ |
-| `x86_64` | amd64 명령을 그대로 실행                               |
+| 결과       | 실행 방식                                           |
+|----------|-------------------------------------------------|
+| `x86_64` | amd64 명령을 그대로 실행                                |
 | `arm64`  | `DOCKER_DEFAULT_PLATFORM=linux/amd64`를 명령 앞에 추가 |
 
 ### 2. 로컬 PostgreSQL 실행
@@ -95,6 +95,52 @@ REST API 키 원문을 입력합니다. 카카오 키는 백엔드에서만 사�
 > `postgres-data` 볼륨이 이미 존재하면 DB 이름·사용자·비밀번호 변경이 기존
 > 데이터베이스에 자동 반영되지 않습니다. 기존 DB에 직접 적용하거나 볼륨을
 > 삭제하고 다시 초기화해야 합니다.
+
+## 실시간 여석 수집·저장
+
+`PARKING_AVAILABILITY_ENABLED=true`로 설정하면 서울·부산 주차장 API를 5분마다 호출합니다.
+`SEOUL_PARKING_API_KEY`, `BUSAN_PARKING_API_KEY`를 설정해야 하며, 배포 시에도 같은 환경변수를 전달합니다.
+
+기존 `ParkingLot`에 검증된 원천을 연결하는 `ParkingAvailabilityMapping`, 현재값을 관리하는
+`ParkingAvailability`, 관측 이력을 관리하는 `ParkingAvailabilityHistory`를 사용합니다.
+매핑은 `(provider, external_id)`와 `(parking_lot_id, provider)` 각각의 중복을 허용하지 않습니다.
+`quality`, `MappingStatus`는 사용하지 않습니다.
+
+Flyway V14 적용 및 주차장 데이터 적재 후, DB 접속 환경변수(`PGHOST`, `PGPORT`, `PGDATABASE`,
+`PGUSER`, `PGPASSWORD`)를 지정하고 저장소 루트에서 검증된 매핑을 등록합니다.
+서버 시작 시 매핑을 자동 등록하지 않습니다.
+
+```bash
+psql --set=ON_ERROR_STOP=1 \
+  --file=server/src/main/resources/db/scripts/apply_parking_availability_mappings.sql
+```
+
+매핑 SQL은 검증된 후보 중 활성 주차장의 이름·주소가 정확히 일치하는 항목만 사용합니다.
+원천당 한 주차장을 선택하며 기존의 유효한 연결, 원천 이름과 같은 후보, 주차장 ID 순으로 우선합니다.
+반복 실행할 수 있고, 다른 원천으로 연결된 수동 매핑은 덮어쓰지 않습니다.
+실행 결과의 `mapped`, `missing`, `conflicting` 집계를 확인합니다.
+
+API의 전체 페이지를 읽은 뒤 매핑이 있는 활성 주차장의 유효한 수치만 저장합니다.
+총면수·주차대수·원천 여석·원천 갱신시각·수집시각을 보존하며, 원천 시각이 같아도 수치가 달라지면
+새 관측으로 저장합니다. 직전 현재값과 원천 시각·수치가 같은 반복 응답은 이력을 추가하지 않고
+현재값의 수집시각만 갱신합니다. 원천 시각이 없으면 직전 현재값과 수치가 달라질 때 이력을 저장합니다.
+과거 원천 응답도 중복이 아니면 이력에 보존하지만 현재값을 덮어쓰지는 않습니다.
+수집 당시 2분을 초과한 미래 원천 시각과 결측·음수·범위 초과·대수 불일치는 저장하지 않습니다.
+현재값 갱신과 이력 저장은 같은 트랜잭션에서 실행하고, 주차장 행 잠금으로 중복 저장을 방지합니다.
+
+한 제공기관의 호출·저장이 실패해도 다른 제공기관은 계속 처리합니다. 로그에는 성공·실패와
+수집·이력 저장 건수를, 지표에는 성공·실패를 남깁니다. 인증키와 원본 응답은 남기지 않습니다.
+조회 API·기존 응답 필드·통계·예측 기능은 추가하지 않습니다.
+
+실제 API와 DB 저장을 확인하려면 서울·부산 인증키를 환경변수로 설정한 뒤 아래 테스트를 실행합니다.
+기본 테스트에서는 제외되며, Testcontainers의 격리된 로컬 DB에 검증된 매핑과 수집 결과를 저장합니다.
+
+```bash
+RUN_PARKING_AVAILABILITY_LIVE=true ./gradlew test \
+  --tests 'jumin.domain.parkingavailability.service.AvailabilityCollectorLiveTest'
+```
+
+제공기관별 수집·저장 건수와 저장값 대조 결과는 `build/parking-live-verification/result.json`에 남깁니다.
 
 ## 부하 테스트
 
