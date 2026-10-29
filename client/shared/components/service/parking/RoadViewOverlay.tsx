@@ -8,6 +8,7 @@ import { loadNaverMaps } from '../../../maps/loadNaverMaps';
 import { color } from '../../../../src/theme/color';
 import { CloseIcon } from '../../ui/icons';
 import { typography } from '../../../../src/theme/typography';
+import { loadNaverPanorama } from '../../../maps/loadNaverPanorama';
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -55,6 +56,7 @@ export const RoadViewOverlay = ({
     const initializePanorama = async () => {
       try {
         await loadNaverMaps();
+        await loadNaverPanorama();
 
         if (isCancelled || !panoramaContainerRef.current) return;
 
