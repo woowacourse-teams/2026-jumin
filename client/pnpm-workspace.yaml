@@ -7,3 +7,8 @@ allowBuilds:
 
 overrides:
   shell-quote: 1.11.0
+
+# https://github.com/pnpm/pnpm/pull/17443
+# shortcut: 4.3.1은 버전 기반 보안 경고가 남으므로 공식 수정 버전 출시 시 패치를 제거한다.
+patchedDependencies:
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
