@@ -2,19 +2,52 @@ import { delay, http, HttpResponse } from 'msw';
 import type { DestinationNameResponse, DestinationSearchResponse } from '../../api/contracts';
 import { destinationFixtures } from '../fixtures/destinations';
 import { getMockScenario } from '../scenario';
-import type { ApiErrorResponse } from '../types/validationError';
+import type { FieldError, ValidationErrorResponse } from '../types/validationError';
+
+const validateCoordinates = (params: URLSearchParams): FieldError[] => {
+  const latitudeValue = params.get('latitude')?.trim() || null;
+  const longitudeValue = params.get('longitude')?.trim() || null;
+
+  if (latitudeValue === null && longitudeValue === null) return [];
+
+  if (latitudeValue === null || longitudeValue === null) {
+    return [{ field: 'coordinatePairValid', message: '위도와 경도는 함께 전달해야 합니다.' }];
+  }
+
+  const latitude = Number(latitudeValue);
+  const longitude = Number(longitudeValue);
+  const errors: FieldError[] = [];
+
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    errors.push({ field: 'latitude', message: '위도 범위가 올바르지 않습니다.' });
+  }
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    errors.push({ field: 'longitude', message: '경도 범위가 올바르지 않습니다.' });
+  }
+
+  return errors;
+};
 
 export const destinationHandlers = [
   http.get('/api/destinations/search', async ({ request }) => {
-    const query = new URL(request.url).searchParams.get('query')?.trim() ?? '';
+    const params = new URL(request.url).searchParams;
+    const query = params.get('query')?.trim() ?? '';
     const scenario = getMockScenario();
 
+    const coordinateErrors = validateCoordinates(params);
+    if (coordinateErrors.length > 0) {
+      return HttpResponse.json<ValidationErrorResponse>(
+        { message: '요청 값이 올바르지 않습니다.', errors: coordinateErrors },
+        { status: 400 },
+      );
+    }
+
     if (query.length < 2) {
-      return HttpResponse.json<ApiErrorResponse>(
+      return HttpResponse.json<ValidationErrorResponse>(
         {
-          code: 'INVALID_QUERY',
-          message: '목적지 검색어는 2글자 이상이어야 합니다.',
-          traceId: null,
+          message: '검색어는 2자 이상 입력해 주세요.',
+          errors: [],
         },
         { status: 400 },
       );
@@ -23,22 +56,20 @@ export const destinationHandlers = [
     await delay(300);
 
     if (scenario === 'destination-rate-limited') {
-      return HttpResponse.json<ApiErrorResponse>(
+      return HttpResponse.json<ValidationErrorResponse>(
         {
-          code: 'DESTINATION_SEARCH_RATE_LIMITED',
-          message: '잠시 후 다시 검색해 주세요.',
-          traceId: null,
+          message: '목적지 검색 요청이 너무 많습니다.',
+          errors: [],
         },
         { status: 429 },
       );
     }
 
     if (scenario === 'destination-failed') {
-      return HttpResponse.json<ApiErrorResponse>(
+      return HttpResponse.json<ValidationErrorResponse>(
         {
-          code: 'NAVER_DESTINATION_SEARCH_FAILED',
-          message: '목적지를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-          traceId: null,
+          message: '일시적으로 목적지 검색을 이용할 수 없습니다.',
+          errors: [],
         },
         { status: 502 },
       );
@@ -53,7 +84,10 @@ export const destinationHandlers = [
 
     const response: DestinationSearchResponse = {
       query,
-      destinations: scenario === 'destination-empty' ? [] : matchedDestinations,
+      destinations:
+        scenario === 'destination-empty'
+          ? []
+          : matchedDestinations.map((destination) => ({ ...destination, provider: 'KAKAO' })),
     };
 
     return HttpResponse.json(response);

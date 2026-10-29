@@ -1,9 +1,8 @@
 import { http, HttpResponse } from 'msw';
 
-import { getParkingLotsInViewport } from '../../api/parkingLots';
+import { getParkingLotsInViewport, searchDestinations } from '../../api/parkingLots';
 import { parkingViewportQueryOptions } from '../../api/queries/parkingViewportQuery';
 import { parkingLotViewportResponseSchema } from '../../api/parkingLotsSchema';
-import type { DestinationSearchResponse } from '../../api/contracts';
 import {
   parkingViewportFilterMetadata,
   parkingViewportLots,
@@ -31,11 +30,9 @@ const viewportFilterCases = [
 ] as const;
 
 describe('통합 테스트 API Mock 환경', () => {
-  it('상대 경로 API 요청을 기존 MSW 핸들러로 처리할 수 있다', async () => {
-    const response = await fetch('/api/destinations/search?query=강남역');
-    const data = (await response.json()) as DestinationSearchResponse;
+  it('목적지 검색 함수의 요청을 기존 MSW 핸들러로 처리할 수 있다', async () => {
+    const data = await searchDestinations('강남역', 37.5, 127);
 
-    expect(response.ok).toBe(true);
     expect(data.destinations).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: '강남역 11번 출구' })]),
     );
