@@ -50,7 +50,7 @@ export const InfoRow = ({
       </span>
 
       <div className={informationStyle}>
-        <h2 className={nameStyle}>{name}</h2>
+        <h3 className={nameStyle}>{name}</h3>
 
         <p className={metadataStyle}>
           <strong>

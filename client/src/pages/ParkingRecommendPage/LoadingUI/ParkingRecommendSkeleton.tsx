@@ -1,16 +1,14 @@
 import { css, cx, keyframes } from '@emotion/css';
 import { color } from '../../../theme/color';
 
-const CARD_WIDTH = 300;
-const CARD_GAP = 12;
-const SKELETON_CARD_COUNT = 2;
+const SKELETON_CARD_COUNT = 3;
 
 export const ParkingRecommendSkeleton = () => (
   <div aria-label="추천 주차장을 불러오는 중" aria-busy="true" role="status">
-    <section className={recommendationSectionStyle} aria-hidden="true">
+    <section aria-hidden="true">
       <ul className={cardListStyle}>
         {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
-          <li className={cardItemStyle} key={index}>
+          <li key={index}>
             <article className={cardStyle}>
               <div className={cx(skeletonBlockStyle, nameStyle)} />
               <div className={cx(skeletonBlockStyle, descriptionStyle)} />
@@ -21,12 +19,6 @@ export const ParkingRecommendSkeleton = () => (
           </li>
         ))}
       </ul>
-    </section>
-
-    <section className={collapsedBottomSheetStyle} aria-hidden="true">
-      <div className={handleAreaStyle}>
-        <div className={handleStyle} />
-      </div>
     </section>
   </div>
 );
@@ -56,28 +48,15 @@ const skeletonBlockStyle = css`
   }
 `;
 
-const recommendationSectionStyle = css`
-  position: absolute;
-  right: 0;
-  bottom: 114px;
-  left: 0;
-  z-index: 5;
-
-  overflow: hidden;
-`;
-
 const cardListStyle = css`
   display: flex;
-  gap: ${CARD_GAP}px;
+  flex-direction: column;
+  gap: 12px;
 
   margin: 0;
-  padding: 0 calc((100% - ${CARD_WIDTH}px) / 2);
+  padding: 0;
 
   list-style: none;
-`;
-
-const cardItemStyle = css`
-  flex: 0 0 ${CARD_WIDTH}px;
 `;
 
 const cardStyle = css`
@@ -136,32 +115,4 @@ const buttonStyle = css`
   height: 56px;
   margin-left: 14px;
   border-radius: 16px;
-`;
-
-const collapsedBottomSheetStyle = css`
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1000;
-
-  height: 100px;
-
-  background: ${color.background.default};
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
-`;
-
-const handleAreaStyle = css`
-  display: flex;
-  justify-content: center;
-  padding: 14px 0 18px;
-`;
-
-const handleStyle = css`
-  width: 40px;
-  height: 4px;
-
-  background: ${color.background.muted};
-  border-radius: 999px;
 `;

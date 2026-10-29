@@ -1,5 +1,5 @@
 import type { ParkingLotSummary } from '../../../../api/contracts';
-import type { RecommendationType } from '../types/view';
+import type { RecommendationType } from '../types/recommendation';
 
 export const getSortValue = (parkingLot: ParkingLotSummary, type: RecommendationType) => {
   switch (type) {

@@ -1,4 +1,4 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
 import { color } from '../../../src/theme/color';
@@ -8,10 +8,11 @@ import { RetryIcon } from '../ui/icons';
 interface Props {
   label: string;
   onRetry: () => void;
+  className?: string;
 }
 
-export const ErrorCard = ({ label, onRetry }: Props) => (
-  <section className={errorStyle} role="alert">
+export const ErrorCard = ({ label, onRetry, className }: Props) => (
+  <section className={cx(errorStyle, className)} role="alert">
     <img className={logoStyle} src={brandMark} alt="" draggable={false} />
 
     <div className={messageStyle}>

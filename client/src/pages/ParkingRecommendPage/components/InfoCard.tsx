@@ -10,6 +10,8 @@ import { DirectionsIcon, InformationIcon } from '../../../../shared/components/u
 interface Props {
   parkingLot: ParkingLotSummary;
   description: string;
+  rank: number;
+  onSelect: (parkingLot: ParkingLotSummary) => void;
   onNavigate: (parkingLot: ParkingLotSummary) => void;
   onDirections: (parkingLot: ParkingLotSummary) => void;
   isActive: boolean;
@@ -18,6 +20,8 @@ interface Props {
 export const InfoCard = ({
   parkingLot,
   description,
+  rank,
+  onSelect,
   onNavigate,
   onDirections,
   isActive,
@@ -35,8 +39,15 @@ export const InfoCard = ({
   };
   return (
     <article className={cardStyle(isActive)} draggable={false}>
+      <button
+        className={selectButtonStyle}
+        type="button"
+        aria-label={`${name} 선택`}
+        aria-pressed={isActive}
+        onClick={() => onSelect(parkingLot)}
+      />
       <header className={headerStyle}>
-        <h2 className={nameStyle}>{name}</h2>
+        <h3 className={nameStyle}>{name}</h3>
         <button
           className={detailButtonStyle}
           type="button"
@@ -46,7 +57,10 @@ export const InfoCard = ({
           <InformationIcon size={24} aria-hidden="true" />
         </button>
       </header>
-      <p className={descriptionStyle}>{description}</p>
+      <p className={descriptionStyle}>
+        <span className={rankStyle}>추천 {rank}위</span>
+        {description}
+      </p>
       <strong className={priceStyle}>
         {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
       </strong>
@@ -67,6 +81,7 @@ export const InfoCard = ({
 };
 
 const cardStyle = (isActive: boolean) => css`
+  position: relative;
   display: grid;
   grid-template-areas:
     'header header'
@@ -97,6 +112,9 @@ const cardStyle = (isActive: boolean) => css`
 `;
 
 const headerStyle = css`
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
   grid-area: header;
   display: flex;
   align-items: center;
@@ -118,6 +136,11 @@ const nameStyle = css`
 
 const descriptionStyle = css`
   grid-area: description;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  pointer-events: none;
 
   margin: 4px 0 12px;
 
@@ -127,6 +150,7 @@ const descriptionStyle = css`
 
 const priceStyle = css`
   grid-area: price;
+  pointer-events: none;
 
   overflow: hidden;
 
@@ -138,6 +162,7 @@ const priceStyle = css`
 
 const distanceStyle = css`
   grid-area: distance;
+  pointer-events: none;
 
   margin: 2px 0 0;
 
@@ -146,6 +171,7 @@ const distanceStyle = css`
 `;
 
 const navigateButtonStyle = css`
+  position: relative;
   grid-area: button;
 
   display: inline-flex;
@@ -182,6 +208,7 @@ const navigateButtonStyle = css`
 `;
 
 const detailButtonStyle = css`
+  pointer-events: auto;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -210,4 +237,26 @@ const detailButtonStyle = css`
     outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
+`;
+
+const selectButtonStyle = css`
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+  &:focus-visible {
+    outline: 3px solid ${color.focus.ring};
+    outline-offset: -3px;
+  }
+`;
+
+const rankStyle = css`
+  padding: 3px 6px;
+  ${typography.caption};
+  color: ${color.text.brand};
+  background: ${color.background.brandSubtle};
+  border-radius: 6px;
 `;
