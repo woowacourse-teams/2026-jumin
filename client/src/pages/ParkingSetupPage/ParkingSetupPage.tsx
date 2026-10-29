@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Navigate, useNavigate, useOutletContext, useSearchParams } from 'react-router';
+import { Navigate, useOutletContext, useSearchParams } from 'react-router';
 
 import { ParkingSetupContent } from './components/ParkingSetupContent';
 import type { SetupDestination } from './types/destination';
@@ -12,7 +12,7 @@ import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 export const ParkingSetupPage = () => {
   const { move } = useStepNavigation('setup');
 
-  // 원본 목적지의 이름은 따로 가져오기
+  // 현재 목적지의 이름은 좌표와 함께 URL에서 읽는다.
   const [params] = useSearchParams();
   const name = params.get('name') ?? '';
 
@@ -32,12 +32,12 @@ export const ParkingSetupPage = () => {
         return;
       }
 
-      const nextQueryString = buildQueryString({
-        lat: String(selectedLocation.latitude),
-        lng: String(selectedLocation.longitude),
-      });
+      const nextParams = new URLSearchParams(params);
+      nextParams.set('lat', String(selectedLocation.latitude));
+      nextParams.set('lng', String(selectedLocation.longitude));
+      nextParams.delete('name');
 
-      move('CHANGE_DESTINATION', undefined, { search: nextQueryString });
+      move('CHANGE_DESTINATION', nextParams.toString());
     },
     [move, params],
   );
@@ -51,11 +51,11 @@ export const ParkingSetupPage = () => {
       exitAt: condition.exitAt,
     });
 
-    move('CONFIRM_DESTINATION', undefined, { search: queryString });
+    move('CONFIRM_DESTINATION', queryString);
   };
 
   if (!searchLocation) {
-    return <Navigate to={STEP_PATH.search} replace />;
+    return <Navigate to={STEP_PATH.home} replace />;
   }
 
   const selectedLocation: SetupDestination = {
@@ -69,7 +69,16 @@ export const ParkingSetupPage = () => {
       map={map}
       location={selectedLocation}
       onSelectedLocationChange={handleSelectedLocationChange}
-      onSearch={() => move('BACK')}
+      onSearch={() =>
+        move(
+          'OPEN_SEARCH',
+          buildQueryString({
+            lat: searchLocation.latitude,
+            lng: searchLocation.longitude,
+          }),
+        )
+      }
+      onCancel={() => move('BACK')}
       onRecommend={handleRecommend}
     />
   );

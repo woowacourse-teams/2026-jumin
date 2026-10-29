@@ -16,6 +16,7 @@ interface Props {
   location: SetupDestination;
   onSelectedLocationChange: (location: Coordinates) => void;
   onSearch: () => void;
+  onCancel: () => void;
   onRecommend: (searchCondition: ParkingSearchCondition) => void;
 }
 
@@ -24,6 +25,7 @@ export const ParkingSetupContent = ({
   location,
   onSelectedLocationChange,
   onSearch,
+  onCancel,
   onRecommend,
 }: Props) => {
   const { destinationName, isFetching, isError } = useParkingSetupDestination({
@@ -60,7 +62,7 @@ export const ParkingSetupContent = ({
       <DestinationConfirmSheet
         name={destinationName}
         nextDisabled={isFetching || isError}
-        onCancel={onSearch}
+        onCancel={onCancel}
         onNext={handleRecommend}
       />
     </main>
