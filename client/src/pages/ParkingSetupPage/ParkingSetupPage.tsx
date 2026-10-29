@@ -2,17 +2,21 @@ import { useCallback } from 'react';
 import { Navigate, useNavigate, useOutletContext, useSearchParams } from 'react-router';
 
 import { ParkingSetupContent } from './components/ParkingSetupContent';
-import type { Coordinates, SetupDestination } from './types/destination';
-import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
-import { useRestoreLocation } from './hooks/useRestoreLocation';
+import type { SetupDestination } from './types/destination';
+import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { useSearchLocationQuery } from './hooks/useSearchLocationQuery';
+import { buildQueryString } from '../../../shared/hooks/useQueryParams';
+import type { Coordinates } from '../../../shared/types/coordinates';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 
 export const ParkingSetupPage = () => {
   const { move } = useStepNavigation('setup');
 
+  // 원본 목적지의 이름은 따로 가져오기
   const [params] = useSearchParams();
   const name = params.get('name') ?? '';
 
-  const restoredLocation = useRestoreLocation();
+  const searchLocation = useSearchLocationQuery();
 
   const { map } = useOutletContext<{
     map: naver.maps.Map | null;
@@ -28,27 +32,35 @@ export const ParkingSetupPage = () => {
         return;
       }
 
-      const nextParams = new URLSearchParams(params);
-
-      nextParams.set('lat', String(selectedLocation.latitude));
-      nextParams.set('lng', String(selectedLocation.longitude));
-      nextParams.delete('name');
-
-      move('CHANGE_DESTINATION', undefined, {
-        search: `?${nextParams.toString()}`,
+      const nextQueryString = buildQueryString({
+        lat: String(selectedLocation.latitude),
+        lng: String(selectedLocation.longitude),
       });
+
+      move('CHANGE_DESTINATION', undefined, { search: nextQueryString });
     },
     [move, params],
   );
 
-  const navigate = useNavigate();
-  if (!restoredLocation) {
-    return <Navigate to="/search" replace />;
+  const handleRecommend = (condition: ParkingSearchCondition) => {
+    const queryString = buildQueryString({
+      lat: condition.destinationLatitude,
+      lng: condition.destinationLongitude,
+      name: condition.destinationName,
+      entryAt: condition.entryAt,
+      exitAt: condition.exitAt,
+    });
+
+    move('CONFIRM_DESTINATION', undefined, { search: queryString });
+  };
+
+  if (!searchLocation) {
+    return <Navigate to={STEP_PATH.search} replace />;
   }
 
   const selectedLocation: SetupDestination = {
-    latitude: restoredLocation.latitude,
-    longitude: restoredLocation.longitude,
+    latitude: searchLocation.latitude,
+    longitude: searchLocation.longitude,
     name,
   };
 
@@ -58,11 +70,7 @@ export const ParkingSetupPage = () => {
       location={selectedLocation}
       onSelectedLocationChange={handleSelectedLocationChange}
       onSearch={() => move('BACK')}
-      onRecommend={(searchCondition) => {
-        navigate('/parkingRecommend', {
-          state: { searchCondition },
-        });
-      }}
+      onRecommend={handleRecommend}
     />
   );
 };

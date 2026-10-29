@@ -8,7 +8,8 @@ import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
 import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
-import type { Coordinates, SetupDestination } from '../types/destination';
+import type { SetupDestination } from '../types/destination';
+import type { Coordinates } from '../../../../shared/types/coordinates';
 
 interface Props {
   map: naver.maps.Map | null;
