@@ -1,9 +1,9 @@
 import type { FormEvent } from 'react';
 import { css } from '@emotion/css';
-import { Modal } from '../../../../shared/components/ui/Modal';
-import type { ParkingReport } from '../../../../shared/hooks/useParkingReport';
-import { color } from '../../../theme/color';
-import { typography } from '../../../theme/typography';
+import { Modal } from '../../ui/Modal';
+import type { ParkingReport } from '../../../hooks/useParkingReport';
+import { color } from '../../../../src/theme/color';
+import { typography } from '../../../../src/theme/typography';
 
 interface Props {
   report: ParkingReport;
