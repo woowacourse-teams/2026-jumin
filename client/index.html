@@ -42,7 +42,9 @@
     <link rel="icon" type="image/png" href="/icons/pwa-192.png" />
 
     <script>
-      if (window.location.pathname === '/') {
+      const mapPaths = ['/', '/parkingsetup', '/parkingRecommend'];
+
+      if (mapPaths.includes(window.location.pathname)) {
         const link = document.createElement('link');
 
         link.rel = 'preload';
