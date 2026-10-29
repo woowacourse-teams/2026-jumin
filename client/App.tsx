@@ -1,11 +1,10 @@
-import { Routes, Route } from 'react-router';
-import { MapLayout } from './shared/maps/MapLayout';
-import { HomePage } from './src/pages/HomePage/HomePage';
-
 import { lazy, Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { Outlet, Route, Routes } from 'react-router';
 
 import { ErrorCard } from './shared/components/service/ErrorCard';
-import { ErrorBoundary } from 'react-error-boundary';
+import { MapLayout } from './shared/maps/MapLayout';
+import { HomePage } from './src/pages/HomePage/HomePage';
 
 const AdminPage = lazy(() =>
   import('./src/pages/AdminPage/AdminPage').then((module) => ({
@@ -55,21 +54,27 @@ const App = () => (
       <ErrorCard label="페이지를 불러오지 못했어요." onRetry={() => window.location.reload()} />
     )}
   >
-    <Suspense fallback={<div role="status">페이지를 불러오는 중...</div>}>
-      <Routes>
-        <Route element={<MapLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/parkingsetup" element={<ParkingSetupPage />} />
-          <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
-        </Route>
+    <Routes>
+      <Route element={<MapLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/parkingsetup" element={<ParkingSetupPage />} />
+        <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
+      </Route>
 
+      <Route
+        element={
+          <Suspense fallback={<div role="status">페이지를 불러오는 중...</div>}>
+            <Outlet />
+          </Suspense>
+        }
+      >
         <Route path="/search" element={<SearchPage />} />
         <Route path="/recent" element={<RecentUsePage />} />
         <Route path="/setting" element={<SettingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/landing" element={<LandingPage />} />
-      </Routes>
-    </Suspense>
+      </Route>
+    </Routes>
   </ErrorBoundary>
 );
 
