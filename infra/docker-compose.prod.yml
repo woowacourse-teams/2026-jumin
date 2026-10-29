@@ -25,6 +25,9 @@ services:
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH is required}
       ADMIN_TOKEN_SECRET: ${ADMIN_TOKEN_SECRET:?ADMIN_TOKEN_SECRET is required}
       ADMIN_ENV_LABEL: ${ADMIN_ENV_LABEL:?ADMIN_ENV_LABEL is required}
+      PARKING_AVAILABILITY_ENABLED: ${PARKING_AVAILABILITY_ENABLED}
+      SEOUL_PARKING_API_KEY: ${SEOUL_PARKING_API_KEY}
+      BUSAN_PARKING_API_KEY: ${BUSAN_PARKING_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health"]
       interval: 10s
