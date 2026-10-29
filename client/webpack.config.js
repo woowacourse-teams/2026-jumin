@@ -88,6 +88,9 @@ module.exports = (env, argv) => {
         template: './index.html',
         filename: 'index.html',
         inject: true,
+        templateParameters: {
+          naverMapClientId: process.env.NAVER_MAP_CLIENT_ID ?? '',
+        },
       }),
       new CopyWebpackPlugin({
         patterns: [

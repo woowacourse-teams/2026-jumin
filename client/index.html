@@ -40,6 +40,19 @@
 
     <title>주차의 민족</title>
     <link rel="icon" type="image/png" href="/icons/pwa-192.png" />
+
+    <script>
+      if (window.location.pathname === '/') {
+        const link = document.createElement('link');
+
+        link.rel = 'preload';
+        link.as = 'script';
+        link.href =
+          'https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=<%= encodeURIComponent(naverMapClientId) %>';
+
+        document.head.appendChild(link);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
