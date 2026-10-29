@@ -13,6 +13,8 @@ const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;
 
 interface Props {
+  viewportLatitude: number;
+  viewportLongitude: number;
   onDestinationSelect: (destination: Destination) => void;
 }
 
@@ -46,7 +48,11 @@ const useDebouncedValue = <T,>(value: T, delay: number) => {
   return debouncedValue;
 };
 
-export const SearchContent = ({ onDestinationSelect }: Props) => {
+export const SearchContent = ({
+  viewportLatitude,
+  viewportLongitude,
+  onDestinationSelect,
+}: Props) => {
   const [query, setQuery] = useState('');
 
   // 최근 목적지 검색 기록
@@ -84,6 +90,8 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   const { data, isFetching, isError } = useQuery(
     destinationSearchQueryOptions({
       query: debouncedQuery,
+      latitude: viewportLatitude,
+      longitude: viewportLongitude,
     }),
   );
 

@@ -4,9 +4,12 @@ import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
 import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { useRestoreLocation } from '../ParkingSetupPage/hooks/useRestoreLocation';
+import { Navigate } from 'react-router';
 
 export const SearchPage = () => {
   const { move } = useStepNavigation('search');
+  const viewportCenterLocation = useRestoreLocation();
 
   const handleDestinationSelect = (destination: Destination) => {
     const params = new URLSearchParams({
@@ -18,9 +21,15 @@ export const SearchPage = () => {
     move('SELECT_DESTINATION', undefined, { search: `?${params.toString()}` });
   };
 
+  if (!viewportCenterLocation) return <Navigate to="/" replace />;
+
   return (
     <main className={pageStyle}>
-      <SearchContent onDestinationSelect={handleDestinationSelect} />
+      <SearchContent
+        viewportLatitude={viewportCenterLocation.latitude}
+        viewportLongitude={viewportCenterLocation.longitude}
+        onDestinationSelect={handleDestinationSelect}
+      />
       <footer
         className={css`
           margin-top: auto;
