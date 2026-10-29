@@ -19,7 +19,7 @@ export const SearchPage = () => {
       name: destination.name,
     });
 
-    move('SELECT_DESTINATION', undefined, { search: queryString });
+    move('SELECT_DESTINATION', queryString);
   };
 
   if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;

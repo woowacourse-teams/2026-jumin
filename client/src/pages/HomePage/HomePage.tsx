@@ -126,7 +126,7 @@ export const HomePage = () => {
       lat: String(center.lat()),
       lng: String(center.lng()),
     });
-    move('OPEN_SEARCH', undefined, { search: queryString });
+    move('OPEN_SEARCH', queryString);
   };
 
   return (
