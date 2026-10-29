@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from 'react';
+import { Suspense, useRef, useCallback } from 'react';
 
 import { css } from '@emotion/css';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
@@ -22,6 +22,9 @@ export interface NavigationState {
 
 export const ParkingRecommendPage = () => {
   const { move } = useStepNavigation('recommend');
+  // ConditionBar가 이 ref에 header 요소를 연결하면 Content가 같은 ref로 위치를 읽는다.
+  // 두 컴포넌트를 함께 렌더링하는 Page에서 ref를 만들어 전달한다.
+  const conditionBarRef = useRef<HTMLElement>(null);
 
   // state 가져오기
   const { state } = useLocation();
@@ -50,6 +53,7 @@ export const ParkingRecommendPage = () => {
   return (
     <main className={pageStyle}>
       <ConditionBar
+        elementRef={conditionBarRef}
         title={searchCondition.destinationName}
         description={`${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`}
         onBack={() => move('BACK')}
@@ -68,6 +72,7 @@ export const ParkingRecommendPage = () => {
                 map={map}
                 searchCondition={searchCondition}
                 recommendView={navigationState?.recommendView}
+                conditionBarRef={conditionBarRef}
                 onSaveView={saveView}
                 onDetail={(detailCondition) => {
                   move('OPEN_DETAIL', { detailCondition });

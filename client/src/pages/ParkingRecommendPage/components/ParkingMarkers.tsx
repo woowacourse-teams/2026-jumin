@@ -25,10 +25,10 @@ const markerIcons = {
   },
   candidate: {
     url: dotParkingMarkerUrl,
-    width: 40,
-    height: 40,
+    width: 10,
+    height: 10,
     anchorX: 5,
-    anchorY: 5,
+    anchorY: 10,
   },
 } satisfies Record<ParkingMarkerType, Parameters<typeof NaverMapMarker>[0]['icon']>;
 

@@ -1,18 +1,18 @@
 package jumin.domain.destination.client;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record LocalSearchResponse(
-        List<LocalSearchPlace> items
+        @JsonProperty("documents")
+        List<LocalSearchPlace> places
 ) {
 
-    public LocalSearchResponse(List<LocalSearchPlace> items) {
-        if (items == null) {
-            this.items = List.of();
-        } else {
-            this.items = List.copyOf(items);
+    public LocalSearchResponse {
+        if (places != null) {
+            places = List.copyOf(places);
         }
     }
 }

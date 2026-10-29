@@ -107,8 +107,7 @@ jobs:
           DB_URL: jdbc:postgresql://localhost:5432/jumin
           DB_USERNAME: ci
           DB_PASSWORD: ci
-          LOCAL_SEARCH_CLIENT_ID: ci
-          LOCAL_SEARCH_CLIENT_SECRET: ci
+          LOCAL_SEARCH_REST_API_KEY: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
           ADMIN_LOGIN_ID: ci-admin
@@ -122,8 +121,7 @@ jobs:
           DB_URL: jdbc:postgresql://localhost:5432/jumin
           DB_USERNAME: ci
           DB_PASSWORD: ci
-          LOCAL_SEARCH_CLIENT_ID: ci
-          LOCAL_SEARCH_CLIENT_SECRET: ci
+          LOCAL_SEARCH_REST_API_KEY: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
           ADMIN_LOGIN_ID: ci-admin

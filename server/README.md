@@ -70,10 +70,21 @@ Base URL은 별도 설정이 없으면 기본값을 사용하지만, 외부 API 
 환경변수를 변경하려면 `../infra/.env.example`을 `../infra/.env`로 복사해
 Compose 설정을 변경하고, 같은 값을 셸이나 IDE의 Spring 실행 설정에도 지정합니다.
 
-외부 검색 API를 사용하려면 `LOCAL_SEARCH_CLIENT_ID`와
-`LOCAL_SEARCH_CLIENT_SECRET`을, 역지오코딩 API를 사용하려면
+카카오 목적지 검색 API를 사용하려면 `LOCAL_SEARCH_REST_API_KEY`를, 역지오코딩 API를 사용하려면
 `REVERSE_GEOCODING_CLIENT_ID`와 `REVERSE_GEOCODING_CLIENT_SECRET`을
-각각 실행 환경에 설정해야 합니다.
+각각 실행 환경에 설정해야 합니다. `LOCAL_SEARCH_REST_API_KEY`에는 `KakaoAK ` 접두사 없이
+REST API 키 원문을 입력합니다. 카카오 키는 백엔드에서만 사용합니다.
+`LOCAL_SEARCH_BASE_URL`의 기본값은 `https://dapi.kakao.com`입니다.
+
+목적지 검색은 `GET /api/destinations/search?query=검색어`로 호출하며,
+`latitude`, `longitude`를 함께 전달하면 위치를 보조 정보로 사용합니다.
+검색어에 지역명을 자동으로 붙이거나 반경을 강제하지 않고 정확도순으로 조회합니다.
+검색 결과는 최대 15건을 반환합니다.
+
+응답의 `provider`는 `KAKAO`입니다. 현재 프론트 스키마는 `NAVER`만 허용하므로
+프론트 담당자와 계약을 맞춘 뒤 함께 배포해야 합니다. 프론트 코드는 이번 변경에 포함하지 않습니다.
+카카오 결과의 장소명·좌표를 최근 검색에 저장하는 기존 프론트 동작도
+[카카오 저장 정책 안내](https://devtalk.kakao.com/t/api/151963)에 맞춰 별도로 검토해야 합니다.
 
 관리자 인증을 사용하려면 `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`,
 `ADMIN_TOKEN_SECRET`, `ADMIN_ENV_LABEL`도 실행 환경에 설정해야 합니다.
