@@ -1,6 +1,5 @@
 import { css } from '@emotion/css';
 
-import type { Destination } from '../../../../api/contracts';
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
 import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
 import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
@@ -9,12 +8,11 @@ import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
 import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
-import type { Coordinates, ParkingSetupView } from '../types/view';
+import type { Coordinates, SetupDestination } from '../types/destination';
 
 interface Props {
   map: naver.maps.Map | null;
-  destination: Destination;
-  setupView?: ParkingSetupView;
+  location: SetupDestination;
   onSelectedLocationChange: (location: Coordinates) => void;
   onSearch: () => void;
   onRecommend: (searchCondition: ParkingSearchCondition) => void;
@@ -22,26 +20,19 @@ interface Props {
 
 export const ParkingSetupContent = ({
   map,
-  destination,
-  setupView,
+  location,
   onSelectedLocationChange,
   onSearch,
   onRecommend,
 }: Props) => {
-  const selectedLocation = setupView?.selectedLocation ?? {
-    latitude: destination.latitude,
-    longitude: destination.longitude,
-  };
+  const { destinationName, isFetching, isError } = useParkingSetupDestination({
+    selectedLocation: location,
+  });
 
   useParkingSetupMap({
     map,
-    selectedLocation,
+    selectedLocation: location,
     onDragEnd: onSelectedLocationChange,
-  });
-
-  const { destinationName, address, isFetching, isError } = useParkingSetupDestination({
-    destination,
-    selectedLocation,
   });
 
   const handleRecommend = () => {
@@ -50,8 +41,8 @@ export const ParkingSetupContent = ({
 
     onRecommend({
       destinationName,
-      destinationLatitude: selectedLocation.latitude,
-      destinationLongitude: selectedLocation.longitude,
+      destinationLatitude: location.latitude,
+      destinationLongitude: location.longitude,
       entryAt: formatOffsetDateTime(entryAt),
       exitAt: formatOffsetDateTime(addHours(entryAt, 1)),
     });
@@ -67,7 +58,6 @@ export const ParkingSetupContent = ({
 
       <DestinationConfirmSheet
         name={destinationName}
-        address={address}
         nextDisabled={isFetching || isError}
         onCancel={onSearch}
         onNext={handleRecommend}

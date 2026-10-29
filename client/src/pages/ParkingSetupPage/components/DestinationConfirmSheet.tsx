@@ -5,19 +5,12 @@ import { typography } from '../../../theme/typography';
 
 interface Props {
   name: string;
-  address?: string;
   nextDisabled?: boolean;
   onCancel: () => void;
   onNext: () => void;
 }
 
-export const DestinationConfirmSheet = ({
-  name,
-  address,
-  nextDisabled,
-  onCancel,
-  onNext,
-}: Props) => {
+export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }: Props) => {
   return (
     <section
       className={css`
@@ -67,20 +60,6 @@ export const DestinationConfirmSheet = ({
       >
         {name}
       </h1>
-      {address && (
-        <p
-          className={css`
-            margin: 0;
-            overflow: hidden;
-            ${typography.caption};
-            color: ${color.text.secondary};
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          `}
-        >
-          {address}
-        </p>
-      )}
 
       <button
         className={css`

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from 'react';
-import type { Coordinates } from '../types/view';
+import type { Coordinates } from '../types/destination';
 
 interface Props {
   map: naver.maps.Map | null;
