@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { ParkingReportModal } from '../../../../src/pages/ParkingDetailPage/components/ParkingReportModal';
+import { ParkingReportModal } from './ParkingReportModal';
 import { useParkingReport } from '../../../hooks/useParkingReport';
 import { color } from '../../../../src/theme/color';
 import { typography } from '../../../../src/theme/typography';
