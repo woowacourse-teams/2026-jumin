@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { BackIcon } from '../ui/icons';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { color } from '../../../src/theme/color';
 import { typography } from '../../../src/theme/typography';
 
@@ -9,11 +9,14 @@ interface Props {
   description?: string;
   onBack: () => void;
   action?: ReactNode;
+  // 부모가 검색 조건 바의 실제 위치를 측정할 수 있도록 header 요소를 전달한다.
+  // 위치 측정이 필요 없는 홈·상세 화면에서도 사용하므로 선택적으로 받는다.
+  elementRef?: RefObject<HTMLElement | null>;
 }
 
-export const ConditionBar = ({ title, description, onBack, action }: Props) => {
+export const ConditionBar = ({ title, description, onBack, action, elementRef }: Props) => {
   return (
-    <header className={headerStyle} aria-label="검색 조건">
+    <header ref={elementRef} className={headerStyle} aria-label="검색 조건">
       <button
         className={backButtonStyle}
         type="button"

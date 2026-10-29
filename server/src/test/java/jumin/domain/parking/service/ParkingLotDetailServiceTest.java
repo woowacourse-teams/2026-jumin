@@ -22,6 +22,7 @@ import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingLotLikeRepository;
 import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.parkingavailability.service.AvailabilityQueryService;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.domain.walking.service.WalkingDurationCalculator;
@@ -30,6 +31,9 @@ import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingLotDetailServiceTest {
@@ -42,6 +46,7 @@ class ParkingLotDetailServiceTest {
     private final ParkingSearchQueryValidator queryValidator = mock(ParkingSearchQueryValidator.class);
     private final ParkingOperationEvaluator operationEvaluator = mock(ParkingOperationEvaluator.class);
     private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
+    private final AvailabilityQueryService availabilityQueryService = mock(AvailabilityQueryService.class);
     private ParkingLotDetailService service;
 
     @BeforeEach
@@ -53,12 +58,14 @@ class ParkingLotDetailServiceTest {
                 queryValidator,
                 operationEvaluator,
                 walkingDistanceService,
-                new WalkingDurationCalculator()
+                new WalkingDurationCalculator(),
+                availabilityQueryService
         );
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenReturn(new WalkingDistanceResult(Map.of()));
         when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
                 .thenReturn(new ParkingLotLikeResult(0L, false));
+        when(availabilityQueryService.findAvailableSpaces(1L)).thenReturn(null);
     }
 
     @Test
@@ -76,6 +83,7 @@ class ParkingLotDetailServiceTest {
                 .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
         when(parkingLotLikeRepository.findSummary(1L, GUEST_ID))
                 .thenReturn(new ParkingLotLikeResult(3L, true));
+        when(availabilityQueryService.findAvailableSpaces(1L)).thenReturn(8);
 
         // when
         ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
@@ -87,6 +95,7 @@ class ParkingLotDetailServiceTest {
         assertThat(result.location().latitude()).isEqualTo(37.4990);
         assertThat(result.location().longitude()).isEqualTo(127.0290);
         assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.availableSpaces()).isEqualTo(8);
         assertThat(result.likeCount()).isEqualTo(3);
         assertThat(result.likedByMe()).isTrue();
         assertThat(result.distanceMeters()).isEqualTo(540);
@@ -109,6 +118,30 @@ class ParkingLotDetailServiceTest {
         assertThat(result.operation().weekend().paid()).isNull();
         assertThat(result.operation().holiday().status()).isEqualTo("CLOSED");
         verify(queryValidator).validateForDetail(request);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(ints = {0, 60})
+    @DisplayName("잔여석 미제공과 만차, 기존 총면수 초과 수치를 그대로 반환하고 기존 운영 상태를 유지한다")
+    void preserves_available_spaces_without_changing_capacity_or_operation(Integer availableSpaces) {
+        // given
+        ParkingSearchRequest request = request();
+        ParkingOperation operation = parkingOperation();
+        when(parkingLotRepository.findActiveWithLocationById(1L)).thenReturn(Optional.of(parkingLot()));
+        when(parkingOperationRepository.findById(1L)).thenReturn(Optional.of(operation));
+        when(operationEvaluator.evaluate(operation, request.entryAt(), request.exitAt()))
+                .thenReturn(ParkingAvailabilityStatus.AVAILABLE);
+        when(availabilityQueryService.findAvailableSpaces(1L)).thenReturn(availableSpaces);
+
+        // when
+        ParkingLotDetailResponse result = service.getDetail(1L, request, GUEST_ID);
+
+        // then
+        assertThat(result.availableSpaces()).isEqualTo(availableSpaces);
+        assertThat(result.capacity()).isEqualTo(42);
+        assertThat(result.operation().availabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(result.estimatedFee()).isEqualTo(6_000);
     }
 
     @Test

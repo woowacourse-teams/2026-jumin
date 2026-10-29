@@ -19,6 +19,11 @@ export const STEP_PATH = {
 
 const policyByStep: MovePolicy = MOVE_POLICY;
 
+/** URL query로 전달할 옵션 */
+interface StepNavigationOptions {
+  search?: string;
+}
+
 /**
  * 현재 화면의 액션을 받아 React Router로 이동을 실행한다.
  * 이동 대상과 push·replace·뒤로가기 방식은 MOVE_POLICY에서 결정한다.
@@ -30,7 +35,7 @@ export const useStepNavigation = <From extends Step>(from: From) => {
   const { pathname, search, hash } = useLocation();
 
   const move = useCallback(
-    (action: ActionByStep[From], state?: unknown) => {
+    (action: ActionByStep[From], state?: unknown, options: StepNavigationOptions = {}) => {
       const rule: MoveRule = policyByStep[from][action];
 
       // 뒤로 가기 처리
@@ -39,8 +44,14 @@ export const useStepNavigation = <From extends Step>(from: From) => {
         return;
       }
 
+      const isSameStep = rule.target === from;
+
       // 현재 화면을 갱신하는 경우 쿼리와 해시를 보존한다.
-      const target = rule.target === from ? { pathname, search, hash } : STEP_PATH[rule.target];
+      const target = {
+        pathname: isSameStep ? pathname : STEP_PATH[rule.target],
+        search: options.search ?? (isSameStep ? search : ''),
+        hash: isSameStep ? hash : '',
+      };
 
       void navigate(target, {
         state,

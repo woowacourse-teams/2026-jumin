@@ -2,45 +2,37 @@ import { useQuery } from '@tanstack/react-query';
 
 import { destinationNameQueryOptions } from '../../../../api/queries/destinationNameQuery';
 import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
-import type { ParkingSetupView } from '../types/view';
-import type { Destination } from '../../../../api/contracts';
+import type { SetupDestination } from '../types/destination';
 
 interface Props {
-  destination: Destination;
-  selectedLocation: ParkingSetupView['selectedLocation'];
+  selectedLocation: SetupDestination;
 }
 
-/** 목적지 조회, 로딩, 에러 */
-export const useParkingSetupDestination = ({ destination, selectedLocation }: Props) => {
-  // 최초 검색 위치와 선택 위치가 같은지 여부
-  const isOriginalLocation =
-    selectedLocation.latitude === destination.latitude &&
-    selectedLocation.longitude === destination.longitude;
+/** 목적지 조회(역지오코딩), 로딩, 에러 */
+export const useParkingSetupDestination = ({ selectedLocation }: Props) => {
+  const name = selectedLocation.name?.trim();
 
   const { data, isFetching, isError } = useQuery(
     destinationNameQueryOptions({
       latitude: selectedLocation.latitude,
       longitude: selectedLocation.longitude,
-      enabled: !isOriginalLocation, // 최초 검색 위치와 선택 위치가 다른 경우
+      enabled: !name,
     }),
   );
 
-  let destinationName = destination.name;
-
-  if (!isOriginalLocation) {
-    if (isFetching) {
-      destinationName = '위치 확인중 ...';
-    } else if (isError) {
-      destinationName = API_ERROR_MESSAGES.DESTINATION_NAME;
-    } else {
-      destinationName = data?.displayName ?? '위치 확인중 ...';
-    }
+  if (name) {
+    return {
+      destinationName: name,
+      isFetching: false,
+      isError: false,
+    };
   }
 
   return {
-    destinationName,
-    address: isOriginalLocation ? (destination.roadAddress ?? destination.address) : undefined,
-    isFetching: !isOriginalLocation && isFetching,
-    isError: !isOriginalLocation && isError,
+    destinationName: isError
+      ? API_ERROR_MESSAGES.DESTINATION_NAME
+      : (data?.displayName ?? '위치 확인중 ...'),
+    isFetching,
+    isError,
   };
 };
