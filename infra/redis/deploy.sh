@@ -44,7 +44,7 @@ restore_previous() {
   if [[ "$had_override" == true ]]; then
     cp "$previous" "$override" || return 1
     "${compose[@]}" up --detach --no-deps redis
-    return
+    return "$?"
   fi
   rm -f "$override" || return 1
   docker compose --project-name "jumin-redis-$environment" --file compose.yaml up --detach --no-deps redis
