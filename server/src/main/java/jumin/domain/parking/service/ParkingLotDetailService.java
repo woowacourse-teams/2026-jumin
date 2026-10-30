@@ -11,6 +11,7 @@ import jumin.domain.parking.repository.ParkingLotLikeRepository;
 import jumin.domain.parking.repository.ParkingLotLikeResult;
 import jumin.domain.parking.repository.ParkingLotRepository;
 import jumin.domain.parking.repository.ParkingOperationRepository;
+import jumin.domain.parkingavailability.service.AvailabilityQueryService;
 import jumin.domain.walking.service.WalkingDistanceResult;
 import jumin.domain.walking.service.WalkingDistanceService;
 import jumin.domain.walking.service.WalkingDurationCalculator;
@@ -34,6 +35,7 @@ public class ParkingLotDetailService {
     private final ParkingOperationEvaluator operationEvaluator;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
+    private final AvailabilityQueryService availabilityQueryService;
 
     public ParkingLotDetailResponse getDetail(Long parkingLotId, ParkingSearchRequest request, UUID guestId) {
         queryValidator.validateForDetail(request);
@@ -82,6 +84,7 @@ public class ParkingLotDetailService {
         }
         ParkingLotLikeResult likeSummary =
                 parkingLotLikeRepository.findSummary(parkingLotId, guestId);
+        Integer availableSpaces = availabilityQueryService.findAvailableSpaces(parkingLotId);
 
         log.atInfo()
                 .setMessage("주차장 상세 조회가 완료되었습니다.")
@@ -98,6 +101,7 @@ public class ParkingLotDetailService {
                 parkingLot.getLatitude(),
                 parkingLot.getLongitude(),
                 parkingLot.getCapacity(),
+                availableSpaces,
                 distanceMeters,
                 walkingDurationMinutes,
                 estimatedFee,

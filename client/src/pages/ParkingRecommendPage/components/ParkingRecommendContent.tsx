@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { css } from '@emotion/css';
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -24,6 +24,7 @@ import type { RecommendationType, RecommendView } from '../types/view';
 import { useParkingRecommendScroll } from '../hooks/useParkingRecommendScroll';
 import type { BottomSheetSnap } from '../../../../shared/types/ui';
 import { getRecommendationMessage, getSortValue, sortParkingLots } from '../utils/sorting';
+import { getMapCenterForMarkerY } from '../../../../shared/maps/getMapCenterForMarkerY';
 
 const CARD_WIDTH = 300;
 const CARD_GAP = 12;
@@ -47,6 +48,7 @@ interface Props {
   map: naver.maps.Map | null;
   searchCondition: ParkingSearchCondition;
   recommendView?: RecommendView;
+  conditionBarRef: RefObject<HTMLElement | null>;
   onSaveView: (recommendView: RecommendView) => void;
   onDetail: (detailCondition: ParkingDetailCondition) => void;
 }
@@ -55,6 +57,7 @@ export const ParkingRecommendContent = ({
   map,
   searchCondition,
   recommendView,
+  conditionBarRef,
   onSaveView,
   onDetail,
 }: Props) => {
@@ -180,48 +183,22 @@ export const ParkingRecommendContent = ({
       return;
     }
 
-    // 바텀시트가 펼쳐졌을 때 실제로 지도가 보이는 영역을 계산하기 위해
-    // 상단 검색 조건 바의 DOM 요소를 가져온다.
-    const ConditionBar = document.querySelector<HTMLElement>('[aria-label="검색 조건"]');
+    // Page에서 전달받은 ref로 이 화면의 검색 조건 바를 직접 찾는다.
+    const conditionBar = conditionBarRef.current;
+    if (!conditionBar) return;
 
-    if (!ConditionBar) return;
+    // getBoundingClientRect는 브라우저 화면 기준이므로 지도 상단을 빼서 지도 내부 좌표로 맞춘다.
+    const mapTop = map.getElement().getBoundingClientRect().top;
+    // 검색 조건 바 바로 아래부터 펼쳐진 바텀시트 바로 위까지가 지도를 가리지 않는 영역이다.
+    const visibleTop = conditionBar.getBoundingClientRect().bottom - mapTop;
+    const visibleBottom = map.getSize().height - BOTTOM_SHEET_HEIGHT;
+    // 이 영역의 세로 중앙에 선택한 마커가 보이도록 목표 높이를 정한다.
+    const targetY = (visibleTop + visibleBottom) / 2;
+    // 목표 높이에 맞는 지도 중심 계산은 홈 화면과 동일한 공통 함수를 사용한다.
+    const center = getMapCenterForMarkerY(map, position, targetY);
 
-    // 검색 조건 바의 아래쪽 위치를 지도 상단 기준의 좌표로 변환한다.
-    const mapRect = map.getElement().getBoundingClientRect();
-    const ConditionBarBottom = ConditionBar.getBoundingClientRect().bottom - mapRect.top;
-
-    // 전체 지도 높이에서 바텀시트 높이를 빼서
-    // 바텀시트가 시작되는 세로 위치를 구한다.
-    const bottomSheetTop = map.getSize().height - BOTTOM_SHEET_HEIGHT;
-
-    // 검색 조건 바와 바텀시트 사이에서 실제로 보이는 지도 영역의 중앙을 구한다.
-    const visibleAreaCenter = (ConditionBarBottom + bottomSheetTop) / 2;
-
-    // 위·경도 좌표와 화면상의 픽셀 좌표를 서로 변환하기 위한 객체다.
-    const projection = map.getProjection();
-
-    // 활성 주차장의 위·경도를 지도 내부의 픽셀 좌표로 변환한다.
-    const positionOffset = projection.fromCoordToOffset(position);
-
-    // 활성 주차장이 전체 지도 중앙이 아니라
-    // 실제로 보이는 영역의 중앙에 위치하도록 새로운 지도 중심을 계산한다.
-    const targetCenterOffset = new naver.maps.Point(
-      positionOffset.x,
-      map.getSize().height / 2 + positionOffset.y - visibleAreaCenter,
-    );
-
-    // 계산한 픽셀 좌표를 다시 위·경도 좌표로 변환한다.
-    const targetCenter = projection.fromOffsetToCoord(targetCenterOffset);
-
-    // 계산한 중심 좌표로 300ms 동안 부드럽게 이동한다.
-    map.panTo(targetCenter, { duration: 300 });
-  }, [
-    // 선택된 주차장, 지도, 주차장 목록 또는 바텀시트 상태가 바뀔 때 재계산한다.
-    activeParkingLotId,
-    map,
-    parkingLots,
-    sheetSnap,
-  ]);
+    map.panTo(center, { duration: 300 });
+  }, [activeParkingLotId, map, parkingLots, sheetSnap, conditionBarRef]);
 
   useEffect(() => {
     if (hasTrackedRecommendations.current || recommendedParkingLots.length === 0) {

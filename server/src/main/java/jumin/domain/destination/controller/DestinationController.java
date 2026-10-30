@@ -1,6 +1,7 @@
 package jumin.domain.destination.controller;
 
 import jakarta.validation.Valid;
+import jumin.domain.destination.dto.DestinationSearchRequest;
 import jumin.domain.destination.dto.DestinationsResponse;
 import jumin.domain.destination.dto.ReverseGeocodeRequest;
 import jumin.domain.destination.dto.ReverseGeocodeResponse;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,15 +24,15 @@ public class DestinationController {
 
     @GetMapping("/search")
     public ResponseEntity<DestinationsResponse> search(
-            @RequestParam(value = "query", required = false) String query
+            @Valid @ModelAttribute DestinationSearchRequest searchRequest
     ) {
-        return ResponseEntity.ok(destinationService.search(query));
+        return ResponseEntity.ok(destinationService.search(searchRequest));
     }
 
     @GetMapping("/reverse-geocode")
     public ResponseEntity<ReverseGeocodeResponse> reverseGeocode(
-            @Valid @ModelAttribute ReverseGeocodeRequest request
+            @Valid @ModelAttribute ReverseGeocodeRequest reverseGeocodeRequest
     ) {
-        return ResponseEntity.ok(reverseGeocodingService.reverseGeocode(request));
+        return ResponseEntity.ok(reverseGeocodingService.reverseGeocode(reverseGeocodeRequest));
     }
 }

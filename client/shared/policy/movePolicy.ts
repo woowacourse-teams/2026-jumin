@@ -5,7 +5,7 @@ export type Step = 'home' | 'search' | 'setup' | 'recommend' | 'detail';
 export type ActionByStep = {
   home: 'OPEN_SEARCH' | 'OPEN_DETAIL';
   search: 'BACK' | 'SELECT_DESTINATION';
-  setup: 'BACK' | 'OPEN_SEARCH' | 'CONFIRM_DESTINATION' | 'SAVE_VIEW';
+  setup: 'BACK' | 'OPEN_SEARCH' | 'CONFIRM_DESTINATION' | 'CHANGE_DESTINATION';
   recommend: 'BACK' | 'OPEN_DETAIL' | 'SAVE_VIEW';
   detail: 'BACK';
 };
@@ -31,7 +31,7 @@ export const MOVE_POLICY = {
     BACK: { method: 'back' },
     OPEN_SEARCH: { target: 'search', method: 'push' },
     CONFIRM_DESTINATION: { target: 'recommend', method: 'push' },
-    SAVE_VIEW: { target: 'setup', method: 'replace' },
+    CHANGE_DESTINATION: { target: 'setup', method: 'replace' },
   },
   recommend: {
     BACK: { method: 'back' },

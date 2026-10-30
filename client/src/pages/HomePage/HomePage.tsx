@@ -75,11 +75,11 @@ export const HomePage = () => {
   const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
-  const handleParkingMarkerClick = (parkingLot: ParkingLotViewport) => {
+  const handleParkingMarkerClick = useCallback((parkingLot: ParkingLotViewport) => {
     trackEvent(eventName.HOME_PAGE_MARKER);
     setSelectedParkingLot(parkingLot);
     setSheetSnap('expanded');
-  };
+  }, []);
 
   // 빈 지도 영역 클릭시 바텀시트 닫기
   useMapClick({
@@ -117,7 +117,13 @@ export const HomePage = () => {
 
   const handleSearchBarClick = () => {
     trackEvent(eventName.DESTINATION_SEARCH_BAR);
-    move('OPEN_SEARCH');
+    if (!map) return;
+    const center = map.getCenter() as naver.maps.LatLng;
+    const params = new URLSearchParams({
+      lat: String(center.lat()),
+      lng: String(center.lng()),
+    });
+    move('OPEN_SEARCH', undefined, { search: `?${params.toString()}` });
   };
 
   return (

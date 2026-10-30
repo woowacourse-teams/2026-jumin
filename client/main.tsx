@@ -1,7 +1,7 @@
 import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { initializeInstallGuide } from './shared/pwa/addToHomeScreen';
+
 import { initializeInstallPrompt } from './shared/pwa/installPrompt';
 import { applyGlobalStyles } from './shared/styles/globalStyle';
 import {
@@ -19,7 +19,7 @@ import { ApiError } from './api/apiError';
 initSentry();
 
 initClientAnalytics({ gaMeasurementId: __GA_MEASUREMENT_ID__, clarityId: __CLARITY_PROJECT_ID__ });
-initializeInstallGuide();
+
 initializeInstallPrompt();
 applyGlobalStyles();
 

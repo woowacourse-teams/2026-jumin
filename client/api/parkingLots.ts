@@ -47,9 +47,16 @@ export type ParkingViewportRequestParams = ParkingViewportParams & Partial<Parki
 // 목적지를 검색 및 자동완성하는 메서드
 export const searchDestinations = async (
   query: string,
+  latitude: number,
+  longitude: number,
   signal?: AbortSignal,
 ): Promise<DestinationSearchResponse> => {
-  const response = await request(`/api/destinations/search?query=${encodeURIComponent(query)}`, {
+  const params = new URLSearchParams({
+    query,
+    latitude: String(latitude),
+    longitude: String(longitude),
+  });
+  const response = await request(`/api/destinations/search?${params.toString()}`, {
     signal,
   });
 

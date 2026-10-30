@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Outlet } from 'react-router';
 
 import { NaverMap } from './NaverMap';
@@ -19,7 +19,9 @@ export const MapLayout = () => {
         longitude={DEFAULT_MAP_CENTER.longitude}
         onMapReady={setMap}
       />
-      <Outlet context={{ map }} />
+      <Suspense fallback={<div role="status">페이지를 불러오는중...</div>}>
+        <Outlet context={{ map }} />
+      </Suspense>
     </div>
   );
 };

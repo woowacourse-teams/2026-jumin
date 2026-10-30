@@ -7,6 +7,8 @@ import type {
 
 export interface DestinationSearchQueryKeyParams {
   readonly query: string;
+  readonly latitude: number;
+  readonly longitude: number;
 }
 
 export type ParkingSearchQueryKeyParams = Readonly<ParkingSearchParams>;

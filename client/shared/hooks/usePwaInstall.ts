@@ -34,7 +34,7 @@ export const usePwaInstall = () => {
 
     try {
       if (!getInstallAvailability()) {
-        showInstallGuide();
+        await showInstallGuide();
         return;
       }
 

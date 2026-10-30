@@ -8,9 +8,10 @@ export const destinationSearchQueryOptions = (key: DestinationSearchQueryKeyPara
   const normalizedQuery = key.query.trim();
 
   return queryOptions({
-    queryKey: destinationKeys.search(normalizedQuery),
+    queryKey: destinationKeys.search(normalizedQuery, key.latitude, key.longitude),
 
-    queryFn: ({ signal }) => searchDestinations(normalizedQuery, signal),
+    queryFn: ({ signal }) =>
+      searchDestinations(normalizedQuery, key.latitude, key.longitude, signal),
 
     meta: {
       feature: 'destination-search',
