@@ -56,22 +56,8 @@ public class ViewportCellLoader implements AutoCloseable {
         List<CellLoad> locked = new ArrayList<>();
         try {
             requireOpen();
-            for (ViewportCellKey key : keys) {
-                if (!hits.containsKey(key)) {
-                    LoadKey loadKey = new LoadKey(key, lane);
-                    registered.put(loadKey, register(loadKey));
-                }
-            }
-            List<LoadKey> ordered = registered.keySet().stream()
-                    .sorted(Comparator.comparing(key -> key.key().redisKey())).toList();
-            for (LoadKey key : ordered) {
-                CellLoad load = registered.get(key);
-                lock(load, deadline);
-                locked.add(load);
-                if (load.failure != null) {
-                    throw load.failure;
-                }
-            }
+            registerMissingCells(keys, hits, lane, registered);
+            acquireCellLocks(registered, locked, deadline);
             requireOpen();
             loadMissing(registered, deadline, observation, bypassStore);
             List<ViewportCell> result = new ArrayList<>(keys.size());
@@ -79,11 +65,11 @@ public class ViewportCellLoader implements AutoCloseable {
                 ViewportCell hit = hits.get(key);
                 if (hit != null) {
                     result.add(hit);
-                } else {
-                    Loaded loaded = registered.get(new LoadKey(key, lane)).result;
-                    observation.consume(loaded.fromSource(), loaded.owner() != observation);
-                    result.add(loaded.cell());
+                    continue;
                 }
+                Loaded loaded = registered.get(new LoadKey(key, lane)).result;
+                observation.consume(loaded.fromSource(), loaded.owner() != observation);
+                result.add(loaded.cell());
             }
             deadline.requireRemaining();
             return List.copyOf(result);
@@ -100,29 +86,57 @@ public class ViewportCellLoader implements AutoCloseable {
         }
     }
 
+    private void registerMissingCells(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
+                                      Object lane, Map<LoadKey, CellLoad> registered) {
+        for (ViewportCellKey key : keys) {
+            if (hits.containsKey(key)) {
+                continue;
+            }
+            LoadKey loadKey = new LoadKey(key, lane);
+            registered.put(loadKey, register(loadKey));
+        }
+    }
+
+    private void acquireCellLocks(Map<LoadKey, CellLoad> registered, List<CellLoad> locked,
+                                  ViewportDeadline deadline) {
+        List<LoadKey> ordered = registered.keySet().stream()
+                .sorted(Comparator.comparing(key -> key.key().redisKey())).toList();
+        for (LoadKey key : ordered) {
+            CellLoad load = registered.get(key);
+            lock(load, deadline);
+            locked.add(load);
+            if (load.failure != null) {
+                throw load.failure;
+            }
+        }
+    }
+
     private CellLoad register(LoadKey key) {
         return loads.compute(key, (ignored, current) -> {
-            CellLoad load = current;
-            if (load == null) {
-                if (!slots.tryAcquire()) {
-                    throw ViewportFailureReason.CELL_FLIGHT_LIMIT.failure();
-                }
-                load = new CellLoad();
-            } else {
+            if (current != null) {
                 metrics.count("flights", "follower_registered", 1);
+                current.users++;
+                return current;
             }
-            load.users++;
+            if (!slots.tryAcquire()) {
+                throw ViewportFailureReason.CELL_FLIGHT_LIMIT.failure();
+            }
+            CellLoad load = new CellLoad();
+            load.users = 1;
             return load;
         });
     }
 
     private void unregister(LoadKey key, CellLoad registered) {
         loads.computeIfPresent(key, (ignored, current) -> {
-            if (current == registered && --current.users == 0) {
-                slots.release();
-                return null;
+            if (current != registered) {
+                return current;
             }
-            return current;
+            if (--current.users != 0) {
+                return current;
+            }
+            slots.release();
+            return null;
         });
     }
 

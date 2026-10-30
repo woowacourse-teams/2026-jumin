@@ -92,29 +92,33 @@ public class ViewportDbAccess {
             requireOpen();
             requireDbRemaining(deadline);
             if (active.get() >= maximum) {
-                if (queued.get() >= queueLimit) {
-                    metrics.count("db", "queue_rejected", 1);
-                    throw ViewportFailureReason.DB_QUEUE_FULL.failure();
-                }
-                queued.incrementAndGet();
-                try {
-                    while (active.get() >= maximum) {
-                        requireOpen();
-                        requireDbRemaining(deadline);
-                        capacity.awaitNanos(deadline.remainingNanos());
-                    }
-                } catch (InterruptedException failure) {
-                    Thread.currentThread().interrupt();
-                    throw ViewportFailureReason.DB_DEADLINE.failure(failure);
-                } finally {
-                    queued.decrementAndGet();
-                }
+                awaitCapacity(deadline);
             }
             requireOpen();
             requireDbRemaining(deadline);
             active.incrementAndGet();
         } finally {
             admission.unlock();
+        }
+    }
+
+    private void awaitCapacity(ViewportDeadline deadline) {
+        if (queued.get() >= queueLimit) {
+            metrics.count("db", "queue_rejected", 1);
+            throw ViewportFailureReason.DB_QUEUE_FULL.failure();
+        }
+        queued.incrementAndGet();
+        try {
+            while (active.get() >= maximum) {
+                requireOpen();
+                requireDbRemaining(deadline);
+                capacity.awaitNanos(deadline.remainingNanos());
+            }
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw ViewportFailureReason.DB_DEADLINE.failure(failure);
+        } finally {
+            queued.decrementAndGet();
         }
     }
 
@@ -147,9 +151,9 @@ public class ViewportDbAccess {
     private <T> T queryInTransaction(ViewportDeadline deadline, Function<JdbcTemplate, T> query,
                                       AtomicReference<T> produced) {
         requireDbRemaining(deadline);
-        long timeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
+        long statementTimeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
                 Math.min(deadline.remainingNanos(), dbTimeoutNanos)));
-        jdbc.execute("SET LOCAL statement_timeout = " + timeoutMillis);
+        jdbc.execute("SET LOCAL statement_timeout = " + statementTimeoutMillis);
         requireDbRemaining(deadline);
         T value = query.apply(jdbc);
         produced.set(value);

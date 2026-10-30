@@ -223,14 +223,9 @@ public class RedisViewportCellStore implements ViewportCellStore {
         try {
             synchronized (this) {
                 requireAvailable();
-                while (!idle.isEmpty()) {
-                    Lease existing = idle.removeFirst();
-                    if (existing.generation() == generation && existing.connection().isOpen()) {
-                        existing.connection().setTimeout(Duration.ofNanos(Math.max(1, deadline.remainingNanos())));
-                        return existing;
-                    }
-                    connections.remove(existing.connection());
-                    existing.connection().close();
+                Lease existing = takeReusableConnection(deadline);
+                if (existing != null) {
+                    return existing;
                 }
                 version = generation;
             }
@@ -267,6 +262,20 @@ public class RedisViewportCellStore implements ViewportCellStore {
             }
             throw failure;
         }
+    }
+
+    private Lease takeReusableConnection(ViewportDeadline deadline) {
+        while (!idle.isEmpty()) {
+            Lease existing = idle.removeFirst();
+            if (existing.generation() != generation || !existing.connection().isOpen()) {
+                connections.remove(existing.connection());
+                existing.connection().close();
+                continue;
+            }
+            existing.connection().setTimeout(Duration.ofNanos(Math.max(1, deadline.remainingNanos())));
+            return existing;
+        }
+        return null;
     }
 
     private synchronized void requireAvailable() {
@@ -323,14 +332,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
             return new ViewportStoreException("원격 cache 명령에 실패했습니다.", failure);
         }
         boolean callerExpired = caller.remainingNanos() == 0;
-        if (lease != null) {
-            synchronized (this) {
-                connections.remove(lease.connection());
-                if (!callerExpired && lease.generation() == generation) {
-                    openCircuit();
-                }
-            }
-        }
+        discardFailedConnection(lease, callerExpired);
         if (failure instanceof RedisCommandTimeoutException) {
             metrics.count("store_error", callerExpired ? "caller_timeout" : "operation_timeout", 1);
         } else {
@@ -338,6 +340,19 @@ public class RedisViewportCellStore implements ViewportCellStore {
         }
         return callerExpired ? ViewportFailureReason.UNCLASSIFIED.failure(failure)
                 : new ViewportStoreException("원격 cache 명령에 실패했습니다.", failure);
+    }
+
+    private void discardFailedConnection(Lease lease, boolean callerExpired) {
+        if (lease == null) {
+            return;
+        }
+        synchronized (this) {
+            connections.remove(lease.connection());
+            if (callerExpired || lease.generation() != generation) {
+                return;
+            }
+            openCircuit();
+        }
     }
 
     private Map<ViewportCellKey, ViewportCell> decodeValues(List<ViewportCellKey> keys, List<?> values,
@@ -391,15 +406,11 @@ public class RedisViewportCellStore implements ViewportCellStore {
             ViewportCell cell = cells.get(index);
             keys[index] = text(cell.key().redisKey());
             arguments[index * 2] = codec.encode(cell);
-            long base;
-            if (cell.items().isEmpty()) {
-                base = properties.getEmptyTtl().toMillis();
-            } else {
-                base = properties.getTtl().toMillis();
-            }
-            long ttl = Math.max(1, (long) (base * (1 + ThreadLocalRandom.current().nextDouble(-1, 1)
-                    * properties.getTtlJitter())));
-            arguments[index * 2 + 1] = text(ttl);
+            long baseTtlMillis = cell.items().isEmpty()
+                    ? properties.getEmptyTtl().toMillis() : properties.getTtl().toMillis();
+            double ttlMultiplier = 1 + ThreadLocalRandom.current().nextDouble(-1, 1) * properties.getTtlJitter();
+            long ttlMillis = Math.max(1, (long) (baseTtlMillis * ttlMultiplier));
+            arguments[index * 2 + 1] = text(ttlMillis);
         }
         return new WriteBatch(keys, arguments);
     }

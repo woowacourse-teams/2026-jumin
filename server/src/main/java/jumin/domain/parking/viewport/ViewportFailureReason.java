@@ -10,7 +10,10 @@ public enum ViewportFailureReason {
     DB_SHUTTING_DOWN,
     CELL_FLIGHT_LIMIT,
     CELL_LOADER_CLOSED,
-    CELL_INCOMPLETE_BATCH;
+    CELL_INCOMPLETE_BATCH,
+    DB_CONNECTION_ERROR,
+    DB_SQL_ERROR,
+    DEADLINE;
 
     public BusinessException failure() {
         return failure(null);

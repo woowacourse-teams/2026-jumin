@@ -5,6 +5,7 @@ import java.sql.SQLTimeoutException;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import jumin.global.exception.BusinessException;
@@ -19,113 +20,93 @@ public final class ViewportFailureDiagnostics {
     private ViewportFailureDiagnostics() { }
 
     public static ViewportFailureSummary inspect(Throwable failure) {
-        return new Inspection(failure).inspect();
+        Objects.requireNonNull(failure);
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        ArrayDeque<Throwable> pending = new ArrayDeque<>();
+        pending.add(failure);
+        ViewportFailureReason reason = ViewportFailureReason.UNCLASSIFIED;
+        String causeType = failure.getClass().getSimpleName();
+        String sqlState = UNAVAILABLE;
+        boolean timeout = false;
+        while (!pending.isEmpty() && seen.size() < MAX_FAILURES) {
+            Throwable current = pending.removeFirst();
+            if (!seen.add(current)) {
+                continue;
+            }
+            causeType = current.getClass().getSimpleName();
+            reason = selectKnownReason(reason, current);
+            timeout |= current instanceof TimeoutException || current instanceof SQLTimeoutException;
+            sqlState = selectSqlState(sqlState, current);
+            enqueueRelatedFailures(current, pending);
+        }
+        return new ViewportFailureSummary(resolvedReason(reason, sqlState, timeout).name(), causeType, sqlState);
     }
 
-    private static final class Inspection {
-        private final Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        private final ArrayDeque<Throwable> pending = new ArrayDeque<>();
-        private String reason = ViewportFailureReason.UNCLASSIFIED.name();
-        private String causeType;
-        private String sqlState = UNAVAILABLE;
-        private boolean timeout;
-
-        private Inspection(Throwable failure) {
-            pending.add(failure);
-            causeType = failure.getClass().getSimpleName();
+    private static ViewportFailureReason selectKnownReason(ViewportFailureReason selected, Throwable failure) {
+        if (selected != ViewportFailureReason.UNCLASSIFIED) {
+            return selected;
         }
-
-        private ViewportFailureSummary inspect() {
-            while (!pending.isEmpty() && seen.size() < MAX_FAILURES) {
-                Throwable current = pending.removeFirst();
-                if (!seen.add(current)) {
-                    continue;
-                }
-                visit(current);
-            }
-            return new ViewportFailureSummary(resolvedReason(), causeType, sqlState);
+        if (!(failure instanceof BusinessException exception)
+                || exception.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE || exception.getReason() == null) {
+            return selected;
         }
-
-        private void visit(Throwable current) {
-            causeType = current.getClass().getSimpleName();
-            recordReason(current);
-            recordTimeout(current);
-            recordSqlStateAndEnqueueNext(current);
-            enqueueApplicationException(current);
-            enqueue(current.getCause());
-            enqueueSuppressed(current);
+        try {
+            ViewportFailureReason candidate = ViewportFailureReason.valueOf(exception.getReason());
+            return switch (candidate) {
+                case DB_CONNECTION_ERROR, DB_SQL_ERROR, DEADLINE -> ViewportFailureReason.UNCLASSIFIED;
+                default -> candidate;
+            };
+        } catch (IllegalArgumentException unknownReason) {
+            return selected;
         }
+    }
 
-        private void recordReason(Throwable current) {
-            if (!reason.equals(ViewportFailureReason.UNCLASSIFIED.name())) {
+    private static String selectSqlState(String selected, Throwable failure) {
+        if (!(failure instanceof SQLException sql)) {
+            return selected;
+        }
+        String state = sql.getSQLState();
+        if (!selected.equals(UNAVAILABLE) || state == null || !state.matches("[0-9A-Z]{5}")) {
+            return selected;
+        }
+        return state;
+    }
+
+    private static void enqueueRelatedFailures(Throwable failure, ArrayDeque<Throwable> pending) {
+        Throwable next = failure instanceof SQLException sql ? sql.getNextException() : null;
+        if (next != null) {
+            pending.addLast(next);
+        }
+        Throwable application = failure instanceof TransactionSystemException transaction
+                ? transaction.getApplicationException() : null;
+        if (application != null) {
+            pending.addLast(application);
+        }
+        Throwable cause = failure.getCause();
+        if (cause != null) {
+            pending.addLast(cause);
+        }
+        for (Throwable suppressed : failure.getSuppressed()) {
+            if (pending.size() >= MAX_FAILURES) {
                 return;
             }
-            if (!(current instanceof BusinessException exception)) {
-                return;
-            }
-            if (exception.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE || exception.getReason() == null) {
-                return;
-            }
-            for (ViewportFailureReason candidate : ViewportFailureReason.values()) {
-                if (candidate.name().equals(exception.getReason())) {
-                    reason = candidate.name();
-                    return;
-                }
-            }
+            pending.addLast(suppressed);
         }
+    }
 
-        private void recordTimeout(Throwable current) {
-            if (current instanceof TimeoutException || current instanceof SQLTimeoutException) {
-                timeout = true;
-            }
-        }
-
-        private void recordSqlStateAndEnqueueNext(Throwable current) {
-            if (!(current instanceof SQLException sql)) {
-                return;
-            }
-            String state = sql.getSQLState();
-            if (sqlState.equals(UNAVAILABLE) && state != null && state.matches("[0-9A-Z]{5}")) {
-                sqlState = state;
-            }
-            enqueue(sql.getNextException());
-        }
-
-        private void enqueueApplicationException(Throwable current) {
-            if (current instanceof TransactionSystemException transaction) {
-                enqueue(transaction.getApplicationException());
-            }
-        }
-
-        private void enqueue(Throwable failure) {
-            if (failure != null) {
-                pending.addLast(failure);
-            }
-        }
-
-        private void enqueueSuppressed(Throwable current) {
-            for (Throwable suppressed : current.getSuppressed()) {
-                if (pending.size() >= MAX_FAILURES) {
-                    return;
-                }
-                pending.addLast(suppressed);
-            }
-        }
-
-        private String resolvedReason() {
-            if (!reason.equals(ViewportFailureReason.UNCLASSIFIED.name())) {
-                return reason;
-            }
-            if (sqlState.startsWith("08")) {
-                return "DB_CONNECTION_ERROR";
-            }
-            if (!sqlState.equals(UNAVAILABLE)) {
-                return "DB_SQL_ERROR";
-            }
-            if (timeout) {
-                return "DEADLINE";
-            }
+    private static ViewportFailureReason resolvedReason(ViewportFailureReason reason, String sqlState, boolean timeout) {
+        if (reason != ViewportFailureReason.UNCLASSIFIED) {
             return reason;
         }
+        if (sqlState.startsWith("08")) {
+            return ViewportFailureReason.DB_CONNECTION_ERROR;
+        }
+        if (!sqlState.equals(UNAVAILABLE)) {
+            return ViewportFailureReason.DB_SQL_ERROR;
+        }
+        if (timeout) {
+            return ViewportFailureReason.DEADLINE;
+        }
+        return reason;
     }
 }
