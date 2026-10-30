@@ -3,6 +3,8 @@ package jumin.global.exception;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
+import jumin.domain.parking.viewport.ViewportFailureDiagnostics;
+import jumin.domain.parking.viewport.ViewportFailureSummary;
 import jumin.global.response.ApiErrorResponse;
 import jumin.global.response.ValidationErrorField;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +47,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Object> handleBusinessException(BusinessException exception) {
+        if (exception.getErrorCode() == ErrorCode.VIEWPORT_UNAVAILABLE) {
+            logViewportFailure(exception);
+        }
         return createResponse(exception.getErrorCode());
+    }
+
+    private void logViewportFailure(BusinessException exception) {
+        ViewportFailureSummary failure = ViewportFailureDiagnostics.inspect(exception);
+        log.atWarn().setMessage("viewport 자원 보호로 요청을 완료하지 못했습니다")
+                .addKeyValue("reason", failure.reason())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .addKeyValue("causeType", failure.causeType())
+                .addKeyValue("sqlState", failure.sqlState())
+                .log();
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
