@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import type { MapViewport } from '../hooks/useMapViewport';
 import { useViewportParkingLots } from '../hooks/useViewportParkingLots';
@@ -18,10 +20,10 @@ const homeParkingMarkerIcon = {
 
 const dotParkingMarkerIcon = {
   url: dotParkingMarkerUrl,
-  width: 40,
-  height: 40,
+  width: 10,
+  height: 10,
   anchorX: 5,
-  anchorY: 5,
+  anchorY: 10,
 };
 
 const selectedParkingMarkerIcon = {
@@ -40,10 +42,34 @@ interface Props {
   onSelect: (parkingLot: ParkingLotViewport) => void;
 }
 
+interface MarkerProps {
+  map: naver.maps.Map;
+  parkingLot: ParkingLotViewport;
+  icon: Parameters<typeof NaverMapMarker>[0]['icon'];
+  zIndex: number;
+  onSelect: Props['onSelect'];
+}
+
+// 주차장별 콜백 생성도 memo 안에 두어, 부모가 렌더링돼도 같은 마커는 건너뛴다.
+const ViewportParkingMarker = memo(({ map, parkingLot, icon, zIndex, onSelect }: MarkerProps) => {
+  return (
+    <NaverMapMarker
+      map={map}
+      latitude={parkingLot.latitude}
+      longitude={parkingLot.longitude}
+      icon={icon}
+      title="주차장"
+      zIndex={zIndex}
+      onClick={() => onSelect(parkingLot)}
+    />
+  );
+});
+ViewportParkingMarker.displayName = 'ViewportParkingMarker';
+
 export const ViewportParkingMarkers = ({
   map,
   viewport,
-  filters = { freeOnly: false, excludeMechanical: false },
+  filters = { freeOnly: false, excludeMechanical: false, isPublic: false },
   selectedParkingLotId,
   onSelect,
 }: Props) => {
@@ -66,15 +92,13 @@ export const ViewportParkingMarkers = ({
             : dotParkingMarkerIcon;
 
         return (
-          <NaverMapMarker
+          <ViewportParkingMarker
             key={parkingLot.id}
             map={map}
-            latitude={parkingLot.latitude}
-            longitude={parkingLot.longitude}
+            parkingLot={parkingLot}
             icon={icon}
-            title="주차장"
             zIndex={isSelected ? 20 : isRepresentative ? 10 : 5}
-            onClick={() => onSelect(parkingLot)}
+            onSelect={onSelect}
           />
         );
       })}

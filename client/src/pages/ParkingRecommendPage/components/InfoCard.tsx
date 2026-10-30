@@ -3,11 +3,15 @@ import { css } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../../api/contracts';
 import { trackEvent } from '../../../../shared/analytics';
 import { eventName } from '../../../../shared/monitoring/constants';
-import { DirectionsIcon, InformationIcon } from './ParkingActionIcons';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
+import { DirectionsIcon, InformationIcon } from '../../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
   description: string;
+  rank: number;
+  onSelect: (parkingLot: ParkingLotSummary) => void;
   onNavigate: (parkingLot: ParkingLotSummary) => void;
   onDirections: (parkingLot: ParkingLotSummary) => void;
   isActive: boolean;
@@ -16,6 +20,8 @@ interface Props {
 export const InfoCard = ({
   parkingLot,
   description,
+  rank,
+  onSelect,
   onNavigate,
   onDirections,
   isActive,
@@ -33,18 +39,28 @@ export const InfoCard = ({
   };
   return (
     <article className={cardStyle(isActive)} draggable={false}>
+      <button
+        className={selectButtonStyle}
+        type="button"
+        aria-label={`${name} 선택`}
+        aria-pressed={isActive}
+        onClick={() => onSelect(parkingLot)}
+      />
       <header className={headerStyle}>
-        <h2 className={nameStyle}>{name}</h2>
+        <h3 className={nameStyle}>{name}</h3>
         <button
           className={detailButtonStyle}
           type="button"
           aria-label={`${name} 상세정보`}
           onClick={handleDetailButtonClick}
         >
-          <InformationIcon />
+          <InformationIcon size={24} aria-hidden="true" />
         </button>
       </header>
-      <p className={descriptionStyle}>{description}</p>
+      <p className={descriptionStyle}>
+        <span className={rankStyle}>추천 {rank}위</span>
+        {description}
+      </p>
       <strong className={priceStyle}>
         {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
       </strong>
@@ -57,7 +73,7 @@ export const InfoCard = ({
         aria-label={`${name} 길찾기`}
         onClick={() => onDirections(parkingLot)}
       >
-        <DirectionsIcon />
+        <DirectionsIcon size={20} aria-hidden="true" />
         길찾기
       </button>
     </article>
@@ -65,6 +81,7 @@ export const InfoCard = ({
 };
 
 const cardStyle = (isActive: boolean) => css`
+  position: relative;
   display: grid;
   grid-template-areas:
     'header header'
@@ -78,8 +95,8 @@ const cardStyle = (isActive: boolean) => css`
   min-height: 168px;
   padding: 14px 16px 16px;
 
-  background: #ffffff;
-  border: ${isActive ? '4px' : ' 2px'} solid #4356d8;
+  background: ${color.background.default};
+  border: ${isActive ? '4px' : ' 2px'} solid ${color.border.brand};
 
   border-radius: 24px;
   box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
@@ -95,6 +112,9 @@ const cardStyle = (isActive: boolean) => css`
 `;
 
 const headerStyle = css`
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
   grid-area: header;
   display: flex;
   align-items: center;
@@ -107,10 +127,8 @@ const nameStyle = css`
   margin: 0;
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.3;
+  ${typography.titleCard};
+  color: ${color.text.primary};
   letter-spacing: -0.4px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -118,39 +136,42 @@ const nameStyle = css`
 
 const descriptionStyle = css`
   grid-area: description;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  pointer-events: none;
 
   margin: 4px 0 12px;
 
-  color: #4356d8;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.brand};
 `;
 
 const priceStyle = css`
   grid-area: price;
+  pointer-events: none;
 
   overflow: hidden;
 
-  color: #101b37;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.25;
+  ${typography.titleSection};
+  color: ${color.text.primary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
 const distanceStyle = css`
   grid-area: distance;
+  pointer-events: none;
 
   margin: 2px 0 0;
 
-  color: #697386;
-  font-size: 14px;
-  line-height: 1.4;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
 `;
 
 const navigateButtonStyle = css`
+  position: relative;
   grid-area: button;
 
   display: inline-flex;
@@ -161,21 +182,24 @@ const navigateButtonStyle = css`
   margin-left: 8px;
   padding: 0 10px;
 
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
+  ${typography.label};
+  color: ${color.text.inverse};
 
-  background: #4356d8;
+  background: ${color.background.brand};
   border: 0;
   border-radius: 13px;
   cursor: pointer;
 
   &:hover {
-    background: #3548c8;
+    background: ${color.background.brandHovered};
+  }
+
+  &:active {
+    background: ${color.background.brandPressed};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
 
@@ -184,6 +208,7 @@ const navigateButtonStyle = css`
 `;
 
 const detailButtonStyle = css`
+  pointer-events: auto;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -192,19 +217,46 @@ const detailButtonStyle = css`
   height: 44px;
   margin: -6px -6px -2px 0;
   padding: 0;
-  color: #697386;
+  color: ${color.icon.default};
   background: transparent;
   border: 0;
   border-radius: 13px;
   cursor: pointer;
 
   &:hover {
-    color: #4356d8;
-    background: #f1f3ff;
+    color: ${color.icon.brand};
+    background: ${color.background.brandSubtle};
+  }
+
+  &:active {
+    color: ${color.icon.brand};
+    background: ${color.background.brandSubtlePressed};
   }
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
+    outline: 2px solid ${color.focus.ring};
     outline-offset: 2px;
   }
+`;
+
+const selectButtonStyle = css`
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+  &:focus-visible {
+    outline: 3px solid ${color.focus.ring};
+    outline-offset: -3px;
+  }
+`;
+
+const rankStyle = css`
+  padding: 3px 6px;
+  ${typography.caption};
+  color: ${color.text.brand};
+  background: ${color.background.brandSubtle};
+  border-radius: 6px;
 `;

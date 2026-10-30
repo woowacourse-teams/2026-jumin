@@ -22,6 +22,8 @@ import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.domain.parking.viewport.ViewportSearchService;
+import jumin.domain.parking.viewport.ViewportBody;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,9 @@ class ParkingSearchControllerTest {
 
     @MockitoBean
     private ParkingSearchService parkingSearchService;
+
+    @MockitoBean
+    private ViewportSearchService viewportSearchService;
 
     @Test
     @DisplayName("추천과 순위 필드가 없는 간결한 주차장 목록을 반환한다")
@@ -240,7 +245,7 @@ class ParkingSearchControllerTest {
                         score
                 ))
         );
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class))).thenReturn(result);
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(new ViewportBody(result));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -259,23 +264,29 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.parkingLots[0].score").isNumber())
                 .andExpect(jsonPath("$.parkingLots[0].score").value(score));
 
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700,
                 37.5600,
                 126.9900,
                 37.5750,
+                false,
                 false,
                 false
         ));
     }
 
     @ParameterizedTest
-    @CsvSource({"true, false", "false, true", "true, true", "false, false"})
+    @CsvSource({
+            "false, false, false", "true, false, false", "false, true, false", "true, true, false",
+            "false, false, true", "true, false, true", "false, true, true", "true, true, true"
+    })
     @DisplayName("viewport 필터의 true와 false 값을 서비스에 전달한다")
-    void passes_viewport_filters_to_service(boolean freeOnly, boolean excludeMechanical) throws Exception {
+    void passes_viewport_filters_to_service(
+            boolean freeOnly, boolean excludeMechanical, boolean isPublic
+    ) throws Exception {
         // given
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
-                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -284,22 +295,23 @@ class ParkingSearchControllerTest {
                 .queryParam("eastLongitude", "126.9900")
                 .queryParam("northLatitude", "37.5750")
                 .queryParam("freeOnly", Boolean.toString(freeOnly))
-                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical)));
+                .queryParam("excludeMechanical", Boolean.toString(excludeMechanical))
+                .queryParam("isPublic", Boolean.toString(isPublic)));
 
         // then
         response.andExpect(status().isOk());
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
+                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic
         ));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @ValueSource(strings = {"freeOnly", "excludeMechanical", "isPublic"})
     @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
-        when(parkingSearchService.searchViewport(any(ParkingLotViewportRequest.class)))
-                .thenReturn(ParkingLotViewportResponses.from(List.of()));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -311,14 +323,14 @@ class ParkingSearchControllerTest {
 
         // then
         response.andExpect(status().isOk());
-        verify(parkingSearchService).searchViewport(new ParkingLotViewportRequest(
+        verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750,
-                filter.equals("freeOnly"), filter.equals("excludeMechanical")
+                filter.equals("freeOnly"), filter.equals("excludeMechanical"), filter.equals("isPublic")
         ));
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"freeOnly", "excludeMechanical"})
+    @ValueSource(strings = {"freeOnly", "excludeMechanical", "isPublic"})
     @DisplayName("viewport 필터를 불리언으로 변환할 수 없으면 400을 반환한다")
     void rejects_invalid_viewport_filter(String filter) throws Exception {
         // when

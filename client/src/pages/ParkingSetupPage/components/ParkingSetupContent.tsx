@@ -1,48 +1,41 @@
 import { css } from '@emotion/css';
 
-import type { Destination } from '../../../../api/contracts';
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
-import { SearchBar } from '../../../../shared/components/SearchBar';
-import type { ParkingSearchCondition, ParkingSetupView } from '../../../../shared/types/navigation';
+import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
+import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
 import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
 import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
+import type { SetupDestination } from '../types/destination';
+import type { Coordinates } from '../../../../shared/types/coordinates';
 
 interface Props {
   map: naver.maps.Map | null;
-  destination: Destination;
-  setupView?: ParkingSetupView;
-  onSetupViewChange: (view: ParkingSetupView) => void;
+  location: SetupDestination;
+  onSelectedLocationChange: (location: Coordinates) => void;
   onSearch: () => void;
+  onCancel: () => void;
   onRecommend: (searchCondition: ParkingSearchCondition) => void;
 }
 
 export const ParkingSetupContent = ({
   map,
-  destination,
-  setupView,
-  onSetupViewChange,
+  location,
+  onSelectedLocationChange,
   onSearch,
+  onCancel,
   onRecommend,
 }: Props) => {
-  const selectedLocation = setupView?.selectedLocation ?? {
-    latitude: destination.latitude,
-    longitude: destination.longitude,
-  };
-  const hasMovedMap = setupView?.hasMovedMap ?? false;
+  const { destinationName, isFetching, isError } = useParkingSetupDestination({
+    selectedLocation: location,
+  });
 
   useParkingSetupMap({
     map,
-    selectedLocation,
-    onSetupViewChange,
-  });
-
-  const { destinationName, isFetching, isError } = useParkingSetupDestination({
-    initialName: destination.name,
-    selectedLocation,
-    hasMovedMap,
+    selectedLocation: location,
+    onDragEnd: onSelectedLocationChange,
   });
 
   const handleRecommend = () => {
@@ -51,8 +44,8 @@ export const ParkingSetupContent = ({
 
     onRecommend({
       destinationName,
-      destinationLatitude: selectedLocation.latitude,
-      destinationLongitude: selectedLocation.longitude,
+      destinationLatitude: location.latitude,
+      destinationLongitude: location.longitude,
       entryAt: formatOffsetDateTime(entryAt),
       exitAt: formatOffsetDateTime(addHours(entryAt, 1)),
     });
@@ -68,9 +61,8 @@ export const ParkingSetupContent = ({
 
       <DestinationConfirmSheet
         name={destinationName}
-        address={hasMovedMap ? undefined : (destination.roadAddress ?? destination.address)}
-        nextDisabled={hasMovedMap && (isFetching || isError)}
-        onCancel={onSearch}
+        nextDisabled={isFetching || isError}
+        onCancel={onCancel}
         onNext={handleRecommend}
       />
     </main>

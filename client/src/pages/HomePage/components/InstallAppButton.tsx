@@ -1,7 +1,10 @@
 import { css } from '@emotion/css';
 import { useEffect, useSyncExternalStore } from 'react';
+import { ChevronRightIcon } from '../../../../shared/components/ui/icons';
 
 import brandMark from '../../../../assets/icons/brandMark.svg';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
 import {
   getInstallAvailability,
   initializeInstallPrompt,
@@ -40,7 +43,7 @@ export const InstallAppButton = () => {
       </span>
 
       <span className={chevronStyle} aria-hidden="true">
-        ›
+        <ChevronRightIcon size={20} />
       </span>
     </button>
   );
@@ -57,12 +60,12 @@ const buttonStyle = css`
   margin-top: 18px;
   padding: 14px 18px;
 
-  color: #101b37;
+  color: ${color.text.primary};
   font-family: inherit;
   text-align: left;
 
-  background: #ffffff;
-  border: 1px solid #e1e5f3;
+  background: ${color.background.default};
+  border: 1px solid ${color.border.default};
   border-radius: 18px;
   box-shadow: 0 5px 14px rgb(16 27 55 / 8%);
   cursor: pointer;
@@ -75,17 +78,17 @@ const buttonStyle = css`
     transform 100ms ease;
 
   &:hover {
-    background: #f7f8ff;
-    border-color: #b8c0f3;
+    background: ${color.background.brandSubtle};
+    border-color: ${color.border.brandSubtle};
   }
 
   &:active {
-    background: #eef0ff;
+    background: ${color.background.brandSubtlePressed};
     transform: translateY(1px);
   }
 
   &:focus-visible {
-    outline: 3px solid rgb(67 86 216 / 30%);
+    outline: 3px solid ${color.focus.ring};
     outline-offset: 3px;
   }
 
@@ -100,7 +103,7 @@ const iconContainerStyle = css`
   height: 46px;
   place-items: center;
 
-  background: #eef0ff;
+  background: ${color.background.brandSubtle};
   border-radius: 14px;
 `;
 
@@ -121,27 +124,21 @@ const copyStyle = css`
 `;
 
 const titleStyle = css`
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.4;
+  ${typography.bodyStrong};
 `;
 
 const descriptionStyle = css`
   overflow: hidden;
 
-  color: #69758b;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.4;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
 
 const chevronStyle = css`
+  display: inline-flex;
   justify-self: end;
 
-  color: #8d97aa;
-  font-size: 30px;
-  font-weight: 300;
-  line-height: 1;
+  color: ${color.icon.default};
 `;

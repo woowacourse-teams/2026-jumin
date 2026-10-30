@@ -1,5 +1,8 @@
 import { css } from '@emotion/css';
 import type { Destination } from '../../../../api/contracts';
+import { color } from '../../../theme/color';
+import { LocationIcon } from '../../../../shared/components/ui/icons';
+import { typography } from '../../../theme/typography';
 
 interface Props {
   query: string;
@@ -13,7 +16,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
   return (
     <li
       className={css`
-        border-bottom: 1px solid #eef2f6;
+        border-bottom: 1px solid ${color.border.default};
       `}
     >
       <button
@@ -25,13 +28,13 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           min-height: 66px;
           padding: 10px 20px;
           border: 0;
-          background: white;
+          background: ${color.background.default};
           text-align: left;
           cursor: pointer;
 
           &:hover,
           &:focus-visible {
-            background: #f7f9fc;
+            background: ${color.background.subtle};
           }
         `}
         type="button"
@@ -45,13 +48,12 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
             flex-shrink: 0;
             place-items: center;
             border-radius: 10px;
-            background: #eff4ff;
-            color: #4356d8;
-            font-size: 16px;
+            background: ${color.background.brandSubtle};
+            color: ${color.text.brand};
           `}
           aria-hidden="true"
         >
-          ⌖
+          <LocationIcon size={18} />
         </span>
         <span
           className={css`
@@ -64,15 +66,14 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           <strong
             className={css`
               overflow: hidden;
-              color: #24334b;
-              font-size: 14px;
-              line-height: 1.35;
+              ${typography.bodySmallStrong};
+              color: ${color.text.primary};
               text-overflow: ellipsis;
               white-space: nowrap;
 
               mark {
                 background: transparent;
-                color: #4356d8;
+                color: ${color.text.brand};
               }
             `}
           >
@@ -89,9 +90,8 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           <span
             className={css`
               overflow: hidden;
-              color: #98a2b3;
-              font-size: 11px;
-              line-height: 1.35;
+              ${typography.caption};
+              color: ${color.text.secondary};
               text-overflow: ellipsis;
               white-space: nowrap;
             `}

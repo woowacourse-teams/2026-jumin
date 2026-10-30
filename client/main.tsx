@@ -1,7 +1,7 @@
 import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { initializeInstallGuide } from './shared/pwa/addToHomeScreen';
+
 import { initializeInstallPrompt } from './shared/pwa/installPrompt';
 import { applyGlobalStyles } from './shared/styles/globalStyle';
 import {
@@ -14,11 +14,12 @@ import {
 import * as Sentry from '@sentry/react';
 import { initSentry } from './shared/sentry/initSentry';
 import { initClientAnalytics } from './shared/monitoring/initClientAnalytics';
+import { ApiError } from './api/apiError';
 
 initSentry();
 
 initClientAnalytics({ gaMeasurementId: __GA_MEASUREMENT_ID__, clarityId: __CLARITY_PROJECT_ID__ });
-initializeInstallGuide();
+
 initializeInstallPrompt();
 applyGlobalStyles();
 
@@ -30,6 +31,24 @@ const queryClient = new QueryClient({
         (error instanceof DOMException && error.name === 'AbortError')
       )
         return;
+
+      const tags: Record<string, string> = {
+        feature: String(query.meta?.feature ?? 'unknown'),
+        operation: String(query.meta?.operation ?? 'query'),
+      };
+
+      if (error instanceof ApiError) {
+        const failure = error.failure;
+        tags.api_error_type = failure.errorType;
+
+        if (failure.errorType === 'http') {
+          tags.http_status = String(failure.status);
+        }
+
+        if (failure.errorType === 'response') {
+          tags.response_reason = failure.reason;
+        }
+      }
 
       Sentry.captureException(error, {
         tags: {

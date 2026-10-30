@@ -3,6 +3,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { parkingDetailFixtures } from '../fixtures/parkingDetails';
 import { getMockScenario } from '../scenario';
 import type { FieldError } from '../types/validationError';
+import { relocateParkingLocation } from '../utils/relocateParkingLocation';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
@@ -81,7 +82,8 @@ const createErrorResponse = (message: string, status: 404 | 500) =>
 
 export const parkingDetailHandlers = [
   http.get('/api/parking/:parkingLotId', async ({ params, request }) => {
-    const errors = validateParkingDetailRequest(new URL(request.url));
+    const url = new URL(request.url);
+    const errors = validateParkingDetailRequest(url);
 
     if (errors.length > 0) {
       return HttpResponse.json(
@@ -110,6 +112,14 @@ export const parkingDetailHandlers = [
 
     await delay(scenario === 'parking-detail-slow' ? 2000 : 400);
 
-    return HttpResponse.json(parkingLot);
+    const destination = {
+      latitude: Number(url.searchParams.get('destinationLatitude')),
+      longitude: Number(url.searchParams.get('destinationLongitude')),
+    };
+
+    return HttpResponse.json({
+      ...parkingLot,
+      location: relocateParkingLocation(parkingLot.location, destination),
+    });
   }),
 ];

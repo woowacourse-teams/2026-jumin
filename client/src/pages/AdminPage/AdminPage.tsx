@@ -8,12 +8,15 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { z } from 'zod';
+import { CheckIcon, UploadIcon } from '../../../shared/components/ui/icons';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import parkingGuide from '../../../assets/guideImage/guide3.png';
+import parkingGuide from '../../../assets/guideImage/guide3.webp';
+import { ApiError, type FieldError } from '../../../api/apiError';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { ADMIN_MESSAGES } from './adminMessages';
 
 import {
-  AdminApiError,
   getParkingReviews,
   importParkingCsv,
   loginAdmin,
@@ -23,7 +26,6 @@ import {
 
 const SESSION_KEY = 'jumin-admin-session-v1';
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
-const SESSION_EXPIRED_MESSAGE = '로그인이 만료되었습니다. 다시 로그인해 주세요.';
 const sessionSchema = z.object({
   accessToken: z.string().min(1),
   expiresAt: z.number().finite().positive(),
@@ -31,6 +33,34 @@ const sessionSchema = z.object({
 
 type AdminSession = z.infer<typeof sessionSchema>;
 type AdminTab = 'csv' | 'reviews';
+type AdminUploadError = {
+  message: string;
+  errors: FieldError[];
+};
+
+const getHttpStatus = (error: unknown): number | null => {
+  if (!(error instanceof ApiError)) {
+    return null;
+  }
+
+  if (error.failure.errorType !== 'http') {
+    return null;
+  }
+
+  return error.failure.status;
+};
+
+const getFieldErrors = (error: unknown): FieldError[] => {
+  if (!(error instanceof ApiError)) {
+    return [];
+  }
+
+  if (error.failure.errorType !== 'http') {
+    return [];
+  }
+
+  return error.failure.fieldErrors;
+};
 
 const clearStoredSession = () => {
   try {
@@ -67,15 +97,24 @@ const saveSession = (session: AdminSession) => {
   }
 };
 
-const validateFile = (file: File): AdminApiError | null => {
+const validateFile = (file: File): AdminUploadError | null => {
   if (!file.name.toLowerCase().endsWith('.csv')) {
-    return new AdminApiError('.csv 확장자의 파일을 선택해 주세요.', null);
+    return {
+      message: ADMIN_MESSAGES.CSV_EXTENSION_REQUIRED,
+      errors: [],
+    };
   }
   if (file.size === 0) {
-    return new AdminApiError('빈 CSV 파일은 업로드할 수 없습니다.', null);
+    return {
+      message: ADMIN_MESSAGES.CSV_CANNOT_BE_EMPTY,
+      errors: [],
+    };
   }
   if (file.size > MAX_FILE_SIZE) {
-    return new AdminApiError('CSV 파일은 최대 30MiB까지 업로드할 수 있습니다.', null);
+    return {
+      message: ADMIN_MESSAGES.CSV_SIZE_LIMIT_EXCEEDED,
+      errors: [],
+    };
   }
   return null;
 };
@@ -100,7 +139,7 @@ export const AdminPage = () => {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [uploadError, setUploadError] = useState<AdminApiError | null>(null);
+  const [uploadError, setUploadError] = useState<AdminUploadError | null>(null);
   const [result, setResult] = useState<ParkingCsvImportResponse | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('csv');
@@ -146,7 +185,7 @@ export const AdminPage = () => {
   const loadReviews = async () => {
     if (!session || reviewRequest.current) return;
     if (session.expiresAt <= Date.now()) {
-      logout(SESSION_EXPIRED_MESSAGE);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -161,15 +200,11 @@ export const AdminPage = () => {
       setReviews(response.reviews);
     } catch (error) {
       if (reviewRequest.current !== controller || controller.signal.aborted) return;
-      if (error instanceof AdminApiError && error.status === 401) {
-        logout(error.message);
+      if (getHttpStatus(error) === 401) {
+        logout(ADMIN_MESSAGES.SESSION_EXPIRED);
         return;
       }
-      setReviewError(
-        error instanceof AdminApiError
-          ? error.message
-          : '제보 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      setReviewError(API_ERROR_MESSAGES.ADMIN_REVIEWS);
     } finally {
       if (reviewRequest.current === controller) {
         reviewRequest.current = null;
@@ -182,7 +217,7 @@ export const AdminPage = () => {
     if (isImporting || requestPending.current || tab === activeTab) return;
     if (!session) return;
     if (tab === 'reviews' && session.expiresAt <= Date.now()) {
-      logout(SESSION_EXPIRED_MESSAGE);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -220,7 +255,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current) return;
     if (!loginId.trim() || password.length === 0) {
-      setLoginError('관리자 ID와 비밀번호를 입력해 주세요.');
+      setLoginError(ADMIN_MESSAGES.LOGIN_CREDENTIAL_REQUIRED);
       return;
     }
 
@@ -238,12 +273,8 @@ export const AdminPage = () => {
       setSession(nextSession);
       setPassword('');
       if (pageRef.current) pageRef.current.scrollTop = 0;
-    } catch (error) {
-      if (error instanceof AdminApiError) {
-        setLoginError(error.message);
-        return;
-      }
-      setLoginError('로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch {
+      setLoginError(API_ERROR_MESSAGES.ADMIN_LOGIN);
     } finally {
       requestPending.current = false;
       setIsLoggingIn(false);
@@ -262,7 +293,7 @@ export const AdminPage = () => {
     event.preventDefault();
     if (requestPending.current || !session || !file) return;
     if (session.expiresAt <= Date.now()) {
-      logout(SESSION_EXPIRED_MESSAGE);
+      logout(ADMIN_MESSAGES.SESSION_EXPIRED);
       return;
     }
 
@@ -280,20 +311,22 @@ export const AdminPage = () => {
     try {
       setResult(await importParkingCsv(file, session.accessToken));
     } catch (error) {
-      if (error instanceof AdminApiError && error.status === 401) {
-        logout(error.message);
+      const status = getHttpStatus(error);
+
+      if (status === 401) {
+        logout(ADMIN_MESSAGES.SESSION_EXPIRED);
         return;
       }
-      if (error instanceof AdminApiError) {
-        setUploadError(error);
-        return;
-      }
-      setUploadError(
-        new AdminApiError(
-          '업로드 결과를 확인할 수 없습니다. 데이터가 반영되었을 수 있으니 확인 후 다시 업로드해 주세요.',
-          null,
-        ),
-      );
+
+      const isClientError = status !== null && status < 500;
+      const message = isClientError
+        ? API_ERROR_MESSAGES.ADMIN_CSV_IMPORT
+        : API_ERROR_MESSAGES.ADMIN_CSV_IMPORT_UNKNOWN;
+
+      setUploadError({
+        message,
+        errors: getFieldErrors(error),
+      });
     } finally {
       requestPending.current = false;
       setIsImporting(false);
@@ -471,15 +504,7 @@ export const AdminPage = () => {
                           disabled={isImporting}
                         />
                         <span className={uploadIconStyle} aria-hidden="true">
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                            <path
-                              d="M12 15V3m0 0L7 8m5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"
-                              stroke="currentColor"
-                              strokeWidth="1.7"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <UploadIcon size={28} />
                         </span>
                         <strong className={fileInfoStyle}>
                           {file ? file.name : 'CSV 파일을 선택해 주세요'}
@@ -562,7 +587,9 @@ export const AdminPage = () => {
                 {result && (
                   <section className={cardStyle} aria-labelledby="admin-result-title">
                     <p className={successStyle} role="status">
-                      <span aria-hidden="true">✓</span>
+                      <span aria-hidden="true">
+                        <CheckIcon size={18} />
+                      </span>
                       CSV 동기화가 완료되었습니다.
                     </p>
                     <h2 id="admin-result-title" className={sectionTitleStyle}>

@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
-import currentLocationButtonIcon from '../../../../assets/icons/CurrentLocationButtonIcon.svg';
+import { MyLocation } from '../../../../shared/components/ui/icons';
+import { color } from '../../../theme/color';
 
 interface Props {
   onClick: () => void;
@@ -9,10 +10,15 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
   <button
     className={css`
       display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 46px;
+      height: 46px;
       padding: 0;
       border: 0;
       border-radius: 14px;
-      background: transparent;
+      color: ${color.icon.brand};
+      background: ${color.background.default};
       vertical-align: top;
       cursor: pointer;
       box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
@@ -21,15 +27,14 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
     aria-label="현재 위치로 이동"
     onClick={onClick}
   >
-    <img
+    <MyLocation
+      size={22}
       className={css`
         display: block;
         pointer-events: none;
         user-select: none;
       `}
-      src={currentLocationButtonIcon}
-      alt=""
-      draggable={false}
+      aria-hidden="true"
     />
   </button>
 );

@@ -1,10 +1,13 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
+import { BackIcon } from '../../../shared/components/ui/icons';
 
-import { BottomNav } from '../../../shared/components/BottomNav';
-import { DeepLinkModal } from '../../../shared/components/Modal/DeepLinkModal';
-import { RecentHistoryRow } from '../../../shared/components/RecentHistoryRow';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { RecentHistoryRow } from '../../../shared/components/service/RecentHistoryRow';
+import { color } from '../../theme/color';
+import { typography } from '../../theme/typography';
 import {
   loadRecentParkingUses,
   type RecentParkingLot,
@@ -19,7 +22,6 @@ const formatMonthDay = (usedAt: string) =>
   }).format(new Date(usedAt));
 
 export const RecentUsePage = () => {
-  const navigate = useNavigate();
   const [recentParkingUses, setRecentParkingUses] = useState(loadRecentParkingUses);
   const [selectedParkingLot, setSelectedParkingLot] = useState<RecentParkingLot | null>(null);
 
@@ -33,14 +35,9 @@ export const RecentUsePage = () => {
   return (
     <main className={pageStyle}>
       <header className={headerStyle}>
-        <button
-          className={backButtonStyle}
-          type="button"
-          aria-label="이전 화면으로 이동"
-          onClick={() => navigate(-1)}
-        >
-          ‹
-        </button>
+        <Link className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" to="/">
+          <BackIcon size={28} aria-hidden="true" />
+        </Link>
         <h1 className={titleStyle}>최근 이용</h1>
       </header>
 
@@ -86,9 +83,9 @@ const pageStyle = css`
   flex-direction: column;
   overflow: hidden;
 
-  color: #18233d;
+  color: ${color.text.primary};
 
-  background: #fff;
+  background: ${color.background.default};
 `;
 
 const headerStyle = css`
@@ -110,9 +107,7 @@ const backButtonStyle = css`
   padding: 0;
   margin-bottom: 10px;
 
-  color: #43506a;
-  font-size: 36px;
-  line-height: 1;
+  color: ${color.icon.default};
 
   background: transparent;
   border: 0;
@@ -124,8 +119,7 @@ const backButtonStyle = css`
 const titleStyle = css`
   margin: 0 0 0 6px;
 
-  font-size: 20px;
-  font-weight: 800;
+  ${typography.titleSection};
   letter-spacing: -0.4px;
 `;
 
@@ -146,8 +140,8 @@ const listStyle = css`
 const emptyMessageStyle = css`
   margin: 72px 20px 0;
 
-  color: #98a2b3;
-  font-size: 14px;
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
   text-align: center;
 `;
 

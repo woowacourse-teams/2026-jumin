@@ -1,21 +1,36 @@
 import { css } from '@emotion/css';
-import { useNavigate } from 'react-router';
 import type { Destination } from '../../../api/contracts';
-import { BottomNav } from '../../../shared/components/BottomNav';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
+import { color } from '../../theme/color';
+import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { Navigate } from 'react-router';
+import { useCenterLocationQuery } from './hooks/useCenterLocationQuery';
+import { buildQueryString } from '../../../shared/hooks/useQueryParams';
 
 export const SearchPage = () => {
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('search');
+  const centerLocation = useCenterLocationQuery();
 
   const handleDestinationSelect = (destination: Destination) => {
-    navigate('/parkingsetup', {
-      state: { destination },
+    const queryString = buildQueryString({
+      lat: String(destination.latitude),
+      lng: String(destination.longitude),
+      name: destination.name,
     });
+
+    move('SELECT_DESTINATION', queryString);
   };
+
+  if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;
 
   return (
     <main className={pageStyle}>
-      <SearchContent onDestinationSelect={handleDestinationSelect} />
+      <SearchContent
+        viewportLatitude={centerLocation.latitude}
+        viewportLongitude={centerLocation.longitude}
+        onDestinationSelect={handleDestinationSelect}
+      />
       <footer
         className={css`
           margin-top: auto;
@@ -37,5 +52,5 @@ const pageStyle = css`
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #ffffff;
+  background-color: ${color.background.default};
 `;

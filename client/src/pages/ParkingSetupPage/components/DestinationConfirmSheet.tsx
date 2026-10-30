@@ -1,19 +1,16 @@
 import { css } from '@emotion/css';
+import { CloseIcon } from '../../../../shared/components/ui/icons';
+import { color } from '../../../theme/color';
+import { typography } from '../../../theme/typography';
+
 interface Props {
   name: string;
-  address?: string;
   nextDisabled?: boolean;
   onCancel: () => void;
   onNext: () => void;
 }
 
-export const DestinationConfirmSheet = ({
-  name,
-  address,
-  nextDisabled,
-  onCancel,
-  onNext,
-}: Props) => {
+export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }: Props) => {
   return (
     <section
       className={css`
@@ -24,7 +21,7 @@ export const DestinationConfirmSheet = ({
         z-index: 1;
         padding: 24px 16px max(20px, env(safe-area-inset-bottom, 0px));
         border-radius: 28px 28px 0 0;
-        background: white;
+        background: ${color.background.default};
         box-sizing: border-box;
       `}
       aria-label="선택한 목적지"
@@ -37,46 +34,32 @@ export const DestinationConfirmSheet = ({
           position: absolute;
           top: 16px;
           right: 16px;
+          display: grid;
+          place-items: center;
           width: 32px;
           height: 32px;
           padding: 0;
           border: 0;
           background: transparent;
-          color: #98a2b3;
-          font-size: 22px;
+          color: ${color.icon.default};
           cursor: pointer;
         `}
         type="button"
         aria-label="목적지 선택 취소"
         onClick={onCancel}
       >
-        ×
+        <CloseIcon size={24} aria-hidden="true" />
       </button>
 
       <h1
         className={css`
           margin: 0 40px 4px 0;
-          color: #14294c;
-          font-size: 18px;
-          line-height: 1.4;
+          ${typography.titleCard};
+          color: ${color.text.primary};
         `}
       >
         {name}
       </h1>
-      {address && (
-        <p
-          className={css`
-            margin: 0;
-            overflow: hidden;
-            color: #7f8b9d;
-            font-size: 12px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          `}
-        >
-          {address}
-        </p>
-      )}
 
       <button
         className={css`
@@ -85,18 +68,28 @@ export const DestinationConfirmSheet = ({
           margin-top: 20px;
           border: 0;
           border-radius: 12px;
-          background: #4356d8;
-          color: white;
-          font-size: 14px;
-          font-weight: 700;
+          background: ${color.background.brand};
+          color: ${color.text.inverse};
+          ${typography.label};
           cursor: pointer;
 
-          &:hover,
-          &:focus-visible {
-            background: #1249c4;
+          &:hover:not(:disabled),
+          &:focus-visible:not(:disabled) {
+            background: ${color.background.brandHovered};
           }
+
+          &:active:not(:disabled) {
+            background: ${color.background.brandPressed};
+          }
+
+          &:focus-visible {
+            outline: 3px solid ${color.focus.ring};
+            outline-offset: 3px;
+          }
+
           &:disabled {
-            background: #aeb7d8;
+            color: ${color.text.disabled};
+            background: ${color.background.disabled};
             cursor: not-allowed;
           }
         `}
@@ -122,10 +115,8 @@ const mapGuideStyle = css`
   margin: 0;
   padding: 10px 16px;
 
-  color: #101b37;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  ${typography.label};
+  color: ${color.text.primary};
   text-align: center;
   word-break: keep-all;
 

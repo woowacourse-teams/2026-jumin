@@ -10,6 +10,7 @@ on:
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.viewport.yml'
       - 'infra/docker-compose.proxy.yml'
       - 'infra/docker-compose.proxy.prod.yml'
       - 'infra/nginx/bootstrap.conf'
@@ -17,6 +18,9 @@ on:
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
+      - 'infra/scripts/deploy-backend.sh'
+      - 'infra/redis/**'
+      - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
@@ -34,6 +38,7 @@ on:
       - 'infra/docker-compose.local.yml'
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.viewport.yml'
       - 'infra/docker-compose.proxy.yml'
       - 'infra/docker-compose.proxy.prod.yml'
       - 'infra/nginx/bootstrap.conf'
@@ -41,6 +46,9 @@ on:
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
+      - 'infra/scripts/deploy-backend.sh'
+      - 'infra/redis/**'
+      - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
       - 'server/Dockerfile'
@@ -71,7 +79,10 @@ jobs:
           persist-credentials: false
 
       - name: Validate admin authentication script syntax
-        run: bash -n infra/scripts/validate-admin-auth-env.sh
+        run: |
+          for script in infra/scripts/validate-admin-auth-env.sh infra/scripts/tests/test-viewport-cache.sh; do
+            bash -n "$script"
+          done
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -102,19 +113,24 @@ jobs:
       - name: Validate backend Docker image build
         run: docker build --file server/Dockerfile --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" --tag jumin-backend:ci "${RUNNER_TEMP}/jumin-backend-image-context"
 
+      - name: Validate viewport deployment contracts
+        run: bash infra/scripts/tests/test-viewport-cache.sh
+
       - name: Validate Docker Compose configuration
         env:
           DB_URL: jdbc:postgresql://localhost:5432/jumin
           DB_USERNAME: ci
           DB_PASSWORD: ci
-          LOCAL_SEARCH_CLIENT_ID: ci
-          LOCAL_SEARCH_CLIENT_SECRET: ci
+          LOCAL_SEARCH_REST_API_KEY: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
           ADMIN_LOGIN_ID: ci-admin
           ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
           ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
           ADMIN_ENV_LABEL: ci
+          PARKING_AVAILABILITY_ENABLED: 'false'
+          SEOUL_PARKING_API_KEY: ''
+          BUSAN_PARKING_API_KEY: ''
         run: docker compose --file infra/docker-compose.dev.yml config --quiet
 
       - name: Validate production Docker Compose configuration
@@ -122,14 +138,16 @@ jobs:
           DB_URL: jdbc:postgresql://localhost:5432/jumin
           DB_USERNAME: ci
           DB_PASSWORD: ci
-          LOCAL_SEARCH_CLIENT_ID: ci
-          LOCAL_SEARCH_CLIENT_SECRET: ci
+          LOCAL_SEARCH_REST_API_KEY: ci
           REVERSE_GEOCODING_CLIENT_ID: ci
           REVERSE_GEOCODING_CLIENT_SECRET: ci
           ADMIN_LOGIN_ID: ci-admin
           ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
           ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
           ADMIN_ENV_LABEL: ci
+          PARKING_AVAILABILITY_ENABLED: 'false'
+          SEOUL_PARKING_API_KEY: ''
+          BUSAN_PARKING_API_KEY: ''
         run: docker compose --file infra/docker-compose.prod.yml config --quiet
 
       - name: Validate development proxy Compose configuration

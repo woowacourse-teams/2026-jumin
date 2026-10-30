@@ -36,7 +36,6 @@ export const destinationSchema = z.object({
   roadAddress: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
-  provider: z.literal('NAVER'),
 });
 
 /**
@@ -104,6 +103,7 @@ export const parkingLotDetailSchema = z.object({
   address: z.string(),
   location: locationSchema,
   capacity: z.number().nullable(),
+  availableSpaces: z.number().int().nonnegative().nullable(),
   distanceMeters: z.number().nullable(),
   walkingDurationMinutes: z.number().nullable(),
   estimatedFee: z.number().nullable(),

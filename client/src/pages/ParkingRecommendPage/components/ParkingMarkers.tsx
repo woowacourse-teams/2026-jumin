@@ -3,8 +3,9 @@ import type { ParkingLotSummary } from '../../../../api/contracts';
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
+import detailParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 
-import { DestinationMapOverlay } from '../../../../shared/components/DestinationMapOverlay';
+import { DestinationMapOverlay } from '../../../../shared/components/service/destination/DestinationMapOverlay';
 import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 
@@ -25,12 +26,20 @@ const markerIcons = {
   },
   candidate: {
     url: dotParkingMarkerUrl,
-    width: 40,
-    height: 40,
+    width: 10,
+    height: 10,
     anchorX: 5,
-    anchorY: 5,
+    anchorY: 10,
   },
 } satisfies Record<ParkingMarkerType, Parameters<typeof NaverMapMarker>[0]['icon']>;
+
+const detailMarkerIcon = {
+  url: detailParkingMarkerUrl,
+  width: 50,
+  height: 60,
+  anchorX: 25,
+  anchorY: 60,
+};
 
 interface Props {
   map: naver.maps.Map | null;
@@ -42,6 +51,7 @@ interface Props {
   parkingLots: ParkingLotSummary[];
   recommendedParkingLots: ParkingLotSummary[];
   selectedParkingLotId: number | null;
+  isDetail?: boolean;
   onSelect: (parkingLot: ParkingLotSummary) => void;
 }
 
@@ -51,6 +61,7 @@ export const ParkingMarkers = ({
   parkingLots,
   recommendedParkingLots,
   selectedParkingLotId,
+  isDetail = false,
   onSelect,
 }: Props) => {
   const recommendedParkingLotIds = recommendedParkingLots.map((parkingLot) => parkingLot.id);
@@ -77,7 +88,7 @@ export const ParkingMarkers = ({
             map={map}
             latitude={parkingLot.location.latitude}
             longitude={parkingLot.location.longitude}
-            icon={markerIcons[markerType]}
+            icon={isDetail ? detailMarkerIcon : markerIcons[markerType]}
             title={parkingLot.name}
             zIndex={markerType === 'selected' ? 30 : markerType === 'recommended' ? 20 : 10}
             onClick={() => onSelect(parkingLot)}

@@ -7,6 +7,8 @@ on:
     paths:
       - 'server/**'
       - 'infra/docker-compose.prod.yml'
+      - 'infra/docker-compose.viewport.yml'
+      - 'infra/scripts/deploy-backend.sh'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'
       - 'infra/observability/alloy/**'
@@ -34,6 +36,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Validate viewport deployment contracts
+        run: bash infra/scripts/tests/test-viewport-cache.sh
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -110,144 +115,27 @@ jobs:
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          LOCAL_SEARCH_CLIENT_ID: ${{ secrets.LOCAL_SEARCH_CLIENT_ID }}
-          LOCAL_SEARCH_CLIENT_SECRET: ${{ secrets.LOCAL_SEARCH_CLIENT_SECRET }}
+          LOCAL_SEARCH_REST_API_KEY: ${{ secrets.LOCAL_SEARCH_REST_API_KEY }}
           REVERSE_GEOCODING_CLIENT_ID: ${{ secrets.REVERSE_GEOCODING_CLIENT_ID }}
           REVERSE_GEOCODING_CLIENT_SECRET: ${{ secrets.REVERSE_GEOCODING_CLIENT_SECRET }}
           ADMIN_LOGIN_ID: ${{ secrets.ADMIN_LOGIN_ID }}
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           ADMIN_TOKEN_SECRET: ${{ secrets.ADMIN_TOKEN_SECRET }}
           ADMIN_ENV_LABEL: prod
-        run: |
-          set -Eeuo pipefail
-
-          repository_root="${GITHUB_WORKSPACE:-$PWD}"
-          release_id="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          release_root="${BACKEND_RELEASE_ROOT}"
-          release_dir="${release_root}/releases/${release_id}"
-          current_link="${release_root}/current"
-          compose_file="${repository_root}/infra/docker-compose.prod.yml"
-          image_name="jumin-backend"
-          compose_project="jumin-prod"
-          container_name="jumin-backend-prod"
-          previous_image="$(docker inspect --format '{{.Config.Image}}' "${container_name}" 2>/dev/null || true)"
-          previous_tag=""
-          previous_release="$(readlink -f "${current_link}" 2>/dev/null || true)"
-          deployment_attempted=false
-
-          if [[ -n "${previous_image}" ]]; then
-            if [[ "${previous_image}" != "${image_name}:"* ]]; then
-              echo "Unexpected existing production image: ${previous_image}" >&2
-              exit 1
-            fi
-            previous_tag="${previous_image#${image_name}:}"
-          fi
-
-          compose_up() {
-            local image_tag="$1"
-
-            IMAGE_TAG="${image_tag}" \
-            BACKEND_PORT="${BACKEND_PORT}" \
-            DB_URL="${DB_URL}" \
-            DB_USERNAME="${DB_USERNAME}" \
-            DB_PASSWORD="${DB_PASSWORD}" \
-            LOCAL_SEARCH_CLIENT_ID="${LOCAL_SEARCH_CLIENT_ID}" \
-            LOCAL_SEARCH_CLIENT_SECRET="${LOCAL_SEARCH_CLIENT_SECRET}" \
-            REVERSE_GEOCODING_CLIENT_ID="${REVERSE_GEOCODING_CLIENT_ID}" \
-            REVERSE_GEOCODING_CLIENT_SECRET="${REVERSE_GEOCODING_CLIENT_SECRET}" \
-            ADMIN_LOGIN_ID="${ADMIN_LOGIN_ID}" \
-            ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH}" \
-            ADMIN_TOKEN_SECRET="${ADMIN_TOKEN_SECRET}" \
-            ADMIN_ENV_LABEL="${ADMIN_ENV_LABEL}" \
-            docker compose \
-              --project-name "${compose_project}" \
-              --file "${compose_file}" \
-              up --detach --no-deps --remove-orphans backend
-          }
-
-          rollback() {
-            local exit_code="${1:-$?}"
-            trap - ERR
-
-            echo "Production deployment failed; restoring the previous release." >&2
-            if [[ -n "${previous_tag}" ]]; then
-              compose_up "${previous_tag}" || true
-            elif [[ "${deployment_attempted}" == true ]]; then
-              docker compose \
-                --project-name "${compose_project}" \
-                --file "${compose_file}" \
-                down --remove-orphans || true
-            fi
-
-            if [[ -n "${previous_release}" && -d "${previous_release}" ]]; then
-              ln -sfn "${previous_release}" "${current_link}"
-            elif [[ -L "${current_link}" ]]; then
-              unlink "${current_link}"
-            fi
-
-            exit "${exit_code}"
-          }
-          trap rollback ERR
-
-          for required_variable in \
-            DB_URL \
-            DB_USERNAME \
-            DB_PASSWORD \
-            LOCAL_SEARCH_CLIENT_ID \
-            LOCAL_SEARCH_CLIENT_SECRET \
-            REVERSE_GEOCODING_CLIENT_ID \
-            REVERSE_GEOCODING_CLIENT_SECRET \
-            ADMIN_LOGIN_ID \
-            ADMIN_PASSWORD_HASH \
-            ADMIN_TOKEN_SECRET; do
-            if [[ -z "${!required_variable}" ]]; then
-              echo "Missing required production secret: ${required_variable}" >&2
-              exit 1
-            fi
-          done
-
-          test -s "${BACKEND_ARTIFACT_DIR}/app.jar"
-          if [[ -f "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" ]]; then
-            (
-              cd "${BACKEND_ARTIFACT_DIR}"
-              sha256sum --check app.jar.sha256
-            )
-          fi
-
-          test -f "${compose_file}"
-          mkdir -p "${release_dir}"
-          cp "${BACKEND_ARTIFACT_DIR}/app.jar" "${release_dir}/app.jar"
-          if [[ -f "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" ]]; then
-            cp "${BACKEND_ARTIFACT_DIR}/app.jar.sha256" "${release_dir}/app.jar.sha256"
-          fi
-
-          ln -sfn "${release_dir}" "${current_link}"
-          docker build \
-            --file "${repository_root}/server/Dockerfile" \
-            --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" \
-            --tag "${image_name}:${release_id}" \
-            "${release_dir}"
-
-          deployment_attempted=true
-          compose_up "${release_id}"
-
-          health_url="http://127.0.0.1:${BACKEND_PORT}/actuator/health"
-          for _ in $(seq 1 12); do
-            if curl --noproxy '*' --fail --silent --show-error --connect-timeout 2 --max-time 5 "${health_url}" >/dev/null; then
-              docker inspect --format '{{.State.Health.Status}}' "${container_name}" | grep -qx healthy
-              trap - ERR
-              echo "Backend production deployment succeeded: ${release_id}"
-              exit 0
-            fi
-            sleep 5
-          done
-
-          echo "Backend production health check failed. Recent container logs:" >&2
-          docker compose \
-            --project-name "${compose_project}" \
-            --file "${compose_file}" \
-            logs --tail=80 backend >&2 || true
-          rollback 1
+          JUMIN_VIEWPORT_CACHE_ENABLED: ${{ vars.VIEWPORT_CACHE_ENABLED || 'false' }}
+          JUMIN_VIEWPORT_CACHE_ENVIRONMENT: prod_sq_ttl
+          JUMIN_VIEWPORT_CACHE_REDISURI: ${{ secrets.VIEWPORT_REDIS_URI }}
+          JUMIN_VIEWPORT_CACHE_REDISUSERNAME: ${{ secrets.VIEWPORT_REDIS_USERNAME }}
+          JUMIN_VIEWPORT_CACHE_REDISPASSWORD: ${{ secrets.VIEWPORT_REDIS_PASSWORD }}
+          VIEWPORT_REDIS_TLS_CA_PEM: ${{ secrets.VIEWPORT_REDIS_TLS_CA_PEM }}
+          JUMIN_VIEWPORT_CACHE_TTL: ${{ vars.VIEWPORT_CACHE_TTL || '10m' }}
+          JUMIN_VIEWPORT_CACHE_EMPTYTTL: ${{ vars.VIEWPORT_CACHE_EMPTY_TTL || '1m' }}
+          JUMIN_VIEWPORT_CACHE_TTLJITTER: ${{ vars.VIEWPORT_CACHE_TTL_JITTER || '0.2' }}
+          JUMIN_VIEWPORT_CACHE_PREPAREONSTARTUP: ${{ vars.VIEWPORT_CACHE_PREPARE_ON_STARTUP || 'true' }}
+          PARKING_AVAILABILITY_ENABLED: ${{ vars.PARKING_AVAILABILITY_ENABLED || 'false' }}
+          SEOUL_PARKING_API_KEY: ${{ secrets.SEOUL_PARKING_API_KEY || secrets.SEOUL_OPEN_DATA_API_KEY }}
+          BUSAN_PARKING_API_KEY: ${{ secrets.BUSAN_PARKING_API_KEY }}
+        run: bash infra/scripts/deploy-backend.sh prod
 
       - name: Deploy Alloy collector
         env:

@@ -1,0 +1,117 @@
+import { css, cx } from '@emotion/css';
+
+import brandMark from '../../../assets/icons/brandMark.svg';
+import { color } from '../../../src/theme/color';
+import { typography } from '../../../src/theme/typography';
+import { RetryIcon } from '../ui/icons';
+
+interface Props {
+  label: string;
+  onRetry: () => void;
+  className?: string;
+}
+
+export const ErrorCard = ({ label, onRetry, className }: Props) => (
+  <section className={cx(errorStyle, className)} role="alert">
+    <img className={logoStyle} src={brandMark} alt="" draggable={false} />
+
+    <div className={messageStyle}>
+      <h2 className={titleStyle}>{label}</h2>
+      <p className={descriptionStyle}>네트워크 상태를 확인한 후 다시 시도해 주세요.</p>
+    </div>
+
+    <button className={retryButtonStyle} type="button" onClick={onRetry}>
+      <RetryIcon size={22} aria-hidden="true" />
+      다시 시도
+    </button>
+  </section>
+);
+
+const errorStyle = css`
+  position: absolute;
+  right: 16px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 16px;
+  z-index: 20;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  pointer-events: auto;
+
+  padding: 28px 24px 24px;
+
+  color: ${color.text.primary};
+  text-align: center;
+
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid rgb(67 86 216 / 12%);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgb(16 27 55 / 14%);
+  backdrop-filter: blur(8px);
+`;
+
+const logoStyle = css`
+  width: 58px;
+  height: 64px;
+
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+`;
+
+const messageStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const titleStyle = css`
+  margin: 0;
+
+  ${typography.titleCard};
+  letter-spacing: -0.6px;
+`;
+
+const descriptionStyle = css`
+  margin: 0;
+
+  ${typography.bodySmall};
+  color: ${color.text.secondary};
+`;
+
+const retryButtonStyle = css`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+
+  font-family: inherit;
+  ${typography.label};
+  color: ${color.text.inverse};
+
+  background: ${color.background.brand};
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    background: ${color.background.brandHovered};
+  }
+
+  &:active {
+    background: ${color.background.brandPressed};
+  }
+
+  &:focus-visible {
+    outline: 3px solid ${color.focus.ring};
+    outline-offset: 3px;
+  }
+`;

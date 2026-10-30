@@ -2,9 +2,20 @@ import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
+import recommend from '../../../assets/landing/recommend.webp';
+import {
+  ArrowDownIcon,
+  ChevronRightIcon,
+  DirectionsIcon,
+  FreeParkingIcon,
+  InstallIcon,
+  LocationIcon,
+} from '../../../shared/components/ui/icons';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
-import parkingHero from '../../../assets/parking-hero.jpg';
+import { color } from '../../theme/color';
+import { typography } from '../../theme/typography';
 import { LandingGuide } from './components/LandingGuide';
+import { LandingTechnology } from './components/LandingTechnology';
 
 export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
@@ -14,92 +25,155 @@ export const LandingPage = () => {
       <a className={styles.skipLink} href="#landing-intro">
         본문 바로가기
       </a>
+      <header className={styles.header}>
+        <Link className={styles.brand} to="/landing" aria-label="주차의민족 소개 홈">
+          <img src={brandMark} alt="" width="29" height="32" />
+          주차의민족
+        </Link>
+        <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
+          <a href="#landing-intro">서비스 소개</a>
+          <a href="#landing-guide">이용 방법</a>
+          <a href="#landing-technology">기술 이야기</a>
+        </nav>
+        <Link className={styles.headerCta} to="/">
+          시작하기 <ChevronRightIcon size={16} aria-hidden="true" />
+        </Link>
+      </header>
 
       <section className={styles.hero} aria-labelledby="landing-title">
-        <img className={styles.heroPhoto} src={parkingHero} alt="" fetchPriority="high" />
-
-        <header className={styles.header}>
-          <Link className={styles.brand} to="/landing" aria-label="주차의민족 소개 홈">
-            <img src={brandMark} alt="" width="29" height="32" />
-            <span>주차의민족</span>
-          </Link>
-          <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
-            <a href="#landing-intro">서비스 소개</a>
-            <a href="#landing-guide">이용 방법</a>
-            <Link to="/">주차장 찾기</Link>
-          </nav>
-        </header>
-
-        <div className={styles.heroContent}>
-          <p className={styles.heroEyebrow}>주차장을 찾는 가장 간단한 방법</p>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>목적지 주변 주차장, 한눈에.</p>
           <h1 id="landing-title">
-            목적지를 입력하면,
+            어디에 주차할지,
             <br />
-            주차장을 추천해드려요.
+            <span>출발 전에 정하세요.</span>
           </h1>
-          <p className={styles.heroDescription}>목적지 주변의 주차장을 추천해드립니다.</p>
+          <p className={styles.heroDescription}>
+            가까운 곳, 저렴한 곳, 둘 다 적당한 곳.
+            <br />
+            거리와 예상 요금을 비교하고 길찾기까지 이어가세요.
+          </p>
           <div className={styles.actions}>
             <Link className={cx(styles.button, styles.primaryButton)} to="/">
-              주차의민족 이용하기
+              주차장 찾아보기 <ChevronRightIcon size={19} aria-hidden="true" />
             </Link>
-            <button
-              className={cx(styles.button, styles.installButton)}
-              type="button"
-              onClick={() => void handleInstall()}
-              disabled={isInstalled || isInstalling}
-            >
-              {isInstalled ? '설치 완료' : isInstalling ? '설치창 여는 중' : '앱 설치하기'}
-              {!isInstalled}
-            </button>
+            <a className={styles.textLink} href="#landing-guide">
+              이용 방법 알아보기 <ArrowDownIcon size={17} aria-hidden="true" />
+            </a>
           </div>
-          <p className={styles.installMessage} role="status" aria-live="polite">
-            {installMessage}
-          </p>
+          <p className={styles.heroNote}>설치 없이 웹에서 바로 시작할 수 있어요.</p>
         </div>
-
-        <a className={styles.scrollLink} href="#landing-intro">
-          서비스 알아보기 <span aria-hidden="true">↓</span>
-        </a>
+        <figure className={styles.heroVisual}>
+          <div className={styles.visualStage}>
+            <span className={styles.stageLabel}>목적지에서 주차장까지</span>
+            <span className={styles.parkingSymbol} aria-hidden="true">
+              P
+            </span>
+            <div className={styles.heroPhone}>
+              <img
+                src={recommend}
+                alt="지도와 함께 예상 요금, 도보거리, 거리순·가격순·균형순 비교를 보여주는 현재 추천 화면"
+                width="430"
+                height="844"
+                fetchPriority="high"
+              />
+            </div>
+            <div className={styles.visualCaption}>
+              <LocationIcon size={27} aria-hidden="true" />
+              <div>
+                <span>주차장을 고르는 나만의 기준</span>
+                <strong>거리도, 요금도 비교해서.</strong>
+              </div>
+            </div>
+          </div>
+          <figcaption>현재 서비스 화면 · 주차장 정보와 요금은 예시</figcaption>
+        </figure>
       </section>
 
       <section id="landing-intro" className={styles.intro} aria-labelledby="landing-intro-title">
-        <p className={styles.eyebrow}>주차의민족</p>
-        <h2 id="landing-intro-title">
-          어디에 주차할지 고민될 때,
-          <br />
-          목적지만 검색하세요.
-        </h2>
-        <p className={cx(styles.description, styles.introProblem)}>
-          지도나 주차장 앱에서 거리와 요금을 하나씩 확인하며,
-          <br />
-          어느 주차장으로 갈지 고민했던 분들을 위해 만들었어요.
-        </p>
-        <p className={styles.introSolution}>
-          목적지 주변 주차장의 <strong>거리와 예상 요금</strong>을 비교해,
-          <br />
-          추천 주차장을 알려드려요.
-        </p>
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.eyebrow}>01 / 서비스 소개</p>
+            <h2 id="landing-intro-title">
+              주차장을 찾는 기준은,
+              <br />
+              사람마다 다르니까.
+            </h2>
+          </div>
+          <p className={styles.description}>
+            지도에서 하나씩 확인하던 주차 정보.
+            <br />
+            이제 내 목적지와 조건을 기준으로 살펴보세요.
+          </p>
+        </div>
+        <div className={styles.features}>
+          <article>
+            <LocationIcon className={styles.featureIcon} size={28} aria-hidden="true" />
+            <h3>원하는 조건으로 찾고</h3>
+            <p>주변 지도에서 무료 주차장, 기계식 제외, 공영 주차장 조건으로 후보를 좁혀보세요.</p>
+            <span className={styles.featureDetail}>무료 주차장 / 기계식 제외 / 공영 주차장</span>
+          </article>
+          <article>
+            <FreeParkingIcon className={styles.featureIcon} size={28} aria-hidden="true" />
+            <h3>거리와 요금을 비교하고</h3>
+            <p>
+              목적지까지의 예상 도보거리와 1시간 기준 예상 요금을 거리순·가격순·균형순으로
+              비교하세요.
+            </p>
+            <span className={styles.featureDetail}>거리순 / 가격순 / 균형순</span>
+          </article>
+          <article>
+            <DirectionsIcon className={styles.featureIcon} size={28} aria-hidden="true" />
+            <h3>익숙한 지도로 출발하세요</h3>
+            <p>운영시간과 로드뷰를 확인한 뒤, 네이버 지도·카카오맵·티맵으로 길찾기를 이어가세요.</p>
+            <span className={styles.featureDetail}>상세정보 / 로드뷰 / 길찾기</span>
+          </article>
+        </div>
       </section>
 
       <LandingGuide />
+      <LandingTechnology />
 
-      <section className={styles.closing} aria-labelledby="landing-closing-title">
+      <section
+        id="landing-start"
+        className={styles.closing}
+        aria-labelledby="landing-closing-title"
+      >
+        <p className={styles.eyebrow}>04 / 시작하기</p>
         <h2 id="landing-closing-title">
-          다음 목적지의 주차장,
+          다음 목적지는 어디인가요?
           <br />
-          지금 찾아보세요.
+          주차장도 함께 찾아보세요.
         </h2>
-        <Link className={cx(styles.button, styles.closingButton)} to="/">
-          주차의민족 이용하기
-        </Link>
+        <p className={styles.description}>
+          웹에서 바로 이용하거나, 홈 화면에 설치해 더 편하게 열어보세요.
+        </p>
+        <div className={styles.actions}>
+          <Link className={cx(styles.button, styles.primaryButton)} to="/">
+            주차장 찾아보기 <ChevronRightIcon size={19} aria-hidden="true" />
+          </Link>
+          <button
+            className={cx(styles.button, styles.installButton)}
+            type="button"
+            onClick={() => void handleInstall()}
+            disabled={isInstalled || isInstalling}
+          >
+            <InstallIcon size={19} aria-hidden="true" />
+            {isInstalled ? '설치 완료' : isInstalling ? '설치창 여는 중' : '앱 설치하기'}
+          </button>
+        </div>
+        <p className={styles.installMessage} role="status" aria-live="polite">
+          {installMessage}
+        </p>
       </section>
 
       <footer className={styles.footer}>
-        <Link className={styles.footerBrand} to="/landing">
-          <img src={brandMark} alt="" width="22" height="25" />
+        <Link className={styles.brand} to="/landing">
+          <img src={brandMark} alt="" width="23" height="26" />
           주차의민족
         </Link>
         <p>주차장을 찾는 가장 간단한 방법</p>
+        <a href="#landing-technology">주차의민족의 기술 이야기</a>
       </footer>
     </main>
   );
@@ -119,19 +193,18 @@ applyLandingRootStyles();
 
 const styles = {
   page: css`
-    --landing-primary: #4356d8;
-    --landing-ink: #18233d;
+    --landing-primary: ${color.text.brand};
     width: 100%;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    color: var(--landing-ink);
-    background: #fff;
+    background: ${color.background.default};
+    color: ${color.text.primary};
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     word-break: keep-all;
-
-    :where(h1, h2, p, figure) {
+    -webkit-font-smoothing: antialiased;
+    & :where(h1, h2, h3, p, figure) {
       margin: 0;
     }
     a {
@@ -143,10 +216,12 @@ const styles = {
     }
     a:focus-visible,
     button:focus-visible {
-      outline: 3px solid #99a6ff;
-      outline-offset: 6px;
+      outline: 3px solid ${color.focus.ring};
+      outline-offset: 5px;
     }
-
+    section[id] {
+      scroll-margin-top: 24px;
+    }
     @media (prefers-reduced-motion: reduce) {
       scroll-behavior: auto;
       *,
@@ -163,360 +238,446 @@ const styles = {
     left: 16px;
     z-index: 5;
     padding: 12px 18px;
-    color: #18233d !important;
-    background: #fff;
+    background: ${color.background.default};
     border-radius: 8px;
     transform: translateY(-180%);
     &:focus {
       transform: translateY(0);
     }
   `,
-  hero: css`
-    position: relative;
-    display: flex;
-    min-height: max(700px, 100svh);
-    flex-direction: column;
-    color: #fff;
-    background: #161d25;
-    isolation: isolate;
-
-    &::after {
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      content: '';
-      background:
-        linear-gradient(90deg, rgb(9 17 29 / 84%), rgb(9 17 29 / 42%) 68%, rgb(9 17 29 / 28%)),
-        linear-gradient(0deg, rgb(9 17 29 / 28%), transparent 30%);
-    }
-
-    @media (max-width: 700px) {
-      min-height: max(640px, 100svh);
-      &::after {
-        background: rgb(9 17 29 / 72%);
-      }
-    }
-  `,
-  heroPhoto: css`
-    position: absolute;
-    inset: 0;
-    z-index: -2;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  `,
   header: css`
     display: flex;
-    width: min(100% - 112px, 1240px);
+    width: min(100% - 96px, 1200px);
     min-height: 100px;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
     margin: 0 auto;
     padding-top: env(safe-area-inset-top, 0px);
-
     @media (max-width: 700px) {
-      width: calc(100% - 48px);
-      min-height: 86px;
-      gap: 12px;
+      width: calc(100% - 40px);
+      min-height: 112px;
+      flex-wrap: wrap;
+      gap: 0;
+      padding-top: 20px;
+      padding-bottom: 12px;
     }
   `,
   brand: css`
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     flex-shrink: 0;
-    font-size: 25px;
+    font-size: 1.375rem;
     font-weight: 800;
-    letter-spacing: -1.1px;
-    img {
-      filter: brightness(0) invert(1);
-    }
-
+    letter-spacing: -0.8px;
     @media (max-width: 700px) {
-      gap: 8px;
-      font-size: 21px;
+      font-size: 1.1875rem;
       img {
-        width: 23px;
-        height: 26px;
+        width: 24px;
+        height: 27px;
       }
     }
   `,
   navigation: css`
     display: flex;
-    align-items: center;
-    gap: 36px;
-    font-size: 15px;
-    font-weight: 600;
+    gap: 32px;
+    ${typography.label};
+    color: ${color.text.secondary};
     a {
       padding: 12px 0;
     }
     a:hover {
-      color: #c9d0ff;
+      color: ${color.text.brand};
     }
-    span {
-      margin-left: 8px;
-    }
-
     @media (max-width: 700px) {
-      font-size: 13px;
-      a:not(:last-child) {
-        display: none;
-      }
-      span {
-        margin-left: 3px;
-      }
+      order: 3;
+      width: 100%;
+      gap: 24px;
+      font-size: 0.8125rem;
     }
   `,
-  heroContent: css`
-    width: min(100% - 112px, 1240px);
-    margin: auto;
-    padding: 110px 0 150px;
-    animation: landing-appear 700ms ease both;
-
-    h1 {
-      margin: 24px 0 28px;
-      font-size: clamp(44px, 4.7vw, 70px);
-      font-weight: 800;
-      line-height: 1.23;
-      letter-spacing: -2.8px;
+  headerCta: css`
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid ${color.border.default};
+    border-radius: 8px;
+    ${typography.label};
+    &:hover {
+      background: ${color.background.subtle};
     }
-
+    @media (max-width: 700px) {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.75rem;
+    }
+  `,
+  hero: css`
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    align-items: center;
+    gap: 48px;
+    width: min(100% - 96px, 1200px);
+    margin: 24px auto 80px;
+    @media (max-width: 1000px) {
+      gap: 24px;
+    }
+    @media (max-width: 700px) {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      width: calc(100% - 40px);
+      margin: 40px auto 56px;
+    }
+  `,
+  heroCopy: css`
+    padding: 36px 0;
+    animation: landing-appear 650ms ease both;
+    h1 {
+      margin: 22px 0 28px;
+      font-size: clamp(2.375rem, 4.2vw, 3.625rem);
+      line-height: 1.3;
+      font-weight: 800;
+      letter-spacing: -2.6px;
+      span {
+        color: ${color.text.brand};
+      }
+    }
     @keyframes landing-appear {
       from {
         opacity: 0;
-        transform: translateY(16px);
+        transform: translateY(14px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-
-    @media (max-width: 700px) {
-      width: calc(100% - 48px);
-      padding: 64px 0 100px;
+    @media (max-width: 1000px) and (min-width: 701px) {
       h1 {
-        margin: 20px 0 22px;
-        font-size: clamp(31px, 7.7vw, 50px);
-        line-height: 1.3;
-        letter-spacing: -1.4px;
+        font-size: clamp(1.875rem, 3.9vw, 2.75rem);
+        letter-spacing: -1.8px;
+      }
+    }
+    @media (max-width: 700px) {
+      padding: 0;
+      h1 {
+        margin: 18px 0 22px;
+        font-size: clamp(1.875rem, 7.9vw, 3rem);
+        letter-spacing: -1.5px;
       }
     }
   `,
-  heroEyebrow: css`
-    color: #d6dbed;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: -0.2px;
-    @media (max-width: 700px) {
-      font-size: 13px;
-    }
+  eyebrow: css`
+    ${typography.label};
+    color: ${color.text.brand};
+    letter-spacing: 0.1px;
   `,
   heroDescription: css`
-    color: #e0e4ee;
-    font-size: 19px;
-    line-height: 1.7;
-    letter-spacing: -0.4px;
-    @media (max-width: 700px) {
-      max-width: 300px;
-      font-size: 15px;
+    ${typography.body};
+    color: ${color.text.secondary};
+    line-height: 1.8;
+    letter-spacing: -0.35px;
+    @media (max-width: 1000px) {
+      font-size: 0.875rem;
     }
   `,
   actions: css`
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 42px;
-
-    @media (max-width: 700px) {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      max-width: 360px;
-      margin-top: 32px;
+    align-items: center;
+    gap: 20px;
+    margin-top: 32px;
+    @media (max-width: 1000px) {
+      gap: 16px;
     }
   `,
   button: css`
     display: inline-flex;
-    min-height: 62px;
+    min-height: 56px;
     align-items: center;
     justify-content: center;
-    gap: 28px;
-    padding: 0 28px;
-    font-size: 16px;
-    font-weight: 700;
+    gap: 16px;
+    padding: 0 24px;
     border: 1px solid transparent;
     border-radius: 10px;
+    ${typography.label};
+    font-size: 0.9375rem;
     cursor: pointer;
-    transition:
-      background 160ms ease,
-      transform 160ms ease;
-    span {
-      font-size: 21px;
-      font-weight: 400;
-    }
-    &:hover {
-      transform: translateY(-2px);
-    }
+    transition: background 160ms ease;
     &:disabled {
+      color: ${color.text.disabled};
       cursor: default;
-      transform: none;
-    }
-    @media (max-width: 700px) {
-      min-height: 56px;
-      font-size: 15px;
     }
   `,
   primaryButton: css`
-    min-width: 250px;
-    color: #fff;
-    background: var(--landing-primary);
+    color: ${color.text.inverse} !important;
+    background: ${color.background.brand};
     &:hover {
-      background: #3548c8;
+      background: ${color.background.brandHovered};
+    }
+  `,
+  textLink: css`
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 8px;
+    ${typography.label};
+    &:hover {
+      color: ${color.text.brand};
+    }
+  `,
+  heroNote: css`
+    margin-top: 18px !important;
+    ${typography.caption};
+    color: ${color.text.secondary};
+  `,
+  heroVisual: css`
+    min-width: 0;
+    figcaption {
+      margin-top: 14px;
+      ${typography.caption};
+      color: ${color.text.secondary};
+      text-align: right;
+    }
+  `,
+  visualStage: css`
+    position: relative;
+    display: flex;
+    min-height: 580px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 54px 24px 64px;
+    border-radius: 28px;
+    background-color: ${color.background.brandSubtle};
+    background-image:
+      linear-gradient(${color.border.brandSubtle} 1px, transparent 1px),
+      linear-gradient(90deg, ${color.border.brandSubtle} 1px, transparent 1px);
+    background-size: 56px 56px;
+    &::before {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border: 1px dashed ${color.border.brand};
+      border-radius: 50%;
+      opacity: 0.35;
+      content: '';
+    }
+    @media (max-width: 1000px) and (min-width: 701px) {
+      min-height: 510px;
+    }
+    @media (max-width: 700px) {
+      min-height: 520px;
+      padding: 48px 24px 66px;
+    }
+  `,
+  stageLabel: css`
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    ${typography.caption};
+    color: ${color.text.brand};
+    letter-spacing: 1px;
+  `,
+  parkingSymbol: css`
+    position: absolute;
+    right: 20px;
+    bottom: 2px;
+    color: ${color.border.brandSubtle};
+    font-size: 13rem;
+    font-weight: 800;
+    line-height: 1;
+  `,
+  heroPhone: css`
+    position: relative;
+    width: min(75%, 242px);
+    padding: 6px;
+    border: 1px solid ${color.border.default};
+    border-radius: 28px;
+    background: ${color.background.default};
+    box-shadow: 12px 20px 40px rgb(16 27 55 / 18%);
+    transform: rotate(-6deg);
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 21px;
+    }
+    @media (max-width: 700px) {
+      width: 216px;
+    }
+  `,
+  visualCaption: css`
+    position: absolute;
+    right: 24px;
+    bottom: 32px;
+    left: 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    border: 1px solid ${color.border.default};
+    border-radius: 14px;
+    background: ${color.background.default};
+    color: ${color.text.brand};
+    box-shadow: 0 8px 24px rgb(16 27 55 / 7%);
+    span {
+      display: block;
+      margin-bottom: 4px;
+      ${typography.caption};
+      color: ${color.text.secondary};
+    }
+    strong {
+      ${typography.bodySmallStrong};
+      color: ${color.text.primary};
+    }
+  `,
+  intro: css`
+    width: min(100% - 96px, 1200px);
+    margin: 0 auto;
+    padding: 88px 0 104px;
+    border-top: 1px solid ${color.border.default};
+    @media (max-width: 700px) {
+      width: calc(100% - 40px);
+      padding: 56px 0 64px;
+    }
+  `,
+  sectionHeading: css`
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    h2 {
+      margin-top: 20px;
+      font-size: clamp(1.875rem, 3.3vw, 2.75rem);
+      line-height: 1.4;
+      font-weight: 800;
+      letter-spacing: -1.6px;
+    }
+    @media (max-width: 900px) {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 20px;
+    }
+  `,
+  description: css`
+    ${typography.body};
+    line-height: 1.8;
+    color: ${color.text.secondary};
+    @media (max-width: 700px) {
+      font-size: 0.875rem;
+    }
+  `,
+  features: css`
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 40px;
+    margin-top: 52px;
+    article {
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+      padding-top: 28px;
+      border-top: 2px solid ${color.border.brandSubtle};
+    }
+    h3 {
+      margin: 20px 0 14px;
+      ${typography.titleSection};
+      letter-spacing: -0.5px;
+    }
+    p {
+      margin-bottom: 24px;
+      ${typography.bodySmall};
+      line-height: 1.8;
+      color: ${color.text.secondary};
+    }
+    @media (max-width: 900px) {
+      gap: 24px;
+    }
+    @media (max-width: 700px) {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      margin-top: 36px;
+    }
+  `,
+  featureIcon: css`
+    color: ${color.icon.brand};
+  `,
+  featureDetail: css`
+    margin-top: auto;
+    ${typography.caption};
+    color: ${color.text.brand};
+  `,
+  closing: css`
+    padding: 104px 24px;
+    background: ${color.background.brandSubtle};
+    text-align: center;
+    h2 {
+      margin: 20px 0;
+      font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+      line-height: 1.4;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+    }
+    > div {
+      justify-content: center;
+    }
+    @media (max-width: 700px) {
+      padding: 72px 20px;
+      > div {
+        flex-direction: column;
+        gap: 12px;
+      }
+      a,
+      button {
+        width: min(100%, 320px);
+      }
     }
   `,
   installButton: css`
-    min-width: 190px;
-    color: #4d4d4d;
-    background: #ffffff;
-    &:hover {
-      background: #acacac;
-    }
-    &:disabled {
-      color: #e0e4ee;
+    color: ${color.text.primary};
+    background: ${color.background.default};
+    border-color: ${color.border.default};
+    &:hover:enabled {
+      background: ${color.background.subtle};
     }
   `,
   installMessage: css`
     max-width: 450px;
-    margin-top: 14px !important;
-    color: #fff;
-    font-size: 14px;
-    line-height: 1.6;
+    margin: 18px auto 0 !important;
+    ${typography.bodySmall};
     &:empty {
       display: none;
     }
   `,
-  scrollLink: css`
-    position: absolute;
-    bottom: max(34px, env(safe-area-inset-bottom, 0px));
-    left: 50%;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px;
-    color: #e0e4ee !important;
-    font-size: 12px;
-    transform: translateX(-50%);
-    span {
-      font-size: 22px;
-    }
-    @media (max-width: 700px) {
-      bottom: max(20px, env(safe-area-inset-bottom, 0px));
-    }
-  `,
-  intro: css`
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: 120px 56px 64px;
-    text-align: center;
-    h2 {
-      margin: 20px 0 24px;
-      font-size: clamp(32px, 3.8vw, 48px);
-      font-weight: 800;
-      line-height: 1.3;
-      letter-spacing: -1.8px;
-    }
-    @media (max-width: 700px) {
-      padding: 80px 24px 44px;
-    }
-  `,
-  introProblem: css`
-    max-width: 640px;
-    margin: 0 auto !important;
-  `,
-  introSolution: css`
-    margin: 28px 0 0 !important;
-    font-size: 20px;
-    font-weight: 600;
-    line-height: 1.75;
-    letter-spacing: -0.5px;
-    strong {
-      color: var(--landing-primary);
-      font-weight: 700;
-    }
-    @media (max-width: 700px) {
-      margin-top: 24px !important;
-      font-size: 17px;
-    }
-  `,
-  eyebrow: css`
-    color: var(--landing-primary);
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.6;
-  `,
-  description: css`
-    color: #667086;
-    font-size: 17px;
-    line-height: 1.85;
-    letter-spacing: -0.4px;
-    @media (max-width: 700px) {
-      font-size: 15px;
-    }
-  `,
-  closing: css`
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    gap: 36px;
-    padding: 96px 24px;
-    color: #fff;
-    background: var(--landing-primary);
-    text-align: center;
-    h2 {
-      font-size: clamp(30px, 3.6vw, 46px);
-      font-weight: 800;
-      line-height: 1.35;
-      letter-spacing: -1.5px;
-    }
-    @media (max-width: 700px) {
-      padding: 72px 24px;
-    }
-  `,
-  closingButton: css`
-    color: var(--landing-primary) !important;
-    background: #fff;
-    &:hover {
-      background: #f0f2ff;
-    }
-  `,
   footer: css`
     display: flex;
-    max-width: 1352px;
+    width: min(100% - 96px, 1200px);
     align-items: center;
     flex-wrap: wrap;
     gap: 24px;
     margin: 0 auto;
-    padding: 44px 56px calc(44px + env(safe-area-inset-bottom, 0px));
-    color: #7a8292;
-    font-size: 12px;
+    padding: 40px 0 calc(40px + env(safe-area-inset-bottom, 0px));
+    ${typography.caption};
+    color: ${color.text.secondary};
+    > a:first-child {
+      color: ${color.text.primary};
+      font-size: 1.125rem;
+    }
+    > a:last-child {
+      margin-left: auto;
+    }
     @media (max-width: 700px) {
+      width: calc(100% - 40px);
       align-items: flex-start;
       flex-direction: column;
-      gap: 14px;
-      padding: 36px 24px calc(36px + env(safe-area-inset-bottom, 0px));
+      gap: 16px;
+      > a:last-child {
+        margin-left: 0;
+      }
     }
-  `,
-  footerBrand: css`
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--landing-ink) !important;
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: -0.7px;
   `,
 };

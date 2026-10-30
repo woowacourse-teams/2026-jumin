@@ -1,15 +1,21 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import guideIcon from '../../../assets/icons/guideIcon.svg';
-import installIcon from '../../../assets/icons/installIcon.svg';
-import feedbackIcon from '../../../assets/icons/feedBackIcon.svg';
-import { BottomNav } from '../../../shared/components/BottomNav';
-import { GuideModal } from '../../../shared/components/Modal/GuideModal';
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  FeedbackIcon,
+  GuideIcon,
+  InstallIcon,
+} from '../../../shared/components/ui/icons';
+import { BottomNav } from '../../../shared/components/service/BottomNav';
+import { GuideModal } from '../../../shared/components/service/guide/GuideModal';
 import { FEEDBACK_URL } from '../../../shared/constants/help';
 import { useModal } from '../../../shared/hooks/useModal';
 import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
+import { color } from '../../theme/color';
+import { typography } from '../../theme/typography';
 
 export const SettingPage = () => {
   const guideModal = useModal();
@@ -31,7 +37,7 @@ export const SettingPage = () => {
             <span className={styles.introLabel}>주차장을 찾는 가장 간단한 방법</span>
             <strong className={styles.introTitle}>주차의민족 소개</strong>
             <span className={styles.introLink}>
-              서비스 알아보기 <span aria-hidden="true">›</span>
+              서비스 알아보기 <ChevronRightIcon size={16} aria-hidden="true" />
             </span>
           </span>
         </Link>
@@ -43,7 +49,7 @@ export const SettingPage = () => {
           <div className={styles.menu}>
             <button className={styles.item} type="button" onClick={guideModal.open}>
               <span className={styles.iconFrame}>
-                <img src={guideIcon} alt="" />
+                <GuideIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>가이드 보기</strong>
@@ -52,7 +58,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                ›
+                <ChevronRightIcon size={16} />
               </span>
             </button>
             <button
@@ -61,8 +67,8 @@ export const SettingPage = () => {
               disabled={isInstalled || isInstalling}
               onClick={() => void handleInstall()}
             >
-              <span className={cx(styles.iconFrame, styles.installIconFrame)}>
-                <img src={installIcon} alt="" />
+              <span className={styles.iconFrame}>
+                <InstallIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>
@@ -75,7 +81,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                {isInstalled ? '✓' : '›'}
+                {isInstalled ? <CheckIcon size={16} /> : <ChevronRightIcon size={16} />}
               </span>
             </button>
           </div>
@@ -94,8 +100,8 @@ export const SettingPage = () => {
               type="button"
               onClick={() => window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer')}
             >
-              <span className={cx(styles.iconFrame, styles.feedbackIconFrame)}>
-                <img src={feedbackIcon} alt="" />
+              <span className={styles.iconFrame}>
+                <FeedbackIcon size={21} aria-hidden="true" />
               </span>
               <span className={styles.copy}>
                 <strong className={styles.itemTitle}>피드백 보내기</strong>
@@ -104,7 +110,7 @@ export const SettingPage = () => {
                 </span>
               </span>
               <span className={styles.chevron} aria-hidden="true">
-                ›
+                <ChevronRightIcon size={16} />
               </span>
             </button>
           </div>
@@ -123,9 +129,9 @@ const styles = {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    color: #18233d;
+    color: ${color.text.primary};
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    background: #f7f8fc;
+    background: ${color.background.subtle};
   `,
   content: css`
     height: calc(100% - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
@@ -137,17 +143,14 @@ const styles = {
 
     h1 {
       margin: 0;
-      font-size: 30px;
-      font-weight: 800;
-      line-height: 1.3;
+      ${typography.titlePage};
       letter-spacing: -1px;
     }
   `,
   description: css`
     margin: 10px 0 0;
-    color: #69758b;
-    font-size: 14px;
-    line-height: 1.6;
+    ${typography.bodySmall};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   intro: css`
@@ -155,19 +158,19 @@ const styles = {
     align-items: center;
     gap: 18px;
     padding: 24px 20px;
-    color: #18233d;
+    color: ${color.text.primary};
     text-decoration: none;
-    background: #edf0ff;
-    border: 1px solid #e0e5ff;
+    background: ${color.background.brandSubtle};
+    border: 1px solid ${color.border.brandSubtle};
     border-radius: 22px;
     transition: background-color 150ms ease;
 
     &:hover {
-      background: #e5eaff;
+      background: ${color.background.brandSubtleHovered};
     }
 
     &:focus-visible {
-      outline: 2px solid #4356d8;
+      outline: 2px solid ${color.focus.ring};
       outline-offset: 3px;
     }
   `,
@@ -190,36 +193,34 @@ const styles = {
     gap: 6px;
   `,
   introLabel: css`
-    color: #596681;
-    font-size: 11px;
-    line-height: 1.5;
+    ${typography.caption};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   introTitle: css`
-    font-size: 20px;
-    font-weight: 800;
+    ${typography.titleSection};
     letter-spacing: -0.6px;
   `,
   introLink: css`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-top: 6px;
-    color: #4356d8;
-    font-size: 12px;
-    font-weight: 700;
+    ${typography.bodySmallStrong};
+    color: ${color.text.brand};
   `,
   section: css`
     margin-top: 30px;
   `,
   sectionTitle: css`
     margin: 0 0 12px 4px;
-    color: #69758b;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.5;
+    ${typography.bodySmallStrong};
+    color: ${color.text.secondary};
   `,
   menu: css`
     overflow: hidden;
-    background: #fff;
-    border: 1px solid #e9edf5;
+    background: ${color.background.default};
+    border: 1px solid ${color.border.default};
     border-radius: 20px;
   `,
   item: css`
@@ -230,7 +231,7 @@ const styles = {
     width: 100%;
     min-height: 96px;
     padding: 20px 16px;
-    color: #18233d;
+    color: ${color.text.primary};
     font: inherit;
     text-align: left;
     background: transparent;
@@ -240,19 +241,19 @@ const styles = {
     transition: background-color 150ms ease;
 
     & + & {
-      border-top: 1px solid #eef1f7;
+      border-top: 1px solid ${color.border.default};
     }
 
     &:hover:not(:disabled) {
-      background: #f7f8fc;
+      background: ${color.background.subtle};
     }
 
     &:active:not(:disabled) {
-      background: #edf0ff;
+      background: ${color.background.brandSubtlePressed};
     }
 
     &:focus-visible {
-      outline: 2px solid #4356d8;
+      outline: 2px solid ${color.focus.ring};
       outline-offset: -3px;
     }
 
@@ -265,42 +266,27 @@ const styles = {
     width: 40px;
     height: 40px;
     place-items: center;
-    background: #f0f2ff;
+    color: ${color.icon.default};
+    background: ${color.background.brandSubtle};
     border-radius: 13px;
-
-    img {
-      width: 21px;
-      height: 21px;
-    }
-  `,
-  installIconFrame: css`
-    background: #edf7f3;
-  `,
-  feedbackIconFrame: css`
-    background: #fff4e8;
   `,
   itemTitle: css`
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.4;
+    ${typography.label};
   `,
   itemDescription: css`
-    color: #69758b;
-    font-size: 12px;
-    line-height: 1.6;
+    ${typography.caption};
+    color: ${color.text.secondary};
     word-break: keep-all;
   `,
   chevron: css`
-    color: #8a94a2;
-    font-size: 22px;
-    line-height: 1;
+    display: inline-flex;
+    color: ${color.icon.default};
   `,
   installMessage: css`
     margin: 0;
     padding: 0 4px;
-    color: #4356d8;
-    font-size: 12px;
-    line-height: 1.6;
+    ${typography.caption};
+    color: ${color.text.brand};
     word-break: keep-all;
 
     &:not(:empty) {

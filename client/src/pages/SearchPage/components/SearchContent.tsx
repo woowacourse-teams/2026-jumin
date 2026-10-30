@@ -3,15 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import type { Destination } from '../../../../api/contracts';
 import { useEffect, useState } from 'react';
 import { destinationSearchQueryOptions } from '../../../../api/queries/destinationSearchQuery';
-import { SearchBar } from '../../../../shared/components/SearchBar';
+import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
 import { recentSearchesSchema } from '../../../../api/parkingLotsSchema';
+import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;
 
 interface Props {
+  viewportLatitude: number;
+  viewportLongitude: number;
   onDestinationSelect: (destination: Destination) => void;
 }
 
@@ -45,7 +48,11 @@ const useDebouncedValue = <T,>(value: T, delay: number) => {
   return debouncedValue;
 };
 
-export const SearchContent = ({ onDestinationSelect }: Props) => {
+export const SearchContent = ({
+  viewportLatitude,
+  viewportLongitude,
+  onDestinationSelect,
+}: Props) => {
   const [query, setQuery] = useState('');
 
   // 최근 목적지 검색 기록
@@ -80,9 +87,11 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, SEARCH_DEBOUNCE_DELAY);
 
-  const { data, isFetching, isError, error } = useQuery(
+  const { data, isFetching, isError } = useQuery(
     destinationSearchQueryOptions({
       query: debouncedQuery,
+      latitude: viewportLatitude,
+      longitude: viewportLongitude,
     }),
   );
 
@@ -94,12 +103,7 @@ export const SearchContent = ({ onDestinationSelect }: Props) => {
   // 잠깐 표시되지 않도록 한다.
   const searchResults = isDebouncing ? [] : (data?.destinations ?? []);
 
-  const errorMessage =
-    !isDebouncing && isError
-      ? error instanceof Error
-        ? error.message
-        : '검색 결과를 불러오지 못했습니다.'
-      : '';
+  const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.DESTINATION_SEARCH : '';
 
   const handleEnter = () => {
     if (isSearching || !searchResults[0]) {

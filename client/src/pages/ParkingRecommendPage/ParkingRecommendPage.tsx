@@ -1,67 +1,42 @@
-import { Suspense } from 'react';
-
-import { css } from '@emotion/css';
-import { QueryErrorResetBoundary } from '@tanstack/react-query';
-import { ErrorBoundary } from 'react-error-boundary';
-import { Navigate, useLocation, useNavigate } from 'react-router';
-
-import { ConditionBar } from '../../../shared/components/ConditionBar';
-import { ParkingRecommendContent } from './components/ParkingRecommendContent';
-import { ErrorCard } from '../../../shared/components/ErrorCard';
-import { ParkingRecommendSkeleton } from './LoadingUI/ParkingRecommendSkeleton';
-import { formatIsoDateTime } from '../../../shared/utils/formatTime';
-// import { PeriodChangeControl } from './components/PeriodChangeControl';
-import type { ParkingSearchCondition, RecommendView } from '../../../shared/types/navigation';
-
-export interface NavigationState {
-  searchCondition: ParkingSearchCondition;
-  recommendView?: RecommendView;
-}
+import { Navigate, useOutletContext } from 'react-router';
+import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { ParkingRecommendPanel } from './components/ParkingRecommendPanel';
+import { useSearchConditionQuery } from './hooks/useSearchConditionQuery';
+import { buildQueryString, useQueryParams } from '../../../shared/hooks/useQueryParams';
+import { parseCoordinates } from '../../../shared/utils/parseCoordinates';
 
 export const ParkingRecommendPage = () => {
-  const navigate = useNavigate();
+  const { move } = useStepNavigation('recommend');
+  const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
 
-  // state 가져오기
-  const { state } = useLocation();
-  const navigationState = state as NavigationState | null;
-  const searchCondition = navigationState?.searchCondition;
+  const searchCondition = useSearchConditionQuery();
+  const params = useQueryParams();
 
+  // 추천 조건이 잘못돼도 좌표가 유효하면 목적지를 보존해 셋업으로 replace한다.
   if (!searchCondition) {
-    return <Navigate to="/parkingsetup" replace />;
+    const coordinates = parseCoordinates(params.get('lat'), params.get('lng'));
+    if (!coordinates) return <Navigate to={STEP_PATH.home} replace />;
+
+    return (
+      <Navigate
+        to={{
+          pathname: STEP_PATH.setup,
+          search: buildQueryString({
+            lat: coordinates.latitude,
+            lng: coordinates.longitude,
+            name: params.get('name')?.trim() || undefined,
+          }),
+        }}
+        replace
+      />
+    );
   }
 
   return (
-    <main className={pageStyle}>
-      <ConditionBar
-        title={searchCondition.destinationName}
-        description={`${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`}
-        onBack={() => navigate(-1)}
-        // action={<PeriodChangeControl />}
-      />
-
-      <QueryErrorResetBoundary>
-        {({ reset }) => (
-          <ErrorBoundary
-            onReset={reset}
-            fallbackRender={({ resetErrorBoundary }) => (
-              <ErrorCard label="추천 주차장을 불러오지 못했어요" onRetry={resetErrorBoundary} />
-            )}
-          >
-            <Suspense fallback={<ParkingRecommendSkeleton />}>
-              <ParkingRecommendContent searchCondition={searchCondition} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-      </QueryErrorResetBoundary>
-    </main>
+    <ParkingRecommendPanel
+      map={map}
+      searchCondition={searchCondition}
+      onBack={() => move('BACK')}
+    />
   );
 };
-
-const pageStyle = css`
-  position: relative;
-  pointer-events: none;
-
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-`;

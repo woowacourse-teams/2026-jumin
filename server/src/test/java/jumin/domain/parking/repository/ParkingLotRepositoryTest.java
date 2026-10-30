@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -48,9 +49,10 @@ class ParkingLotRepositoryTest {
         assertThat(results).extracting("name").containsExactly("가까운 주차장");
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @DisplayName("viewport 내부와 경계의 활성 주차장만 조회한다")
-    void finds_only_active_parking_lots_inside_viewport() {
+    void finds_only_active_parking_lots_inside_viewport(boolean isPublic) {
         // given
         insertParkingLot("viewport-inside", "viewport 내부", "서울시 테스트 주소", true, 37.4990, 127.0279);
         insertParkingLot("viewport-boundary", "viewport 경계", "서울시 테스트 주소", true, 37.5000, 127.0280);
@@ -58,6 +60,7 @@ class ParkingLotRepositoryTest {
         insertParkingLot("viewport-inactive", "viewport 비활성", "서울시 테스트 주소", false, 37.4990, 127.0279);
         insertParkingLot("viewport-missing-location", "viewport 위치 없음", "서울시 테스트 주소", true, null, null);
         insertParkingLot("viewport-missing-address", "viewport 주소 없음", null, true, 37.4990, 127.0279);
+        jdbcTemplate.update("update parking_lots set is_public = true");
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
@@ -67,6 +70,7 @@ class ParkingLotRepositoryTest {
                 37.5000,
                 false,
                 false,
+                isPublic,
                 1
         );
 
@@ -168,7 +172,7 @@ class ParkingLotRepositoryTest {
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
-                127.0270, 37.4980, 127.0280, 37.5000, freeOnly, excludeMechanical, dayOfWeek
+                127.0270, 37.4980, 127.0280, 37.5000, freeOnly, excludeMechanical, false, dayOfWeek
         );
 
         // then
@@ -198,7 +202,7 @@ class ParkingLotRepositoryTest {
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
-                127.0270, 37.4980, 127.0280, 37.5000, true, false, dayOfWeek
+                127.0270, 37.4980, 127.0280, 37.5000, true, false, false, dayOfWeek
         );
 
         // then
@@ -228,11 +232,63 @@ class ParkingLotRepositoryTest {
 
         // when
         List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
-                127.0270, 37.4980, 127.0280, 37.5000, true, false, dayOfWeek
+                127.0270, 37.4980, 127.0280, 37.5000, true, false, false, dayOfWeek
         );
 
         // then
         assertThat(results).extracting(ParkingLot::getName).containsExactly("오늘 무료");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "false, false, false, 공영 무료|공영 무료 기계식|공영 유료|민영 무료|미확인 무료|공영 운영정보 없음",
+            "true, false, false, 공영 무료|공영 무료 기계식|민영 무료|미확인 무료",
+            "false, true, false, 공영 무료|공영 유료|민영 무료|미확인 무료|공영 운영정보 없음",
+            "true, true, false, 공영 무료|민영 무료|미확인 무료",
+            "false, false, true, 공영 무료|공영 무료 기계식|공영 유료|공영 운영정보 없음",
+            "true, false, true, 공영 무료|공영 무료 기계식",
+            "false, true, true, 공영 무료|공영 유료|공영 운영정보 없음",
+            "true, true, true, 공영 무료"
+    })
+    @DisplayName("공영 필터는 민영과 미확인을 제외하고 무료 및 기계식 필터와 AND로 조합한다")
+    void combines_public_filter_with_other_viewport_filters(
+            boolean freeOnly, boolean excludeMechanical, boolean isPublic, String expectedNames
+    ) {
+        // given
+        insertFilterCandidate("공영 무료", false, false, false, false);
+        insertFilterCandidate("공영 무료 기계식", true, false, false, false);
+        insertFilterCandidate("공영 유료", false, true, true, true);
+        insertFilterCandidate("민영 무료", false, false, false, false);
+        insertFilterCandidate("미확인 무료", false, false, false, false);
+        insertParkingLot("공영 운영정보 없음", "공영 운영정보 없음", "서울시 테스트 주소", true, 37.4990, 127.0279);
+        jdbcTemplate.update("update parking_lots set is_public = true where name in (?, ?, ?, ?)",
+                "공영 무료", "공영 무료 기계식", "공영 유료", "공영 운영정보 없음");
+        jdbcTemplate.update("update parking_lots set is_public = false where name = ?", "민영 무료");
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveWithinViewport(
+                127.0270, 37.4980, 127.0280, 37.5000, freeOnly, excludeMechanical, isPublic, 1
+        );
+
+        // then
+        assertThat(results).extracting(ParkingLot::getName).containsExactly(expectedNames.split("\\|"));
+    }
+
+    @Test
+    @DisplayName("공영 값이 없으면 DB와 엔티티에서 미확인 null로 유지한다")
+    void retains_unknown_is_public_flag_as_null() {
+        // given
+        insertParkingLot("unknown-public", "공영 미확인", "서울시 테스트 주소", true, 37.4990, 127.0279);
+
+        // when
+        ParkingLot parkingLot = parkingLotRepository.findById(parkingLotId("unknown-public")).orElseThrow();
+
+        // then
+        assertThat(parkingLot.getIsPublic()).isNull();
+        assertThat(jdbcTemplate.queryForObject(
+                "select is_public from parking_lots where id = ?", Boolean.class, parkingLot.getId()
+        )).isNull();
+        assertThat(new ParkingLot().getIsPublic()).isNull();
     }
 
     @Test

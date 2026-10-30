@@ -1,50 +1,121 @@
 import { z } from 'zod';
 
-const errorMessageSchema = z.object({
-  message: z.string().min(1),
+import { ApiError } from './apiError';
+import { isAbortError } from './isAbortError';
+
+const fieldErrorSchema = z.object({
+  field: z.string(),
+  message: z.string(),
 });
 
-export const parseApiResponse = async <Schema extends z.ZodType>(
-  response: Response,
-  schema: Schema,
-  fallbackMessage: string,
-): Promise<z.output<Schema>> => {
+const messageSchema = z.string().nullish();
+const codeSchema = z.string().nullish();
+const fieldErrorsSchema = z.array(fieldErrorSchema);
+const apiErrorResponseSchema = z.object({
+  message: messageSchema,
+  code: codeSchema,
+  errors: fieldErrorsSchema,
+});
+
+function parseApiErrorResponse(data: unknown) {
+  const validationResult = apiErrorResponseSchema.safeParse(data);
+  const validationError = validationResult.success ? undefined : validationResult.error;
+
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return {
+      serverMessage: undefined,
+      serverCode: undefined,
+      fieldErrors: [],
+      validationError,
+    };
+  }
+
+  const response = data as Record<string, unknown>;
+  const messageResult = messageSchema.safeParse(response.message);
+  const codeResult = codeSchema.safeParse(response.code);
+  const fieldErrorsResult = fieldErrorsSchema.safeParse(response.errors);
+
+  return {
+    serverMessage: messageResult.success && messageResult.data ? messageResult.data : undefined,
+    serverCode: codeResult.success && codeResult.data ? codeResult.data : undefined,
+    fieldErrors: fieldErrorsResult.success ? fieldErrorsResult.data : [],
+    validationError,
+  };
+}
+
+export async function throwIfHttpError(response: Response): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+
   let data: unknown;
 
   try {
     data = await response.json();
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') {
+    if (isAbortError(cause)) {
       throw cause;
     }
 
-    // 빈 응답 또는 JSON이 아닌 응답
-    throw new Error(fallbackMessage, { cause });
+    throw new ApiError(
+      {
+        errorType: 'http',
+        status: response.status,
+        fieldErrors: [],
+      },
+      cause,
+    );
   }
 
-  if (!response.ok) {
-    const errorResult = errorMessageSchema.safeParse(data);
+  const { serverMessage, serverCode, fieldErrors, validationError } = parseApiErrorResponse(data);
 
-    // 서버가 전달한 에러 메시지를 보존
-    if (errorResult.success) {
-      throw new Error(errorResult.data.message);
+  throw new ApiError(
+    {
+      errorType: 'http',
+      status: response.status,
+      serverMessage,
+      serverCode,
+      fieldErrors,
+    },
+    validationError,
+  );
+}
+
+export async function parseApiResponse<Schema extends z.ZodType>(
+  response: Response,
+  schema: Schema,
+): Promise<z.output<Schema>> {
+  await throwIfHttpError(response);
+
+  let data: unknown;
+
+  try {
+    data = await response.json();
+  } catch (cause) {
+    if (isAbortError(cause)) {
+      throw cause;
     }
 
-    // 에러 응답 형식도 예상과 다른 경우
-    throw new Error(fallbackMessage, {
-      cause: errorResult.error,
-    });
+    throw new ApiError(
+      {
+        errorType: 'response',
+        reason: 'json',
+      },
+      cause,
+    );
   }
 
   const result = schema.safeParse(data);
 
   if (!result.success) {
-    // 사용자에게는 기본 문구를 보여주고,
-    // Sentry에는 cause로 ZodError를 전달
-    throw new Error(fallbackMessage, {
-      cause: result.error,
-    });
+    throw new ApiError(
+      {
+        errorType: 'response',
+        reason: 'schema',
+      },
+      result.error,
+    );
   }
 
   return result.data;
-};
+}
