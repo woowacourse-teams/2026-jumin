@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import jumin.config.AvailabilityProperties;
-import jumin.config.AvailabilityProperties.Provider;
+import jumin.config.AvailabilityProviderProperties;
 import jumin.domain.parkingavailability.dto.AvailabilityObservation;
 import jumin.domain.parkingavailability.entity.AvailabilityProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -182,7 +182,7 @@ class BusanAvailabilityClientTest {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
         server = MockRestServiceServer.bindTo(builder).build();
         AvailabilityProperties properties = new AvailabilityProperties(false,
-                new Provider("http://seoul.test", "seoul-key"), new Provider(BASE_URL, key));
+                new AvailabilityProviderProperties("http://seoul.test", "seoul-key"), new AvailabilityProviderProperties(BASE_URL, key));
         client = new BusanAvailabilityClient(builder.build(), properties, new ObjectMapper(),
                 Clock.fixed(FETCHED_AT, ZoneOffset.UTC));
     }

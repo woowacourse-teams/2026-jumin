@@ -27,6 +27,7 @@ import jumin.domain.parking.controller.ParkingSearchController;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.domain.parking.viewport.ViewportSearchService;
 import jumin.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -83,6 +84,9 @@ class AdminAuthIntegrationTest {
 
     @MockitoBean
     private ParkingSearchService parkingSearchService;
+
+    @MockitoBean
+    private ViewportSearchService viewportSearchService;
 
     @MockitoBean
     private AdminParkingLotReviewService adminParkingLotReviewService;

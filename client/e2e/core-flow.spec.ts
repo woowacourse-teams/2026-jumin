@@ -133,7 +133,7 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
   );
 });
 
-test('2. 설정에서 가이드와 기존 랜딩페이지를 확인한다', async ({ page }) => {
+test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: '주변', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: '설정', exact: true }).click();
@@ -151,9 +151,19 @@ test('2. 설정에서 가이드와 기존 랜딩페이지를 확인한다', asyn
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
   await expect(page).toHaveURL(/\/landing$/);
-  await expect(page.getByRole('heading', { level: 1, name: /목적지를 입력하면/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /어디에 주차할지/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/setting$/);
+
+  await page.getByRole('link', { name: /주차의민족 소개/ }).click();
+  await page
+    .getByRole('navigation', { name: '랜딩페이지 메뉴' })
+    .getByRole('link', { name: '기술 이야기', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: /보이지 않는 기술/ })).toBeInViewport();
+  await page.getByRole('link', { name: '주차장 찾아보기', exact: true }).last().click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
 });
 
 test.describe('길찾기', () => {

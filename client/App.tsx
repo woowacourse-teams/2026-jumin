@@ -63,7 +63,7 @@ const App = () => (
 
       <Route
         element={
-          <Suspense fallback={<div role="status">페이지를 불러오는 중...</div>}>
+          <Suspense>
             <Outlet />
           </Suspense>
         }
