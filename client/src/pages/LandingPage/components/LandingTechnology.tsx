@@ -1,10 +1,10 @@
-import { css, cx } from '@emotion/css';
+import { css } from '@emotion/css';
 
 import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarker from '../../../../assets/icons/markers/dotParkingMarker.svg';
+import cachedGridMap from '../../../../assets/landing/cache-grid.png';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import { LandingCacheDemo } from './LandingCacheDemo';
 
 export const LandingTechnology = () => (
   <section
@@ -233,37 +233,39 @@ export const LandingTechnology = () => (
           </figcaption>
         </figure>
       </article>
-      <article
-        className={cx(styles.article, styles.cacheArticle)}
-        aria-labelledby="landing-technology-cache"
-      >
+      <article className={styles.article} aria-labelledby="landing-technology-cache">
         <div className={styles.copy}>
           <p className={styles.number}>04 / GRID CACHE</p>
           <h3 id="landing-technology-cache">
-            다시 찾은 지역은,
+            다시 찾은 그리드는,
             <br />
-            저장해 둔 데이터로.
+            캐싱 된 데이터로
           </h3>
           <p className={styles.description}>
-            지도를 조금 움직일 때마다 겹치는 지역까지 다시 조회할 필요가 있을까요? 지도를 고정된
-            정사각형 칸으로 나누고, 칸 단위로 데이터를 저장하는 캐시의 원리를 직접 확인해 보세요.
+            그리드 단위 캐싱은 지도를 정사각형 칸으로 나누어 주차장 데이터를 캐싱하는 방식입니다.
+            <br />
+            지도를 움직이면 겹치는 칸은 재사용하고, 캐시에 없는 칸만 DB에서 조회합니다.
           </p>
           <p className={styles.result}>
-            겹치는 칸은 캐시에서 재사용하고, 처음 보는 칸만 DB에서 가져오는 과정을 보여줘요.
+            이전에 불러온 그리드는 캐싱된 데이터를 사용합니다. 캐시가 만료되거나 비어 있으면 현재
+            화면에서 필요한 그리드를 다시 조회해 캐싱하고 불러옵니다.
           </p>
-          <div className={styles.demoNotice}>
-            <span>교육용 시뮬레이션</span>
-            <p>
-              실제 서비스 UI가 아닌 교육용 데모입니다. 외부 라이브러리 추가나 서버 호출 없이
-              브라우저 안에서만 동작하며, DB 조회도 메모리 안에서 재현합니다.
-            </p>
-            <p>
-              실제 TTL 타이머나 자동 만료는 구현하지 않았습니다. ‘캐시 비우기’로 캐시가 빈 상황을
-              재현하고, ‘처음 위치로’로 저장된 칸을 다시 방문해 보세요.
-            </p>
-          </div>
         </div>
-        <LandingCacheDemo />
+        <figure className={styles.visual}>
+          {/* 기존 캡처에서 격자 지도 영역만 표시한다. */}
+          <svg
+            className={styles.cachedGridMap}
+            viewBox="895 101 268 260"
+            role="img"
+            aria-label="캐싱된 그리드는 초록색, DB에서 조회한 그리드는 주황색으로 표시한 주차장 지도"
+          >
+            <image href={cachedGridMap} width="1440" height="900" />
+          </svg>
+          <figcaption className={styles.legend}>
+            <span>🟢 : 캐시 조회</span>
+            <span>🟠 : DB 조회</span>
+          </figcaption>
+        </figure>
       </article>
     </div>
   </section>
@@ -336,33 +338,6 @@ const styles = {
       letter-spacing: -0.035em;
     }
   `,
-  cacheArticle: css`
-    align-items: start;
-    @media (max-width: 1000px) {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  `,
-  demoNotice: css`
-    margin-top: 32px;
-    padding: 20px;
-    border: 1px solid rgb(255 255 255 / 14%);
-    border-radius: 12px;
-    background: rgb(255 255 255 / 3%);
-    span {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: rgb(255 255 255 / 8%);
-      ${typography.caption};
-      font-weight: 700;
-    }
-    p {
-      margin-top: 12px;
-      ${typography.bodySmall};
-      color: ${color.text.inverseSecondary};
-      line-height: 1.8;
-    }
-  `,
   number: css`
     ${typography.caption};
     color: ${color.text.inverseSecondary};
@@ -415,6 +390,15 @@ const styles = {
     width: 100%;
     height: auto;
     margin: 16px 0;
+  `,
+  cachedGridMap: css`
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    height: auto;
+    margin: 0 auto 16px;
+    overflow: hidden;
+    border-radius: 8px;
   `,
   legend: css`
     display: flex;
