@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 
 import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarker from '../../../../assets/icons/markers/dotParkingMarker.svg';
-import cachedGridMap from '../../../../assets/landing/cache-grid.png';
+import cachedGridMap from '../../../../assets/landing/cache-grid.webp';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
@@ -252,14 +252,13 @@ export const LandingTechnology = () => (
           </p>
         </div>
         <figure className={styles.visual}>
-          {/* 기존 캡처에서 격자 지도 영역만 표시한다. */}
           <svg
             className={styles.cachedGridMap}
-            viewBox="895 101 268 260"
+            viewBox="0 0 268 260"
             role="img"
             aria-label="캐싱된 그리드는 초록색, DB에서 조회한 그리드는 주황색으로 표시한 주차장 지도"
           >
-            <image href={cachedGridMap} width="1440" height="900" />
+            <image href={cachedGridMap} width="268" height="260" />
           </svg>
           <figcaption className={styles.legend}>
             <span>🟢 : 캐시 조회</span>
