@@ -2,7 +2,7 @@ import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import recommend from '../../../assets/landing/recommend.png';
+import recommend from '../../../assets/landing/recommend.webp';
 import {
   ArrowDownIcon,
   ChevronRightIcon,
