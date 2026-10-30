@@ -146,9 +146,25 @@ export const ParkingRecommendDetailContent = ({
             </Row>
 
             <Row align="center" justify="between">
+              <dt>총 주차면 수</dt>
+
+              <dd>
+                {parkingLotDetail.capacity === null
+                  ? '미제공'
+                  : `${parkingLotDetail.capacity.toLocaleString('ko-KR')}면`}
+              </dd>
+            </Row>
+
+            <Row align="center" justify="between">
               <dt>잔여석</dt>
 
-              <dd>미제공</dd>
+              <dd>
+                {parkingLotDetail.availableSpaces === null
+                  ? '미제공'
+                  : parkingLotDetail.availableSpaces === 0
+                    ? '0대 (만차)'
+                    : `${parkingLotDetail.availableSpaces.toLocaleString('ko-KR')}대`}
+              </dd>
             </Row>
           </Stack>
           <ParkingReportAction parkingLotId={parkingLotDetail.id} />

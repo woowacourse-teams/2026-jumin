@@ -63,6 +63,7 @@ const createDetailBase = (id: number) => {
     walkingDurationMinutes:
       distanceMeters === null ? null : Math.ceil((distanceMeters * 60) / 4_000),
     estimatedFee,
+    availableSpaces: null,
   };
 };
 
@@ -79,6 +80,7 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
   101: {
     ...createDetailBase(101),
     capacity: 42,
+    availableSpaces: 8,
     feeCalculationStatus: 'CALCULATED',
     feeRule: standardFeeRule,
     operation: allDayOperation,
@@ -87,6 +89,7 @@ export const parkingDetailFixtures: Record<number, ParkingLotDetailResponse> = {
   102: {
     ...createDetailBase(102),
     capacity: 28,
+    availableSpaces: 0,
     feeCalculationStatus: 'CALCULATED',
     feeRule: {
       ...standardFeeRule,

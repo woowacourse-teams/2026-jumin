@@ -198,9 +198,18 @@ it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의
   for (const [key, value] of Object.entries(condition)) {
     if (key !== 'destinationName') expect(searchParams.get(key)).toBe(String(value));
   }
-  for (const id of [101, 102]) {
+  for (const { id, capacityLabel, availableSpacesLabel } of [
+    { id: 101, capacityLabel: '42면', availableSpacesLabel: '8대' },
+    { id: 102, capacityLabel: '28면', availableSpacesLabel: '0대 (만차)' },
+    { id: 103, capacityLabel: '미제공', availableSpacesLabel: '미제공' },
+  ]) {
     await openDetail(id);
     await screen.findByText('기본 30분');
+    const detail = within(screen.getByRole('region', { name: '주차장 상세정보' }));
+    // 두 값 모두 null인 경우에도 각각의 행에 미제공을 표시한다.
+    const expectedCount = capacityLabel === availableSpacesLabel ? 2 : 1;
+    expect(detail.getAllByText(capacityLabel)).toHaveLength(expectedCount);
+    expect(detail.getAllByText(availableSpacesLabel)).toHaveLength(expectedCount);
     const request = detailRequests.at(-1)!;
     expect(request.pathname).toBe(`/api/parking/${id}`);
     for (const [key, value] of Object.entries(condition)) {
