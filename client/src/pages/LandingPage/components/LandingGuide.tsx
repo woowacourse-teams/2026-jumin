@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
 
-import home from '../../../../assets/landing/home.png';
-import destination from '../../../../assets/landing/destination.png';
-import recommend from '../../../../assets/landing/recommend.png';
-import detail from '../../../../assets/landing/detail.png';
+import home from '../../../../assets/landing/home.webp';
+import destination from '../../../../assets/landing/destination.webp';
+import recommend from '../../../../assets/landing/recommend.webp';
+import detail from '../../../../assets/landing/detail.webp';
 import { color } from '../../../theme/color';
 import { fontSize, fontWeight, lineHeight } from '../../../theme/font';
 import { typography } from '../../../theme/typography';

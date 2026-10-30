@@ -36,6 +36,7 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
-    '\\.(css|png|svg|jpg|jpeg|gif|woff|woff2|eot|ttf|otf)$': '<rootDir>/__tests__/fileMock.cjs',
+    '\\.(css|png|svg|jpg|jpeg|gif|webp|woff|woff2|eot|ttf|otf)$':
+      '<rootDir>/__tests__/fileMock.cjs',
   },
 };
