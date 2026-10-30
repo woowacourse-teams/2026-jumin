@@ -27,7 +27,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -248,7 +247,7 @@ class RedisViewportFailureTest {
 
     private static ViewportCellKey key(long id) {
         return new ViewportCellKey("redis-test", 1, 1,
-                new ViewportVersion(new UUID(0, 1), 1, 1000, true), id);
+                1000, id);
     }
 
     private static ViewportDeadline deadline() {

@@ -9,7 +9,7 @@ import jumin.domain.admin.parking.model.ParkingCsvRow;
 import jumin.domain.admin.parking.model.ParkingDbRow;
 import jumin.domain.admin.parking.model.ParkingSyncSummary;
 import jumin.domain.admin.parking.repository.ParkingCsvRepository;
-import jumin.domain.parking.viewport.ViewportVersion;
+import jumin.domain.parking.viewport.ViewportMappingState;
 import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,7 +31,7 @@ public class ParkingCsvSyncService {
         if (!repository.tryAcquireLock()) {
             throw new ParkingCsvException(HttpStatus.CONFLICT, "다른 주차장 CSV 업로드가 진행 중입니다.");
         }
-        ViewportVersion viewportVersion = viewportWriter.beforeSourceWrite();
+        ViewportMappingState mappingState = viewportWriter.beforeSourceWrite();
         Instant now = clock.instant();
         Long maxId = repository.findMaxId();
         repository.matchStagedRows();
@@ -39,7 +39,7 @@ public class ParkingCsvSyncService {
         if (maxId != null) {
             summary = summary.plus(deactivateMissingRows(maxId, now));
         }
-        viewportWriter.afterSourceWrite(viewportVersion);
+        viewportWriter.afterSourceWrite(mappingState);
         return summary;
     }
 

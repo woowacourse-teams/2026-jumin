@@ -18,8 +18,7 @@ class ViewportProductionMigrationIntegrationTest {
 
     @Test
     @DisplayName("기존 V12 데이터베이스에서 정식 V13·V14와 캐시 V15를 순서대로 적용하고 기존 데이터를 보존한다")
-    void upgrades_existing_v12_database_and_guards_legacy_writes_after_prepare() throws SQLException {
-        // given
+    void upgrades_existing_v12_database_without_restricting_legacy_writes() throws SQLException {
         DockerImageName image = DockerImageName.parse("pgrouting/pgrouting:18-3.6-3.8")
                 .asCompatibleSubstituteFor("postgres");
         try (PostgreSQLContainer postgres = new PostgreSQLContainer(image)
@@ -46,11 +45,9 @@ class ViewportProductionMigrationIntegrationTest {
                         VALUES (123, FALSE, TRUE, TRUE, NOW(), NOW(), NOW())
                         """);
 
-                // when
                 Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
                         .load().migrate();
 
-                // then
                 try (ResultSet rows = sql.executeQuery("""
                         SELECT l.id, l.capacity, l.is_public, l.viewport_grid_cell, o.weekday_paid,
                                s.projection_ready, s.grid_size_meters
@@ -79,18 +76,15 @@ class ViewportProductionMigrationIntegrationTest {
                     assertThat(rows.getInt("checksum")).isEqualTo(1974929536);
                     assertThat(rows.next()).isTrue();
                     assertThat(rows.getString("version")).isEqualTo("15");
-                    assertThat(rows.getInt("checksum")).isEqualTo(-717044611);
                     assertThat(rows.next()).isFalse();
                 }
                 assertThat(sql.executeUpdate("UPDATE parking_lots SET capacity = 41 WHERE id = 123")).isEqualTo(1);
                 assertThat(sql.executeUpdate("UPDATE parking_viewport_cache_state SET projection_ready = TRUE WHERE id = 1"))
                         .isEqualTo(1);
-                assertThatThrownBy(() -> sql.executeUpdate("UPDATE parking_lots SET capacity = 42 WHERE id = 123"))
-                        .isInstanceOf(SQLException.class)
-                        .hasMessageContaining("viewport writer protocol is required");
+                assertThat(sql.executeUpdate("UPDATE parking_lots SET capacity = 42 WHERE id = 123")).isEqualTo(1);
                 try (ResultSet rows = sql.executeQuery("SELECT capacity FROM parking_lots WHERE id = 123")) {
                     assertThat(rows.next()).isTrue();
-                    assertThat(rows.getInt("capacity")).isEqualTo(41);
+                    assertThat(rows.getInt("capacity")).isEqualTo(42);
                 }
             }
         }

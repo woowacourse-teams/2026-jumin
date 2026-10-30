@@ -7,7 +7,6 @@ import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import com.sun.management.ThreadMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.stream.LongStream;
@@ -26,7 +25,6 @@ class ViewportContractTest {
     @Test
     @DisplayName("정상 wire의 decoded 예산 초과는 대량 행 객체 할당 전에 거절한다")
     void rejects_large_decoded_payload_before_row_allocation() {
-        // given
         ViewportCellKey key = key("prod", 1);
         ViewportCellCodec largeCodec = new ViewportCellCodec(512 * 1024, 16_384);
         ViewportCell large = new ViewportCell(key, LongStream.range(1, 16_385).mapToObj(id ->
@@ -40,14 +38,12 @@ class ViewportContractTest {
             try {
                 largeCodec.decode(key, empty, 0);
             } catch (ViewportStoreBudgetException expected) {
-                // Warm the same exception/header path before measuring row materialization.
             }
         }
         long threadId = Thread.currentThread().threadId();
         long before = allocations.getThreadAllocatedBytes(threadId);
         boolean rejected = false;
 
-        // when
         try {
             largeCodec.decode(key, bytes, 512 * 1024);
         } catch (ViewportStoreBudgetException expected) {
@@ -55,7 +51,6 @@ class ViewportContractTest {
         }
         long allocated = allocations.getThreadAllocatedBytes(threadId) - before;
 
-        // then
         assertThat(rejected).isTrue();
         assertThat(allocated).isLessThan(512 * 1024);
     }
@@ -89,10 +84,8 @@ class ViewportContractTest {
     @Test
     @DisplayName("viewport 네 경계를 포함하고 무한대와 뒤집힌 좌표는 거절한다")
     void validates_and_preserves_inclusive_bounds() {
-        // given
         ViewportBounds bounds = new ViewportBounds(127, 37, 127.01, 37.01);
 
-        // when & then
         assertThat(bounds.contains(37, 127)).isTrue();
         assertThat(bounds.contains(37.01, 127.01)).isTrue();
         assertThat(bounds.contains(37.01001, 127.01)).isFalse();
@@ -105,12 +98,10 @@ class ViewportContractTest {
     @Test
     @DisplayName("paid null과 운영정보 부재를 무료로 바꾸지 않고 서울 요일별 필드를 사용한다")
     void preserves_nullable_paid_and_daily_filters() {
-        // given
         ViewportItem item = new ViewportItem(1, 37.5, 127, 50, false, null, false, true, null);
         ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
         ParkingLotViewportRequest free = request(true, false, false);
 
-        // when & then
         assertThat(item.matches(bounds, free, DayOfWeek.FRIDAY)).isTrue();
         assertThat(item.matches(bounds, free, DayOfWeek.SATURDAY)).isFalse();
         assertThat(item.matches(bounds, free, DayOfWeek.SUNDAY)).isFalse();
@@ -121,14 +112,11 @@ class ViewportContractTest {
     @Test
     @DisplayName("아주 작은 viewport와 네 모서리를 덮는 사각형 셀을 누락하지 않는다")
     void covers_tiny_rectangles_and_corners() {
-        // given
         ViewportCellCover cover = new ViewportCellCover(grid, properties);
         ViewportBounds tiny = new ViewportBounds(127.0279, 37.499, 127.027900001, 37.499000001);
 
-        // when
         List<Long> cells = cover.cover(tiny);
 
-        // then
         assertThat(cells).contains(grid.cellId(37.499, 127.0279, 1000));
         assertThat(cells).contains(grid.cellId(tiny.north(), tiny.east(), 1000));
     }
@@ -136,11 +124,9 @@ class ViewportContractTest {
     @Test
     @DisplayName("고정 seed의 viewport 내부와 경계 표본을 직접 계산한 사각형 cover가 모두 포함한다")
     void covers_reproducible_random_points() {
-        // given
         ViewportCellCover cover = new ViewportCellCover(grid, properties);
         Random random = new Random(20261028);
 
-        // when & then
         for (int index = 0; index < 150; index++) {
             double west = 126.9 + random.nextDouble() * 0.3;
             double south = 37.4 + random.nextDouble() * 0.2;
@@ -160,10 +146,8 @@ class ViewportContractTest {
     @Test
     @DisplayName("대형 긴 띠와 지원 영역 밖은 셀 열거 전에 우회한다")
     void bypasses_large_and_unsupported_bounds() {
-        // given
         ViewportCellCover cover = new ViewportCellCover(grid, properties);
 
-        // when & then
         assertThat(cover.cover(new ViewportBounds(127, 37, 127.2, 37.0001))).isEmpty();
         assertThat(cover.cover(new ViewportBounds(-74, 40, -73.99, 40.01))).isEmpty();
         assertThat(cover.cover(new ViewportBounds(-180, -89, 180, 89))).isEmpty();
@@ -172,7 +156,6 @@ class ViewportContractTest {
     @Test
     @DisplayName("짧은 환경 키의 정상 빈 셀과 nullable 필드 및 BIGINT를 무손실 왕복한다")
     void round_trips_empty_nullable_and_bigint_values() {
-        // given
         ViewportCellKey key = key("p", 1);
         List<ViewportItem> items = List.of(
                 new ViewportItem(-9_007_199_254_740_993L, 37.5, 127, null, false, null, null, true, false),
@@ -180,7 +163,6 @@ class ViewportContractTest {
         );
         ViewportCell cell = new ViewportCell(key, items);
 
-        // when & then
         assertThat(codec.decode(key, codec.encode(cell))).isEqualTo(cell);
         assertThat(codec.decode(key, codec.encode(new ViewportCell(key, List.of()))).items()).isEmpty();
     }
@@ -188,13 +170,11 @@ class ViewportContractTest {
     @Test
     @DisplayName("다른 전체 namespace와 byte 손상 및 잘린 직렬화 값을 사용하지 않는다")
     void rejects_wrong_namespace_corruption_and_truncation() {
-        // given
         ViewportCellKey key = key("prod", 1);
         byte[] bytes = codec.encode(new ViewportCell(key, List.of()));
         byte[] corrupted = bytes.clone();
         corrupted[20] ^= 1;
 
-        // when & then
         assertThatThrownBy(() -> codec.decode(key("prod", 2), bytes))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> codec.decode(key, corrupted)).isInstanceOf(IllegalArgumentException.class);
@@ -204,14 +184,12 @@ class ViewportContractTest {
     @Test
     @DisplayName("셀 저장은 완전한 정렬 목록만 허용하고 항목 및 byte 한도를 넘기지 않는다")
     void enforces_complete_order_and_size_limits() {
-        // given
         ViewportCellKey key = key("prod", 1);
         ViewportItem item = new ViewportItem(1, 37.5, 127, 50, false, true, false, null, true);
         List<ViewportItem> mutable = new ArrayList<>(List.of(item));
         ViewportCell cell = new ViewportCell(key, mutable);
         mutable.clear();
 
-        // when & then
         assertThat(cell.items()).containsExactly(item);
         assertThatThrownBy(() -> new ViewportCell(key, List.of(item, item)))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -221,7 +199,7 @@ class ViewportContractTest {
 
     private ViewportCellKey key(String environment, int policy) {
         return new ViewportCellKey(environment, 1, policy,
-                new ViewportVersion(UUID.fromString("00000000-0000-0000-0000-000000000001"), 1, 1000, true),
+                1000,
                 grid.cellId(37.5, 127, 1000));
     }
 

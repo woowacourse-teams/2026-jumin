@@ -13,8 +13,6 @@ final class ViewportDbFuture<T> extends CompletableFuture<T> {
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-        // A queued job can be removed before its result callbacks run. Running SQL is
-        // never interrupted here: its workCompletion remains open until it really exits.
         cancelQueued.run();
         return super.cancel(false);
     }

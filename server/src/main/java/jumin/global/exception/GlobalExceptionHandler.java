@@ -3,8 +3,8 @@ package jumin.global.exception;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.parking.viewport.ViewportUnavailableException;
 import jumin.domain.parking.viewport.ViewportFailureDiagnostics;
+import jumin.domain.parking.viewport.ViewportFailureSummary;
 import jumin.global.response.ApiErrorResponse;
 import jumin.global.response.ValidationErrorField;
 import lombok.extern.slf4j.Slf4j;
@@ -24,19 +24,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-
-    @ExceptionHandler(ViewportUnavailableException.class)
-    public ResponseEntity<Object> handleViewportUnavailable(ViewportUnavailableException exception) {
-        ViewportFailureDiagnostics.Summary failure = ViewportFailureDiagnostics.inspect(exception);
-        log.atWarn().setMessage("viewport 자원 보호로 요청을 완료하지 못했습니다")
-                .addKeyValue("reason", failure.reason())
-                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                .addKeyValue("causeType", failure.causeType())
-                .addKeyValue("sqlState", failure.sqlState())
-                .log();
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ApiErrorResponse.of("지도 조회가 일시적으로 지연되고 있습니다. 잠시 후 다시 시도해 주세요."));
-    }
 
     @ExceptionHandler(ParkingCsvException.class)
     public ResponseEntity<Object> handleParkingCsvException(ParkingCsvException exception) {
@@ -60,7 +47,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Object> handleBusinessException(BusinessException exception) {
+        if (exception.getErrorCode() == ErrorCode.VIEWPORT_UNAVAILABLE) {
+            logViewportFailure(exception);
+        }
         return createResponse(exception.getErrorCode());
+    }
+
+    private void logViewportFailure(BusinessException exception) {
+        ViewportFailureSummary failure = ViewportFailureDiagnostics.inspect(exception);
+        log.atWarn().setMessage("viewport 자원 보호로 요청을 완료하지 못했습니다")
+                .addKeyValue("reason", failure.reason())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .addKeyValue("causeType", failure.causeType())
+                .addKeyValue("sqlState", failure.sqlState())
+                .log();
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

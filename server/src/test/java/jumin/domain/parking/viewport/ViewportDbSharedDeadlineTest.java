@@ -13,13 +13,14 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import jumin.config.ViewportCacheProperties;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,11 +39,11 @@ class ViewportDbSharedDeadlineTest {
         CountDownLatch submitted = new CountDownLatch(1);
         AtomicReference<ViewportDbFuture<Map<ViewportCellKey, ViewportCell>>> source = new AtomicReference<>();
         ViewportCellKey key = new ViewportCellKey("shared-deadline", 1, 1,
-                new ViewportVersion(UUID.randomUUID(), 1, 1000, true), 1);
+                1000, 1);
 
-        try (ViewportDbWorkQueue queue = new ViewportDbWorkQueue(1, 0, 1, 1, metrics);
+        try (ViewportDbWorkQueue queue = new ViewportDbWorkQueue(1, 1, metrics);
              var threads = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(new NoViewportCellStore(), repository, properties, metrics)) {
+             ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
             var busy = queue.submit("source", () -> {
                 running.countDown();
                 release.await();
@@ -57,11 +58,14 @@ class ViewportDbSharedDeadlineTest {
                 submitted.countDown();
                 return pending;
             });
+
             var owner = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
                     ViewportDeadline.after(Duration.ofMillis(50)), new ViewportObservation(metrics)), threads);
             assertThat(submitted.await(5, TimeUnit.SECONDS)).isTrue();
             assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ViewportUnavailableException.class);
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             assertThat(source.get()).isNotCompleted();
 
             var follower = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
@@ -71,10 +75,13 @@ class ViewportDbSharedDeadlineTest {
                 assertThat(System.nanoTime()).isLessThan(limit);
                 Thread.sleep(1);
             }
+
             assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ViewportUnavailableException.class)
-                    .satisfies(failure -> assertThat(((ViewportUnavailableException) failure.getCause()).getReason())
-                            .isEqualTo(ViewportUnavailableException.Reason.DB_DEADLINE));
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE))
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
+                            .isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
             assertThat(source.get().workCompletion().get(5, TimeUnit.SECONDS)).isNull();
             assertThat(registry.get("parking.viewport.db.queued").gauge().value()).isZero();
             verify(repository, times(1)).load(anyList(), any(), any());

@@ -1,73 +1,131 @@
 package jumin.domain.parking.viewport;
 
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.springframework.transaction.TransactionSystemException;
 
-/** Bounded, message-free diagnostics: driver messages can contain SQL and input values. */
 public final class ViewportFailureDiagnostics {
 
-    public record Summary(String reason, String causeType, String sqlState) { }
+    private static final int MAX_FAILURES = 32;
+    private static final String UNAVAILABLE = "unavailable";
 
     private ViewportFailureDiagnostics() { }
 
-    public static Summary inspect(Throwable failure) {
-        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        ArrayDeque<Throwable> pending = new ArrayDeque<>();
-        pending.add(failure);
-        String reason = "UNCLASSIFIED";
-        String causeType = failure.getClass().getSimpleName();
-        String sqlState = "unavailable";
-        boolean timeout = false;
-        while (!pending.isEmpty() && seen.size() < 32) {
-            Throwable current = pending.removeFirst();
-            if (!seen.add(current)) {
-                continue;
+    public static ViewportFailureSummary inspect(Throwable failure) {
+        return new Inspection(failure).inspect();
+    }
+
+    private static final class Inspection {
+        private final Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        private final ArrayDeque<Throwable> pending = new ArrayDeque<>();
+        private String reason = ViewportFailureReason.UNCLASSIFIED.name();
+        private String causeType;
+        private String sqlState = UNAVAILABLE;
+        private boolean timeout;
+
+        private Inspection(Throwable failure) {
+            pending.add(failure);
+            causeType = failure.getClass().getSimpleName();
+        }
+
+        private ViewportFailureSummary inspect() {
+            while (!pending.isEmpty() && seen.size() < MAX_FAILURES) {
+                Throwable current = pending.removeFirst();
+                if (!seen.add(current)) {
+                    continue;
+                }
+                visit(current);
             }
+            return new ViewportFailureSummary(resolvedReason(), causeType, sqlState);
+        }
+
+        private void visit(Throwable current) {
             causeType = current.getClass().getSimpleName();
-            if (reason.equals("UNCLASSIFIED") && current instanceof ViewportUnavailableException unavailable) {
-                reason = unavailable.getReason().name();
+            recordReason(current);
+            recordTimeout(current);
+            recordSqlStateAndEnqueueNext(current);
+            enqueueApplicationException(current);
+            enqueue(current.getCause());
+            enqueueSuppressed(current);
+        }
+
+        private void recordReason(Throwable current) {
+            if (!reason.equals(ViewportFailureReason.UNCLASSIFIED.name())) {
+                return;
             }
-            if (current instanceof java.util.concurrent.TimeoutException
-                    || current instanceof java.sql.SQLTimeoutException) {
+            if (!(current instanceof BusinessException exception)) {
+                return;
+            }
+            if (exception.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE || exception.getReason() == null) {
+                return;
+            }
+            for (ViewportFailureReason candidate : ViewportFailureReason.values()) {
+                if (candidate.name().equals(exception.getReason())) {
+                    reason = candidate.name();
+                    return;
+                }
+            }
+        }
+
+        private void recordTimeout(Throwable current) {
+            if (current instanceof TimeoutException || current instanceof SQLTimeoutException) {
                 timeout = true;
             }
-            if (current instanceof SQLException sql) {
-                String state = sql.getSQLState();
-                if (sqlState.equals("unavailable") && state != null && state.matches("[0-9A-Z]{5}")) {
-                    sqlState = state;
-                }
-                if (sql.getNextException() != null) {
-                    pending.addLast(sql.getNextException());
-                }
+        }
+
+        private void recordSqlStateAndEnqueueNext(Throwable current) {
+            if (!(current instanceof SQLException sql)) {
+                return;
             }
-            if (current instanceof TransactionSystemException transaction
-                    && transaction.getApplicationException() != null) {
-                pending.addLast(transaction.getApplicationException());
+            String state = sql.getSQLState();
+            if (sqlState.equals(UNAVAILABLE) && state != null && state.matches("[0-9A-Z]{5}")) {
+                sqlState = state;
             }
-            if (current.getCause() != null) {
-                pending.addLast(current.getCause());
+            enqueue(sql.getNextException());
+        }
+
+        private void enqueueApplicationException(Throwable current) {
+            if (current instanceof TransactionSystemException transaction) {
+                enqueue(transaction.getApplicationException());
             }
-            // Keep both traversal work and retained references bounded for arbitrary graphs.
+        }
+
+        private void enqueue(Throwable failure) {
+            if (failure != null) {
+                pending.addLast(failure);
+            }
+        }
+
+        private void enqueueSuppressed(Throwable current) {
             for (Throwable suppressed : current.getSuppressed()) {
-                if (pending.size() >= 32) {
-                    break;
+                if (pending.size() >= MAX_FAILURES) {
+                    return;
                 }
                 pending.addLast(suppressed);
             }
         }
-        if (reason.equals("UNCLASSIFIED")) {
-            if (sqlState.startsWith("08")) {
-                reason = "DB_CONNECTION_ERROR";
-            } else if (!sqlState.equals("unavailable")) {
-                reason = "DB_SQL_ERROR";
-            } else if (timeout) {
-                reason = "DEADLINE";
+
+        private String resolvedReason() {
+            if (!reason.equals(ViewportFailureReason.UNCLASSIFIED.name())) {
+                return reason;
             }
+            if (sqlState.startsWith("08")) {
+                return "DB_CONNECTION_ERROR";
+            }
+            if (!sqlState.equals(UNAVAILABLE)) {
+                return "DB_SQL_ERROR";
+            }
+            if (timeout) {
+                return "DEADLINE";
+            }
+            return reason;
         }
-        return new Summary(reason, causeType, sqlState);
     }
 }

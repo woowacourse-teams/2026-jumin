@@ -16,15 +16,23 @@ public class ViewportCellCover {
     }
 
     public List<Long> cover(ViewportBounds bounds) {
-        if (bounds.west() < 124 || bounds.east() > 132 || bounds.south() < 33 || bounds.north() > 39
-                || bounds.east() - bounds.west() > properties.getMaxWidthDegrees()
-                || bounds.north() - bounds.south() > properties.getMaxHeightDegrees()) {
+        if (isOutsideCacheRegion(bounds) || exceedsViewportLimits(bounds)) {
             return List.of();
         }
         return grid.cover(bounds, properties.getGridSizeMeters(), properties.getMaxCells());
     }
 
     public boolean belongsTo(ViewportItem item, ViewportCellKey key) {
-        return grid.cellId(item.latitude(), item.longitude(), key.version().gridSizeMeters()) == key.cellId();
+        return grid.cellId(item.latitude(), item.longitude(), key.gridSizeMeters()) == key.cellId();
     }
+
+    private static boolean isOutsideCacheRegion(ViewportBounds bounds) {
+        return bounds.west() < 124 || bounds.east() > 132 || bounds.south() < 33 || bounds.north() > 39;
+    }
+
+    private boolean exceedsViewportLimits(ViewportBounds bounds) {
+        return bounds.east() - bounds.west() > properties.getMaxWidthDegrees()
+                || bounds.north() - bounds.south() > properties.getMaxHeightDegrees();
+    }
+
 }

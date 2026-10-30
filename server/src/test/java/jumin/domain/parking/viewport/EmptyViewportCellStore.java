@@ -3,7 +3,7 @@ package jumin.domain.parking.viewport;
 import java.util.List;
 import java.util.Map;
 
-public class NoViewportCellStore implements ViewportCellStore {
+class EmptyViewportCellStore implements ViewportCellStore {
 
     @Override
     public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {

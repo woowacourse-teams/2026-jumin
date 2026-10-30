@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import jumin.config.ViewportCacheProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,6 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("공식 Web Mercator 표본의 투영 위치를 1000m 사각형으로 나눈다")
     void matches_known_projected_coordinate() {
-        // PROJ: longitude=2, latitude=49 -> x=222638.98, y=6274861.39 metres.
         long cell = grid.cellId(49, 2, 1000);
         assertThat((int) (cell >> 32)).isEqualTo(222);
         assertThat((int) cell).isEqualTo(6274);
@@ -98,11 +96,10 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("캐시 키는 그리드 크기와 square 알고리즘을 구분한다")
     void namespaces_grid_size_and_algorithm() {
-        UUID epoch = UUID.randomUUID();
         ViewportCellKey first = new ViewportCellKey("prod", 1, 1,
-                new ViewportVersion(epoch, 1, 1000, true), 0);
+                1000, 0);
         ViewportCellKey second = new ViewportCellKey("prod", 1, 1,
-                new ViewportVersion(epoch, 1, 2000, true), 0);
+                2000, 0);
         assertThat(first.redisKey()).contains(":viewport:square:wm1:", ":m1000:");
         assertThat(first.redisKey()).isNotEqualTo(second.redisKey());
         ViewportCellCodec codec = new ViewportCellCodec(1024, 10);

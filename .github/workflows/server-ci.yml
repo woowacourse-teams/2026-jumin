@@ -18,10 +18,9 @@ on:
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
-      - 'infra/scripts/viewport-cache*.sh'
       - 'infra/scripts/deploy-backend.sh'
-      - 'infra/scripts/mark-viewport-compatible-image.sh'
-      - 'infra/scripts/provision-viewport-db.py'
+      - 'infra/scripts/deploy-redis-ssm.py'
+      - 'infra/redis/**'
       - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
@@ -48,10 +47,9 @@ on:
       - 'infra/nginx/jumin.conf'
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
-      - 'infra/scripts/viewport-cache*.sh'
       - 'infra/scripts/deploy-backend.sh'
-      - 'infra/scripts/mark-viewport-compatible-image.sh'
-      - 'infra/scripts/provision-viewport-db.py'
+      - 'infra/scripts/deploy-redis-ssm.py'
+      - 'infra/redis/**'
       - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
       - 'infra/scripts/renew-certificates-prod.sh'
@@ -84,19 +82,9 @@ jobs:
 
       - name: Validate admin authentication script syntax
         run: |
-          for script in infra/scripts/validate-admin-auth-env.sh infra/scripts/viewport-cache*.sh infra/scripts/deploy-backend.sh infra/scripts/mark-viewport-compatible-image.sh infra/scripts/tests/test-viewport-cache.sh; do
+          for script in infra/scripts/validate-admin-auth-env.sh infra/scripts/tests/test-viewport-cache.sh; do
             bash -n "$script"
           done
-
-      - name: Verify isolated viewport DB role provisioning
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if ! command -v psql >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install --yes --no-install-recommends postgresql-client
-          fi
-          python3 infra/scripts/tests/test-provision-viewport-db.py
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -128,8 +116,6 @@ jobs:
         run: docker build --file server/Dockerfile --build-arg "APP_COMMIT_SHA=${GITHUB_SHA}" --tag jumin-backend:ci "${RUNNER_TEMP}/jumin-backend-image-context"
 
       - name: Validate viewport deployment contracts
-        env:
-          VIEWPORT_TEST_IMAGE: jumin-backend:ci
         run: bash infra/scripts/tests/test-viewport-cache.sh
 
       - name: Validate Docker Compose configuration

@@ -17,12 +17,13 @@ public class ViewportMappingStartup implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments arguments) {
-        if (properties.isEnabled() && properties.isPrepareOnStartup() && !properties.isProjectionOnly()) {
-            try {
-                writer.prepare();
-            } catch (RuntimeException failure) {
-                log.warn("viewport mapping 준비 실패: 원본 조회를 유지합니다.", failure);
-            }
+        if (!properties.isEnabled() || !properties.isPrepareOnStartup()) {
+            return;
+        }
+        try {
+            writer.prepare();
+        } catch (RuntimeException failure) {
+            log.warn("viewport mapping 준비 실패: 원본 조회를 유지합니다.", failure);
         }
     }
 }

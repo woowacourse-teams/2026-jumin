@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/** Axis-aligned squares in Web Mercator metres, anchored at projected (0, 0). */
 @Component
 public class ViewportSquareGrid {
 
@@ -35,8 +34,6 @@ public class ViewportSquareGrid {
         if (!supports(bounds.south(), bounds.west()) || !supports(bounds.north(), bounds.east())) {
             return List.of();
         }
-        // Use the same monotonic projection and floor as point assignment. The inclusive
-        // east/north edges deliberately include the next cell when they lie on a grid line.
         int west = column(bounds.west(), sizeMeters);
         int east = column(bounds.east(), sizeMeters);
         int south = row(bounds.south(), sizeMeters);
@@ -44,10 +41,13 @@ public class ViewportSquareGrid {
         long columns = (long) east - west + 1;
         long rows = (long) north - south + 1;
         long count = columns * rows;
-        // Check the count BEFORE allocating or enumerating cells, including huge inputs.
         if (columns <= 0 || rows <= 0 || count > maxCells) {
             return List.of();
         }
+        return enumerateCells(west, east, south, north, count);
+    }
+
+    private static List<Long> enumerateCells(int west, int east, int south, int north, long count) {
         List<Long> cells = new ArrayList<>((int) count);
         for (int x = west; x <= east; x++) {
             for (int y = south; y <= north; y++) {
@@ -63,8 +63,6 @@ public class ViewportSquareGrid {
     }
 
     private static int row(double latitude, int sizeMeters) {
-        // Equivalent to log(tan(pi/4 + latitude/2)), without subtractive loss
-        // around the equator. This is monotonic through zero, including subnormals.
         double sine = StrictMath.sin(StrictMath.toRadians(latitude));
         double y = RADIUS * 0.5 * (StrictMath.log1p(sine) - StrictMath.log1p(-sine));
         return (int) StrictMath.floor(y / sizeMeters);

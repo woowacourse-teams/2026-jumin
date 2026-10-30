@@ -12,10 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-import java.io.IOException;
-import java.io.InputStream;
-import org.springframework.core.io.AbstractResource;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingDailyOperationResponse;
@@ -58,54 +54,6 @@ class ParkingSearchControllerTest {
 
     @MockitoBean
     private ViewportSearchService viewportSearchService;
-
-    @Test
-    @DisplayName("viewport 응답 직렬화가 끝난 뒤 성공 완료와 자원 반환을 전달한다")
-    void completes_viewport_body_after_serialization() throws Exception {
-        // given
-        AtomicReference<Boolean> completed = new AtomicReference<>();
-        ViewportBody body = new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { })
-                .onCompletion(completed::set);
-        when(viewportSearchService.search(any())).thenReturn(body);
-
-        // when
-        mockMvc.perform(get("/api/parking/viewport")
-                .queryParam("westLongitude", "126.9").queryParam("southLatitude", "37.4")
-                .queryParam("eastLongitude", "127.1").queryParam("northLatitude", "37.6"))
-                .andExpect(status().isOk());
-
-        // then
-        assertThat(completed.get()).isTrue();
-    }
-
-    @Test
-    @DisplayName("viewport 응답 파일 읽기 실패가 처리된 예외여도 성공으로 기록하지 않는다")
-    void records_serialization_failure_as_unsuccessful() throws Exception {
-        // given
-        AtomicReference<Boolean> completed = new AtomicReference<>();
-        AbstractResource broken = new AbstractResource() {
-            @Override
-            public String getDescription() {
-                return "injected failure";
-            }
-
-            @Override
-            public InputStream getInputStream() throws IOException {
-                throw new IOException("injected read failure");
-            }
-        };
-        ViewportBody body = new ViewportBody(broken, () -> { }).onCompletion(completed::set);
-        when(viewportSearchService.search(any())).thenReturn(body);
-
-        // when
-        mockMvc.perform(get("/api/parking/viewport")
-                .queryParam("westLongitude", "126.9").queryParam("southLatitude", "37.4")
-                .queryParam("eastLongitude", "127.1").queryParam("northLatitude", "37.6"))
-                .andExpect(status().isInternalServerError());
-
-        // then
-        assertThat(completed.get()).isFalse();
-    }
 
     @Test
     @DisplayName("추천과 순위 필드가 없는 간결한 주차장 목록을 반환한다")
@@ -297,7 +245,7 @@ class ParkingSearchControllerTest {
                         score
                 ))
         );
-        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(new ViewportBody(result, () -> { }));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(new ViewportBody(result));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -338,7 +286,7 @@ class ParkingSearchControllerTest {
     ) throws Exception {
         // given
         when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
-                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { }));
+                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -363,7 +311,7 @@ class ParkingSearchControllerTest {
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
         when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
-                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { }));
+                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import jumin.config.AvailabilityProperties;
-import jumin.config.AvailabilityProperties.Provider;
+import jumin.config.AvailabilityProviderProperties;
 import jumin.domain.parkingavailability.dto.AvailabilityObservation;
 import jumin.domain.parkingavailability.entity.AvailabilityProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -219,7 +219,7 @@ class SeoulAvailabilityClientTest {
 
     private AvailabilityProperties properties() {
         return new AvailabilityProperties(false,
-                new Provider(BASE_URL, KEY), new Provider("https://busan.test", "busan-key"));
+                new AvailabilityProviderProperties(BASE_URL, KEY), new AvailabilityProviderProperties("https://busan.test", "busan-key"));
     }
 
     private String payload(int total, String rows) {

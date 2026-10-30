@@ -30,20 +30,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import jumin.config.ViewportCacheProperties;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 
 public class RedisViewportCellStore implements ViewportCellStore {
 
@@ -133,7 +136,6 @@ public class RedisViewportCellStore implements ViewportCellStore {
             }
             parsed = RedisURI.create(input);
         } catch (RuntimeException invalid) {
-            // URI parsing exceptions can include the input, including accidentally embedded credentials.
             throw new IllegalArgumentException("Redis URI 설정을 확인하세요. 인증정보는 별도로 지정해야 합니다.");
         }
         if (parsed.isSsl() && parsed.getVerifyMode() != SslVerifyMode.FULL) {
@@ -141,12 +143,13 @@ public class RedisViewportCellStore implements ViewportCellStore {
         }
         String username = properties.getRedisUsername();
         String password = properties.getRedisPassword();
-        if (username != null || password != null) {
-            if (username == null || username.isBlank() || password == null || password.isBlank()) {
-                throw new IllegalArgumentException("Redis 사용자 이름과 비밀번호를 함께 설정하세요.");
-            }
-            parsed.setAuthentication(username, password);
+        if (username == null && password == null) {
+            return parsed;
         }
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Redis 사용자 이름과 비밀번호를 함께 설정하세요.");
+        }
+        parsed.setAuthentication(username, password);
         return parsed;
     }
 
@@ -165,7 +168,6 @@ public class RedisViewportCellStore implements ViewportCellStore {
                     throw new IllegalArgumentException();
                 }
             }
-            // This trust manager is scoped to this Lettuce client; JVM default HTTPS trust is untouched.
             return SslOptions.builder().jdkSslProvider().trustManager(path.toFile()).build();
         } catch (IOException | CertificateException | RuntimeException invalid) {
             throw new IllegalArgumentException("Redis TLS 인증서 파일을 읽을 수 없습니다.");
@@ -195,59 +197,63 @@ public class RedisViewportCellStore implements ViewportCellStore {
             List<?> values = awaitCommand(active.async().eval(READ, ScriptOutputType.MULTI, encodedKeys,
                     text(properties.getMaxValueBytes()), text(properties.getMaxRequestBytes()),
                     text(properties.getMaxCells())), deadline, active);
-            if (values.size() != keys.size() || values.stream().anyMatch(value -> value instanceof Number)) {
-                metrics.count("store", "wire_budget_rejected", 1);
-                throw new ViewportStoreBudgetException("원격 cache 응답 크기를 제한했습니다.");
+            return decodeValues(keys, values, deadline);
+        } catch (BusinessException failure) {
+            if (failure.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE) {
+                throw failure;
             }
-            Map<ViewportCellKey, ViewportCell> result = new LinkedHashMap<>();
-            long heap = 0;
-            for (int index = 0; index < keys.size(); index++) {
-                deadline.requireRemaining();
-                if (values.get(index) == null) {
-                    continue;
-                }
-                ViewportCellKey key = keys.get(index);
-                try {
-                    ViewportCell cell = codec.decode(key, (byte[]) values.get(index), properties.getMaxRequestBytes() - heap);
-                    for (ViewportItem item : cell.items()) {
-                        deadline.requireRemaining();
-                        if (!cover.belongsTo(item, key)) {
-                            throw new IllegalArgumentException("다른 셀의 항목입니다.");
-                        }
-                    }
-                    heap += cell.estimatedHeapBytes();
-                    result.put(key, cell);
-                } catch (IllegalArgumentException failure) {
-                    metrics.count("store", "corrupt", 1);
-                }
-            }
-            deadline.requireRemaining();
-            return Map.copyOf(result);
-        } catch (ViewportUnavailableException failure) {
-            metrics.count("store_error", Thread.currentThread().isInterrupted() ? "interrupted" : "operation_timeout", 1);
-            throw new ViewportStoreException("원격 cache 로컬 처리 예산을 초과했습니다.", failure);
+            throw localBudgetFailure(failure, "원격 cache 로컬 처리 예산을 초과했습니다.");
         } catch (ViewportStoreBudgetException failure) {
             metrics.count("store_error", "budget", 1);
             throw failure;
         } catch (ViewportStoreException failure) {
-            if (active != null && (!(failure instanceof CommandFailure) || !active.isOpen())) {
-                failConnection(active);
-            }
+            invalidateOnStoreFailure(active, failure);
             throw failure;
         } catch (RuntimeException failure) {
-            if (active != null && isCommandFailure(failure) && !hasConnectionFailure(active, failure)) {
-                metrics.count("store_error", "command_error", 1);
-            } else if (active != null) {
-                metrics.count("store_error", hasConnectionFailure(active, failure) ? "connection_error" : "unknown", 1);
-                failConnection(active);
-            } else {
-                metrics.count("store_error", "unknown", 1);
-            }
+            recordTransportFailure(active, failure);
             throw new ViewportStoreException("원격 cache 조회에 실패했습니다.", failure);
         } finally {
             metrics.time("store_get", started);
-
         }
+    }
+
+    private Map<ViewportCellKey, ViewportCell> decodeValues(List<ViewportCellKey> keys, List<?> values,
+                                                           ViewportDeadline deadline) {
+        if (values.size() != keys.size() || values.stream().anyMatch(value -> value instanceof Number)) {
+            metrics.count("store", "wire_budget_rejected", 1);
+            throw new ViewportStoreBudgetException("원격 cache 응답 크기를 제한했습니다.");
+        }
+        Map<ViewportCellKey, ViewportCell> result = new LinkedHashMap<>();
+        long heap = 0;
+        for (int index = 0; index < keys.size(); index++) {
+            deadline.requireRemaining();
+            if (values.get(index) == null) {
+                continue;
+            }
+            ViewportCellKey key = keys.get(index);
+            try {
+                ViewportCell cell = decodeCell(key, (byte[]) values.get(index),
+                        properties.getMaxRequestBytes() - heap, deadline);
+                heap += cell.estimatedHeapBytes();
+                result.put(key, cell);
+            } catch (IllegalArgumentException failure) {
+                metrics.count("store", "corrupt", 1);
+            }
+        }
+        deadline.requireRemaining();
+        return Map.copyOf(result);
+    }
+
+    private ViewportCell decodeCell(ViewportCellKey key, byte[] value, long remainingBytes,
+                                    ViewportDeadline deadline) {
+        ViewportCell cell = codec.decode(key, value, remainingBytes);
+        for (ViewportItem item : cell.items()) {
+            deadline.requireRemaining();
+            if (!cover.belongsTo(item, key)) {
+                throw new IllegalArgumentException("다른 셀의 항목입니다.");
+            }
+        }
+        return cell;
     }
 
     @Override
@@ -255,8 +261,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
         deadline.requireRemaining();
         int originalSize = cells.size();
         validateBatch(originalSize);
-        cells = cells.stream().filter(cell -> cell.items().size() <= properties.getMaxCellRows()
-                && codec.encodedSize(cell) <= properties.getMaxValueBytes()).toList();
+        cells = cells.stream().filter(this::isCacheable).toList();
         metrics.count("store", "oversize_skipped", originalSize - cells.size());
         if (cells.isEmpty()) {
             return;
@@ -274,56 +279,103 @@ public class RedisViewportCellStore implements ViewportCellStore {
         }, true);
     }
 
+    private boolean isCacheable(ViewportCell cell) {
+        return cell.items().size() <= properties.getMaxCellRows()
+                && codec.encodedSize(cell) <= properties.getMaxValueBytes();
+    }
+
     private void writeTransport(List<ViewportCell> cells, ViewportDeadline deadline) {
         StatefulRedisConnection<byte[], byte[]> active = null;
         long started = System.nanoTime();
         try {
             deadline.requireRemaining();
-            byte[][] keys = new byte[cells.size()][];
-            byte[][] arguments = new byte[cells.size() * 2][];
-            for (int index = 0; index < cells.size(); index++) {
-                ViewportCell cell = cells.get(index);
-                keys[index] = text(cell.key().redisKey());
-                arguments[index * 2] = codec.encode(cell);
-                long base = (cell.items().isEmpty() ? properties.getEmptyTtl() : properties.getTtl()).toMillis();
-                long ttl = Math.max(1, (long) (base * (1 + ThreadLocalRandom.current().nextDouble(-1, 1)
-                        * properties.getTtlJitter())));
-                arguments[index * 2 + 1] = text(ttl);
-            }
+            WriteBatch batch = encodeBatch(cells);
             active = connection(deadline);
             deadline.requireRemaining();
-            awaitCommand(active.async().eval(WRITE, ScriptOutputType.INTEGER, keys, arguments), deadline, active);
-        } catch (ViewportUnavailableException failure) {
-            metrics.count("store_error", Thread.currentThread().isInterrupted() ? "interrupted" : "operation_timeout", 1);
-            throw new ViewportStoreException("원격 cache 저장 처리 예산을 초과했습니다.", failure);
+            awaitCommand(active.async().eval(WRITE, ScriptOutputType.INTEGER, batch.keys(), batch.arguments()),
+                    deadline, active);
+        } catch (BusinessException failure) {
+            if (failure.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE) {
+                throw failure;
+            }
+            throw localBudgetFailure(failure, "원격 cache 저장 처리 예산을 초과했습니다.");
         } catch (ViewportStoreBudgetException failure) {
             metrics.count("store_error", "budget", 1);
             throw failure;
         } catch (ViewportStoreException failure) {
-            if (active != null && (!(failure instanceof CommandFailure) || !active.isOpen())) {
-                failConnection(active);
-            }
+            invalidateOnStoreFailure(active, failure);
             throw failure;
         } catch (RuntimeException failure) {
-            if (active != null && isCommandFailure(failure) && !hasConnectionFailure(active, failure)) {
-                metrics.count("store_error", "command_error", 1);
-            } else if (active != null) {
-                metrics.count("store_error", hasConnectionFailure(active, failure) ? "connection_error" : "unknown", 1);
-                failConnection(active);
-            } else {
-                metrics.count("store_error", "unknown", 1);
-            }
+            recordTransportFailure(active, failure);
             throw new ViewportStoreException("원격 cache 저장에 실패했습니다.", failure);
         } finally {
             metrics.time("store_put", started);
-
         }
+    }
+
+    private WriteBatch encodeBatch(List<ViewportCell> cells) {
+        byte[][] keys = new byte[cells.size()][];
+        byte[][] arguments = new byte[cells.size() * 2][];
+        for (int index = 0; index < cells.size(); index++) {
+            ViewportCell cell = cells.get(index);
+            keys[index] = text(cell.key().redisKey());
+            arguments[index * 2] = codec.encode(cell);
+            long base;
+            if (cell.items().isEmpty()) {
+                base = properties.getEmptyTtl().toMillis();
+            } else {
+                base = properties.getTtl().toMillis();
+            }
+            long ttl = Math.max(1, (long) (base * (1 + ThreadLocalRandom.current().nextDouble(-1, 1)
+                    * properties.getTtlJitter())));
+            arguments[index * 2 + 1] = text(ttl);
+        }
+        return new WriteBatch(keys, arguments);
+    }
+
+    private record WriteBatch(byte[][] keys, byte[][] arguments) { }
+
+    private ViewportStoreException localBudgetFailure(BusinessException failure, String message) {
+        if (Thread.currentThread().isInterrupted()) {
+            metrics.count("store_error", "interrupted", 1);
+        } else {
+            metrics.count("store_error", "operation_timeout", 1);
+        }
+        return new ViewportStoreException(message, failure);
+    }
+
+    private void invalidateOnStoreFailure(StatefulRedisConnection<byte[], byte[]> active,
+                                          ViewportStoreException failure) {
+        if (active == null) {
+            return;
+        }
+        if (failure instanceof CommandFailure && active.isOpen()) {
+            return;
+        }
+        failConnection(active);
+    }
+
+    private void recordTransportFailure(StatefulRedisConnection<byte[], byte[]> active, RuntimeException failure) {
+        if (active != null && isCommandFailure(failure) && !hasConnectionFailure(active, failure)) {
+            metrics.count("store_error", "command_error", 1);
+            return;
+        }
+        if (active == null) {
+            metrics.count("store_error", "unknown", 1);
+            return;
+        }
+        if (hasConnectionFailure(active, failure)) {
+            metrics.count("store_error", "connection_error", 1);
+        } else {
+            metrics.count("store_error", "unknown", 1);
+        }
+        failConnection(active);
     }
 
     private StatefulRedisConnection<byte[], byte[]> connection(ViewportDeadline deadline) {
         CompletableFuture<StatefulRedisConnection<byte[], byte[]>> attempt;
         synchronized (this) {
-            if (closed || !closing.isDone() || circuitUntil != 0 && circuitUntil - System.nanoTime() > 0) {
+            if (connectionUnavailable()) {
                 metrics.count("store_error", "circuit_open", 1);
                 throw new ViewportStoreException("원격 cache 회로가 열려 있습니다.");
             }
@@ -335,70 +387,97 @@ public class RedisViewportCellStore implements ViewportCellStore {
                 failConnection(connection);
                 throw new ViewportStoreException("종료된 원격 연결을 정리하고 있습니다.");
             }
-            attempt = pendingConnect == null ? startConnect() : pendingConnect;
+            if (pendingConnect == null) {
+                attempt = startConnect();
+            } else {
+                attempt = pendingConnect;
+            }
         }
-        // This operation may stop waiting; only the connection attempt's own watchdog changes shared state.
         return awaitConnect(attempt, deadline);
+    }
+
+    private boolean connectionUnavailable() {
+        return closed || !closing.isDone() || circuitUntil != 0 && circuitUntil - System.nanoTime() > 0;
     }
 
     private CompletableFuture<StatefulRedisConnection<byte[], byte[]>> startConnect() {
         CompletableFuture<StatefulRedisConnection<byte[], byte[]>> attempt = new CompletableFuture<>();
         CompletableFuture<StatefulRedisConnection<byte[], byte[]>> physical = new CompletableFuture<>();
         pendingConnect = attempt;
-        var timeout = watchdog.schedule(() -> {
-            synchronized (this) {
-                if (pendingConnect == attempt) {
-                    pendingConnect = null;
-                    circuitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-                    closing = physical.handle((opened, ignored) -> opened == null
-                            ? CompletableFuture.<Void>completedFuture(null) : opened.closeAsync())
-                            .thenCompose(result -> result);
-                    metrics.count("store_error", "connect_timeout", 1);
-                    attempt.completeExceptionally(new ConnectTimeout());
-                }
-            }
-        }, properties.getEffectiveRedisConnectTimeout().toNanos(), TimeUnit.NANOSECONDS);
-        physical.whenComplete((opened, failure) -> {
-            timeout.cancel(false);
-            synchronized (this) {
-                if (closed || pendingConnect != attempt) {
-                    if (opened != null) {
-                        opened.closeAsync();
-                    }
-                    attempt.completeExceptionally(new ViewportStoreException("이미 종료된 원격 연결 시도입니다."));
-                    return;
-                }
-                pendingConnect = null;
-                if (failure == null) {
-                    connection = opened;
-                    attempt.complete(opened);
-                } else {
-                    circuitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-                    attempt.completeExceptionally(failure);
-                }
-            }
-        });
+        ScheduledFuture<?> timeout = watchdog.schedule(() -> expireConnect(attempt, physical),
+                properties.getEffectiveRedisConnectTimeout().toNanos(), TimeUnit.NANOSECONDS);
+        physical.whenComplete((opened, failure) -> completeConnect(attempt, timeout, opened, failure));
         try {
-            connector.execute(() -> {
-                try {
-                    client.connectAsync(ByteArrayCodec.INSTANCE, uri).whenComplete((opened, failure) -> {
-                        if (failure == null) {
-                            physical.complete(opened);
-                        } else {
-                            physical.completeExceptionally(failure);
-                        }
-                    });
-                } catch (Throwable failure) {
-                    physical.completeExceptionally(failure);
-                    if (failure instanceof Error fatal) {
-                        throw fatal;
-                    }
-                }
-            });
+            connector.execute(() -> connectPhysical(physical));
         } catch (RejectedExecutionException failure) {
             physical.completeExceptionally(failure);
         }
         return attempt;
+    }
+
+    private void expireConnect(CompletableFuture<StatefulRedisConnection<byte[], byte[]>> attempt,
+                               CompletableFuture<StatefulRedisConnection<byte[], byte[]>> physical) {
+        synchronized (this) {
+            if (pendingConnect != attempt) {
+                return;
+            }
+            pendingConnect = null;
+            circuitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            closing = physical.handle((opened, ignored) -> closeOpened(opened)).thenCompose(result -> result);
+            metrics.count("store_error", "connect_timeout", 1);
+            attempt.completeExceptionally(new ConnectTimeout());
+        }
+    }
+
+    private CompletableFuture<Void> closeOpened(StatefulRedisConnection<byte[], byte[]> opened) {
+        if (opened == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return opened.closeAsync();
+    }
+
+    private void completeConnect(CompletableFuture<StatefulRedisConnection<byte[], byte[]>> attempt,
+                                 ScheduledFuture<?> timeout, StatefulRedisConnection<byte[], byte[]> opened,
+                                 Throwable failure) {
+        timeout.cancel(false);
+        synchronized (this) {
+            if (closed || pendingConnect != attempt) {
+                if (opened != null) {
+                    opened.closeAsync();
+                }
+                attempt.completeExceptionally(new ViewportStoreException("이미 종료된 원격 연결 시도입니다."));
+                return;
+            }
+            pendingConnect = null;
+            if (failure == null) {
+                connection = opened;
+                attempt.complete(opened);
+            } else {
+                circuitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                attempt.completeExceptionally(failure);
+            }
+        }
+    }
+
+    private void connectPhysical(CompletableFuture<StatefulRedisConnection<byte[], byte[]>> physical) {
+        try {
+            client.connectAsync(ByteArrayCodec.INSTANCE, uri)
+                    .whenComplete((opened, failure) -> completePhysical(physical, opened, failure));
+        } catch (Throwable failure) {
+            physical.completeExceptionally(failure);
+            if (failure instanceof Error fatal) {
+                throw fatal;
+            }
+        }
+    }
+
+    private void completePhysical(CompletableFuture<StatefulRedisConnection<byte[], byte[]>> physical,
+                                  StatefulRedisConnection<byte[], byte[]> opened, Throwable failure) {
+        if (failure == null) {
+            physical.complete(opened);
+        } else {
+            physical.completeExceptionally(failure);
+        }
     }
 
     private synchronized void failConnection(StatefulRedisConnection<byte[], byte[]> failed) {
@@ -411,50 +490,58 @@ public class RedisViewportCellStore implements ViewportCellStore {
     }
 
     private synchronized int pendingWork() {
-        return pendingConnect != null || !closing.isDone() || connector.getActiveCount() != 0 ? 1 : 0;
+        if (pendingConnect != null || !closing.isDone() || connector.getActiveCount() != 0) {
+            return 1;
+        }
+        return 0;
     }
 
     private <T> T execute(ViewportDeadline callerDeadline, Callable<T> action, boolean awaitWriteCompletion) {
         callerDeadline.requireRemaining();
         CompletableFuture<T> result = new CompletableFuture<>();
         try {
-            transport.execute(() -> {
-                try {
-                    result.complete(action.call());
-                } catch (Throwable failure) {
-                    result.completeExceptionally(failure);
-                    if (failure instanceof Error fatal) {
-                        throw fatal;
-                    }
-                }
-            });
+            transport.execute(() -> completeAction(result, action));
         } catch (RejectedExecutionException failure) {
             metrics.count("store_error", "transport_rejected", 1);
             throw new ViewportStoreException("원격 cache transport 한도를 초과했습니다.", failure);
         }
         try {
-            // Only the independent bounded cache-writer calls putMany; its return owns flight cleanup.
-            // HTTP reads retain their personal wait limit while transport remains independently bounded.
-            T value = awaitWriteCompletion ? result.get()
-                    : result.get(callerDeadline.remainingNanos(), TimeUnit.NANOSECONDS);
-            if (!awaitWriteCompletion) {
-                callerDeadline.requireRemaining();
-            }
-            return value;
+            return awaitTransport(result, callerDeadline, awaitWriteCompletion);
         } catch (TimeoutException failure) {
             metrics.count("store_error", "caller_timeout", 1);
-            throw new ViewportUnavailableException("개인 viewport cache 대기 시간을 초과했습니다.", failure);
+            throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
         } catch (InterruptedException failure) {
             metrics.count("store_error", "interrupted", 1);
             Thread.currentThread().interrupt();
-            throw new ViewportUnavailableException("개인 viewport cache 대기가 중단되었습니다.", failure);
+            throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
         } catch (ExecutionException failure) {
             if (failure.getCause() instanceof RuntimeException runtime) {
                 throw runtime;
             }
             throw new ViewportStoreException("원격 cache transport에 실패했습니다.", failure.getCause());
         }
-        // A caller timeout never cancels transport: its bounded worker remains owned until terminal completion.
+    }
+
+    private <T> T awaitTransport(CompletableFuture<T> result, ViewportDeadline callerDeadline,
+                                 boolean awaitWriteCompletion)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        if (awaitWriteCompletion) {
+            return result.get();
+        }
+        T value = result.get(callerDeadline.remainingNanos(), TimeUnit.NANOSECONDS);
+        callerDeadline.requireRemaining();
+        return value;
+    }
+
+    private <T> void completeAction(CompletableFuture<T> result, Callable<T> action) {
+        try {
+            result.complete(action.call());
+        } catch (Throwable failure) {
+            result.completeExceptionally(failure);
+            if (failure instanceof Error fatal) {
+                throw fatal;
+            }
+        }
     }
 
     private <T> T awaitConnect(Future<T> future, ViewportDeadline deadline) {
@@ -468,11 +555,19 @@ public class RedisViewportCellStore implements ViewportCellStore {
             Thread.currentThread().interrupt();
             throw new ViewportStoreException("원격 cache transport가 중단되었습니다.", failure);
         } catch (ExecutionException failure) {
-            if (!(failure.getCause() instanceof ConnectTimeout)) {
-                metrics.count("store_error", failure.getCause() instanceof TimeoutException
-                        ? "connect_timeout" : "connection_error", 1);
-            }
+            recordConnectFailure(failure);
             throw new ViewportStoreException("원격 cache 연결을 기다릴 수 없습니다.", failure.getCause());
+        }
+    }
+
+    private void recordConnectFailure(ExecutionException failure) {
+        if (failure.getCause() instanceof ConnectTimeout) {
+            return;
+        }
+        if (failure.getCause() instanceof TimeoutException) {
+            metrics.count("store_error", "connect_timeout", 1);
+        } else {
+            metrics.count("store_error", "connection_error", 1);
         }
     }
 
@@ -494,19 +589,25 @@ public class RedisViewportCellStore implements ViewportCellStore {
             Thread.currentThread().interrupt();
             throw new ViewportStoreException("원격 cache 명령 대기가 중단되었습니다.", failure);
         } catch (ExecutionException failure) {
-            Throwable cause = failure.getCause();
-            if (hasConnectionFailure(active, cause)) {
-                metrics.count("store_error", "connection_error", 1);
-            } else if (isCommandFailure(cause)) {
-                metrics.count("store_error", "command_error", 1);
-                throw new CommandFailure(cause);
-            } else if (cause instanceof RedisCommandTimeoutException) {
-                metrics.count("store_error", "operation_timeout", 1);
-            } else {
-                metrics.count("store_error", "unknown", 1);
-            }
-            throw new ViewportStoreException("원격 cache 명령에 실패했습니다.", cause);
+            throw commandFailure(active, failure.getCause());
         }
+    }
+
+    private ViewportStoreException commandFailure(StatefulRedisConnection<byte[], byte[]> active, Throwable cause) {
+        if (hasConnectionFailure(active, cause)) {
+            metrics.count("store_error", "connection_error", 1);
+            return new ViewportStoreException("원격 cache 명령에 실패했습니다.", cause);
+        }
+        if (isCommandFailure(cause)) {
+            metrics.count("store_error", "command_error", 1);
+            return new CommandFailure(cause);
+        }
+        if (cause instanceof RedisCommandTimeoutException) {
+            metrics.count("store_error", "operation_timeout", 1);
+        } else {
+            metrics.count("store_error", "unknown", 1);
+        }
+        return new ViewportStoreException("원격 cache 명령에 실패했습니다.", cause);
     }
 
     private static boolean isCommandFailure(Throwable failure) {
@@ -517,20 +618,23 @@ public class RedisViewportCellStore implements ViewportCellStore {
         if (!active.isOpen()) {
             return true;
         }
-        // Lettuce uses a plain RedisException for these exact disconnected/closed endpoint states.
         Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
             if (cause instanceof RedisConnectionException || cause instanceof IOException) {
                 return true;
             }
-            if (cause.getClass() == RedisException.class && ("Connection closed".equals(cause.getMessage())
-                    || "Connection disconnected".equals(cause.getMessage())
-                    || "Connection is closed".equals(cause.getMessage())
-                    || "Currently not connected. Commands are rejected.".equals(cause.getMessage()))) {
+            if (isDisconnectedRedisException(cause)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean isDisconnectedRedisException(Throwable failure) {
+        return failure.getClass() == RedisException.class && ("Connection closed".equals(failure.getMessage())
+                || "Connection disconnected".equals(failure.getMessage())
+                || "Connection is closed".equals(failure.getMessage())
+                || "Currently not connected. Commands are rejected.".equals(failure.getMessage()));
     }
 
     private static final class CommandFailure extends ViewportStoreException {
@@ -565,39 +669,60 @@ public class RedisViewportCellStore implements ViewportCellStore {
             pendingConnect = null;
         }
         List<Runnable> cleanup = List.of(
-                () -> { if (connecting != null) connecting.whenComplete((opened, ignored) -> {
-                    if (opened != null) {
-                        opened.closeAsync();
-                    }
-                }); },
-                () -> { if (owned != null) owned.closeAsync(); },
+                () -> closeConnecting(connecting),
+                () -> closeOwned(owned),
                 () -> transport.shutdownNow(),
                 () -> connector.shutdownNow(),
                 () -> watchdog.shutdownNow(),
                 () -> client.shutdown(Duration.ZERO, Duration.ofSeconds(1)),
                 () -> resources.shutdown(0, 1, TimeUnit.SECONDS));
-        Throwable failure = null;
-        for (Runnable action : cleanup) {
-            try {
-                action.run();
-            } catch (RuntimeException | Error cleanupFailure) {
-                if (cleanupFailure instanceof Error && !(failure instanceof Error)) {
-                    if (failure != null) {
-                        cleanupFailure.addSuppressed(failure);
-                    }
-                    failure = cleanupFailure;
-                } else if (failure == null) {
-                    failure = cleanupFailure;
-                } else if (failure != cleanupFailure) {
-                    failure.addSuppressed(cleanupFailure);
-                }
-            }
-        }
+        Throwable failure = runCleanup(cleanup);
         if (failure instanceof Error fatal) {
             throw fatal;
         }
         if (failure instanceof RuntimeException runtime) {
             throw runtime;
         }
+    }
+
+    private static Throwable runCleanup(List<Runnable> cleanup) {
+        Throwable failure = null;
+        for (Runnable action : cleanup) {
+            try {
+                action.run();
+            } catch (RuntimeException | Error cleanupFailure) {
+                failure = mergeCleanupFailure(failure, cleanupFailure);
+            }
+        }
+        return failure;
+    }
+
+    private void closeConnecting(CompletableFuture<StatefulRedisConnection<byte[], byte[]>> connecting) {
+        if (connecting == null) {
+            return;
+        }
+        connecting.whenComplete((opened, ignored) -> closeOwned(opened));
+    }
+
+    private void closeOwned(StatefulRedisConnection<byte[], byte[]> owned) {
+        if (owned != null) {
+            owned.closeAsync();
+        }
+    }
+
+    private static Throwable mergeCleanupFailure(Throwable failure, Throwable cleanupFailure) {
+        if (cleanupFailure instanceof Error && !(failure instanceof Error)) {
+            if (failure != null) {
+                cleanupFailure.addSuppressed(failure);
+            }
+            return cleanupFailure;
+        }
+        if (failure == null) {
+            return cleanupFailure;
+        }
+        if (failure != cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+        }
+        return failure;
     }
 }

@@ -14,11 +14,14 @@ import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.parking.viewport.ViewportUnavailableException;
+import jumin.domain.parking.viewport.ViewportFailureReason;
 import jumin.global.response.ValidationErrorField;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -48,11 +51,13 @@ class GlobalExceptionHandlerTest {
     private ExceptionTestService exceptionTestService;
 
     @Test
+    @ExtendWith(OutputCaptureExtension.class)
     @DisplayName("viewport 과부하는 원인을 노출하지 않고 기존 503 응답을 유지한다")
-    void viewportOverloadPreserves503WithoutExposingCause() throws Exception {
-        given(exceptionTestService.business()).willThrow(new ViewportUnavailableException(
-                "전체 응답 준비 실패", new ViewportUnavailableException(
-                        ViewportUnavailableException.Reason.DB_QUEUE_FULL, "private query parameters")));
+    void viewportOverloadPreserves503WithoutExposingCause(CapturedOutput output) throws Exception {
+        RuntimeException cause = new RuntimeException("private query parameters");
+        BusinessException coded = ViewportFailureReason.DB_QUEUE_FULL.failure(cause);
+        BusinessException exception = ViewportFailureReason.UNCLASSIFIED.failure(coded);
+        given(exceptionTestService.business()).willThrow(exception);
 
         ResultActions result = mockMvc.perform(get("/test/business"));
 
@@ -61,6 +66,9 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.cause").doesNotExist());
         assertThat(result.andReturn().getResponse().getContentAsString())
                 .doesNotContain("private query parameters", "DB_QUEUE_FULL");
+        assertThat(exception.getCause()).isSameAs(coded);
+        assertThat(coded.getCause()).isSameAs(cause);
+        assertThat(output).contains("DB_QUEUE_FULL").doesNotContain("private query parameters");
     }
 
     @Test
@@ -110,8 +118,9 @@ class GlobalExceptionHandlerTest {
     @DisplayName("비즈니스 예외는 정의된 HTTP 상태와 메시지로 응답한다")
     void businessExceptionReturnsDefinedStatusAndMessage() throws Exception {
         // given
-        given(exceptionTestService.business())
-                .willThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        IOException cause = new IOException("private detail");
+        BusinessException exception = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, cause);
+        given(exceptionTestService.business()).willThrow(exception);
 
         // when & then
         mockMvc.perform(get("/test/business"))
@@ -119,6 +128,7 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.message").value("요청한 리소스를 찾을 수 없습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());
+        assertThat(exception.getCause()).isSameAs(cause);
     }
 
     @Test

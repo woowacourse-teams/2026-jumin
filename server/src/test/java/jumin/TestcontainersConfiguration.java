@@ -19,7 +19,6 @@ public class TestcontainersConfiguration {
                 .withDatabaseName("jumin")
                 .withUsername("jumin")
                 .withPassword("jumin")
-                .withCommand("postgres", "-c", "authentication_timeout=3s")
                 .withInitScript("db/init/01-enable-pgrouting.sql");
     }
 }

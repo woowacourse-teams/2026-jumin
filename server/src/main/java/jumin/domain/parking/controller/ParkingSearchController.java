@@ -2,7 +2,7 @@ package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
-import jumin.config.ViewportResponseCleanup;
+import jumin.config.ViewportResponseCompletion;
 import jumin.domain.parking.viewport.ViewportBody;
 import jumin.domain.parking.viewport.ViewportSearchService;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
@@ -38,7 +38,7 @@ public class ParkingSearchController {
             @Valid @ModelAttribute ParkingLotViewportRequest request, HttpServletRequest servletRequest
     ) {
         ViewportBody body = viewportSearchService.search(request);
-        servletRequest.setAttribute(ViewportResponseCleanup.BODY_ATTRIBUTE, body);
+        servletRequest.setAttribute(ViewportResponseCompletion.BODY_ATTRIBUTE, body);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body.value());
     }
 

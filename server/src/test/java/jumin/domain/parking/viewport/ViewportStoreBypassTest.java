@@ -18,7 +18,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -30,6 +29,8 @@ import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -51,8 +52,8 @@ class ViewportStoreBypassTest {
     @DisplayName("최초 조회 실패 후 다른 요청의 재조회 적중을 공유하면 source 없이 성공한다")
     void initial_failure_can_share_an_owner_recheck_hit() throws Exception {
         ViewportCacheProperties properties = properties();
-        ViewportVersion version = version();
-        ViewportCellKey key = key(version, 10);
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey key = key(gridSizeMeters, 10);
         ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
         CountDownLatch recheckStarted = new CountDownLatch(1);
         CountDownLatch releaseRecheck = new CountDownLatch(1);
@@ -70,7 +71,7 @@ class ViewportStoreBypassTest {
                 }
             }
         };
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
@@ -92,7 +93,7 @@ class ViewportStoreBypassTest {
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(version);
+
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
             try {
@@ -142,12 +143,12 @@ class ViewportStoreBypassTest {
             }
         };
         ViewportCacheProperties properties = properties();
-        ViewportVersion version = version();
-        ViewportCellKey key = key(version, 10);
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey key = key(gridSizeMeters, 10);
         ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
         AtomicInteger initialReads = new AtomicInteger();
         AtomicInteger rechecks = new AtomicInteger();
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
@@ -157,7 +158,7 @@ class ViewportStoreBypassTest {
                 initialReads.incrementAndGet();
                 if (failInitial) {
                     throw new ViewportStoreException("injected initial read failure",
-                            new ViewportUnavailableException("cache local deadline exceeded"));
+                            ViewportFailureReason.UNCLASSIFIED.failure());
                 }
                 return Map.of();
             }
@@ -168,7 +169,7 @@ class ViewportStoreBypassTest {
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(version);
+
         CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
         CountDownLatch loading = new CountDownLatch(1);
         when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
@@ -217,18 +218,18 @@ class ViewportStoreBypassTest {
     void respects_disabled_singleflight_during_bypass() throws Exception {
         ViewportCacheProperties properties = properties();
         properties.setSingleflight(false);
-        ViewportVersion version = version();
-        ViewportCellKey key = key(version, 10);
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey key = key(gridSizeMeters, 10);
         ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 throw new ViewportStoreException("injected initial read failure");
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(version);
+
         CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
         CountDownLatch started = new CountDownLatch(2);
         when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
@@ -258,9 +259,9 @@ class ViewportStoreBypassTest {
     void budget_failures_keep_fallback_for_initial_and_recheck() {
         for (boolean failInitial : List.of(true, false)) {
             ViewportCacheProperties properties = properties();
-            ViewportVersion version = version();
+            int gridSizeMeters = gridSizeMeters();
             ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-            ViewportCellStore store = new NoViewportCellStore() {
+            ViewportCellStore store = new EmptyViewportCellStore() {
                 @Override
                 public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                     if (failInitial || Thread.currentThread().getName().equals("viewport-cell-owner")) {
@@ -270,10 +271,10 @@ class ViewportStoreBypassTest {
                 }
             };
             ViewportReadRepository repository = mock(ViewportReadRepository.class);
-            when(repository.version(any())).thenReturn(version);
+
             ParkingLotViewportResponses expected = response(item(1, 100));
             when(repository.fallback(any(), any(), anyInt(), any(), any()))
-                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected, () -> { })));
+                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected)));
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
@@ -292,21 +293,22 @@ class ViewportStoreBypassTest {
     @DisplayName("전체 요청 deadline이 소진된 조회는 cache 오류 뒤에 source 작업을 시작하지 않는다")
     void expired_request_deadline_does_not_start_source() {
         ViewportCacheProperties properties = properties();
-        // A zero duration deterministically represents a deadline spent during version/cache lookup.
         properties.setRequestTimeout(Duration.ZERO);
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 throw new ViewportStoreException("injected initial read failure");
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(version());
+
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
-            assertThatThrownBy(() -> search(service)).isInstanceOf(ViewportUnavailableException.class);
+            assertThatThrownBy(() -> search(service))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
 
             verify(repository, times(0)).load(anyList(), any(), any());
             verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
@@ -318,12 +320,12 @@ class ViewportStoreBypassTest {
     void source_oversize_and_assembly_integrity_failure_keep_fallback() {
         for (boolean oversize : List.of(true, false)) {
             ViewportCacheProperties properties = properties();
-            ViewportVersion version = version();
-            ViewportCellKey first = key(version, 10);
-            ViewportCellKey second = key(version, 20);
+            int gridSizeMeters = gridSizeMeters();
+            ViewportCellKey first = key(gridSizeMeters, 10);
+            ViewportCellKey second = key(gridSizeMeters, 20);
             ViewportItem duplicate = item(1, 100);
             ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-            ViewportCellStore store = new NoViewportCellStore() {
+            ViewportCellStore store = new EmptyViewportCellStore() {
                 @Override
                 public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                     return oversize ? Map.of() : Map.of(first, new ViewportCell(first, List.of(duplicate)),
@@ -331,12 +333,12 @@ class ViewportStoreBypassTest {
                 }
             };
             ViewportReadRepository repository = mock(ViewportReadRepository.class);
-            when(repository.version(any())).thenReturn(version);
+
             when(repository.load(anyList(), any(), any()))
-                    .thenReturn(CompletableFuture.failedFuture(new ViewportCellTooLargeException()));
+                    .thenReturn(CompletableFuture.failedFuture(ViewportFallbackException.cellTooLarge()));
             ParkingLotViewportResponses expected = response(duplicate);
             when(repository.fallback(any(), any(), anyInt(), any(), any()))
-                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected, () -> { })));
+                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected)));
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
@@ -356,13 +358,13 @@ class ViewportStoreBypassTest {
     @DisplayName("부분 cache 적중 후 재조회 장애가 나면 누락된 셀만 source에서 로드한다")
     void preserves_partial_hits_on_recheck_failure() {
         ViewportCacheProperties properties = properties();
-        ViewportVersion version = version();
-        ViewportCellKey first = key(version, 10);
-        ViewportCellKey second = key(version, 20);
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey first = key(gridSizeMeters, 10);
+        ViewportCellKey second = key(gridSizeMeters, 20);
         ViewportItem hit = item(1, 100);
         ViewportItem missing = item(2, 200);
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
@@ -372,7 +374,7 @@ class ViewportStoreBypassTest {
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(version);
+
         when(repository.load(anyList(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(Map.of(second, new ViewportCell(second, List.of(missing)))));
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
@@ -386,46 +388,7 @@ class ViewportStoreBypassTest {
     }
 
     @Test
-    @DisplayName("cache 장애 중 source 버전 충돌이 나면 새 버전 셀을 다시 로드한다")
-    void retries_version_change_during_bypass() {
-        ViewportCacheProperties properties = properties();
-        ViewportVersion before = version();
-        ViewportVersion after = new ViewportVersion(before.epoch(), before.revision() + 1, 1000, true);
-        ViewportCellKey newKey = key(after, 10);
-        ViewportItem item = item(1, 100);
-        ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        ViewportCellStore store = new NoViewportCellStore() {
-            @Override
-            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                throw new ViewportStoreException("injected initial read failure");
-            }
-        };
-        ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        when(repository.version(any())).thenReturn(before, after);
-        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
-            ((Runnable) invocation.getArgument(2)).run();
-            List<ViewportCellKey> keys = invocation.getArgument(0);
-            if (keys.getFirst().version().equals(before)) {
-                return CompletableFuture.failedFuture(new ViewportVersionChangedException());
-            }
-            return CompletableFuture.completedFuture(Map.of(newKey, new ViewportCell(newKey, List.of(item))));
-        });
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
-            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
-
-            assertThat(search(service)).isEqualTo(response(item));
-
-            verify(repository, times(2)).version(any());
-            verify(repository, times(1)).load(org.mockito.ArgumentMatchers.eq(List.of(key(before, 10))), any(), any());
-            verify(repository, times(1)).load(org.mockito.ArgumentMatchers.eq(List.of(newKey)), any(), any());
-            verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
-            assertThat(counter(metrics, "requests", "version_retry")).isEqualTo(1);
-            assertThat(counter(metrics, "store", "bypass_initial")).isEqualTo(2);
-        }
-    }
-
-    @Test
-    @DisplayName("조회 실패와 재시도는 최초 전체 적중이 아니며 source 미사용 성공은 독립 요청이다")
+    @DisplayName("조회 실패와 최초 미스는 최초 전체 적중이 아니며 source 미사용 성공은 독립 요청이다")
     void separates_first_lookup_hit_from_source_independence() {
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         ViewportObservation bypassed = new ViewportObservation(metrics);
@@ -436,7 +399,6 @@ class ViewportStoreBypassTest {
         ViewportObservation retried = new ViewportObservation(metrics);
         retried.eligible();
         retried.firstLookup(1, 0);
-        retried.retry();
         retried.firstLookup(1, 1);
         retried.finish(true);
         ViewportObservation failedResponse = new ViewportObservation(metrics);
@@ -446,7 +408,6 @@ class ViewportStoreBypassTest {
 
         assertThat(counter(metrics, "logical", "full_store_hit_true")).isZero();
         assertThat(counter(metrics, "logical", "full_store_hit_false")).isEqualTo(3);
-        // A lookup failure or retry alone does not prove that this request consumed a source result.
         assertThat(counter(metrics, "logical", "source_independent_true")).isEqualTo(2);
         assertThat(counter(metrics, "logical", "source_independent_false")).isEqualTo(1);
     }
@@ -486,12 +447,12 @@ class ViewportStoreBypassTest {
                 .toList());
     }
 
-    private ViewportVersion version() {
-        return new ViewportVersion(UUID.randomUUID(), 1, 1000, true);
+    private int gridSizeMeters() {
+        return 1000;
     }
 
-    private ViewportCellKey key(ViewportVersion version, long cell) {
-        return new ViewportCellKey("bypass", 1, 1, version, cell);
+    private ViewportCellKey key(int gridSizeMeters, long cell) {
+        return new ViewportCellKey("bypass", 1, 1, gridSizeMeters, cell);
     }
 
     private ViewportItem item(long id, int capacity) {

@@ -1,8 +1,8 @@
 package jumin.domain.parking.viewport;
 
-import java.time.Duration;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 
 public record ViewportDeadline(long expiresAtNanos) {
 
@@ -16,7 +16,7 @@ public record ViewportDeadline(long expiresAtNanos) {
 
     public void requireRemaining() {
         if (remainingNanos() == 0 || Thread.currentThread().isInterrupted()) {
-            throw new ViewportUnavailableException("viewport deadline을 초과했습니다.");
+            throw ViewportFailureReason.UNCLASSIFIED.failure();
         }
     }
 

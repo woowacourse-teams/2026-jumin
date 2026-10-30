@@ -30,8 +30,8 @@ import jumin.domain.admin.parking.model.ParkingScheduleValues;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.viewport.ViewportSquareGrid;
-import jumin.domain.parking.viewport.ViewportVersion;
-import jumin.domain.parking.viewport.ViewportVersionRepository;
+import jumin.domain.parking.viewport.ViewportMappingState;
+import jumin.domain.parking.viewport.ViewportMappingStateRepository;
 import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +69,7 @@ class ParkingCsvSyncServiceIntegrationTest {
     private ViewportWriteCoordinator viewportWriter;
 
     @Autowired
-    private ViewportVersionRepository viewportVersions;
+    private ViewportMappingStateRepository viewportVersions;
 
     @Autowired
     private ViewportSquareGrid viewportGrid;
@@ -89,23 +89,23 @@ class ParkingCsvSyncServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("CSV 동기화는 준비된 캐시의 좌표 매핑과 버전을 함께 갱신한다")
+    @DisplayName("CSV 동기화는 준비된 캐시의 좌표 매핑을 같은 트랜잭션에서 갱신한다")
     void syncs_csv_with_prepared_viewport_mapping_and_version() {
         // given
         ParkingCsvRow original = row(1, 1, true);
         ParkingCsvRow changed = row(1, 2, true);
         sync(List.of(original), FIRST_UPLOAD_AT);
-        ViewportVersion before = viewportWriter.prepare();
+        ViewportMappingState before = viewportWriter.prepare();
         assertThat(before.ready()).isTrue();
 
         // when
         ParkingCsvSummaryResponse summary = sync(List.of(changed), NEXT_UPLOAD_AT);
-        ViewportVersion after = viewportVersions.read();
+        ViewportMappingState after = viewportVersions.read();
 
         // then
         assertSummary(summary, 0, 1, 0, 0, 0);
-        assertThat(after.epoch()).isEqualTo(before.epoch());
-        assertThat(after.revision()).isEqualTo(before.revision() + 1);
+
+
         assertThat(after.ready()).isTrue();
         assertThat(jdbc.queryForObject("SELECT viewport_grid_cell FROM parking_lots WHERE name = ?", Long.class,
                 changed.lot().name())).isEqualTo(viewportGrid.cellId(

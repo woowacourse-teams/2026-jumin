@@ -7,12 +7,24 @@ import jumin.global.exception.ErrorCode;
 public record ViewportBounds(double west, double south, double east, double north) {
 
     public ViewportBounds {
-        if (!Double.isFinite(west) || !Double.isFinite(south)
-                || !Double.isFinite(east) || !Double.isFinite(north)
-                || west < -180 || east > 180 || south <= -90 || north >= 90
-                || west >= east || south >= north) {
+        if (!hasFiniteCoordinates(west, south, east, north)
+                || !isWithinCoordinateLimits(west, south, east, north)
+                || !hasPositiveArea(west, south, east, north)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private static boolean hasFiniteCoordinates(double west, double south, double east, double north) {
+        return Double.isFinite(west) && Double.isFinite(south)
+                && Double.isFinite(east) && Double.isFinite(north);
+    }
+
+    private static boolean isWithinCoordinateLimits(double west, double south, double east, double north) {
+        return west >= -180 && east <= 180 && south > -90 && north < 90;
+    }
+
+    private static boolean hasPositiveArea(double west, double south, double east, double north) {
+        return west < east && south < north;
     }
 
     public static ViewportBounds from(ParkingLotViewportRequest request) {

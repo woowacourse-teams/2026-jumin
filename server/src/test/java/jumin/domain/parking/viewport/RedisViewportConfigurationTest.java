@@ -8,14 +8,15 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import jumin.config.ViewportCacheProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 
 class RedisViewportConfigurationTest {
 
@@ -23,22 +24,24 @@ class RedisViewportConfigurationTest {
     Path temporary;
 
     @Test
-    @DisplayName("Spring configtree의 분리된 Redis 자격증명과 PEM 경로를 바인딩한다")
-    void binds_separate_credentials_from_configtree() throws Exception {
-        Files.writeString(temporary.resolve("jumin.viewport.cache.redis-username"), "viewport");
-        Files.writeString(temporary.resolve("jumin.viewport.cache.redis-password"), "only-for-test");
-        Files.writeString(temporary.resolve("jumin.viewport.cache.redis-tls-ca-file"), "/run/test/redis.crt");
-
-        try (var context = new SpringApplicationBuilder(BindingConfiguration.class)
-                .web(WebApplicationType.NONE)
-                .properties("spring.config.import=configtree:" + temporary.toAbsolutePath() + "/",
-                        "spring.main.banner-mode=off")
-                .run()) {
-            ViewportCacheProperties properties = context.getBean(ViewportCacheProperties.class);
-            assertThat(properties.getRedisUsername()).isEqualTo("viewport");
-            assertThat(properties.getRedisPassword()).isEqualTo("only-for-test");
-            assertThat(properties.getRedisTlsCaFile()).isEqualTo("/run/test/redis.crt");
-        }
+    @DisplayName("배포 환경변수의 Redis 주소와 자격증명 및 PEM 경로를 바인딩한다")
+    void binds_deployment_environment_variables() {
+        Map<String, Object> variables = Map.of(
+                "JUMIN_VIEWPORT_CACHE_REDISURI", "rediss://redis.test:6379",
+                "JUMIN_VIEWPORT_CACHE_REDISUSERNAME", "viewport",
+                "JUMIN_VIEWPORT_CACHE_REDISPASSWORD", "only-for-test",
+                "JUMIN_VIEWPORT_CACHE_REDISTLSCAFILE", "/app/redis-ca.pem");
+        new ApplicationContextRunner()
+                .withUserConfiguration(BindingConfiguration.class)
+                .withInitializer(context -> context.getEnvironment().getPropertySources()
+                        .addFirst(new SystemEnvironmentPropertySource("systemEnvironment", variables)))
+                .run(context -> {
+                    ViewportCacheProperties properties = context.getBean(ViewportCacheProperties.class);
+                    assertThat(properties.getRedisUri()).isEqualTo("rediss://redis.test:6379");
+                    assertThat(properties.getRedisUsername()).isEqualTo("viewport");
+                    assertThat(properties.getRedisPassword()).isEqualTo("only-for-test");
+                    assertThat(properties.getRedisTlsCaFile()).isEqualTo("/app/redis-ca.pem");
+                });
     }
 
     @Test
@@ -75,7 +78,6 @@ class RedisViewportConfigurationTest {
     private static void assertRejectedWithoutSecret(ViewportCacheProperties properties, String secret) {
         Throwable failure = catchThrowable(() -> {
             try (RedisViewportCellStore ignored = store(properties)) {
-                // A valid configuration would close its client and resources here.
             }
         });
         assertThat(failure).isInstanceOf(IllegalArgumentException.class);

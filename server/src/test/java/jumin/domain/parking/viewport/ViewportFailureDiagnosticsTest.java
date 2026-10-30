@@ -1,10 +1,13 @@
 package jumin.domain.parking.viewport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.TransactionSystemException;
 
@@ -12,14 +15,47 @@ class ViewportFailureDiagnosticsTest {
 
     @Test
     void retains_coded_queue_cause_through_generic_response_wrapper_without_messages() {
-        var cause = new ViewportUnavailableException(ViewportUnavailableException.Reason.DB_QUEUE_FULL,
-                "private query parameters");
-        var summary = ViewportFailureDiagnostics.inspect(new ViewportUnavailableException("response failed", cause));
+        var privateCause = new RuntimeException("private query parameters");
+        var cause = ViewportFailureReason.DB_QUEUE_FULL.failure(privateCause);
+        var wrapper = ViewportFailureReason.UNCLASSIFIED.failure(cause);
+        var summary = ViewportFailureDiagnostics.inspect(wrapper);
 
         assertThat(summary.reason()).isEqualTo("DB_QUEUE_FULL");
-        assertThat(summary.causeType()).isEqualTo("ViewportUnavailableException");
+        assertThat(summary.causeType()).isEqualTo("RuntimeException");
         assertThat(summary.sqlState()).isEqualTo("unavailable");
         assertThat(summary.toString()).doesNotContain("private query parameters", "response failed");
+        assertThat(cause.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
+        assertThat(cause.getCause()).isSameAs(privateCause);
+        assertThat(wrapper.getCause()).isSameAs(cause);
+    }
+
+    @Test
+    void ignores_reason_from_other_business_error_codes() {
+        var failure = new BusinessException(ErrorCode.INVALID_INPUT, "DB_QUEUE_FULL", null);
+
+        var summary = ViewportFailureDiagnostics.inspect(failure);
+
+        assertThat(summary.reason()).isEqualTo("UNCLASSIFIED");
+    }
+
+    @Test
+    void ignores_unknown_reason_even_when_it_has_safe_characters() {
+        var failure = new BusinessException(ErrorCode.VIEWPORT_UNAVAILABLE, "PRIVATE_VALUE", null);
+
+        var summary = ViewportFailureDiagnostics.inspect(failure);
+
+        assertThat(summary.reason()).isEqualTo("UNCLASSIFIED");
+        assertThat(summary.toString()).doesNotContain("PRIVATE_VALUE");
+    }
+
+    @Test
+    void rejects_unbounded_or_unsafe_reason_values() {
+        assertThatThrownBy(() -> new BusinessException(ErrorCode.VIEWPORT_UNAVAILABLE, "private detail", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid exception reason");
+        assertThatThrownBy(() -> new BusinessException(ErrorCode.VIEWPORT_UNAVAILABLE, "A".repeat(65), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid exception reason");
     }
 
     @Test

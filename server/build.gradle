@@ -33,7 +33,6 @@ dependencies {
 	implementation 'commons-io:commons-io:2.20.0'
 	compileOnly 'org.projectlombok:lombok'
 	implementation 'org.postgresql:postgresql'
-	implementation 'com.github.ben-manes.caffeine:caffeine'
 	implementation 'io.lettuce:lettuce-core'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	annotationProcessor "io.github.openfeign.querydsl:querydsl-apt:${querydslVersion}:jpa"

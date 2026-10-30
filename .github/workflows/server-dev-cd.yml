@@ -9,8 +9,6 @@ on:
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.viewport.yml'
       - 'infra/scripts/deploy-backend.sh'
-      - 'infra/scripts/viewport-cache*.sh'
-      - 'infra/scripts/mark-viewport-compatible-image.sh'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'
       - 'infra/observability/alloy/**'
@@ -124,6 +122,16 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           ADMIN_TOKEN_SECRET: ${{ secrets.ADMIN_TOKEN_SECRET }}
           ADMIN_ENV_LABEL: dev
+          JUMIN_VIEWPORT_CACHE_ENABLED: ${{ vars.VIEWPORT_CACHE_ENABLED || 'false' }}
+          JUMIN_VIEWPORT_CACHE_ENVIRONMENT: dev_sq_ttl
+          JUMIN_VIEWPORT_CACHE_REDISURI: ${{ secrets.VIEWPORT_REDIS_URI }}
+          JUMIN_VIEWPORT_CACHE_REDISUSERNAME: ${{ secrets.VIEWPORT_REDIS_USERNAME }}
+          JUMIN_VIEWPORT_CACHE_REDISPASSWORD: ${{ secrets.VIEWPORT_REDIS_PASSWORD }}
+          VIEWPORT_REDIS_TLS_CA_PEM: ${{ secrets.VIEWPORT_REDIS_TLS_CA_PEM }}
+          JUMIN_VIEWPORT_CACHE_TTL: ${{ vars.VIEWPORT_CACHE_TTL || '10m' }}
+          JUMIN_VIEWPORT_CACHE_EMPTYTTL: ${{ vars.VIEWPORT_CACHE_EMPTY_TTL || '1m' }}
+          JUMIN_VIEWPORT_CACHE_TTLJITTER: ${{ vars.VIEWPORT_CACHE_TTL_JITTER || '0.2' }}
+          JUMIN_VIEWPORT_CACHE_PREPAREONSTARTUP: ${{ vars.VIEWPORT_CACHE_PREPARE_ON_STARTUP || 'true' }}
           PARKING_AVAILABILITY_ENABLED: ${{ vars.PARKING_AVAILABILITY_ENABLED || 'false' }}
           SEOUL_PARKING_API_KEY: ${{ secrets.SEOUL_PARKING_API_KEY || secrets.SEOUL_OPEN_DATA_API_KEY }}
           BUSAN_PARKING_API_KEY: ${{ secrets.BUSAN_PARKING_API_KEY }}

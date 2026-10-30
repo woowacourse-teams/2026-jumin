@@ -23,6 +23,8 @@ import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import jumin.domain.parking.service.ParkingSearchService;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +34,8 @@ class ViewportAdmissionTest {
     @DisplayName("0은 요청 admission 제한을 해제하고 설정의 다른 한도는 계속 검사한다")
     void validates_unlimited_setting_and_retains_other_limits() {
         ViewportCacheProperties properties = new ViewportCacheProperties();
-        assertThat(properties.getMaxConcurrentRequests()).isEqualTo(8);
+
+        assertThat(properties.getMaxConcurrentRequests()).isZero();
         properties.validate();
 
         properties.setMaxConcurrentRequests(0);
@@ -104,9 +107,10 @@ class ViewportAdmissionTest {
     }
 
     @Test
-    @DisplayName("기본 설정에서는 응답 8개가 끝날 때까지 아홉 번째 요청을 거절한다")
-    void default_limit_rejects_ninth_request_and_reuses_released_capacity() {
+    @DisplayName("명시적으로 8개 제한을 설정하면 응답 완료 전 아홉 번째 요청을 거절한다")
+    void configured_limit_rejects_ninth_request_and_reuses_released_capacity() {
         Fixture fixture = new Fixture();
+        fixture.properties.setMaxConcurrentRequests(8);
         when(fixture.repository.fallback(any(), any(), anyInt(), any(), any()))
                 .thenAnswer(invocation -> CompletableFuture.completedFuture(body()));
         ViewportSearchService service = fixture.service(fixedClock());
@@ -117,7 +121,9 @@ class ViewportAdmissionTest {
                 bodies.add(service.search(request()));
             }
             assertThat(fixture.active()).isEqualTo(8);
-            assertThatThrownBy(() -> service.search(request())).isInstanceOf(ViewportUnavailableException.class);
+            assertThatThrownBy(() -> service.search(request()))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             assertThat(fixture.rejected()).isEqualTo(1);
             assertThat(fixture.active()).isEqualTo(8);
 
@@ -132,7 +138,7 @@ class ViewportAdmissionTest {
     }
 
     @Test
-    @DisplayName("요청 준비와 조회 예외 및 응답 정리 오류에서도 활성 수를 정확히 회수한다")
+    @DisplayName("요청 준비와 조회 예외에서도 활성 수를 정확히 회수한다")
     void releases_active_requests_on_failures_in_both_modes() {
         for (int limit : List.of(0, 8)) {
             Fixture preparation = new Fixture();
@@ -151,22 +157,11 @@ class ViewportAdmissionTest {
             assertThatThrownBy(() -> executionService.search(request())).isInstanceOf(IllegalStateException.class);
             assertThat(execution.active()).isZero();
 
-            Fixture completion = new Fixture();
-            completion.properties.setMaxConcurrentRequests(limit);
-            when(completion.repository.fallback(any(), any(), anyInt(), any(), any())).thenAnswer(invocation ->
-                    CompletableFuture.completedFuture(new ViewportBody(ParkingLotViewportResponses.from(List.of()),
-                            () -> { throw new IllegalStateException("cleanup failure"); })));
-            ViewportBody response = completion.service(fixedClock()).search(request());
-            assertThat(completion.active()).isEqualTo(1);
-            assertThatThrownBy(() -> response.complete(true)).isInstanceOf(IllegalStateException.class);
-            assertThat(completion.active()).isZero();
-            response.close();
-            assertThat(completion.active()).isZero();
         }
     }
 
     private static ViewportBody body() {
-        return new ViewportBody(ParkingLotViewportResponses.from(List.of()), () -> { });
+        return new ViewportBody(ParkingLotViewportResponses.from(List.of()));
     }
 
     private static ParkingLotViewportRequest request() {
@@ -184,7 +179,6 @@ class ViewportAdmissionTest {
 
         private Fixture() {
             properties.setEnabled(true);
-            properties.setProjectionOnly(true);
             properties.setRequestTimeout(Duration.ofSeconds(30));
         }
 

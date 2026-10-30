@@ -14,27 +14,22 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import jumin.domain.parking.viewport.ViewportUnavailableException.Reason;
+import jumin.global.exception.BusinessException;
 
-/** Bounded DB workers. Metadata can reserve workers without increasing the DB budget. */
 final class ViewportDbWorkQueue implements AutoCloseable {
 
-    private static final List<String> STAGES = List.of("version", "source", "fallback");
+    private static final List<String> STAGES = List.of("source", "fallback");
 
     private final Object lifecycle = new Object();
     private final Map<ViewportDbFuture<?>, ReadTask<?>> pending = new ConcurrentHashMap<>();
-    private final ThreadPoolExecutor source;
-    private final ThreadPoolExecutor metadata;
+    private final ThreadPoolExecutor executor;
     private final ScheduledThreadPoolExecutor deadlines;
     private final ViewportMetrics metrics;
     private boolean closed;
 
-    ViewportDbWorkQueue(int maxWorkers, int metadataWorkers, int sourceQueue, int metadataQueue,
-                        ViewportMetrics metrics) {
+    ViewportDbWorkQueue(int maxWorkers, int queueCapacity, ViewportMetrics metrics) {
         this.metrics = metrics;
-        int reserved = Math.min(metadataWorkers, Math.max(0, maxWorkers - 1));
-        source = executor(maxWorkers - reserved, sourceQueue, "viewport-db-read");
-        metadata = reserved == 0 ? source : executor(reserved, metadataQueue, "viewport-db-metadata");
+        executor = executor(maxWorkers, queueCapacity, "viewport-db-read");
         deadlines = new ScheduledThreadPoolExecutor(1, task -> {
             Thread thread = new Thread(task, "viewport-db-deadline");
             thread.setDaemon(true);
@@ -67,71 +62,72 @@ final class ViewportDbWorkQueue implements AutoCloseable {
 
     <T> ViewportDbFuture<T> submit(String stage, ViewportDeadline deadline, Callable<T> work) {
         ViewportDbFuture<T> future = new ViewportDbFuture<>();
-        ThreadPoolExecutor executor = stage.equals("version") ? metadata : source;
-        ReadTask<T> task = new ReadTask<>(future, stage, deadline, work, executor);
+        ReadTask<T> task = new ReadTask<>(future, stage, deadline, work);
         future.onCancel(task::cancelQueued);
         boolean rejected = false;
         boolean shutdown;
         synchronized (lifecycle) {
             shutdown = closed;
             if (!shutdown) {
-                pending.put(future, task);
-                try {
-                    executor.execute(task);
-                    if (deadline != null) {
-                        task.setExpiration(deadlines.schedule(task::expireQueued,
-                                deadline.remainingNanos(), TimeUnit.NANOSECONDS));
-                    }
-                } catch (RejectedExecutionException failure) {
-                    pending.remove(future);
-                    rejected = true;
-                }
+                rejected = !enqueue(future, task, deadline);
             }
         }
-        if (shutdown || rejected) {
-            if (rejected) {
-                metrics.count("db", "queue_rejected", 1);
-                Counter.builder("parking.viewport.db.stage.rejected").tag("stage", stage)
-                        .register(metrics.registry()).increment();
-            }
-            future.completeExceptionally(new ViewportUnavailableException(
-                    shutdown ? Reason.DB_SHUTTING_DOWN : Reason.DB_QUEUE_FULL,
-                    shutdown ? "viewport DB 작업을 종료합니다." : "viewport DB 작업 큐가 가득 찼습니다."));
-            future.workCompletion().complete(null);
+        if (shutdown) {
+            completeRejected(future, ViewportFailureReason.DB_SHUTTING_DOWN);
+            return future;
+        }
+        if (rejected) {
+            metrics.count("db", "queue_rejected", 1);
+            Counter.builder("parking.viewport.db.stage.rejected").tag("stage", stage)
+                    .register(metrics.registry()).increment();
+            completeRejected(future, ViewportFailureReason.DB_QUEUE_FULL);
         }
         return future;
     }
 
+    private <T> boolean enqueue(ViewportDbFuture<T> future, ReadTask<T> task, ViewportDeadline deadline) {
+        pending.put(future, task);
+        try {
+            executor.execute(task);
+            if (deadline != null) {
+                task.setExpiration(deadlines.schedule(task::expireQueued,
+                        deadline.remainingNanos(), TimeUnit.NANOSECONDS));
+            }
+            return true;
+        } catch (RejectedExecutionException failure) {
+            pending.remove(future);
+            return false;
+        }
+    }
+
+    private static void completeRejected(ViewportDbFuture<?> future, ViewportFailureReason reason) {
+        future.completeExceptionally(reason.failure());
+        future.workCompletion().complete(null);
+    }
+
     private int queued() {
-        return source.getQueue().size() + (metadata == source ? 0 : metadata.getQueue().size());
+        return executor.getQueue().size();
     }
 
     private int queued(String stage) {
-        ThreadPoolExecutor executor = stage.equals("version") ? metadata : source;
         return (int) executor.getQueue().stream().filter(task -> ((ReadTask<?>) task).stage.equals(stage)).count();
     }
 
     @Override
     public void close() {
-        List<Runnable> queuedSource;
-        List<Runnable> queuedMetadata;
+        List<Runnable> queued;
         List<ViewportDbFuture<?>> outstanding;
         synchronized (lifecycle) {
             if (closed) {
                 return;
             }
             closed = true;
-            queuedSource = source.shutdownNow();
-            queuedMetadata = metadata == source ? List.of() : metadata.shutdownNow();
+            queued = executor.shutdownNow();
             deadlines.shutdownNow();
             outstanding = List.copyOf(pending.keySet());
         }
-        // A running job keeps its workCompletion open until it exits, even though
-        // callers must stop waiting for its result during shutdown.
-        queuedSource.forEach(task -> ((ReadTask<?>) task).finishQueued());
-        queuedMetadata.forEach(task -> ((ReadTask<?>) task).finishQueued());
-        outstanding.forEach(future -> future.completeExceptionally(
-                new ViewportUnavailableException(Reason.DB_SHUTTING_DOWN, "viewport DB 작업을 종료합니다.")));
+        queued.forEach(task -> ((ReadTask<?>) task).finishQueued());
+        outstanding.forEach(future -> future.completeExceptionally(ViewportFailureReason.DB_SHUTTING_DOWN.failure()));
     }
 
     private final class ReadTask<T> implements Runnable {
@@ -139,17 +135,14 @@ final class ViewportDbWorkQueue implements AutoCloseable {
         private final String stage;
         private final ViewportDeadline deadline;
         private final Callable<T> work;
-        private final ThreadPoolExecutor executor;
         private final AtomicBoolean claimed = new AtomicBoolean();
         private volatile ScheduledFuture<?> expiration;
 
-        private ReadTask(ViewportDbFuture<T> future, String stage, ViewportDeadline deadline,
-                         Callable<T> work, ThreadPoolExecutor executor) {
+        private ReadTask(ViewportDbFuture<T> future, String stage, ViewportDeadline deadline, Callable<T> work) {
             this.future = future;
             this.stage = stage;
             this.deadline = deadline;
             this.work = work;
-            this.executor = executor;
         }
 
         @Override
@@ -159,14 +152,15 @@ final class ViewportDbWorkQueue implements AutoCloseable {
             }
             cancelExpiration();
             try {
-                if (!future.isDone()) {
-                    if (deadline != null && deadline.remainingNanos() == 0) {
-                        throw deadlineFailure();
-                    }
-                    T result = work.call();
-                    if (!future.complete(result) && result instanceof AutoCloseable resource) {
-                        resource.close();
-                    }
+                if (future.isDone()) {
+                    return;
+                }
+                if (deadline != null && deadline.remainingNanos() == 0) {
+                    throw deadlineFailure();
+                }
+                T result = work.call();
+                if (!future.complete(result) && result instanceof AutoCloseable resource) {
+                    resource.close();
                 }
             } catch (Throwable failure) {
                 future.completeExceptionally(failure);
@@ -191,8 +185,8 @@ final class ViewportDbWorkQueue implements AutoCloseable {
             }
         }
 
-        private ViewportUnavailableException deadlineFailure() {
-            return new ViewportUnavailableException(Reason.DB_DEADLINE, "viewport DB 작업 대기 deadline을 초과했습니다.");
+        private BusinessException deadlineFailure() {
+            return ViewportFailureReason.DB_DEADLINE.failure();
         }
 
         private void setExpiration(ScheduledFuture<?> expiration) {
@@ -210,15 +204,13 @@ final class ViewportDbWorkQueue implements AutoCloseable {
         }
 
         private boolean finishQueued() {
-            if (claimed.compareAndSet(false, true)) {
-                pending.remove(future);
-                cancelExpiration();
-                // Both result and workCompletion callbacks may synchronously join the
-                // other signal. Deliver one on a separate executor to avoid that cycle.
-                future.workCompletion().completeAsync(() -> null, ForkJoinPool.commonPool());
-                return true;
+            if (!claimed.compareAndSet(false, true)) {
+                return false;
             }
-            return false;
+            pending.remove(future);
+            cancelExpiration();
+            future.workCompletion().completeAsync(() -> null, ForkJoinPool.commonPool());
+            return true;
         }
     }
 }

@@ -6,13 +6,11 @@ import java.util.function.Consumer;
 public final class ViewportBody implements AutoCloseable {
 
     private final Object value;
-    private final Runnable cleanup;
     private final AtomicBoolean closed = new AtomicBoolean();
     private Consumer<Boolean> completion = ignored -> { };
 
-    public ViewportBody(Object value, Runnable cleanup) {
+    public ViewportBody(Object value) {
         this.value = value;
-        this.cleanup = cleanup;
     }
 
     public Object value() {
@@ -26,11 +24,7 @@ public final class ViewportBody implements AutoCloseable {
 
     public void complete(boolean success) {
         if (closed.compareAndSet(false, true)) {
-            try {
-                cleanup.run();
-            } finally {
-                completion.accept(success);
-            }
+            completion.accept(success);
         }
     }
 

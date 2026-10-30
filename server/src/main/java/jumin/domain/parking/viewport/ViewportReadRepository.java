@@ -6,10 +6,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
+import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -17,13 +19,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ViewportReadRepository {
 
-    private static final String VERSION = """
-            SELECT dataset_epoch, revision, grid_size_meters, projection_ready
-            FROM parking_viewport_cache_state WHERE id = 1
-            """;
     private static final String CELLS = """
             WITH cells AS (SELECT unnest(ARRAY[:cells]::BIGINT[]) AS cell_id)
-            SELECT state.dataset_epoch, state.revision, state.grid_size_meters, state.projection_ready,
+            SELECT state.grid_size_meters, state.projection_ready,
                    cells.cell_id,
             """ + ViewportProjectionSql.FIELDS + """
             FROM parking_viewport_cache_state state
@@ -56,24 +54,15 @@ public class ViewportReadRepository {
     private final ViewportCacheProperties properties;
     private final ViewportMetrics metrics;
     private final NamedParameterJdbcTemplate named;
-    private final ViewportSpool spool;
+    private final ParkingLodScoreCalculator scores;
 
     public ViewportReadRepository(ViewportDbAccess db, ViewportCacheProperties properties, ViewportMetrics metrics,
-                                  ViewportSpool spool) {
+                                  ParkingLodScoreCalculator scores) {
         this.db = db;
         this.properties = properties;
         this.metrics = metrics;
-        this.spool = spool;
+        this.scores = scores;
         named = new NamedParameterJdbcTemplate(db.jdbc());
-    }
-
-    public ViewportVersion version(ViewportDeadline deadline) {
-        return db.read("version", deadline, metadataJdbc -> {
-            metrics.count("sql", "version", 1);
-            List<ViewportVersion> versions = metadataJdbc.query(VERSION,
-                    (rows, index) -> versionOf(rows));
-            return versions.isEmpty() ? null : versions.getFirst();
-        });
     }
 
     public CompletableFuture<Map<ViewportCellKey, ViewportCell>> load(List<ViewportCellKey> keys,
@@ -87,10 +76,9 @@ public class ViewportReadRepository {
         if (keys.isEmpty() || keys.size() > properties.getMaxCells()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("셀 batch 범위가 잘못되었습니다."));
         }
-        ViewportVersion expected = keys.getFirst().version();
-        boolean versioned = keys.getFirst().versioned();
-        if (keys.stream().anyMatch(key -> !key.version().equals(expected) || key.versioned() != versioned)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("다른 버전의 batch는 로딩할 수 없습니다."));
+        int gridSizeMeters = keys.getFirst().gridSizeMeters();
+        if (keys.stream().anyMatch(key -> key.gridSizeMeters() != gridSizeMeters)) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("서로 다른 격자 크기는 로딩할 수 없습니다."));
         }
         MapSqlParameterSource parameters = new MapSqlParameterSource("cells", keys.stream()
                 .map(ViewportCellKey::cellId).toList())
@@ -100,36 +88,40 @@ public class ViewportReadRepository {
             sourceStarted.run();
             metrics.count("sql", "cell_batch", 1);
             return named.query(CELLS, parameters, rows -> {
-                Map<Long, List<ViewportItem>> items = new LinkedHashMap<>();
-                keys.forEach(key -> items.put(key.cellId(), new ArrayList<>()));
-                boolean sawState = false;
-                long count = 0;
-                while (deadline.next(rows)) {
-                    sawState = true;
-                    ViewportVersion actual = versionOf(rows);
-                    if (versioned ? !expected.equals(actual)
-                            : !actual.ready() || actual.gridSizeMeters() != expected.gridSizeMeters()) {
-                        throw new ViewportVersionChangedException();
-                    }
-                    if (rows.getObject("id", Long.class) == null) {
-                        continue;
-                    }
-                    List<ViewportItem> cell = items.get(rows.getLong("cell_id"));
-                    if (cell == null || cell.size() >= properties.getMaxCellRows()
-                            || ++count * 160L > properties.getMaxRequestBytes()) {
-                        throw new ViewportCellTooLargeException();
-                    }
-                    cell.add(itemOf(rows));
-                }
-                if (!sawState) {
-                    throw new ViewportVersionChangedException();
-                }
-                Map<ViewportCellKey, ViewportCell> result = new LinkedHashMap<>();
-                keys.forEach(key -> result.put(key, new ViewportCell(key, items.get(key.cellId()))));
-                deadline.requireRemaining();
-                return Map.copyOf(result);
+                return readCells(rows, keys, gridSizeMeters, deadline);
             });
         });
+    }
+
+    private Map<ViewportCellKey, ViewportCell> readCells(ResultSet rows, List<ViewportCellKey> keys,
+                                                          int gridSizeMeters, ViewportDeadline deadline)
+            throws SQLException {
+        Map<Long, List<ViewportItem>> items = new LinkedHashMap<>();
+        keys.forEach(key -> items.put(key.cellId(), new ArrayList<>()));
+        boolean sawState = false;
+        long count = 0;
+        while (deadline.next(rows)) {
+            sawState = true;
+            if (!rows.getBoolean("projection_ready") || rows.getInt("grid_size_meters") != gridSizeMeters) {
+                throw ViewportFallbackException.mappingUnavailable();
+            }
+            if (rows.getObject("id", Long.class) == null) {
+                continue;
+            }
+            List<ViewportItem> cell = items.get(rows.getLong("cell_id"));
+            if (cell == null || cell.size() >= properties.getMaxCellRows()
+                    || ++count * 160L > properties.getMaxRequestBytes()) {
+                throw ViewportFallbackException.cellTooLarge();
+            }
+            cell.add(itemOf(rows));
+        }
+        if (!sawState) {
+            throw ViewportFallbackException.mappingUnavailable();
+        }
+        Map<ViewportCellKey, ViewportCell> result = new LinkedHashMap<>();
+        keys.forEach(key -> result.put(key, new ViewportCell(key, items.get(key.cellId()))));
+        deadline.requireRemaining();
+        return Map.copyOf(result);
     }
 
     public CompletableFuture<ViewportBody> fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
@@ -144,25 +136,24 @@ public class ViewportReadRepository {
             deadline.requireRemaining();
             sourceStarted.run();
             metrics.count("sql", "fallback", 1);
-            ViewportSpool.Builder builder = spool.builder();
-            try {
-                return named.query(FALLBACK, parameters, rows -> {
-                    while (deadline.next(rows)) {
-                        builder.add(itemOf(rows));
-                    }
-                    deadline.requireRemaining();
-                    return builder.build();
-                });
-            } catch (Throwable failure) {
-                builder.close();
-                throw failure;
-            }
+            return named.query(FALLBACK, parameters, rows -> {
+                return readFallback(rows, deadline);
+            });
         });
     }
 
-    private static ViewportVersion versionOf(ResultSet rows) throws SQLException {
-        return new ViewportVersion(rows.getObject("dataset_epoch", UUID.class), rows.getLong("revision"),
-                rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready"));
+    private ViewportBody readFallback(ResultSet rows, ViewportDeadline deadline) throws SQLException {
+        List<ParkingLotViewportResponse> response = new ArrayList<>();
+        while (deadline.next(rows)) {
+            if (response.size() >= properties.getMaxFallbackRows()) {
+                throw ViewportFailureReason.UNCLASSIFIED.failure();
+            }
+            ViewportItem item = itemOf(rows);
+            response.add(new ParkingLotViewportResponse(item.id(), item.latitude(), item.longitude(),
+                    scores.calculate(item.capacity())));
+        }
+        deadline.requireRemaining();
+        return new ViewportBody(ParkingLotViewportResponses.from(response));
     }
 
     private static ViewportItem itemOf(ResultSet rows) throws SQLException {

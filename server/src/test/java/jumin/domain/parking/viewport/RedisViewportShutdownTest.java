@@ -24,7 +24,6 @@ class RedisViewportShutdownTest {
     @Test
     @DisplayName("client shutdown이 중단 예외를 던져도 owned event executor를 종료하고 interrupt를 보존한다")
     void cleans_owned_resources_after_client_shutdown_failure() {
-        // given
         RedisClient client = mock(RedisClient.class);
         AtomicReference<ClientResources> owned = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -41,7 +40,6 @@ class RedisViewportShutdownTest {
                     new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
                     new ViewportCellCover(new ViewportSquareGrid(), properties), new ViewportMetrics(new SimpleMeterRegistry()));
 
-            // when & then
             try {
                 assertThatThrownBy(store::close).isInstanceOf(RedisCommandInterruptedException.class);
                 assertThat(owned.get().eventExecutorGroup().isShuttingDown()).isTrue();

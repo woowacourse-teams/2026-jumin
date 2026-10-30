@@ -14,14 +14,14 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import jumin.config.ViewportCacheProperties;
-import jumin.domain.parking.viewport.ViewportUnavailableException.Reason;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -44,13 +44,13 @@ class ViewportCellLoaderFailureReasonTest {
         ViewportCellKey first = key(1);
         ViewportCell result = new ViewportCell(first, List.of());
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(new NoViewportCellStore(), repository, properties, metrics)) {
+             ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
             var owner = CompletableFuture.supplyAsync(() -> resolve(loader, first, metrics), executor);
             assertThat(sourceStarted.await(5, TimeUnit.SECONDS)).isTrue();
             var follower = CompletableFuture.supplyAsync(() -> resolve(loader, first, metrics), executor);
             awaitFollower(metrics);
 
-            assertReason(Reason.CELL_FLIGHT_LIMIT, () -> resolve(loader, key(2), metrics));
+            assertReason(ViewportFailureReason.CELL_FLIGHT_LIMIT, () -> resolve(loader, key(2), metrics));
             source.complete(Map.of(first, result));
             assertThat(owner.get(5, TimeUnit.SECONDS)).singleElement()
                     .satisfies(loaded -> assertThat(loaded.cell()).isEqualTo(result));
@@ -74,7 +74,7 @@ class ViewportCellLoaderFailureReasonTest {
                 var queued = CompletableFuture.supplyAsync(() -> resolve(loader, key(2), metrics), executor);
                 awaitQueued(metrics);
 
-                assertReason(Reason.CELL_LOADER_QUEUE_FULL, () -> resolve(loader, key(3), metrics));
+                assertReason(ViewportFailureReason.CELL_LOADER_QUEUE_FULL, () -> resolve(loader, key(3), metrics));
 
                 store.release.countDown();
                 assertThat(active.get(5, TimeUnit.SECONDS)).hasSize(1);
@@ -102,9 +102,9 @@ class ViewportCellLoaderFailureReasonTest {
                 loader.close();
                 ExecutionException failure = assertThrows(ExecutionException.class,
                         () -> queued.get(5, TimeUnit.SECONDS));
-                assertThat(failure.getCause()).isInstanceOf(ViewportUnavailableException.class);
-                assertReason((ViewportUnavailableException) failure.getCause(), Reason.CELL_LOADER_CLOSED);
-                assertReason(Reason.CELL_LOADER_CLOSED, () -> resolve(loader, key(3), metrics));
+                assertThat(failure.getCause()).isInstanceOf(BusinessException.class);
+                assertReason((BusinessException) failure.getCause(), ViewportFailureReason.CELL_LOADER_CLOSED);
+                assertReason(ViewportFailureReason.CELL_LOADER_CLOSED, () -> resolve(loader, key(3), metrics));
             } finally {
                 store.release.countDown();
             }
@@ -122,8 +122,8 @@ class ViewportCellLoaderFailureReasonTest {
         when(repository.load(anyList(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(Map.of()))
                 .thenReturn(CompletableFuture.completedFuture(Map.of(key, complete)));
-        try (ViewportCellLoader loader = new ViewportCellLoader(new NoViewportCellStore(), repository, properties, metrics)) {
-            assertReason(Reason.CELL_INCOMPLETE_BATCH, () -> resolve(loader, key, metrics));
+        try (ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
+            assertReason(ViewportFailureReason.CELL_INCOMPLETE_BATCH, () -> resolve(loader, key, metrics));
             assertThat(resolve(loader, key, metrics)).singleElement()
                     .satisfies(loaded -> assertThat(loaded.cell()).isEqualTo(complete));
             verify(repository, times(2)).load(anyList(), any(), any());
@@ -144,21 +144,22 @@ class ViewportCellLoaderFailureReasonTest {
 
     private static ViewportCellKey key(long id) {
         return new ViewportCellKey("test", 1, 1,
-                new ViewportVersion(new UUID(0, 1), 1, 1000, true), id);
+                1000, id);
     }
 
-    private static List<ViewportCellLoader.Result> resolve(ViewportCellLoader loader, ViewportCellKey key,
+    private static List<ViewportCellLoadResult> resolve(ViewportCellLoader loader, ViewportCellKey key,
                                                             ViewportMetrics metrics) {
         return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)),
                 new ViewportObservation(metrics));
     }
 
-    private static void assertReason(Reason expected, Executable action) {
-        assertReason(assertThrows(ViewportUnavailableException.class, action), expected);
+    private static void assertReason(ViewportFailureReason expected, Executable action) {
+        assertReason(assertThrows(BusinessException.class, action), expected);
     }
 
-    private static void assertReason(ViewportUnavailableException failure, Reason expected) {
-        assertThat(failure.getReason()).isEqualTo(expected);
+    private static void assertReason(BusinessException failure, ViewportFailureReason expected) {
+        assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
+        assertThat(failure.getReason()).isEqualTo(expected.name());
         assertThat(ViewportFailureDiagnostics.inspect(failure).reason()).isEqualTo(expected.name());
     }
 
@@ -178,7 +179,7 @@ class ViewportCellLoaderFailureReasonTest {
         }
     }
 
-    private static final class BlockingStore extends NoViewportCellStore {
+    private static final class BlockingStore extends EmptyViewportCellStore {
         private final CountDownLatch entered = new CountDownLatch(1);
         private final CountDownLatch release = new CountDownLatch(1);
 

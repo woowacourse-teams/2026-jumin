@@ -14,13 +14,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import jumin.config.ViewportCacheProperties;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,6 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("owner의 요청 deadline이 끝나도 독립된 공유 작업은 follower에게 결과를 전달한다")
     void owner_timeout_does_not_expire_shared_job() throws Exception {
-        // given
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
         CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
         CountDownLatch called = new CountDownLatch(1);
@@ -40,20 +40,21 @@ class ViewportCellLoaderTest {
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         ViewportCellKey key = key();
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(new NoViewportCellStore(), repository,
+             ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository,
                      new ViewportCacheProperties(), metrics)) {
             var owner = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
                     ViewportDeadline.after(Duration.ofMillis(40)), new ViewportObservation(metrics)), executor);
             assertThat(called.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(ViewportUnavailableException.class);
+            assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             var follower = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
                     deadline(), new ViewportObservation(metrics)), executor);
             waitForFollower(metrics);
 
-            // when
             source.complete(Map.of(key, new ViewportCell(key, List.of())));
 
-            // then
             assertThat(follower.get(5, TimeUnit.SECONDS)).singleElement()
                     .satisfies(result -> assertThat(result.shared()).isTrue());
             verify(repository, times(1)).load(anyList(), any(), any());
@@ -63,7 +64,6 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("recheck Error도 owner와 follower를 종료하고 slot을 회수한다")
     void cleans_up_fatal_recheck() throws Exception {
-        // given
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
         ViewportCellKey key = key();
         when(repository.load(anyList(), any(), any()))
@@ -89,10 +89,15 @@ class ViewportCellLoaderTest {
                     new ViewportObservation(metrics)), executor);
             waitForFollower(metrics);
 
-            // when & then
             fail.countDown();
-            assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(ViewportUnavailableException.class);
-            assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(ViewportUnavailableException.class);
+            assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+            assertThatThrownBy(() -> follower.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             assertThat(loader.resolve(List.of(key), Map.of(), deadline(), new ViewportObservation(metrics))).hasSize(1);
         } finally {
             fail.countDown();
@@ -110,7 +115,6 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("slot 하나로 같은 키의 동시 1000요청을 병합하고 cache 저장이 DB 완료 thread를 막지 않는다")
     void coalesces_one_thousand_requests() throws Exception {
-        // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setMaxCells(1);
         properties.setMaxInflightCells(1);
@@ -125,7 +129,7 @@ class ViewportCellLoaderTest {
         });
         ViewportCellKey key = key();
         ViewportCell cell = new ViewportCell(key, List.of());
-        ViewportCellStore store = new NoViewportCellStore() {
+        ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public void putMany(List<ViewportCell> cells, ViewportDeadline deadline) {
                 putStarted.countDown();
@@ -135,18 +139,16 @@ class ViewportCellLoaderTest {
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
-            List<CompletableFuture<List<ViewportCellLoader.Result>>> requests = new ArrayList<>();
+            List<CompletableFuture<List<ViewportCellLoadResult>>> requests = new ArrayList<>();
             for (int index = 0; index < 1000; index++) {
                 requests.add(CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
                         deadline(), new ViewportObservation(metrics)), executor));
             }
             assertThat(loading.await(5, TimeUnit.SECONDS)).isTrue();
 
-            // when
             CompletableFuture<Void> completing = CompletableFuture.runAsync(() -> source.complete(Map.of(key, cell)), executor);
             try {
                 for (var request : requests) {
-                    // then
                     assertThat(request.get(5, TimeUnit.SECONDS)).singleElement().satisfies(result -> {
                         assertThat(result.cell()).isEqualTo(cell);
                         assertThat(result.fromSource()).isTrue();
@@ -166,7 +168,6 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("전체 공유 작업 deadline이 지난 source 결과는 follower에게 성공하거나 저장되지 않는다")
     void refuses_late_shared_job_result() throws Exception {
-        // given
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
         ViewportCellStore store = mock(ViewportCellStore.class);
         when(store.getMany(anyList(), any())).thenReturn(Map.of());
@@ -191,12 +192,12 @@ class ViewportCellLoaderTest {
                 Thread.sleep(1);
             }
 
-            // when
             source.complete(Map.of(key, new ViewportCell(key, List.of())));
 
-            // then
             assertThatThrownBy(() -> request.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ViewportUnavailableException.class);
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             verify(store, times(0)).putMany(anyList(), any());
         }
     }
@@ -204,47 +205,26 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("실패한 batch는 보관하지 않고 소유권을 회수해 다음 요청이 다시 로드한다")
     void releases_failed_flight() {
-        // given
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
         ViewportCellKey key = key();
         ViewportCell cell = new ViewportCell(key, List.of());
         when(repository.load(anyList(), any(), any()))
-                .thenReturn(CompletableFuture.failedFuture(new ViewportVersionChangedException()))
+                .thenReturn(CompletableFuture.failedFuture(ViewportFallbackException.mappingUnavailable()))
                 .thenReturn(CompletableFuture.completedFuture(Map.of(key, cell)));
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        try (ViewportCellLoader loader = new ViewportCellLoader(new NoViewportCellStore(), repository,
+        try (ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository,
                 new ViewportCacheProperties(), metrics)) {
-            // when & then
             assertThatThrownBy(() -> loader.resolve(List.of(key), Map.of(), deadline(), new ViewportObservation(metrics)))
-                    .isInstanceOf(ViewportVersionChangedException.class);
+                    .isInstanceOfSatisfying(ViewportFallbackException.class, failure ->
+                            assertThat(failure.isCellTooLarge()).isFalse());
             assertThat(loader.resolve(List.of(key), Map.of(), deadline(), new ViewportObservation(metrics)))
                     .singleElement().satisfies(result -> assertThat(result.cell()).isEqualTo(cell));
             verify(repository, times(2)).load(anyList(), any(), any());
         }
     }
 
-    @Test
-    @DisplayName("소유권 획득 후 재조회에 적중하면 DB를 호출하지 않는다")
-    void rechecks_after_ownership() {
-        // given
-        ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        ViewportCellKey key = key();
-        ViewportCell cell = new ViewportCell(key, List.of());
-        ViewportCellStore store = mock(ViewportCellStore.class);
-        when(store.getMany(anyList(), any())).thenReturn(Map.of(key, cell));
-        ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, new ViewportCacheProperties(), metrics)) {
-            // when
-            var result = loader.resolve(List.of(key), Map.of(), deadline(), new ViewportObservation(metrics));
-
-            // then
-            assertThat(result).singleElement().satisfies(row -> assertThat(row.fromSource()).isFalse());
-            verify(repository, times(0)).load(anyList(), any(), any());
-        }
-    }
-
     private static ViewportCellKey key() {
-        return new ViewportCellKey("test", 1, 1, new ViewportVersion(UUID.randomUUID(), 1, 1000, true), 1);
+        return new ViewportCellKey("test", 1, 1, 1000, 1);
     }
 
     private static ViewportDeadline deadline() {

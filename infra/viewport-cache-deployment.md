@@ -1,41 +1,52 @@
-# Viewport Redis 배포 운영 메모
+# 사각형 셀 + Redis: TTL 전용 배포
 
-이 문서는 호스트 파일과 CI/CD 연결 계약을 설명한다. 실제 실행 전에는 트래픽 차단, DB writer·마이그레이션 호환성, Redis 인증서와 복구 계획을 별도로 검증한다. 이 절차만으로 cache ON 또는 운영 배포가 완료된 것은 아니다.
+기능 브랜치 → develop → main 순서로 승격한다. 기존 서버 CD의 development/production 환경을 사용한다.
 
-## 호스트 파일
+## GitHub 환경별 설정
 
-환경은 `dev` 또는 `prod`이며 아래 경로는 `/opt/jumin-{환경}/viewport-cache` 아래에 둔다.
+기존 DB/API/admin Secrets는 유지한다. Redis에는 아래 같은 이름의 Secrets를 환경별 값으로 설정한다.
 
-| 경로 | 소유권·권한 | 내용 |
-| --- | --- | --- |
-| `viewport-cache/` | root:root `0755` | runner가 공개 설정 파일 경로에 접근할 수 있는 상위 디렉터리 |
-| `settings.env` | root:root `0644`, 그룹·기타 쓰기 금지 | 비밀이 없는 공개 설정만 기록 |
-| `runtime/` | root:10001 `0750` | 컨테이너에 읽기 전용으로 mount |
-| `runtime/jumin.viewport.cache.redis-username` | root:10001 `0440` 또는 `0640` | Redis 앱 ACL 사용자 |
-| `runtime/jumin.viewport.cache.redis-password` | root:10001 `0440` 또는 `0640` | Redis 앱 ACL 비밀번호 |
-| `runtime/jumin.viewport.cache.read-username` / `read-password` | root:10001 `0440` 또는 `0640` | 파일명에는 각각 `jumin.viewport.cache.` 전체 접두사를 붙인다 |
-| `runtime/jumin.viewport.cache.observer-username` / `observer-password` | root:10001 `0440` 또는 `0640` | 파일명에는 각각 `jumin.viewport.cache.` 전체 접두사를 붙인다 |
-| `runtime/redis-server.pem` | root 소유, 그룹·기타 쓰기 금지 | 해당 Redis 서버 인증서의 공개 PEM |
-| `secrets/` | root:root `0700` | 원본 비밀 보관 시 사용. 컨테이너에 mount하지 않는다 |
+| 이름 | 값 |
+| --- | --- |
+| VIEWPORT_REDIS_URI | dev/prod 사설 IP 또는 DNS의 rediss://호스트:6379. URI에 인증정보를 넣지 않는다. |
+| VIEWPORT_REDIS_USERNAME | 해당 Redis 서버의 ACL 사용자명 |
+| VIEWPORT_REDIS_PASSWORD | 서버 ACL과 일치하는 비밀번호 |
+| VIEWPORT_REDIS_TLS_CA_PEM | 신뢰할 공개 PEM 인증서. 접속 주소가 인증서 SAN과 일치해야 한다. |
 
-비밀 파일 값은 개행 없이 저장하고 로그·명령 인자·Git에 노출하지 않는다. Redis 자격증명은 URI에 넣지 않는다. 활성화 overlay는 앱 이미지의 기본 사용자에 보조 그룹 `10001`을 추가한다. 새 이미지로 그 사용자와 보조 그룹이 비밀 파일을 읽을 수 있는지, root 소유·권한·symlink 조건이 맞는지 기존 컨테이너를 교체하기 전에 확인한다.
+Variables: VIEWPORT_CACHE_ENABLED(기본 false), VIEWPORT_CACHE_TTL(10m), VIEWPORT_CACHE_EMPTY_TTL(1m), VIEWPORT_CACHE_TTL_JITTER(0.2), VIEWPORT_CACHE_PREPARE_ON_STARTUP(true).
 
-`settings.env`가 없거나 `ENABLED=false`면 cache OFF로 배포한다. ON에 필요한 공개 설정의 예는 다음과 같다. namespace는 해당 환경 ACL에 허용되는 **이전에 사용하지 않은 값**으로 정한다.
+활성화 시 백엔드를 교체하기 전에 TLS/AUTH/PING을 확인한다. 인증서만 릴리스 디렉터리에 저장하여 읽기 전용 마운트한다. 비밀번호는 GitHub Secrets에서 컨테이너 환경변수로 주입한다. Docker 접근 권한이 있는 사용자는 컨테이너 환경변수를 볼 수 있다. 배포 로그나 Compose config 전체를 출력하지 않는다.
 
-```dotenv
-ENABLED=true
-REDIS_URI=rediss://10.0.100.241:6379
-NAMESPACE=dev_sq_release_20261030
-```
+## 만료와 데이터 정합성
 
-prod Redis의 확인된 사설 주소는 `10.0.100.51:6379`이며 namespace는 `prod_sq_` 접두사를 사용한다. 선택적 `JAVA_TOOL_OPTIONS`는 문서화된 허용 형식의 `-Xmx`, `-Xms`, `-XX:` 또는 시간대 옵션만 쓴다. 미지정 시 기존 시간대 옵션만 유지하며 GC나 heap 크기를 임의로 바꾸지 않는다. 설정 파일은 shell로 실행하지 않으며 미지원 항목·중복·인증정보를 담은 URI는 거절한다.
+캐시 만료는 저장 시점부터 TTL±Jitter이다. 기본값에서 결과 있는 셀은 8~12분, 빈 셀은 48~72초다. 조회는 만료 시간을 연장하지 않는다. DB 변경 후 자동 삭제나 데이터 버전 전환은 없다.
 
-## 배포와 복구
+진행 중인 이전 조회가 DB 변경 후 저장되면 그 저장 시점부터 TTL이 적용된다. 따라서 DB 수정 시점부터 정확히 12분 이내에 최신 결과를 보장한다고 말할 수 없다. 여러 셀의 데이터 시점도 다를 수 있다.
 
-1. 파일이 없거나 `ENABLED=false`인 상태에서 새 writer 호환 이미지를 먼저 배포한다. DB 마이그레이션과 writer 호환성, 정상 조회·쓰기를 실제로 검증한다. 이 작업트리의 dev/prod 배포는 기존 `LOCAL_SEARCH_REST_API_KEY`와 주차 availability 변수를 유지한다.
-2. 검증된 호환 이미지가 cache OFF로 실행 중일 때 `sudo bash infra/scripts/mark-viewport-compatible-image.sh dev --verified-writer-schema-compatible`처럼 해당 환경을 지정해 실행 이미지 ID를 기록한다. 이 플래그는 운영자의 검증 확인이며 스크립트가 DB 호환성을 자동 증명하지 않는다. 자동 롤백은 기록된 이전 이미지 ID와 현재 태그 대상 ID가 모두 일치할 때만 시도한다.
-3. 최초 일회 준비 전에 backend와 proxy의 자동 배포를 중지하고, CloudFront·origin을 포함한 모든 viewport ingress를 차단하며 응답이 캐시되지 않는지 확인한다. 기존 요청과 물리 작업을 drain하거나 프로세스를 종료한다. 수동 작업도 `/opt/jumin-{환경}/backend/.viewport-deploy.lock`에 협조해야 하며, 별도 proxy CD는 이 잠금을 사용하지 않으므로 따로 중지해야 한다.
-4. 차단을 유지하면서 준비된 호환 이미지와 configtree로 `prepareOnStartup=true`를 **일회만** 적용해 시작한다. 현재 CD는 이 값을 항상 false로 설정하므로 일회 준비는 운영자가 별도 통제한다. 기존 컨테이너의 DB/API 환경을 안전하게 유지하되 비밀을 출력하지 않는다. health UP이나 기존 ready 값만으로 성공을 판정하지 말고 DB state·grid·전체 매핑과 실제 Lua를 확인한다.
-5. 여전히 차단된 상태에서 같은 이미지의 `prepareOnStartup=false`로 재시작하고 local smoke·Redis 연결·원본 비교를 확인한다. 이후에만 외부 차단을 해제하고 자동 배포를 재개한다. 실패 시 차단을 유지하고 같은 호환 이미지에서 `ENABLED=false`로 돌려 원본 조회를 확인한다.
+셀 번호와 인덱스, 준비 상태/격자 크기는 유지한다. 초기 준비와 CSV 변경의 셀 매핑 갱신은 쓰기 트랜잭션에서 수행한다. 준비와 CSV 변경은 상태 행 및 원본 테이블 잠금으로 직렬화하며 SELECT는 허용한다. 다른 프로그램이 좌표를 직접 수정하면 그 프로그램도 매핑을 갱신해야 한다. TTL은 잘못된 셀 매핑을 복구하지 않는다.
 
-기존 `project-public` SG는 dev/prod 네트워크를 분리하지 않는다. 환경별 Redis ACL 비밀과 namespace를 사용하고 인증서 만료 전 교체한다. 컨테이너 healthcheck 자동화와 IMDS 접근 명시 차단, 배포 후 실제 장애·부하 테스트는 별도 작업이다.
+전용 읽기/관측 계정, 별도 연결 풀, 세션 관측 함수, DB 인증 제한시간 전제, DB 쓰기 보호 트리거와 epoch/revision은 사용하지 않는다. 기존 DB 풀을 공유하므로 다른 API와 연결을 경쟁한다. 요청/쿼리 시간 제한과 DB 실행 수 제한은 유지하지만 네트워크 장애 때 실제 서버 세션 수까지 엄격하게 보장하지 않는다.
+
+대용량 fallback 응답은 메모리에 구성한다. 행 상한 초과 시 부분 결과를 반환하지 않는다. 캐시 batch 예산은 전체 응답이나 모든 동시 요청의 힙 상한이 아니다.
+
+## Redis EC2 자동 배포
+
+redis-cd.yml은 develop/main에서 각각 development/production Secrets를 선택한다. 추가 Secrets는 REDIS_EC2_INSTANCE_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY이며 임시 자격증명이면 AWS_SESSION_TOKEN도 필요하다. 리전은 ap-northeast-2다.
+
+백엔드 빌드는 GitHub 호스팅 러너에서 수행하고, 실제 백엔드 배포는 기존 jumin-dev/jumin-prod self-hosted ARM64 러너에서 실행한다. Redis 배포는 GitHub 호스팅 러너에서 SSM을 호출하는 방식이다.
+
+호출자에게 대상 Redis 인스턴스 및 AWS-RunShellScript 문서의 ssm:SendCommand, 실행 결과 조회의 ssm:GetCommandInvocation 권한이 필요하다. 노드의 SSM 관리 역할과 호출자의 명령 실행 권한은 별개다. 공유 IAM 정책은 이 변경에서 수정하지 않는다.
+
+SSM에는 공개 배포 코드만 보내며 Redis 비밀번호는 명령에 포함하지 않는다. 대상은 Docker/Compose와 /opt/jumin-redis-dev 또는 /opt/jumin-redis-prod의 compose.yaml, redis.conf, runtime 인증서/ACL, secrets/admin.secret가 준비되어 있어야 한다. 이미 만든 두 EC2의 초기 설정을 재사용하는 배포이며 새 EC2 초기 설치나 인증서/비밀번호 재발급을 수행하지 않는다.
+
+고정 이미지 pull → Compose up → TLS 인증 PING 확인 순서다. 실패하면 이전 Compose 설정 복구를 시도한다. 실제 GitHub Secrets 등록·SSM 권한·AWS 실행은 별도로 확인해야 한다. 로컬 단위 테스트 통과는 운영 배포 성공의 증거가 아니다.
+
+## 마이그레이션과 검증
+
+V15는 아직 배포하지 않은 신규 캐시 마이그레이션을 단순화한 것이다. 이전 V15가 이미 적용된 DB에는 수정된 파일을 그대로 배포하지 않고 후속 마이그레이션을 추가해야 한다. V1~V14는 변경하지 않는다.
+
+서버 검증: server에서 ./gradlew clean check bootJar. 배포 스크립트 검증: bash infra/scripts/tests/test-viewport-cache.sh.
+
+배포 스크립트 검증은 셸 문법 검사와 Docker/HTTP를 대체한 백엔드 테스트 4건, AWS 호출을 대체한 SSM 테스트 3건이다. 실제 EC2에서 이미지 교체, TLS 인증, 장애 복구까지 실행하는 검증은 포함하지 않는다.
+
+기존 부하 테스트 결과는 정리 전 구현에서 측정한 값이다. TTL 전용·공유 DB 풀·메모리 fallback 변경 후의 성능과 최대 수용량은 재측정해야 한다.

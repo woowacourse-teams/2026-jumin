@@ -1,0 +1,40 @@
+name: Redis CD
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'infra/redis/**'
+      - 'infra/scripts/deploy-redis-ssm.py'
+      - '.github/workflows/redis-cd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redis-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify deployment scripts
+        run: bash infra/scripts/tests/test-viewport-cache.sh
+      - name: Deploy Redis through SSM
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-2
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          REDIS_EC2_INSTANCE_ID: ${{ secrets.REDIS_EC2_INSTANCE_ID }}
+          VIEWPORT_REDIS_URI: ${{ secrets.VIEWPORT_REDIS_URI }}
+          REDIS_ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+        run: python3 infra/scripts/deploy-redis-ssm.py "$REDIS_ENVIRONMENT"

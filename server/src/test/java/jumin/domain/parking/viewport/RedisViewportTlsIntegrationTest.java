@@ -108,7 +108,6 @@ class RedisViewportTlsIntegrationTest {
     void rejects_wrong_ca_and_mismatched_ip_or_host() throws Exception {
         Throwable wrongCa = connectionFailureWithoutSecrets(properties(redis, mismatchedCertificate, PASSWORD), PASSWORD);
         assertThat(hasCause(wrongCa, SSLHandshakeException.class)).isTrue();
-        // The second server's certificate is trusted but has a SAN unrelated to its actual host.
         Throwable wrongName = connectionFailureWithoutSecrets(
                 properties(wrongNameRedis, mismatchedCertificate, PASSWORD), PASSWORD);
         assertThat(hasCause(wrongName, SSLHandshakeException.class)).isTrue();
@@ -211,7 +210,7 @@ class RedisViewportTlsIntegrationTest {
 
     private static ViewportCell cell(ViewportCacheProperties properties) {
         long cellId = new ViewportSquareGrid().cellId(37.5, 127.0, properties.getGridSizeMeters());
-        ViewportCellKey key = ViewportCellKey.ttlOnly(properties.getEnvironment(), properties.getSchema(),
+        ViewportCellKey key = new ViewportCellKey(properties.getEnvironment(), properties.getSchema(),
                 properties.getPolicy(), properties.getGridSizeMeters(), cellId);
         return new ViewportCell(key, List.of(new ViewportItem(1, 37.5, 127.0, 50,
                 false, true, false, false, false)));

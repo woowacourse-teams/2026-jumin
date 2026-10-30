@@ -2,186 +2,123 @@ package jumin.domain.parking.viewport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zaxxer.hikari.HikariDataSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.sql.Connection;
-import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import javax.sql.DataSource;
 import jumin.config.ViewportCacheProperties;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.postgresql.PGConnection;
-import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.TransactionSystemException;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
 
 class ViewportDbAccessFocusedTest {
 
     @Test
-    @DisplayName("확정된 연결의 callback에서 deadline이 끝나도 전역 연결 fence를 만들지 않는다")
-    void deadline_after_connection_is_acquired_does_not_fence() throws Exception {
-        try (Harness harness = new Harness()) {
-            Connection connection = mock(Connection.class);
-            PGConnection postgres = mock(PGConnection.class);
-            when(connection.unwrap(PGConnection.class)).thenReturn(postgres);
-            when(postgres.getBackendPID()).thenReturn(123);
-            when(harness.jdbc.execute(any(ConnectionCallback.class))).thenAnswer(invocation -> {
-                ConnectionCallback<?> callback = invocation.getArgument(0);
-                return callback.doInConnection(connection);
-            });
-            ViewportDeadline deadline = mock(ViewportDeadline.class);
-            when(deadline.remainingNanos()).thenReturn(TimeUnit.SECONDS.toNanos(5));
-            doNothing().doThrow(new ViewportUnavailableException("deadline"))
-                    .when(deadline).requireRemaining();
+    @DisplayName("요청이 만료돼도 실제 DB 작업 종료 전에는 슬롯을 반환하지 않는다")
+    void keeps_slot_until_actual_work_finishes() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            var request = CompletableFuture.supplyAsync(() -> harness.db.read("source",
+                    ViewportDeadline.after(Duration.ofMillis(200)), ignored -> {
+                        started.countDown();
+                        try {
+                            if (!release.await(5, TimeUnit.SECONDS)) {
+                                throw new IllegalStateException("release timeout");
+                            }
+                        } catch (InterruptedException failure) {
+                            Thread.currentThread().interrupt();
+                            throw new IllegalStateException(failure);
+                        }
+                        return 1;
+                    }), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> request.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
+                            .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+            var next = harness.db.readAsync("source", ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> 2);
 
-            var result = harness.db.readAsync("version", deadline, ignored -> 1);
-            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ViewportUnavailableException.class);
-            completion(result).get(5, TimeUnit.SECONDS);
-            verify(postgres).getBackendPID();
-            assertThat(harness.fence).hasValue(0);
-            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
-            assertThat(harness.registry.get("parking.viewport.db.stage.active").tag("stage", "version")
-                    .gauge().value()).isZero();
-        }
-    }
-
-    @Test
-    @DisplayName("callback에 진입한 확정 연결의 비연결 식별 오류는 PID가 없어도 전역 fence를 만들지 않는다")
-    void callback_entered_without_pid_does_not_imply_unknown_connection() throws Exception {
-        try (Harness harness = new Harness()) {
-            Connection connection = mock(Connection.class);
-            when(connection.unwrap(PGConnection.class)).thenThrow(new SQLException("unsupported", "0A000"));
-            when(harness.jdbc.execute(any(ConnectionCallback.class))).thenAnswer(invocation -> {
-                ConnectionCallback<?> callback = invocation.getArgument(0);
-                try {
-                    return callback.doInConnection(connection);
-                } catch (SQLException failure) {
-                    throw new DataAccessResourceFailureException("unwrap failed", failure);
-                }
-            });
-            var result = harness.db.readAsync("version", deadline(), ignored -> 1);
-            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(DataAccessResourceFailureException.class);
-            completion(result).get(5, TimeUnit.SECONDS);
-            assertThat(harness.fence).hasValue(0);
-            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
-        }
-    }
-
-    @Test
-    @DisplayName("연결 식별 전 권한 오류는 전역 fence로 확대하지 않지만 실제 연결 장애는 차단한다")
-    void distinguishes_definite_permission_failure_from_unknown_connection() throws Exception {
-        try (Harness harness = new Harness()) {
-            when(harness.jdbc.execute(any(ConnectionCallback.class)))
-                    .thenThrow(new DataAccessResourceFailureException("denied", new SQLException("denied", "42501")))
-                    .thenThrow(new DataAccessResourceFailureException("connection lost", new SQLException("lost", "08001")));
-
-            var denied = harness.db.readAsync("version", deadline(), ignored -> 1);
-            assertThatThrownBy(() -> denied.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(DataAccessResourceFailureException.class);
-            completion(denied).get(5, TimeUnit.SECONDS);
-            assertThat(harness.fence).hasValue(0);
-
-            var lost = harness.db.readAsync("version", deadline(), ignored -> 1);
-            assertThatThrownBy(() -> lost.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(DataAccessResourceFailureException.class);
-            completion(lost).get(5, TimeUnit.SECONDS);
-            assertThat(harness.fence).hasValue(1);
-            var blocked = harness.db.readAsync("version", deadline(), ignored -> 1);
-            assertThatThrownBy(() -> blocked.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ViewportUnavailableException.class);
-            completion(blocked).get(5, TimeUnit.SECONDS);
-            assertThat(harness.fence).hasValue(1);
-        }
-    }
-
-    @Test
-    @DisplayName("rollback 실패는 SQL08이 없어도 이미 확인한 backend와 permit을 격리한다")
-    void rollback_failure_quarantines_identified_backend() throws Exception {
-        try (Harness harness = new Harness()) {
-            Connection connection = mock(Connection.class);
-            PGConnection postgres = mock(PGConnection.class);
-            when(harness.pool.getConnection()).thenReturn(connection);
-            when(connection.unwrap(PGConnection.class)).thenReturn(postgres);
-            when(postgres.getBackendPID()).thenReturn(456);
-            when(harness.jdbc.queryForObject(anyString(), eq(Boolean.class), anyInt(), anyInt())).thenReturn(true);
-            when(harness.transaction.execute(any())).thenAnswer(invocation -> {
-                TransactionCallback<?> callback = invocation.getArgument(0);
-                try {
-                    callback.doInTransaction(mock(TransactionStatus.class));
-                } catch (RuntimeException applicationFailure) {
-                    TransactionSystemException rollback = new TransactionSystemException("rollback failed",
-                            new SQLException("rollback failed"));
-                    rollback.initApplicationException(applicationFailure);
-                    throw rollback;
-                }
-                throw new AssertionError("expected application failure");
-            });
-            var result = harness.db.readAsync("source", deadline(), ignored -> {
-                throw new ViewportUnavailableException("query failed");
-            });
-            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(TransactionSystemException.class);
-            completion(result).get(5, TimeUnit.SECONDS);
-            assertThat(harness.fence).hasValue(0);
-            assertThat(harness.registry.get("parking.viewport.db.uncertain").gauge().value()).isEqualTo(1);
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
-            assertThat(harness.registry.get("parking.viewport.db.stage.active").tag("stage", "source")
-                    .gauge().value()).isEqualTo(1);
+            assertThat(next).isNotCompleted();
+            release.countDown();
+            assertThat(next.get(5, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        } finally {
+            release.countDown();
         }
     }
 
     @Test
-    @DisplayName("기존 fence 재검사 및 완료된 권한 오류와 진행 중인 물리 연결을 구분한다")
-    void classifies_the_acquisition_phase() {
-        var idle = new ViewportConnectionAttempts.Snapshot(0, 0);
-        var connecting = new ViewportConnectionAttempts.Snapshot(1, 1);
-        RuntimeException deadline = new ViewportUnavailableException("deadline");
-        RuntimeException permission = new DataAccessResourceFailureException("denied",
-                new SQLException("denied", "42501"));
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(false, false, deadline, idle)).isFalse();
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(true, true, deadline, idle)).isFalse();
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(true, false, permission, idle)).isFalse();
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(true, false, permission, connecting)).isTrue();
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(true, false, deadline, idle)).isTrue();
-        assertThat(ViewportDbAccess.unknownConnectionNeeded(true, true,
-                new TransactionSystemException("rollback failed"), idle)).isTrue();
+    @DisplayName("조회 실패 뒤 후속 요청은 영구 차단 없이 다시 실행된다")
+    void failure_does_not_fence_subsequent_requests() throws Exception {
+        try (Harness harness = new Harness()) {
+            assertThatThrownBy(() -> harness.db.read("source", ViewportDeadline.after(Duration.ofSeconds(5)),
+                    ignored -> { throw new IllegalStateException("query failed"); }))
+                    .isInstanceOf(IllegalStateException.class);
+
+            Integer result = harness.db.read("source", ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> 2);
+            assertThat(result).isEqualTo(2);
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        }
     }
 
-    private static ViewportDeadline deadline() {
-        return ViewportDeadline.after(Duration.ofSeconds(5));
+    @Test
+    @DisplayName("중단된 DB 작업의 다른 비즈니스 오류는 viewport 기한 오류로 바꾸지 않는다")
+    void preserves_other_business_errors_when_db_worker_is_interrupted() throws Exception {
+        try (Harness harness = new Harness()) {
+            BusinessException inputFailure = new BusinessException(ErrorCode.INVALID_INPUT);
+            var result = harness.db.readAsync("source", ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> {
+                Thread.currentThread().interrupt();
+                throw inputFailure;
+            });
+
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).hasCause(inputFailure);
+        }
     }
 
-    private static java.util.concurrent.CompletableFuture<Void> completion(java.util.concurrent.CompletableFuture<?> future) {
-        return ((ViewportDbFuture<?>) future).workCompletion();
+    @Test
+    @DisplayName("viewport 종료가 공유 DB 풀을 닫거나 공용 JdbcTemplate 설정을 변경하지 않는다")
+    void preserves_shared_datasource_and_template_settings() throws Exception {
+        Harness harness = new Harness();
+
+        harness.db.close();
+
+        verify(harness.pool, never()).close();
+        assertThat(harness.primary.getQueryTimeout()).isEqualTo(17);
+        assertThat(harness.primary.getFetchSize()).isEqualTo(32);
+        harness.registry.close();
     }
 
     private static final class Harness implements AutoCloseable {
-        private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        private final TransactionTemplate transaction = mock(TransactionTemplate.class);
         private final HikariDataSource pool = mock(HikariDataSource.class);
-        private final AtomicLong fence = new AtomicLong();
         private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        private final ViewportDbAccess db = new ViewportDbAccess(jdbc, transaction, pool,
-                new ViewportConnectionAttempts(mock(DataSource.class), fence), fence,
-                new ViewportCacheProperties(), new ViewportMetrics(registry));
+        private final JdbcTemplate primary = new JdbcTemplate(pool);
+        private final ViewportDbAccess db;
+
+        private Harness() throws Exception {
+            Connection connection = mock(Connection.class);
+            when(connection.getAutoCommit()).thenReturn(true);
+            when(connection.createStatement()).thenReturn(mock(Statement.class));
+            when(pool.getConnection()).thenReturn(connection);
+            primary.setQueryTimeout(17);
+            primary.setFetchSize(32);
+            ViewportCacheProperties properties = new ViewportCacheProperties();
+            properties.setMaxConcurrentDb(1);
+            db = new ViewportDbAccess(primary, properties, new ViewportMetrics(registry));
+        }
 
         @Override
         public void close() {
