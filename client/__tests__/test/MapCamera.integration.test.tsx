@@ -11,7 +11,7 @@ import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
 import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { createTestQueryClient, renderWithProviders } from '../renderWithProviders';
-import { searchCondition } from '../testData';
+import { createRecommendationUrl, searchCondition } from '../testData';
 
 class MockPoint {
   constructor(
@@ -160,12 +160,7 @@ it.each(['collapsed', 'expanded'] as const)(
       </Routes>,
       {
         queryClient,
-        initialEntries: [
-          {
-            pathname: '/parkingRecommend',
-            state: { searchCondition },
-          },
-        ],
+        initialEntries: [createRecommendationUrl()],
       },
     );
 
