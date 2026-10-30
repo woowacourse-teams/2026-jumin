@@ -1,9 +1,10 @@
-import { css } from '@emotion/css';
+import { css, cx } from '@emotion/css';
 
 import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarker from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
+import { LandingCacheDemo } from './LandingCacheDemo';
 
 export const LandingTechnology = () => (
   <section
@@ -232,6 +233,38 @@ export const LandingTechnology = () => (
           </figcaption>
         </figure>
       </article>
+      <article
+        className={cx(styles.article, styles.cacheArticle)}
+        aria-labelledby="landing-technology-cache"
+      >
+        <div className={styles.copy}>
+          <p className={styles.number}>04 / GRID CACHE</p>
+          <h3 id="landing-technology-cache">
+            다시 찾은 지역은,
+            <br />
+            저장해 둔 데이터로.
+          </h3>
+          <p className={styles.description}>
+            지도를 조금 움직일 때마다 겹치는 지역까지 다시 조회할 필요가 있을까요? 지도를 고정된
+            정사각형 칸으로 나누고, 칸 단위로 데이터를 저장하는 캐시의 원리를 직접 확인해 보세요.
+          </p>
+          <p className={styles.result}>
+            겹치는 칸은 캐시에서 재사용하고, 처음 보는 칸만 DB에서 가져오는 과정을 보여줘요.
+          </p>
+          <div className={styles.demoNotice}>
+            <span>교육용 시뮬레이션</span>
+            <p>
+              실제 서비스 UI가 아닌 교육용 데모입니다. 외부 라이브러리 추가나 서버 호출 없이
+              브라우저 안에서만 동작하며, DB 조회도 메모리 안에서 재현합니다.
+            </p>
+            <p>
+              실제 TTL 타이머나 자동 만료는 구현하지 않았습니다. ‘캐시 비우기’로 캐시가 빈 상황을
+              재현하고, ‘처음 위치로’로 저장된 칸을 다시 방문해 보세요.
+            </p>
+          </div>
+        </div>
+        <LandingCacheDemo />
+      </article>
     </div>
   </section>
 );
@@ -301,6 +334,33 @@ const styles = {
       font-weight: 800;
       line-height: 1.4;
       letter-spacing: -0.035em;
+    }
+  `,
+  cacheArticle: css`
+    align-items: start;
+    @media (max-width: 1000px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  `,
+  demoNotice: css`
+    margin-top: 32px;
+    padding: 20px;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 3%);
+    span {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgb(255 255 255 / 8%);
+      ${typography.caption};
+      font-weight: 700;
+    }
+    p {
+      margin-top: 12px;
+      ${typography.bodySmall};
+      color: ${color.text.inverseSecondary};
+      line-height: 1.8;
     }
   `,
   number: css`
