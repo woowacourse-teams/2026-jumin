@@ -23,6 +23,7 @@ public enum ErrorCode {
     ADMIN_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
     ADMIN_AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     WALKING_NETWORK_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "보행 네트워크를 사용할 수 없습니다."),
+    VIEWPORT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "지도 조회가 일시적으로 지연되고 있습니다. 잠시 후 다시 시도해 주세요."),
     ;
 
     private final HttpStatus httpStatus;

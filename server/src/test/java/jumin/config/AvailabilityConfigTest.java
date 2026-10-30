@@ -8,7 +8,7 @@ import io.micrometer.observation.Observation.Context;
 import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.concurrent.atomic.AtomicInteger;
-import jumin.config.AvailabilityProperties.Provider;
+import jumin.config.AvailabilityProviderProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -41,7 +41,7 @@ class AvailabilityConfigTest {
         server.expect(requestTo("https://busan.test/getParkingInfoList_v2?serviceKey=busan-key"))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
         AvailabilityProperties properties = new AvailabilityProperties(false,
-                new Provider("http://seoul.test", "seoul-key"), new Provider("https://busan.test", "busan-key"));
+                new AvailabilityProviderProperties("http://seoul.test", "seoul-key"), new AvailabilityProviderProperties("https://busan.test", "busan-key"));
         AvailabilityConfig config = new AvailabilityConfig();
 
         // when
