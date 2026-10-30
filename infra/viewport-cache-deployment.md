@@ -1,6 +1,6 @@
 # 사각형 셀 + Redis: TTL 전용 배포
 
-기능 브랜치 → develop → main 순서로 승격한다. 기존 서버 CD의 development/production 환경을 사용한다.
+기능 브랜치 → develop → main 순서로 승격한다. 기존 서버 CD의 development/production 환경을 사용하며 별도 GitHub 환경은 필요하지 않다.
 
 ## GitHub 환경별 설정
 
@@ -31,15 +31,26 @@ Variables: VIEWPORT_CACHE_ENABLED(기본 false), VIEWPORT_CACHE_TTL(10m), VIEWPO
 
 ## Redis EC2 자동 배포
 
-redis-cd.yml은 develop/main에서 각각 development/production Secrets를 선택한다. 추가 Secrets는 REDIS_EC2_INSTANCE_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY이며 임시 자격증명이면 AWS_SESSION_TOKEN도 필요하다. 리전은 ap-northeast-2다.
+redis-cd.yml은 develop/main에서 각각 기존 development/production 환경의 Secrets를 선택한다. 위의 캐시 Secrets 네 개는 유지한다. Redis CD에는 REDIS_EC2_INSTANCE_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN이 필요하지 않지만 다른 용도로 사용하는 기존 GitHub Secrets는 유지한다.
 
-백엔드 빌드는 GitHub 호스팅 러너에서 수행하고, 실제 백엔드 배포는 기존 jumin-dev/jumin-prod self-hosted ARM64 러너에서 실행한다. Redis 배포는 GitHub 호스팅 러너에서 SSM을 호출하는 방식이다.
+백엔드 빌드와 Redis 배포 스크립트 검증은 GitHub 호스팅 러너에서 수행한다. Redis 검증이 통과하면 `Dockerfile`과 `deploy.sh`, 두 파일의 SHA-256 목록을 `redis-<브랜치>-<커밋 SHA>-<실행 ID>-<시도 번호>` 아티팩트로 업로드한다. 아티팩트 보존 기간은 1일이며 Compose 설정, 인증서, ACL, 비밀번호는 포함하지 않는다. 백엔드 배포는 기존 jumin-dev/jumin-prod self-hosted ARM64 러너에서, Redis 배포는 각 Redis EC2에 등록한 전용 self-hosted ARM64 러너에서 수행한다.
 
-호출자에게 대상 Redis 인스턴스 및 AWS-RunShellScript 문서의 ssm:SendCommand, 실행 결과 조회의 ssm:GetCommandInvocation 권한이 필요하다. 노드의 SSM 관리 역할과 호출자의 명령 실행 권한은 별개다. 공유 IAM 정책은 이 변경에서 수정하지 않는다.
+| Redis EC2 | 러너 이름과 전용 label | 필수 labels |
+| --- | --- | --- |
+| dev | jumin-redis-dev | self-hosted, Linux, ARM64, jumin-redis-dev |
+| prod | jumin-redis-prod | self-hosted, Linux, ARM64, jumin-redis-prod |
 
-SSM에는 공개 배포 코드만 보내며 Redis 비밀번호는 명령에 포함하지 않는다. 대상은 Docker/Compose와 /opt/jumin-redis-dev 또는 /opt/jumin-redis-prod의 compose.yaml, redis.conf, runtime 인증서/ACL, secrets/admin.secret가 준비되어 있어야 한다. 이미 만든 두 EC2의 초기 설정을 재사용하는 배포이며 새 EC2 초기 설치나 인증서/비밀번호 재발급을 수행하지 않는다.
+각 러너는 해당 EC2의 ubuntu 사용자로 실행한다. Redis 배포 job은 저장소를 체크아웃하지 않고 build job이 출력한 이름의 아티팩트를 내려받아 SHA-256 목록으로 파일을 확인한 후 배포 스크립트를 실행한다. 아티팩트 보존 기간 1일 이내에는 배포 job만 재실행해도 성공한 build의 아티팩트를 참조한다. 비대화형 sudo에서 `VIEWPORT_REDIS_URI`, `REDIS_ARTIFACT_DIR`, `GITHUB_SHA`, `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT` 환경변수를 보존할 수 있어야 한다. URI는 인증정보 없이 `rediss://HOST:6379` 형식이어야 한다.
 
-고정 이미지 pull → Compose up → TLS 인증 PING 확인 순서다. 실패하면 이전 Compose 설정 복구를 시도한다. 실제 GitHub Secrets 등록·SSM 권한·AWS 실행은 별도로 확인해야 한다. 로컬 단위 테스트 통과는 운영 배포 성공의 증거가 아니다.
+2026-10-30 두 Redis EC2의 `/home/ubuntu/actions-runner-redis`에 공식 ARM64 runner 2.338.0을 SHA-256 검증 후 설치했다. 각 runner는 ubuntu 사용자로 실행하며 systemd의 enabled/active와 GitHub의 Online 상태를 확인했다. 비대화형 sudo에서 위의 다섯 환경변수 보존과 두 Redis의 인증서 SAN·TLS 인증 PING도 확인했다. 기존 jumin-dev/jumin-prod SSH 키를 재사용하며 백엔드 서버를 경유해 사설 IP로 접속한다.
+
+대상에는 Docker/Compose와 /opt/jumin-redis-dev 또는 /opt/jumin-redis-prod의 compose.yaml, redis.conf, runtime 인증서/ACL, secrets/admin.secret가 준비되어 있어야 한다. root가 관리하는 기존 부트스트랩 비밀 파일과 인증서를 보존하고 재사용한다. 새 EC2 초기 설치나 인증서/비밀번호 재발급은 수행하지 않는다.
+
+배포 스크립트도 아티팩트와 실행 정보를 확인한 후 Redis EC2에서 고정 공식 Redis 베이스 이미지에 커밋 SHA 레이블을 추가해 `jumin-redis:<커밋 SHA>-<실행 ID>-<시도 번호>` 이미지를 빌드한다. 이미지 태그의 시도 번호는 현재 배포 시도의 번호다. Redis 소스의 재컴파일은 없다. 이 이미지를 Compose에 지정해 기동하고 TLS 인증 PING을 확인한다. 실패하거나 HUP/INT/TERM 신호로 종료되면 이전 Compose 설정 복구를 시도한다. 복구에 실패하면 이전 설정 백업을 보존한다. SIGKILL·호스트 장애에서는 복구 코드를 실행할 수 없으므로 남아 있는 백업과 실제 컨테이너 상태를 확인해 수동 복구한다.
+
+배포 성공 후에도 이전 이미지는 롤백을 위해 보존하며, 실패한 배포의 이미지를 포함해 로컬 이미지를 자동 삭제하지 않는다. 불필요한 이미지 정리는 별도 운영 작업에서 검토하며, 전체 Docker 이미지나 리소스를 대상으로 하는 prune은 실행하지 않는다.
+
+수정한 workflow는 아직 develop/main에 병합되지 않아 GitHub Actions를 통한 실제 이미지 교체는 검증하지 않았다. development/production의 Secrets와 브랜치별 첫 배포 결과를 확인해야 한다. 로컬 단위 테스트 통과나 기존 Redis의 PONG만으로 새 배포 성공을 판단하지 않는다.
 
 ## 마이그레이션과 검증
 
@@ -47,6 +58,6 @@ V15는 아직 배포하지 않은 신규 캐시 마이그레이션을 단순화�
 
 서버 검증: server에서 ./gradlew clean check bootJar. 배포 스크립트 검증: bash infra/scripts/tests/test-viewport-cache.sh.
 
-배포 스크립트 검증은 셸 문법 검사와 Docker/HTTP를 대체한 백엔드 테스트 4건, AWS 호출을 대체한 SSM 테스트 3건이다. 실제 EC2에서 이미지 교체, TLS 인증, 장애 복구까지 실행하는 검증은 포함하지 않는다.
+배포 스크립트 검증은 셸 문법 검사와 외부 명령을 대체한 백엔드·Redis 테스트를 수행한다. Redis 테스트는 아티팩트와 입력 검증, 정상 배포, 부트스트랩 누락, 배포 실패·종료 신호 시 복구, 복구 실패 시 백업 보존, 잠금 충돌을 검증한다. 실제 EC2에서 이미지 교체와 장애 복구까지 실행하는 검증은 포함하지 않는다.
 
 기존 부하 테스트 결과는 정리 전 구현에서 측정한 값이다. TTL 전용·공유 DB 풀·메모리 fallback 변경 후의 성능과 최대 수용량은 재측정해야 한다.

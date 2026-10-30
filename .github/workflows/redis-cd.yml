@@ -5,7 +5,7 @@ on:
     branches: [develop, main]
     paths:
       - 'infra/redis/**'
-      - 'infra/scripts/deploy-redis-ssm.py'
+      - 'infra/scripts/tests/**'
       - '.github/workflows/redis-cd.yml'
   workflow_dispatch:
 
@@ -17,24 +17,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
+    name: Build Redis delivery artifact
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     timeout-minutes: 8
+    outputs:
+      artifact-name: ${{ steps.prepare-artifact.outputs.name }}
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Verify deployment scripts
         run: bash infra/scripts/tests/test-viewport-cache.sh
-      - name: Deploy Redis through SSM
+      - name: Prepare Redis delivery artifact
+        id: prepare-artifact
+        shell: bash
         env:
-          AWS_DEFAULT_REGION: ap-northeast-2
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          REDIS_EC2_INSTANCE_ID: ${{ secrets.REDIS_EC2_INSTANCE_ID }}
+          ARTIFACT_NAME: redis-${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${RUNNER_TEMP}/jumin-redis-delivery"
+          cp infra/redis/Dockerfile infra/redis/deploy.sh "${RUNNER_TEMP}/jumin-redis-delivery/"
+          (
+            cd "${RUNNER_TEMP}/jumin-redis-delivery"
+            sha256sum Dockerfile deploy.sh > redis-artifact.sha256
+          )
+          printf 'name=%s\n' "$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+      - name: Upload Redis delivery artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.prepare-artifact.outputs.name }}
+          path: ${{ runner.temp }}/jumin-redis-delivery
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: [self-hosted, Linux, ARM64, "${{ github.ref_name == 'main' && 'jumin-redis-prod' || 'jumin-redis-dev' }}"]
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    timeout-minutes: 8
+    steps:
+      - name: Download Redis delivery artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: ${{ runner.temp }}/jumin-redis-delivery
+      - name: Verify Redis delivery artifact
+        working-directory: ${{ runner.temp }}/jumin-redis-delivery
+        run: |
+          set -Eeuo pipefail
+          sha256sum Dockerfile deploy.sh | cmp -s - redis-artifact.sha256
+      - name: Deploy Redis
+        env:
           VIEWPORT_REDIS_URI: ${{ secrets.VIEWPORT_REDIS_URI }}
+          REDIS_ARTIFACT_DIR: ${{ runner.temp }}/jumin-redis-delivery
           REDIS_ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
-        run: python3 infra/scripts/deploy-redis-ssm.py "$REDIS_ENVIRONMENT"
+        run: sudo --non-interactive --preserve-env=VIEWPORT_REDIS_URI,REDIS_ARTIFACT_DIR,GITHUB_SHA,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT bash "$REDIS_ARTIFACT_DIR/deploy.sh" "$REDIS_ENVIRONMENT"
