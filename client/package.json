@@ -14,7 +14,8 @@
     "test:deep-link": "node --experimental-strip-types --test __tests__/unit/map/deepLink.test.mjs",
     "test:parking-markers": "node --experimental-strip-types --test __tests__/unit/map/parkingMarker.test.mjs __tests__/unit/map/parkingMarkerPolicy.test.mjs",
     "test:webpack-config": "node --test __tests__/unit/config/webpackConfig.test.mjs",
-    "check": "pnpm typecheck && pnpm test:integration && pnpm test:deep-link && pnpm test:parking-markers && pnpm test:webpack-config && eslint . && prettier --check ."
+    "test:dependency-security": "node --test __tests__/unit/config/dependencySecurity.test.mjs",
+    "check": "pnpm typecheck && pnpm test:integration && pnpm test:deep-link && pnpm test:parking-markers && pnpm test:webpack-config && pnpm test:dependency-security && eslint . && prettier --check ."
   },
   "dependencies": {
     "@daypicker/react": "^10.0.1",
@@ -30,7 +31,7 @@
     "react-icons": "^5.7.0",
     "react-modal": "^3.16.3",
     "react-router": "^8.4.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "packageManager": "pnpm@11.20.0",
   "devDependencies": {
