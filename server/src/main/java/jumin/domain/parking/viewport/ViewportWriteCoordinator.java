@@ -36,8 +36,8 @@ public class ViewportWriteCoordinator {
         if (!previous.ready()) {
             return;
         }
-        ViewportMappingResult result = mappings.repairAndVerify(previous.gridSizeMeters());
-        states.publish(previous.gridSizeMeters(), result.valid());
+        boolean valid = mappings.repairAndVerify(previous.gridSizeMeters());
+        states.publish(previous.gridSizeMeters(), valid);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -45,8 +45,8 @@ public class ViewportWriteCoordinator {
         requireReadCommitted();
         states.lockForWrite();
         lockSource();
-        ViewportMappingResult result = mappings.repairAndVerify(properties.getGridSizeMeters());
-        return states.publish(properties.getGridSizeMeters(), result.valid());
+        boolean valid = mappings.repairAndVerify(properties.getGridSizeMeters());
+        return states.publish(properties.getGridSizeMeters(), valid);
     }
 
     private void lockSource() {

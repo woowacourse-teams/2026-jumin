@@ -28,9 +28,7 @@ public class ViewportCacheProperties {
     private int maxConcurrentRequests;
     private int maxConcurrentDb = 3;
     private int dbQueue = 256;
-    private int loaderThreads = 3;
-    private int loaderQueue = 32;
-    private int redisTransportThreads = 3;
+    private int maxConcurrentRedis = 3;
     private int maxInflightCells = 2048;
     private double maxWidthDegrees = 0.05;
     private double maxHeightDegrees = 0.05;
@@ -73,7 +71,7 @@ public class ViewportCacheProperties {
     }
 
     private boolean hasInvalidExecutionLimits() {
-        return exceedsCombinedMemoryBudget() || hasInvalidDatabaseLimits() || hasInvalidLoaderLimits()
+        return exceedsCombinedMemoryBudget() || hasInvalidDatabaseLimits()
                 || hasInvalidRedisLimits() || hasInvalidInflightLimit();
     }
 
@@ -103,21 +101,16 @@ public class ViewportCacheProperties {
     }
 
     private boolean exceedsCombinedMemoryBudget() {
-        return (maxConcurrentRequests + 2L * maxConcurrentDb + 2L * loaderThreads
-                + 2L * redisTransportThreads) * maxRequestBytes > 128L * 1024 * 1024;
+        return (maxConcurrentRequests + 2L * maxConcurrentDb + 2L * maxConcurrentRedis) * maxRequestBytes > 128L * 1024 * 1024;
     }
 
     private boolean hasInvalidDatabaseLimits() {
         return maxConcurrentDb < 1 || maxConcurrentDb > 16 || dbQueue < 1 || dbQueue > 512;
     }
 
-    private boolean hasInvalidLoaderLimits() {
-        return loaderThreads < 1 || loaderThreads > 16 || loaderQueue < 1 || loaderQueue > 512;
-    }
-
     private boolean hasInvalidRedisLimits() {
-        return redisTransportThreads < 1 || redisTransportThreads > 16
-                || 2L * redisTransportThreads * maxRequestBytes > 64L * 1024 * 1024;
+        return maxConcurrentRedis < 1 || maxConcurrentRedis > 16
+                || 2L * maxConcurrentRedis * maxRequestBytes > 64L * 1024 * 1024;
     }
 
     private boolean hasInvalidInflightLimit() {

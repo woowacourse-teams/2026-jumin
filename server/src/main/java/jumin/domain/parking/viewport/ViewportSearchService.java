@@ -10,11 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -171,7 +167,7 @@ public class ViewportSearchService {
         observation.eligible();
         CacheLookup lookup = lookup(keys, deadline, observation);
         deadline.requireRemaining();
-        List<ViewportCellLoadResult> loaded = loader.resolve(keys, lookup.hits(), deadline, observation,
+        List<ViewportCell> loaded = loader.resolve(keys, lookup.hits(), deadline, observation,
                 lookup.bypassStore());
         long started = System.nanoTime();
         try {
@@ -209,39 +205,24 @@ public class ViewportSearchService {
     private ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
                                   ViewportDeadline deadline, ViewportObservation observation) {
         observation.fallback();
-        CompletableFuture<ViewportBody> future = repository.fallback(bounds, request, day.getValue(), deadline,
-                observation::sourceStarted);
-        observation.track(future);
-        try {
-            return future.get(deadline.remainingNanos(), TimeUnit.NANOSECONDS);
-        } catch (InterruptedException failure) {
-            future.cancel(false);
-            Thread.currentThread().interrupt();
-            throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
-        } catch (TimeoutException failure) {
-            future.cancel(false);
-            throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
-        } catch (ExecutionException failure) {
-            throw ViewportFailureReason.UNCLASSIFIED.failure(failure.getCause());
-        }
+        return repository.fallback(bounds, request, day.getValue(), deadline, observation::sourceStarted);
     }
 
-    private ViewportBody assemble(List<ViewportCellLoadResult> cells, ViewportBounds bounds,
+    private ViewportBody assemble(List<ViewportCell> cells, ViewportBounds bounds,
                                   ParkingLotViewportRequest request, DayOfWeek day) {
         requireAssemblyBudget(cells);
         Set<Long> ids = new HashSet<>();
         List<ParkingLotViewportResponse> rows = new ArrayList<>();
-        for (ViewportCellLoadResult result : cells) {
-            appendMatchingItems(result.cell(), bounds, request, day, ids, rows);
+        for (ViewportCell cell : cells) {
+            appendMatchingItems(cell, bounds, request, day, ids, rows);
         }
         rows.sort(Comparator.comparingLong(ParkingLotViewportResponse::id));
         return new ViewportBody(ParkingLotViewportResponses.from(rows));
     }
 
-    private void requireAssemblyBudget(List<ViewportCellLoadResult> cells) {
-        long heap = cells.stream().map(ViewportCellLoadResult::cell)
-                .mapToLong(ViewportCell::estimatedHeapBytes).sum();
-        long items = cells.stream().map(ViewportCellLoadResult::cell).mapToLong(cell -> cell.items().size()).sum();
+    private void requireAssemblyBudget(List<ViewportCell> cells) {
+        long heap = cells.stream().mapToLong(ViewportCell::estimatedHeapBytes).sum();
+        long items = cells.stream().mapToLong(cell -> cell.items().size()).sum();
         long assemblyHeap = heap + items * 256L + cells.size() * 256L + 1024;
         if (assemblyHeap > properties.getMaxRequestBytes()) {
             throw ViewportFallbackException.cellTooLarge();

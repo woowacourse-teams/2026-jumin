@@ -18,22 +18,19 @@ public class ViewportMappingMaintainer {
         this.grid = grid;
     }
 
-    public ViewportMappingResult repairAndVerify(int gridSizeMeters) {
+    public boolean repairAndVerify(int gridSizeMeters) {
         Long afterId = null;
-        boolean changed = false;
         boolean valid = true;
         while (true) {
             List<MappingRow> rows = findBatch(afterId);
             if (rows.isEmpty()) {
-                return new ViewportMappingResult(changed, valid);
+                return valid;
             }
             MappingBatch batch = evaluateBatch(rows, gridSizeMeters);
             if (!batch.valid()) {
                 valid = false;
             }
-            if (applyUpdates(batch.updates())) {
-                changed = true;
-            }
+            applyUpdates(batch.updates());
             afterId = rows.getLast().id();
         }
     }
@@ -80,9 +77,9 @@ public class ViewportMappingMaintainer {
                 || row.longitude().doubleValue() != row.locationLongitude().doubleValue();
     }
 
-    private boolean applyUpdates(List<Object[]> updates) {
+    private void applyUpdates(List<Object[]> updates) {
         if (updates.isEmpty()) {
-            return false;
+            return;
         }
         int[] counts = jdbc.batchUpdate("""
                 UPDATE parking_lots SET viewport_grid_cell = ?
@@ -94,7 +91,6 @@ public class ViewportMappingMaintainer {
                 throw new IllegalStateException("동시 원본 변경으로 사각형 grid mapping을 검증할 수 없습니다.");
             }
         }
-        return true;
     }
 
     private List<MappingRow> findBatch(Long afterId) {

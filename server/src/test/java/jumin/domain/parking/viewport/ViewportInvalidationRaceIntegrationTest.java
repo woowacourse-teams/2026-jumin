@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import jumin.TestcontainersConfiguration;
@@ -189,8 +191,10 @@ class ViewportInvalidationRaceIntegrationTest {
         RedisClient client = RedisClient.create(redisUri());
         try (var raw = client.connect();
              Harness delayedReader = new Harness(environment, true, Duration.ofMinutes(1));
-             Harness otherReader = new Harness(environment, false, Duration.ofMinutes(1))) {
-            assertCapacity(delayedReader.search(), OLD_CAPACITY);
+             Harness otherReader = new Harness(environment, false, Duration.ofMinutes(1));
+             var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            // given
+            var delayed = CompletableFuture.supplyAsync(delayedReader::search, threads);
             delayedReader.store.awaitEntered();
             ViewportCellKey key = delayedReader.store.capturedKey();
             assertThat(delayedReader.store.capturedCapacity()).isEqualTo(OLD_CAPACITY);
@@ -202,8 +206,11 @@ class ViewportInvalidationRaceIntegrationTest {
             assertThat(raw.sync().del(key.redisKey())).isEqualTo(1);
             assertThat(delayedReader.redis.getMany(List.of(key), deadline())).isEmpty();
 
+            // when
             delayedReader.store.release();
             delayedReader.store.awaitWrite();
+            // then
+            assertCapacity(delayed.get(5, TimeUnit.SECONDS), OLD_CAPACITY);
             assertThat(delayedReader.redis.getMany(List.of(key), deadline()).get(key).items().getFirst().capacity())
                     .isEqualTo(OLD_CAPACITY);
             assertCapacity(otherReader.search(), OLD_CAPACITY);
@@ -218,8 +225,10 @@ class ViewportInvalidationRaceIntegrationTest {
     @DisplayName("이전 TTL namespace의 늦은 put은 새 namespace의 응답을 오염시키지 않는다")
     void late_fill_in_old_namespace_cannot_pollute_new_namespace() throws Exception {
         try (Harness oldReader = new Harness(environment(), true, Duration.ofMinutes(1));
-             Harness newReader = new Harness(environment(), false, Duration.ofMinutes(1))) {
-            assertCapacity(oldReader.search(), OLD_CAPACITY);
+             Harness newReader = new Harness(environment(), false, Duration.ofMinutes(1));
+             var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            // given
+            var delayed = CompletableFuture.supplyAsync(oldReader::search, threads);
             oldReader.store.awaitEntered();
             ViewportCellKey oldKey = oldReader.store.capturedKey();
             commitCapacityChange();
@@ -228,8 +237,11 @@ class ViewportInvalidationRaceIntegrationTest {
             newReader.store.awaitWrite();
             ViewportCellKey newKey = newReader.store.capturedKey();
             assertThat(newKey.redisKey()).isNotEqualTo(oldKey.redisKey());
+            // when
             oldReader.store.release();
             oldReader.store.awaitWrite();
+            // then
+            assertCapacity(delayed.get(5, TimeUnit.SECONDS), OLD_CAPACITY);
 
             assertThat(oldReader.redis.getMany(List.of(oldKey), deadline()).get(oldKey).items().getFirst().capacity())
                     .isEqualTo(OLD_CAPACITY);

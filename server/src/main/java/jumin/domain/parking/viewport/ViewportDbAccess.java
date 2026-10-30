@@ -6,14 +6,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import javax.sql.DataSource;
 import jumin.config.ViewportCacheProperties;
@@ -31,10 +29,14 @@ public class ViewportDbAccess {
     private final JdbcTemplate jdbc;
     private final PlatformTransactionManager transactions;
     private final long dbTimeoutNanos;
-    private final Semaphore permits;
+    private final ReentrantLock admission = new ReentrantLock(true);
+    private final Condition capacity = admission.newCondition();
+    private final int maximum;
+    private final int queueLimit;
+    private final AtomicInteger queued = new AtomicInteger();
+    private volatile boolean closed;
     private final AtomicInteger active = new AtomicInteger();
     private final Map<String, AtomicInteger> activeByStage = new ConcurrentHashMap<>();
-    private final ViewportDbWorkQueue workers;
     private final ViewportMetrics metrics;
 
     public ViewportDbAccess(JdbcTemplate primaryJdbc, ViewportCacheProperties properties, ViewportMetrics metrics) {
@@ -46,13 +48,15 @@ public class ViewportDbAccess {
         jdbc.setFetchSize(128);
         jdbc.setQueryTimeout(secondsCeiling(properties.getDbTimeout()));
         transactions = new DataSourceTransactionManager(source);
-        permits = new Semaphore(properties.getMaxConcurrentDb());
-        workers = new ViewportDbWorkQueue(properties.getMaxConcurrentDb(), properties.getDbQueue(), metrics);
+        maximum = properties.getMaxConcurrentDb();
+        queueLimit = properties.getDbQueue();
         registerGauges();
     }
 
     private void registerGauges() {
         Gauge.builder("parking.viewport.db.active", active, AtomicInteger::get).register(metrics.registry());
+        metrics.registry().gauge("parking.viewport.db.queued", queued);
+        metrics.registry().gauge("parking.viewport.db.pending", this, access -> access.active.get() + access.queued.get());
         for (String stage : List.of("source", "fallback")) {
             Gauge.builder("parking.viewport.db.stage.active", stageActive(stage), AtomicInteger::get)
                     .tag("stage", stage).register(metrics.registry());
@@ -60,36 +64,7 @@ public class ViewportDbAccess {
     }
 
     public <T> T read(String stage, ViewportDeadline deadline, Function<JdbcTemplate, T> query) {
-        CompletableFuture<T> future = readAsync(stage, deadline, query);
-        try {
-            return future.get(deadline.remainingNanos(), TimeUnit.NANOSECONDS);
-        } catch (InterruptedException failure) {
-            future.cancel(false);
-            Thread.currentThread().interrupt();
-            throw ViewportFailureReason.DB_DEADLINE.failure(failure);
-        } catch (TimeoutException failure) {
-            future.cancel(false);
-            throw ViewportFailureReason.DB_DEADLINE.failure(failure);
-        } catch (ExecutionException failure) {
-            if (failure.getCause() instanceof RuntimeException runtime) {
-                throw runtime;
-            }
-            throw ViewportFailureReason.UNCLASSIFIED.failure(failure.getCause());
-        }
-    }
-
-    public <T> CompletableFuture<T> readAsync(String stage, ViewportDeadline deadline,
-                                             Function<JdbcTemplate, T> query) {
-        return workers.submit(stage, deadline, () -> readSync(stage, deadline, query));
-    }
-
-    private <T> T readSync(String stage, ViewportDeadline deadline, Function<JdbcTemplate, T> query) {
-        requireDbRemaining(deadline);
-        if (!permits.tryAcquire()) {
-            metrics.count("db", "rejected", 1);
-            throw ViewportFailureReason.DB_ADMISSION_REJECTED.failure();
-        }
-        active.incrementAndGet();
+        acquire(deadline);
         stageActive(stage).incrementAndGet();
         long started = System.nanoTime();
         AtomicReference<T> produced = new AtomicReference<>();
@@ -106,9 +81,56 @@ public class ViewportDbAccess {
             throw failure;
         } finally {
             metrics.time(stage, started);
-            active.decrementAndGet();
             stageActive(stage).decrementAndGet();
-            permits.release();
+            release();
+        }
+    }
+
+    private void acquire(ViewportDeadline deadline) {
+        admission.lock();
+        try {
+            requireOpen();
+            requireDbRemaining(deadline);
+            if (active.get() >= maximum) {
+                if (queued.get() >= queueLimit) {
+                    metrics.count("db", "queue_rejected", 1);
+                    throw ViewportFailureReason.DB_QUEUE_FULL.failure();
+                }
+                queued.incrementAndGet();
+                try {
+                    while (active.get() >= maximum) {
+                        requireOpen();
+                        requireDbRemaining(deadline);
+                        capacity.awaitNanos(deadline.remainingNanos());
+                    }
+                } catch (InterruptedException failure) {
+                    Thread.currentThread().interrupt();
+                    throw ViewportFailureReason.DB_DEADLINE.failure(failure);
+                } finally {
+                    queued.decrementAndGet();
+                }
+            }
+            requireOpen();
+            requireDbRemaining(deadline);
+            active.incrementAndGet();
+        } finally {
+            admission.unlock();
+        }
+    }
+
+    private void release() {
+        admission.lock();
+        try {
+            active.decrementAndGet();
+            capacity.signal();
+        } finally {
+            admission.unlock();
+        }
+    }
+
+    private void requireOpen() {
+        if (closed) {
+            throw ViewportFailureReason.DB_SHUTTING_DOWN.failure();
         }
     }
 
@@ -186,6 +208,12 @@ public class ViewportDbAccess {
 
     @PreDestroy
     public void close() {
-        workers.close();
+        admission.lock();
+        try {
+            closed = true;
+            capacity.signalAll();
+        } finally {
+            admission.unlock();
+        }
     }
 }

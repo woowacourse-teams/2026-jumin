@@ -10,6 +10,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -99,7 +102,7 @@ class ViewportSearchIntegrationTest {
     }
 
     @Test
-    @DisplayName("세 실제 source query의 cache 쓰기가 모두 막혀도 DB worker는 metadata 조회를 처리한다")
+    @DisplayName("동기 캐시 저장을 기다리는 요청이 있어도 DB 연결과 실행 슬롯은 반환한다")
     void cache_writes_do_not_occupy_real_database_workers() throws Exception {
         CountDownLatch writesStarted = new CountDownLatch(3);
         CountDownLatch releaseWrites = new CountDownLatch(1);
@@ -119,19 +122,25 @@ class ViewportSearchIntegrationTest {
                 .cover(new ViewportBounds(126.99,37.49,127.01,37.51)).stream().limit(3).toList();
         assertThat(cellIds).hasSize(3);
         try (ViewportCellLoader loader = new ViewportCellLoader(blockedStore, repositoryForTest(), properties,
-                new ViewportMetrics(metrics))) {
+                new ViewportMetrics(metrics)); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
             try {
+                List<CompletableFuture<List<ViewportCell>>> requests = new ArrayList<>();
                 for (long cellId : cellIds) {
                     ViewportCellKey key = new ViewportCellKey(properties.getEnvironment(),1,1,mappingState.gridSizeMeters(),cellId);
-                    assertThat(loader.resolve(List.of(key),Map.of(),ViewportDeadline.after(Duration.ofSeconds(2)),
-                            new ViewportObservation(new ViewportMetrics(metrics)))).hasSize(1);
+                    requests.add(CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
+                            ViewportDeadline.after(Duration.ofSeconds(2)), new ViewportObservation(new ViewportMetrics(metrics))), threads));
                 }
                 assertThat(writesStarted.await(5,TimeUnit.SECONDS)).isTrue();
+                assertThat(requests).allSatisfy(request -> assertThat(request).isNotCompleted());
 
                 Integer value = db.read("source",ViewportDeadline.after(Duration.ofSeconds(1)),
                         read -> read.queryForObject("SELECT 1",Integer.class));
                 assertThat(value).isEqualTo(1);
                 assertThat(releaseWrites.getCount()).isEqualTo(1);
+                releaseWrites.countDown();
+                for (var request : requests) {
+                    assertThat(request.get(5, TimeUnit.SECONDS)).hasSize(1);
+                }
             } finally {
                 releaseWrites.countDown();
             }
@@ -148,7 +157,7 @@ class ViewportSearchIntegrationTest {
         ViewportDeadline deadline = ViewportDeadline.after(Duration.ofMillis(900));
         AtomicInteger consumed = new AtomicInteger();
 
-        var future = db.readAsync("source", deadline, read -> read.execute((ConnectionCallback<Integer>) connection -> {
+        assertThatThrownBy(() -> db.read("source", deadline, read -> read.execute((ConnectionCallback<Integer>) connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
                     "SELECT value, pg_sleep(0.05) FROM generate_series(1, 80) AS values(value)")) {
                 statement.setFetchSize(8);
@@ -159,12 +168,8 @@ class ViewportSearchIntegrationTest {
                 }
             }
             return consumed.get();
-        }));
-
-        assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS))
-                .hasCauseInstanceOf(BusinessException.class)
-                .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getErrorCode())
-                        .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+        }))).isInstanceOfSatisfying(BusinessException.class, failure ->
+                assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
         assertThat(consumed.get()).isPositive().isLessThan(80);
         assertThat(deadline.remainingNanos()).isZero();
     }

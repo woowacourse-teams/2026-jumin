@@ -64,7 +64,7 @@ class ViewportAdmissionTest {
             if (!proceed.await(10, TimeUnit.SECONDS)) {
                 throw new IllegalStateException("request latch timed out");
             }
-            return CompletableFuture.completedFuture(body());
+            return body();
         });
         ViewportSearchService service = fixture.service(fixedClock());
         assertThat(fixture.limit()).isZero();
@@ -112,7 +112,7 @@ class ViewportAdmissionTest {
         Fixture fixture = new Fixture();
         fixture.properties.setMaxConcurrentRequests(8);
         when(fixture.repository.fallback(any(), any(), anyInt(), any(), any()))
-                .thenAnswer(invocation -> CompletableFuture.completedFuture(body()));
+                .thenAnswer(invocation -> body());
         ViewportSearchService service = fixture.service(fixedClock());
         assertThat(fixture.limit()).isEqualTo(8);
         List<ViewportBody> bodies = new ArrayList<>();

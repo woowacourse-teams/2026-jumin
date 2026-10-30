@@ -1,141 +1,141 @@
 package jumin.domain.parking.viewport;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import jumin.config.ViewportCacheProperties;
 import jumin.global.exception.BusinessException;
-import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 
 class ViewportCellLoaderFailureReasonTest {
 
     @Test
-    @DisplayName("셀 작업 한도를 넘긴 다른 키만 거절하고 기존 키의 follower는 결과를 공유한다")
-    void reports_flight_limit_without_breaking_existing_followers() throws Exception {
-        ViewportCacheProperties properties = properties();
+    @DisplayName("셀 한도 초과는 다른 키만 거절하고 같은 키의 대기 요청은 기존 결과를 공유한다")
+    void preserves_registered_load_when_capacity_is_full() throws Exception {
+        // given
+        ViewportCacheProperties properties = new ViewportCacheProperties();
+        properties.setMaxCells(1);
         properties.setMaxInflightCells(1);
         ViewportMetrics metrics = metrics();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
-        CountDownLatch sourceStarted = new CountDownLatch(1);
         when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
-            sourceStarted.countDown();
-            return source;
+            started.countDown();
+            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+            return Map.of(key(1), new ViewportCell(key(1), List.of()));
         });
-        ViewportCellKey first = key(1);
-        ViewportCell result = new ViewportCell(first, List.of());
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
-            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, first, metrics), executor);
-            assertThat(sourceStarted.await(5, TimeUnit.SECONDS)).isTrue();
-            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, first, metrics), executor);
-            awaitFollower(metrics);
-
-            assertReason(ViewportFailureReason.CELL_FLIGHT_LIMIT, () -> resolve(loader, key(2), metrics));
-            source.complete(Map.of(first, result));
-            assertThat(owner.get(5, TimeUnit.SECONDS)).singleElement()
-                    .satisfies(loaded -> assertThat(loaded.cell()).isEqualTo(result));
-            assertThat(follower.get(5, TimeUnit.SECONDS)).singleElement()
-                    .satisfies(loaded -> assertThat(loaded.cell()).isEqualTo(result));
-            verify(repository, times(1)).load(anyList(), any(), any());
+        try (var threads = Executors.newVirtualThreadPerTaskExecutor();
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
+            // when
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            waitForFollower(metrics);
+            // then
+            assertThatThrownBy(() -> resolve(loader, key(2), metrics)).isInstanceOfSatisfying(BusinessException.class,
+                    failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_FLIGHT_LIMIT.name()));
+            release.countDown();
+            assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
+            assertThat(follower.get(5, TimeUnit.SECONDS)).hasSize(1);
+        } finally {
+            release.countDown();
         }
     }
 
     @Test
-    @DisplayName("로더 작업자와 대기열이 모두 찼을 때 포화 원인을 보고하고 기존 작업은 완료한다")
-    void reports_loader_queue_full_for_rejected_owner() throws Exception {
-        ViewportCacheProperties properties = properties();
+    @DisplayName("종료는 셀 잠금 대기와 이후 요청에 종료 원인을 전달한다")
+    void shutdown_releases_waiters_with_closed_reason() throws Exception {
+        // given
         ViewportMetrics metrics = metrics();
-        BlockingStore store = new BlockingStore();
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(store, mock(ViewportReadRepository.class), properties, metrics)) {
-            try {
-                var active = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), executor);
-                assertThat(store.entered.await(5, TimeUnit.SECONDS)).isTrue();
-                var queued = CompletableFuture.supplyAsync(() -> resolve(loader, key(2), metrics), executor);
-                awaitQueued(metrics);
-
-                assertReason(ViewportFailureReason.CELL_LOADER_QUEUE_FULL, () -> resolve(loader, key(3), metrics));
-
-                store.release.countDown();
-                assertThat(active.get(5, TimeUnit.SECONDS)).hasSize(1);
-                assertThat(queued.get(5, TimeUnit.SECONDS)).hasSize(1);
-            } finally {
-                store.release.countDown();
-            }
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ViewportReadRepository repository = mock(ViewportReadRepository.class);
+        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+            started.countDown();
+            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+            return Map.of(key(1), new ViewportCell(key(1), List.of()));
+        });
+        try (var threads = Executors.newVirtualThreadPerTaskExecutor();
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            waitForFollower(metrics);
+            // when
+            loader.close();
+            // then
+            assertThatThrownBy(() -> follower.get(2, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class)
+                    .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
+                            .isEqualTo(ViewportFailureReason.CELL_LOADER_CLOSED.name()));
+            assertThatThrownBy(() -> resolve(loader, key(2), metrics)).isInstanceOfSatisfying(BusinessException.class,
+                    failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_LOADER_CLOSED.name()));
+            release.countDown();
+            assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
+        } finally {
+            release.countDown();
         }
     }
 
     @Test
-    @DisplayName("종료로 취소된 대기 작업과 종료 후 작업은 큐 포화가 아닌 종료 원인을 보고한다")
-    void reports_closed_for_shutdown_cancellation_and_later_requests() throws Exception {
-        ViewportCacheProperties properties = properties();
-        ViewportMetrics metrics = metrics();
-        BlockingStore store = new BlockingStore();
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(store, mock(ViewportReadRepository.class), properties, metrics)) {
-            try {
-                CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), executor);
-                assertThat(store.entered.await(5, TimeUnit.SECONDS)).isTrue();
-                var queued = CompletableFuture.supplyAsync(() -> resolve(loader, key(2), metrics), executor);
-                awaitQueued(metrics);
-
-                loader.close();
-                ExecutionException failure = assertThrows(ExecutionException.class,
-                        () -> queued.get(5, TimeUnit.SECONDS));
-                assertThat(failure.getCause()).isInstanceOf(BusinessException.class);
-                assertReason((BusinessException) failure.getCause(), ViewportFailureReason.CELL_LOADER_CLOSED);
-                assertReason(ViewportFailureReason.CELL_LOADER_CLOSED, () -> resolve(loader, key(3), metrics));
-            } finally {
-                store.release.countDown();
-            }
-        }
-    }
-
-    @Test
-    @DisplayName("불완전한 source batch를 분류하고 소유권을 회수해 다음 요청을 정상 처리한다")
-    void reports_incomplete_batch_and_releases_its_flight() {
-        ViewportCacheProperties properties = properties();
+    @DisplayName("누락된 DB 셀 결과는 저장하지 않고 잠금을 반환해 다시 조회한다")
+    void incomplete_batch_is_rejected_and_retryable() {
+        // given
         ViewportMetrics metrics = metrics();
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-        ViewportCellKey key = key(1);
-        ViewportCell complete = new ViewportCell(key, List.of());
-        when(repository.load(anyList(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(Map.of()))
-                .thenReturn(CompletableFuture.completedFuture(Map.of(key, complete)));
-        try (ViewportCellLoader loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
-            assertReason(ViewportFailureReason.CELL_INCOMPLETE_BATCH, () -> resolve(loader, key, metrics));
-            assertThat(resolve(loader, key, metrics)).singleElement()
-                    .satisfies(loaded -> assertThat(loaded.cell()).isEqualTo(complete));
-            verify(repository, times(2)).load(anyList(), any(), any());
+        ViewportCell cell = new ViewportCell(key(1), List.of());
+        when(repository.load(anyList(), any(), any())).thenReturn(Map.of()).thenReturn(Map.of(key(1), cell));
+        try (var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+            // when & then
+            assertThatThrownBy(() -> resolve(loader, key(1), metrics)).isInstanceOfSatisfying(BusinessException.class,
+                    failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_INCOMPLETE_BATCH.name()));
+            assertThat(resolve(loader, key(1), metrics)).containsExactly(cell);
         }
     }
 
-    private static ViewportCacheProperties properties() {
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setLoaderThreads(1);
-        properties.setLoaderQueue(1);
-        properties.setRequestTimeout(Duration.ofSeconds(10));
-        return properties;
+    @Test
+    @DisplayName("대기 요청의 시간 초과는 대표 조회와 다른 대기 요청을 취소하지 않는다")
+    void follower_timeout_does_not_cancel_owner() throws Exception {
+        // given
+        ViewportMetrics metrics = metrics();
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ViewportReadRepository repository = mock(ViewportReadRepository.class);
+        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+            started.countDown();
+            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+            return Map.of(key(1), new ViewportCell(key(1), List.of()));
+        });
+        try (var threads = Executors.newVirtualThreadPerTaskExecutor();
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            // when & then
+            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)),
+                    new ViewportObservation(metrics))).isInstanceOf(BusinessException.class);
+            assertThat(owner).isNotCompleted();
+            release.countDown();
+            assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
+        } finally {
+            release.countDown();
+        }
+    }
+
+    private static List<ViewportCell> resolve(ViewportCellLoader loader, ViewportCellKey key, ViewportMetrics metrics) {
+        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)), new ViewportObservation(metrics));
     }
 
     private static ViewportMetrics metrics() {
@@ -143,60 +143,14 @@ class ViewportCellLoaderFailureReasonTest {
     }
 
     private static ViewportCellKey key(long id) {
-        return new ViewportCellKey("test", 1, 1,
-                1000, id);
+        return new ViewportCellKey("reason", 1, 1, 1000, id);
     }
 
-    private static List<ViewportCellLoadResult> resolve(ViewportCellLoader loader, ViewportCellKey key,
-                                                            ViewportMetrics metrics) {
-        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)),
-                new ViewportObservation(metrics));
-    }
-
-    private static void assertReason(ViewportFailureReason expected, Executable action) {
-        assertReason(assertThrows(BusinessException.class, action), expected);
-    }
-
-    private static void assertReason(BusinessException failure, ViewportFailureReason expected) {
-        assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
-        assertThat(failure.getReason()).isEqualTo(expected.name());
-        assertThat(ViewportFailureDiagnostics.inspect(failure).reason()).isEqualTo(expected.name());
-    }
-
-    private static void awaitQueued(ViewportMetrics metrics) throws InterruptedException {
+    private static void waitForFollower(ViewportMetrics metrics) throws Exception {
         long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (metrics.registry().get("parking.viewport.loader.queued").gauge().value() != 1) {
+        while (metrics.registry().counter("parking.viewport.flights", "outcome", "follower_registered").count() == 0) {
             assertThat(System.nanoTime()).isLessThan(until);
             Thread.sleep(1);
-        }
-    }
-
-    private static void awaitFollower(ViewportMetrics metrics) throws InterruptedException {
-        long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (metrics.registry().counter("parking.viewport.flights", "outcome", "follower_registered").count() < 1) {
-            assertThat(System.nanoTime()).isLessThan(until);
-            Thread.sleep(1);
-        }
-    }
-
-    private static final class BlockingStore extends EmptyViewportCellStore {
-        private final CountDownLatch entered = new CountDownLatch(1);
-        private final CountDownLatch release = new CountDownLatch(1);
-
-        @Override
-        public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-            entered.countDown();
-            try {
-                if (!release.await(5, TimeUnit.SECONDS)) {
-                    throw new IllegalStateException("recheck gate timed out");
-                }
-            } catch (InterruptedException failure) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("recheck gate interrupted", failure);
-            }
-            Map<ViewportCellKey, ViewportCell> result = new LinkedHashMap<>();
-            keys.forEach(key -> result.put(key, new ViewportCell(key, List.of())));
-            return result;
         }
     }
 }

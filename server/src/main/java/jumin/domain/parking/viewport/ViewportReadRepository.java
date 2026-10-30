@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
@@ -19,11 +18,15 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ViewportReadRepository {
 
+    private static final String FIELDS = """
+            l.id, l.latitude, l.longitude, l.capacity, l.mechanical, l.is_public,
+            o.weekday_paid, o.saturday_paid, o.holiday_paid
+            """;
     private static final String CELLS = """
             WITH cells AS (SELECT unnest(ARRAY[:cells]::BIGINT[]) AS cell_id)
             SELECT state.grid_size_meters, state.projection_ready,
                    cells.cell_id,
-            """ + ViewportProjectionSql.FIELDS + """
+            """ + FIELDS + """
             FROM parking_viewport_cache_state state
             CROSS JOIN cells
             LEFT JOIN LATERAL (
@@ -37,7 +40,7 @@ public class ViewportReadRepository {
             WHERE state.id = 1
             ORDER BY cells.cell_id, l.id
             """;
-    private static final String FALLBACK = "SELECT " + ViewportProjectionSql.FIELDS + """
+    private static final String FALLBACK = "SELECT " + FIELDS + """
             FROM parking_lots l LEFT JOIN parking_operations o ON o.parking_lot_id = l.id
             WHERE l.active = TRUE AND l.location IS NOT NULL
               AND l.name IS NOT NULL AND l.address IS NOT NULL
@@ -65,25 +68,25 @@ public class ViewportReadRepository {
         named = new NamedParameterJdbcTemplate(db.jdbc());
     }
 
-    public CompletableFuture<Map<ViewportCellKey, ViewportCell>> load(List<ViewportCellKey> keys,
+    public Map<ViewportCellKey, ViewportCell> load(List<ViewportCellKey> keys,
                                                                      ViewportDeadline deadline) {
         return load(keys, deadline, () -> { });
     }
 
-    public CompletableFuture<Map<ViewportCellKey, ViewportCell>> load(List<ViewportCellKey> keys,
+    public Map<ViewportCellKey, ViewportCell> load(List<ViewportCellKey> keys,
                                                                      ViewportDeadline deadline,
                                                                      Runnable sourceStarted) {
         if (keys.isEmpty() || keys.size() > properties.getMaxCells()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("셀 batch 범위가 잘못되었습니다."));
+            throw new IllegalArgumentException("셀 batch 범위가 잘못되었습니다.");
         }
         int gridSizeMeters = keys.getFirst().gridSizeMeters();
         if (keys.stream().anyMatch(key -> key.gridSizeMeters() != gridSizeMeters)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("서로 다른 격자 크기는 로딩할 수 없습니다."));
+            throw new IllegalArgumentException("서로 다른 격자 크기는 로딩할 수 없습니다.");
         }
         MapSqlParameterSource parameters = new MapSqlParameterSource("cells", keys.stream()
                 .map(ViewportCellKey::cellId).toList())
                 .addValue("cell_row_limit", properties.getMaxCellRows() + 1);
-        return db.readAsync("source", deadline, ignored -> {
+        return db.read("source", deadline, ignored -> {
             deadline.requireRemaining();
             sourceStarted.run();
             metrics.count("sql", "cell_batch", 1);
@@ -124,7 +127,7 @@ public class ViewportReadRepository {
         return Map.copyOf(result);
     }
 
-    public CompletableFuture<ViewportBody> fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
+    public ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
                                        ViewportDeadline deadline, Runnable sourceStarted) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("west", bounds.west()).addValue("south", bounds.south())
@@ -132,7 +135,7 @@ public class ViewportReadRepository {
                 .addValue("free", request.freeOnly()).addValue("mechanical", request.excludeMechanical())
                 .addValue("public", request.isPublic()).addValue("day", day)
                 .addValue("row_limit", properties.getMaxFallbackRows() + 1);
-        return db.readAsync("fallback", deadline, ignored -> {
+        return db.read("fallback", deadline, ignored -> {
             deadline.requireRemaining();
             sourceStarted.run();
             metrics.count("sql", "fallback", 1);

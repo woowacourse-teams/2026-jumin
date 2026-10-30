@@ -42,7 +42,7 @@ class RedisViewportCellStoreTest {
     }
 
     @Test
-    @DisplayName("공유 source deadline이 지나도 미제출 write의 실제 완료 전에는 cache writer를 반환하지 않는다")
+    @DisplayName("동기 직렬화는 실제 반환까지 기다리며 기한이 지난 값은 Redis에 저장하지 않는다")
     void retains_write_caller_until_actual_transport_finishes() throws Exception {
         ViewportCacheProperties properties = properties();
         ViewportCell cell = full(properties, 1);
@@ -76,8 +76,8 @@ class RedisViewportCellStoreTest {
             } finally {
                 release.countDown();
             }
-            write.get(5,TimeUnit.SECONDS);
-            assertThat(store.getMany(List.of(cell.key()),deadline())).containsEntry(cell.key(),cell);
+            assertThatThrownBy(() -> write.get(5,TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
+            assertThat(store.getMany(List.of(cell.key()),deadline())).isEmpty();
         } finally {
             release.countDown();
         }
@@ -176,7 +176,7 @@ class RedisViewportCellStoreTest {
     }
 
     @Test
-    @DisplayName("개인 timeout 뒤에도 실제 미완료 Redis 작업은 transport slot을 반환하지 않는다")
+    @DisplayName("개인 timeout 뒤 동기 명령이 반환하면 후속 요청이 Redis 용량을 재사용한다")
     void retains_transport_capacity_until_actual_command_completes() throws Exception {
         ViewportCacheProperties properties = properties();
         ViewportCell full = full(properties, 1);
@@ -194,8 +194,6 @@ class RedisViewportCellStoreTest {
                                 .isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             }
 
-            assertThatThrownBy(() -> store.getMany(List.of(full.key()), deadline()))
-                    .isInstanceOf(ViewportStoreException.class).hasMessageContaining("transport");
             raw.sync().ping();
             long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (true) {

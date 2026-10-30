@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class ViewportCachePropertiesTest {
 
     @Test
-    @DisplayName("DB와 loader 및 Redis의 대기열과 동시성 기본값을 독립적으로 적용한다")
+    @DisplayName("DB 대기 한도와 동기 Redis 동시성 기본값을 적용한다")
     void separates_default_capacity_settings() {
         ViewportCacheProperties properties = new ViewportCacheProperties();
 
@@ -19,8 +19,7 @@ class ViewportCachePropertiesTest {
 
         assertThat(properties.getMaxConcurrentDb()).isEqualTo(3);
         assertThat(properties.getDbQueue()).isEqualTo(256);
-        assertThat(properties.getLoaderQueue()).isEqualTo(32);
-        assertThat(properties.getRedisTransportThreads()).isEqualTo(3);
+        assertThat(properties.getMaxConcurrentRedis()).isEqualTo(3);
         assertThat(properties.getMaxConcurrentRequests()).isZero();
     }
 
@@ -34,9 +33,9 @@ class ViewportCachePropertiesTest {
         properties.setDbQueue(513);
         assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
         properties.setDbQueue(32);
-        properties.setRedisTransportThreads(0);
+        properties.setMaxConcurrentRedis(0);
         assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setRedisTransportThreads(17);
+        properties.setMaxConcurrentRedis(17);
         assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -47,16 +46,19 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRequests(8);
 
         properties.validate();
-        properties.setRedisTransportThreads(6);
+        properties.setMaxConcurrentDb(16);
+        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        properties.setMaxConcurrentDb(3);
+        properties.setMaxConcurrentRedis(6);
         properties.validate();
-        properties.setRedisTransportThreads(8);
+        properties.setMaxConcurrentRedis(9);
         assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
 
         properties.setMaxConcurrentRequests(0);
         properties.setMaxConcurrentDb(1);
-        properties.setLoaderThreads(1);
+        properties.setMaxConcurrentRedis(8);
         properties.validate();
-        properties.setRedisTransportThreads(9);
+        properties.setMaxConcurrentRedis(9);
         assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
     }
 

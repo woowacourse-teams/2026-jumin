@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -16,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -72,9 +74,11 @@ class ViewportStoreBypassTest {
             }
         };
         ViewportCellStore store = new EmptyViewportCellStore() {
+            private final AtomicInteger calls = new AtomicInteger();
+
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
+                if (calls.incrementAndGet() == 2) {
                     recheckStarted.countDown();
                     try {
                         if (!releaseRecheck.await(10, TimeUnit.SECONDS)) {
@@ -149,9 +153,13 @@ class ViewportStoreBypassTest {
         AtomicInteger initialReads = new AtomicInteger();
         AtomicInteger rechecks = new AtomicInteger();
         ViewportCellStore store = new EmptyViewportCellStore() {
+            private final ThreadLocal<Integer> reads = ThreadLocal.withInitial(() -> 0);
+
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
+                int phase = reads.get();
+                reads.set(phase + 1);
+                if (phase == 1) {
                     rechecks.incrementAndGet();
                     throw new ViewportStoreException("injected owner recheck failure");
                 }
@@ -175,7 +183,7 @@ class ViewportStoreBypassTest {
         when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
             ((Runnable) invocation.getArgument(2)).run();
             loading.countDown();
-            return source;
+            return source.join();
         });
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
@@ -234,7 +242,7 @@ class ViewportStoreBypassTest {
         CountDownLatch started = new CountDownLatch(2);
         when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
             started.countDown();
-            return source;
+            return source.join();
         });
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
              ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
@@ -262,9 +270,11 @@ class ViewportStoreBypassTest {
             int gridSizeMeters = gridSizeMeters();
             ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
             ViewportCellStore store = new EmptyViewportCellStore() {
+                private int reads;
+
                 @Override
                 public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                    if (failInitial || Thread.currentThread().getName().equals("viewport-cell-owner")) {
+                    if (failInitial || ++reads == 2) {
                         throw new ViewportStoreBudgetException("injected capacity limit");
                     }
                     return Map.of();
@@ -274,7 +284,7 @@ class ViewportStoreBypassTest {
 
             ParkingLotViewportResponses expected = response(item(1, 100));
             when(repository.fallback(any(), any(), anyInt(), any(), any()))
-                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected)));
+                    .thenAnswer(invocation -> new ViewportBody(expected));
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
@@ -335,10 +345,10 @@ class ViewportStoreBypassTest {
             ViewportReadRepository repository = mock(ViewportReadRepository.class);
 
             when(repository.load(anyList(), any(), any()))
-                    .thenReturn(CompletableFuture.failedFuture(ViewportFallbackException.cellTooLarge()));
+                    .thenThrow(ViewportFallbackException.cellTooLarge());
             ParkingLotViewportResponses expected = response(duplicate);
             when(repository.fallback(any(), any(), anyInt(), any(), any()))
-                    .thenAnswer(invocation -> CompletableFuture.completedFuture(new ViewportBody(expected)));
+                    .thenAnswer(invocation -> new ViewportBody(expected));
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
@@ -365,9 +375,11 @@ class ViewportStoreBypassTest {
         ViewportItem missing = item(2, 200);
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         ViewportCellStore store = new EmptyViewportCellStore() {
+            private int reads;
+
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                if (Thread.currentThread().getName().equals("viewport-cell-owner")) {
+                if (++reads == 2) {
                     throw new ViewportStoreException("injected owner recheck failure");
                 }
                 return Map.of(first, new ViewportCell(first, List.of(hit)));
@@ -376,13 +388,13 @@ class ViewportStoreBypassTest {
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
 
         when(repository.load(anyList(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(Map.of(second, new ViewportCell(second, List.of(missing)))));
+                .thenReturn(Map.of(second, new ViewportCell(second, List.of(missing))));
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
             assertThat(search(service)).isEqualTo(response(hit, missing));
 
-            verify(repository, times(1)).load(org.mockito.ArgumentMatchers.eq(List.of(second)), any(), any());
+            verify(repository, times(1)).load(eq(List.of(second)), any(), any());
             verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
         }
     }
@@ -441,7 +453,7 @@ class ViewportStoreBypassTest {
 
     private ParkingLotViewportResponses response(ViewportItem... items) {
         ParkingLodScoreCalculator scores = new ParkingLodScoreCalculator();
-        return ParkingLotViewportResponses.from(java.util.Arrays.stream(items)
+        return ParkingLotViewportResponses.from(Arrays.stream(items)
                 .map(item -> new ParkingLotViewportResponse(item.id(), item.latitude(), item.longitude(),
                         scores.calculate(item.capacity())))
                 .toList());
