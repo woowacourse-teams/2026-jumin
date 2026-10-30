@@ -18,19 +18,15 @@ const PARKING_LOT = {
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
 
-const goToParkingTimeStep = async (page: Page) => {
-  await page.getByRole('button', { name: '다음' }).click();
-  await expect(page.getByRole('heading', { name: '언제 주차하세요?' })).toBeVisible();
-};
-
 const requestRecommendation = async (page: Page) => {
-  await page.getByRole('button', { name: '+1시간' }).click();
-  await page.getByRole('button', { name: '추천 받기' }).click();
-  await expect(page.getByRole('region', { name: '거리순 추천 주차장' })).toBeVisible();
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
 };
 
 const searchDestination = async (page: Page) => {
   await page.getByRole('textbox', { name: '목적지 검색' }).click();
+  await expect(page).toHaveURL((url) => url.pathname === '/search');
+  await expect(page.getByRole('heading', { name: '최근 검색' })).toBeVisible();
   await page.getByRole('textbox', { name: '목적지 검색' }).fill('강남역');
   await page
     .getByRole('button', { name: /강남역 11번 출구/ })
@@ -45,16 +41,11 @@ const searchDestination = async (page: Page) => {
 const goToRecommendedParkingDetail = async (page: Page) => {
   await page.goto('/');
   await searchDestination(page);
-  await goToParkingTimeStep(page);
   await requestRecommendation(page);
 
-  const recommendation = page.getByRole('region', { name: '거리순 추천 주차장' });
-  const parkingLotCard = recommendation
-    .getByRole('heading', { name: PARKING_LOT.name })
-    .locator('..');
-
-  await parkingLotCard.getByRole('button', { name: /상세정보$/ }).click();
-  await expect(page).toHaveURL(/\/parkingDetail$/);
+  const recommendation = page.getByRole('region', { name: '주차장 전체 목록' });
+  await recommendation.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
+  await expect(page).toHaveURL(/\/parkingRecommend$/);
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
 };
 
@@ -80,9 +71,44 @@ const getIntentSearchParams = (intentUrl: string) => {
 test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => {
   await goToRecommendedParkingDetail(page);
 
-  await expect(page.getByText('6,000원')).toBeVisible();
-  await expect(page.getByText('직선거리 310m')).toBeVisible();
-  await expect(page.getByText('평일 24시간')).toBeVisible();
+  const detail = page.getByRole('region', { name: '주차장 상세정보', exact: true });
+  await expect(detail.getByText('6,000원')).toBeVisible();
+  await expect(detail.getByText('310m(5분)')).toBeVisible();
+  await expect(detail.getByText('평일 24시간')).toBeVisible();
+});
+
+test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과 정렬을 유지한다', async ({ page }) => {
+  await page.goto('/');
+  await searchDestination(page);
+  await requestRecommendation(page);
+  const region = page.getByRole('region', { name: '주차장 전체 목록' });
+  await expect(region.getByRole('tab')).toHaveText(['추천순', '거리순', '가격순']);
+
+  for (const name of ['강남대로 공영주차장', '목록 확인 주차장 3']) {
+    const select = region.getByRole('button', { name: `${name} 선택` });
+    await select.click();
+    await expect(select).toHaveAttribute('aria-pressed', 'true');
+    await region.getByRole('button', { name: `${name} 상세정보` }).click();
+    await expect(page).toHaveURL(/\/parkingRecommend$/);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
+    await expect(region).toBeHidden();
+    await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
+    await expect(select).toBeVisible();
+    await expect(select).toHaveAttribute('aria-pressed', 'true');
+    await expect(region.getByRole('tab', { name: '추천순' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  }
+  await region.getByRole('tab', { name: '가격순' }).click();
+  await region.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
+  await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
+  await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
+  await expect(region.getByRole('tab', { name: '가격순' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
 });
 
 test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다', async ({ page }) => {

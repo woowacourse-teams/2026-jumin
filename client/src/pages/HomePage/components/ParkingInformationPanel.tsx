@@ -5,7 +5,7 @@ import type { ParkingLotViewport } from '../../../../api/contracts';
 import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
 import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
 import { ErrorCard } from '../../../../shared/components/service/ErrorCard';
-import { ParkingDetailSkeleton } from '../../ParkingDetailPage/LoadingUI/ParkingDetailSkeleton';
+import { ParkingDetailSkeleton } from '../../ParkingRecommendPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
 import { ConditionBar } from '../../../../shared/components/service/ConditionBar';
 import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';

@@ -1,6 +1,5 @@
 import { css, cx, keyframes } from '@emotion/css';
 
-import { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
 import { color } from '../../../theme/color';
 
 const FEE_RULE_COUNT = 3;
@@ -13,10 +12,6 @@ export const ParkingDetailSkeleton = () => (
     aria-busy="true"
     role="status"
   >
-    <div className={handleAreaStyle} aria-hidden="true">
-      <div className={handleStyle} />
-    </div>
-
     <div className={contentStyle} aria-hidden="true">
       <div className={feeCardStyle}>
         <div className={totalFeeStyle}>
@@ -77,35 +72,12 @@ const skeletonBlockStyle = css`
 `;
 
 const sheetStyle = css`
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1000;
-
   display: flex;
-  height: ${BOTTOM_SHEET_HEIGHT}px;
+  height: 100%;
   flex-direction: column;
   pointer-events: none;
 
   background: ${color.background.default};
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 20px rgb(0 0 0 / 10%);
-`;
-
-const handleAreaStyle = css`
-  display: flex;
-  flex-shrink: 0;
-  justify-content: center;
-  padding: 14px 0 18px;
-`;
-
-const handleStyle = css`
-  width: 40px;
-  height: 4px;
-
-  background: ${color.background.muted};
-  border-radius: 999px;
 `;
 
 const contentStyle = css`
@@ -113,7 +85,6 @@ const contentStyle = css`
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: 0 24px max(28px, env(safe-area-inset-bottom, 0px));
 `;
 
 const feeCardStyle = css`

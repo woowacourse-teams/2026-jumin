@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { cleanup } from '@testing-library/react';
+import { act, cleanup } from '@testing-library/react';
 import { Outlet, Route, Routes } from 'react-router';
 
 import { getMapCenterForMarkerY } from '../../shared/maps/getMapCenterForMarkerY';
@@ -27,8 +27,10 @@ class MockOverlay {
 }
 
 let originalNaver: PropertyDescriptor | undefined;
+let clickListeners: Set<{ target: unknown; callback: () => void }>;
 
 beforeEach(() => {
+  clickListeners = new Set();
   originalNaver = Object.getOwnPropertyDescriptor(globalThis, 'naver');
   Object.defineProperty(globalThis, 'naver', {
     configurable: true,
@@ -39,7 +41,16 @@ beforeEach(() => {
         Size: MockPoint,
         Marker: MockOverlay,
         Circle: MockOverlay,
-        Event: { addListener: () => ({}), removeListener: () => {} },
+        Event: {
+          addListener: (target: unknown, name: string, callback: () => void) => {
+            const listener = { target, callback };
+            if (name === 'click') clickListeners.add(listener);
+            return listener;
+          },
+          removeListener: (listener: { target: unknown; callback: () => void }) => {
+            clickListeners.delete(listener);
+          },
+        },
       },
     },
   });
@@ -152,20 +163,19 @@ it.each(['collapsed', 'expanded'] as const)(
         initialEntries: [
           {
             pathname: '/parkingRecommend',
-            state: {
-              searchCondition,
-              recommendView: {
-                parkingLotId: parkingLot.id,
-                recommendationType: 'DISTANCE',
-                sheetSnap,
-              },
-            },
+            state: { searchCondition },
           },
         ],
       },
     );
 
     if (sheetSnap === 'collapsed') {
+      // 추천 view 복원 대신 실제 지도 클릭으로 시트를 접는다.
+      act(() => {
+        [...clickListeners]
+          .filter(({ target }) => target === map)
+          .forEach(({ callback }) => callback());
+      });
       expect(panTo).toHaveBeenLastCalledWith(
         new MockPoint(parkingLot.location.latitude, parkingLot.location.longitude),
       );

@@ -14,7 +14,6 @@ export const STEP_PATH = {
   search: '/search',
   setup: '/parkingsetup',
   recommend: '/parkingRecommend',
-  detail: '/parkingDetail',
 } satisfies Record<Step, string>;
 
 const policyByStep: MovePolicy = MOVE_POLICY;
