@@ -1,0 +1,485 @@
+package jumin.domain.parking.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import jumin.config.ViewportCacheProperties;
+import jumin.domain.parking.cache.EmptyViewportCellStore;
+import jumin.domain.parking.cache.ViewportCellStore;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponse;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
+import jumin.domain.parking.dto.ViewportBody;
+import jumin.domain.parking.exception.ViewportFailureReason;
+import jumin.domain.parking.exception.ViewportFallbackException;
+import jumin.domain.parking.exception.ViewportStoreBudgetException;
+import jumin.domain.parking.exception.ViewportStoreException;
+import jumin.domain.parking.model.ViewportCell;
+import jumin.domain.parking.model.ViewportCellKey;
+import jumin.domain.parking.model.ViewportDeadline;
+import jumin.domain.parking.model.ViewportItem;
+import jumin.domain.parking.monitoring.ViewportMetrics;
+import jumin.domain.parking.monitoring.ViewportObservation;
+import jumin.domain.parking.repository.ViewportRepository;
+import jumin.global.exception.BusinessException;
+import jumin.global.exception.ErrorCode;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class ViewportStoreBypassTest {
+
+    @Test
+    @DisplayName("최초 cache 조회 장애가 발생한 100개 요청은 하나의 셀 source 작업을 공유한다")
+    void coalesces_one_hundred_requests_after_initial_read_failure() throws Exception {
+        exerciseConcurrentFailure(true);
+    }
+
+    @Test
+    @DisplayName("owner cache 재조회 장애가 발생한 100개 요청은 하나의 셀 source 작업을 공유한다")
+    void coalesces_one_hundred_requests_after_owner_recheck_failure() throws Exception {
+        exerciseConcurrentFailure(false);
+    }
+
+    @Test
+    @DisplayName("최초 조회 실패 후 다른 요청의 재조회 적중을 공유하면 source 없이 성공한다")
+    void initial_failure_can_share_an_owner_recheck_hit() throws Exception {
+        ViewportCacheProperties properties = properties();
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey key = key(gridSizeMeters, 10);
+        ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
+        CountDownLatch recheckStarted = new CountDownLatch(1);
+        CountDownLatch releaseRecheck = new CountDownLatch(1);
+        CountDownLatch followerRegistered = new CountDownLatch(1);
+        CountDownLatch observed = new CountDownLatch(2);
+        AtomicInteger initialReads = new AtomicInteger();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry) {
+            @Override
+            public void count(String metric, String outcome, double amount) {
+                super.count(metric, outcome, amount);
+                if (metric.equals("flights") && outcome.equals("follower_registered")) {
+                    followerRegistered.countDown();
+                } else if (metric.equals("logical") && outcome.startsWith("follower_")) {
+                    observed.countDown();
+                }
+            }
+        };
+        ViewportCellStore store = new EmptyViewportCellStore() {
+            private final AtomicInteger calls = new AtomicInteger();
+
+            @Override
+            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                if (calls.incrementAndGet() == 2) {
+                    recheckStarted.countDown();
+                    try {
+                        if (!releaseRecheck.await(10, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("recheck latch timed out");
+                        }
+                    } catch (InterruptedException failure) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(failure);
+                    }
+                    return Map.of(key, cell);
+                }
+                if (initialReads.incrementAndGet() == 1) {
+                    return Map.of();
+                }
+                throw new ViewportStoreException("injected follower initial read failure");
+            }
+        };
+        ViewportRepository repository = mock(ViewportRepository.class);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+             ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            try {
+                ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+                var owner = CompletableFuture.supplyAsync(() -> search(service), executor);
+                assertThat(recheckStarted.await(10, TimeUnit.SECONDS)).isTrue();
+                var follower = CompletableFuture.supplyAsync(() -> search(service), executor);
+                assertThat(followerRegistered.await(10, TimeUnit.SECONDS)).isTrue();
+
+                releaseRecheck.countDown();
+
+                ParkingLotViewportResponses expected = response(item(1, 100));
+                assertThat(owner.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
+                assertThat(follower.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
+                assertThat(observed.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(initialReads).hasValue(2);
+                verify(repository, times(0)).load(anyList(), any(), any());
+                verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
+                assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(1);
+                assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(1);
+                assertThat(counter(registry, "logical", "full_store_hit_true")).isZero();
+                assertThat(counter(registry, "logical", "full_store_hit_false")).isEqualTo(2);
+                assertThat(counter(registry, "logical", "source_independent_true")).isEqualTo(2);
+                assertThat(counter(registry, "logical", "source_independent_false")).isZero();
+            } finally {
+                releaseRecheck.countDown();
+            }
+        }
+    }
+
+    private void exerciseConcurrentFailure(boolean failInitial) throws Exception {
+        int requestCount = 100;
+        CountDownLatch followers = new CountDownLatch(requestCount - 1);
+        CountDownLatch observed = new CountDownLatch(requestCount);
+        CountDownLatch writeFailed = new CountDownLatch(1);
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry) {
+            @Override
+            public void count(String metric, String outcome, double amount) {
+                super.count(metric, outcome, amount);
+                if (metric.equals("flights") && outcome.equals("follower_registered")) {
+                    followers.countDown();
+                } else if (metric.equals("logical") && outcome.startsWith("follower_")) {
+                    observed.countDown();
+                } else if (metric.equals("store") && outcome.equals("put_failure")) {
+                    writeFailed.countDown();
+                }
+            }
+        };
+        ViewportCacheProperties properties = properties();
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey key = key(gridSizeMeters, 10);
+        ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
+        AtomicInteger initialReads = new AtomicInteger();
+        AtomicInteger rechecks = new AtomicInteger();
+        ViewportCellStore store = new EmptyViewportCellStore() {
+            private final ThreadLocal<Integer> reads = ThreadLocal.withInitial(() -> 0);
+
+            @Override
+            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                int phase = reads.get();
+                reads.set(phase + 1);
+                if (phase == 1) {
+                    rechecks.incrementAndGet();
+                    throw new ViewportStoreException("injected owner recheck failure");
+                }
+                initialReads.incrementAndGet();
+                if (failInitial) {
+                    throw new ViewportStoreException("injected initial read failure",
+                            ViewportFailureReason.UNCLASSIFIED.failure());
+                }
+                return Map.of();
+            }
+
+            @Override
+            public void putMany(List<ViewportCell> cells, ViewportDeadline deadline) {
+                throw new ViewportStoreException("injected shared write failure");
+            }
+        };
+        ViewportRepository repository = mock(ViewportRepository.class);
+
+        CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
+        CountDownLatch loading = new CountDownLatch(1);
+        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(2)).run();
+            loading.countDown();
+            return source.join();
+        });
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
+             ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+            List<CompletableFuture<ParkingLotViewportResponses>> requests = new ArrayList<>();
+            for (int index = 0; index < requestCount; index++) {
+                requests.add(CompletableFuture.supplyAsync(() -> search(service), executor));
+            }
+            assertThat(loading.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(followers.await(10, TimeUnit.SECONDS)).isTrue();
+
+            source.complete(Map.of(key, cell));
+
+            ParkingLotViewportResponses expected = response(item(1, 100));
+            for (CompletableFuture<ParkingLotViewportResponses> result : requests) {
+                assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
+            }
+            assertThat(writeFailed.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(observed.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(initialReads).hasValue(requestCount);
+            assertThat(rechecks).hasValue(failInitial ? 0 : 1);
+            verify(repository, times(1)).load(anyList(), any(), any());
+            verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
+            assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(failInitial ? requestCount : 0);
+            assertThat(counter(registry, "store", "recheck_failure")).isEqualTo(failInitial ? 0 : 1);
+            assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(failInitial ? requestCount : 0);
+            assertThat(counter(registry, "store", "bypass_recheck")).isEqualTo(failInitial ? 0 : 1);
+            assertThat(counter(registry, "store", "put_failure")).isEqualTo(1);
+            assertThat(counter(registry, "logical", "full_store_hit_true")).isZero();
+            assertThat(counter(registry, "logical", "full_store_hit_false")).isEqualTo(requestCount);
+            assertThat(counter(registry, "logical", "source_independent_true")).isZero();
+            assertThat(counter(registry, "logical", "source_independent_false")).isEqualTo(requestCount);
+        } finally {
+            source.completeExceptionally(new AssertionError("test finished before completing source"));
+        }
+    }
+
+    @Test
+    @DisplayName("캐시 장애 중 순차 요청은 이전 요청 결과를 별도 메모리 캐시에 남기지 않는다")
+    void sequential_bypass_requests_reload_from_database() {
+        // given
+        ViewportCacheProperties properties = properties();
+        ViewportCellKey key = key(gridSizeMeters(), 10);
+        ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry);
+        ViewportCellStore store = new EmptyViewportCellStore() {
+            @Override
+            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                throw new ViewportStoreException("injected read failure");
+            }
+        };
+        ViewportRepository repository = mock(ViewportRepository.class);
+        when(repository.load(anyList(), any(), any())).thenReturn(Map.of(key, cell));
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+            // when
+            var first = search(service);
+            var second = search(service);
+            // then
+            assertThat(first).isEqualTo(response(item(1, 100)));
+            assertThat(second).isEqualTo(first);
+            verify(repository, times(2)).load(anyList(), any(), any());
+            verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
+        }
+    }
+
+    @Test
+    @DisplayName("최초 조회와 재조회 각각의 cache 용량 초과는 셀 로딩이 아닌 전체 조회를 사용한다")
+    void budget_failures_keep_fallback_for_initial_and_recheck() {
+        for (boolean failInitial : List.of(true, false)) {
+            ViewportCacheProperties properties = properties();
+            int gridSizeMeters = gridSizeMeters();
+            SimpleMeterRegistry registry = new SimpleMeterRegistry();
+            ViewportMetrics metrics = new ViewportMetrics(registry);
+            ViewportCellStore store = new EmptyViewportCellStore() {
+                private int reads;
+
+                @Override
+                public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                    if (failInitial || ++reads == 2) {
+                        throw new ViewportStoreBudgetException("injected capacity limit");
+                    }
+                    return Map.of();
+                }
+            };
+            ViewportRepository repository = mock(ViewportRepository.class);
+
+            ParkingLotViewportResponses expected = response(item(1, 100));
+            when(repository.fallback(any(), any(), anyInt(), any(), any()))
+                    .thenAnswer(invocation -> new ViewportBody(expected));
+            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+                ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+
+                assertThat(search(service)).isEqualTo(expected);
+
+                verify(repository, times(0)).load(anyList(), any(), any());
+                verify(repository, times(1)).fallback(any(), any(), anyInt(), any(), any());
+                assertThat(counter(registry, "store", failInitial ? "initial_get_budget" : "recheck_budget")).isEqualTo(1);
+                assertThat(counter(registry, "store", "bypass_initial")).isZero();
+                assertThat(counter(registry, "store", "bypass_recheck")).isZero();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("전체 요청 deadline이 소진된 조회는 cache 오류 뒤에 source 작업을 시작하지 않는다")
+    void expired_request_deadline_does_not_start_source() {
+        ViewportCacheProperties properties = properties();
+        properties.setRequestTimeout(Duration.ZERO);
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry);
+        ViewportCellStore store = new EmptyViewportCellStore() {
+            @Override
+            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                throw new ViewportStoreException("injected initial read failure");
+            }
+        };
+        ViewportRepository repository = mock(ViewportRepository.class);
+
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+
+            assertThatThrownBy(() -> search(service))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+
+            verify(repository, times(0)).load(anyList(), any(), any());
+            verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
+        }
+    }
+
+    @Test
+    @DisplayName("셀 source 용량 초과와 조립 중 중복 항목 오류는 전체 조회로 정확한 결과를 반환한다")
+    void source_oversize_and_assembly_integrity_failure_keep_fallback() {
+        for (boolean oversize : List.of(true, false)) {
+            ViewportCacheProperties properties = properties();
+            int gridSizeMeters = gridSizeMeters();
+            ViewportCellKey first = key(gridSizeMeters, 10);
+            ViewportCellKey second = key(gridSizeMeters, 20);
+            ViewportItem duplicate = item(1, 100);
+            SimpleMeterRegistry registry = new SimpleMeterRegistry();
+            ViewportMetrics metrics = new ViewportMetrics(registry);
+            ViewportCellStore store = new EmptyViewportCellStore() {
+                @Override
+                public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                    return oversize ? Map.of() : Map.of(first, new ViewportCell(first, List.of(duplicate)),
+                            second, new ViewportCell(second, List.of(duplicate)));
+                }
+            };
+            ViewportRepository repository = mock(ViewportRepository.class);
+
+            when(repository.load(anyList(), any(), any()))
+                    .thenThrow(ViewportFallbackException.cellTooLarge());
+            ParkingLotViewportResponses expected = response(duplicate);
+            when(repository.fallback(any(), any(), anyInt(), any(), any()))
+                    .thenAnswer(invocation -> new ViewportBody(expected));
+            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+                ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
+
+                assertThat(search(service)).isEqualTo(expected);
+
+                verify(repository, times(oversize ? 1 : 0)).load(anyList(), any(), any());
+                verify(repository, times(1)).fallback(any(), any(), anyInt(), any(), any());
+                assertThat(counter(registry, "requests", "oversize_bypass")).isEqualTo(oversize ? 1 : 0);
+                assertThat(counter(registry, "store", "assemble_failure")).isEqualTo(oversize ? 0 : 1);
+                assertThat(counter(registry, "store", "bypass_initial")).isZero();
+                assertThat(counter(registry, "store", "bypass_recheck")).isZero();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("부분 cache 적중 후 재조회 장애가 나면 누락된 셀만 source에서 로드한다")
+    void preserves_partial_hits_on_recheck_failure() {
+        ViewportCacheProperties properties = properties();
+        int gridSizeMeters = gridSizeMeters();
+        ViewportCellKey first = key(gridSizeMeters, 10);
+        ViewportCellKey second = key(gridSizeMeters, 20);
+        ViewportItem hit = item(1, 100);
+        ViewportItem missing = item(2, 200);
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry);
+        ViewportCellStore store = new EmptyViewportCellStore() {
+            private int reads;
+
+            @Override
+            public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
+                if (++reads == 2) {
+                    throw new ViewportStoreException("injected owner recheck failure");
+                }
+                return Map.of(first, new ViewportCell(first, List.of(hit)));
+            }
+        };
+        ViewportRepository repository = mock(ViewportRepository.class);
+
+        when(repository.load(anyList(), any(), any()))
+                .thenReturn(Map.of(second, new ViewportCell(second, List.of(missing))));
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
+
+            assertThat(search(service)).isEqualTo(response(hit, missing));
+
+            verify(repository, times(1)).load(eq(List.of(second)), any(), any());
+            verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
+        }
+    }
+
+    @Test
+    @DisplayName("조회 실패와 최초 미스는 최초 전체 적중이 아니며 source 미사용 성공은 독립 요청이다")
+    void separates_first_lookup_hit_from_source_independence() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry);
+        ViewportObservation bypassed = new ViewportObservation(metrics);
+        bypassed.eligible();
+        bypassed.firstLookupFailed();
+        bypassed.firstLookup(1, 1);
+        bypassed.finish(true);
+        ViewportObservation retried = new ViewportObservation(metrics);
+        retried.eligible();
+        retried.firstLookup(1, 0);
+        retried.firstLookup(1, 1);
+        retried.finish(true);
+        ViewportObservation failedResponse = new ViewportObservation(metrics);
+        failedResponse.eligible();
+        failedResponse.firstLookup(1, 1);
+        failedResponse.finish(false);
+
+        assertThat(counter(registry, "logical", "full_store_hit_true")).isZero();
+        assertThat(counter(registry, "logical", "full_store_hit_false")).isEqualTo(3);
+        assertThat(counter(registry, "logical", "source_independent_true")).isEqualTo(2);
+        assertThat(counter(registry, "logical", "source_independent_false")).isEqualTo(1);
+    }
+
+    private ViewportSearchService service(ViewportCacheProperties properties, ViewportRepository repository,
+                                          ViewportCellStore store, ViewportCellLoader loader,
+                                          ViewportMetrics metrics, List<Long> cells) {
+        ViewportCellCover cover = mock(ViewportCellCover.class);
+        when(cover.cover(any())).thenReturn(cells);
+        return new ViewportSearchService(properties, mock(ParkingSearchService.class), cover, repository, store, loader,
+                metrics, new ParkingLodScoreCalculator(), Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
+    }
+
+    private ViewportCacheProperties properties() {
+        ViewportCacheProperties properties = new ViewportCacheProperties();
+        properties.setEnabled(true);
+        properties.setEnvironment("bypass");
+        properties.setMaxConcurrentRequests(0);
+        properties.setRequestTimeout(Duration.ofSeconds(30));
+        return properties;
+    }
+
+    private ParkingLotViewportResponses search(ViewportSearchService service) {
+        try (ViewportBody body = service.search(new ParkingLotViewportRequest(
+                126.99, 37.49, 127.01, 37.51, false, false, false))) {
+            ParkingLotViewportResponses result = (ParkingLotViewportResponses) body.value();
+            body.complete(true);
+            return result;
+        }
+    }
+
+    private ParkingLotViewportResponses response(ViewportItem... items) {
+        ParkingLodScoreCalculator scores = new ParkingLodScoreCalculator();
+        return ParkingLotViewportResponses.from(Arrays.stream(items)
+                .map(item -> new ParkingLotViewportResponse(item.id(), item.latitude(), item.longitude(),
+                        scores.calculate(item.capacity())))
+                .toList());
+    }
+
+    private int gridSizeMeters() {
+        return 1000;
+    }
+
+    private ViewportCellKey key(int gridSizeMeters, long cell) {
+        return new ViewportCellKey("bypass", 1, 1, gridSizeMeters, cell);
+    }
+
+    private ViewportItem item(long id, int capacity) {
+        return new ViewportItem(id, 37.5, 127, capacity, false, true, false, false, false);
+    }
+
+    private double counter(SimpleMeterRegistry registry, String metric, String outcome) {
+        return registry.counter("parking.viewport." + metric, "outcome", outcome).count();
+    }
+}

@@ -14,7 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.parking.viewport.ViewportFailureReason;
+import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.global.response.ValidationErrorField;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

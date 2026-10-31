@@ -2,7 +2,7 @@ package jumin.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jumin.domain.parking.viewport.ViewportBody;
+import jumin.domain.parking.dto.ViewportBody;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
