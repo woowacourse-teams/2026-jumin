@@ -13,7 +13,6 @@ public class ViewportCacheProperties {
 
     private boolean enabled;
     private boolean prepareOnStartup;
-    private boolean singleflight = true;
     private String environment = "local";
     @Setter(AccessLevel.NONE)
     private boolean environmentConfigured;

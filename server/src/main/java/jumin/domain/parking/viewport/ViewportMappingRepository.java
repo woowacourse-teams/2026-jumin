@@ -1,19 +1,28 @@
 package jumin.domain.parking.viewport;
 
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.IllegalTransactionStateException;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-@Component
-public class ViewportMappingMaintainer {
+@Repository
+public class ViewportMappingRepository {
 
     private static final int BATCH_SIZE = 500;
+    private static final String SELECT = """
+            SELECT grid_size_meters, projection_ready
+            FROM parking_viewport_cache_state WHERE id = 1
+            """;
+
     private final JdbcTemplate jdbc;
     private final ViewportSquareGrid grid;
 
-    public ViewportMappingMaintainer(JdbcTemplate jdbc, ViewportSquareGrid grid) {
+    public ViewportMappingRepository(JdbcTemplate jdbc, ViewportSquareGrid grid) {
         this.jdbc = jdbc;
         this.grid = grid;
     }
@@ -118,5 +127,62 @@ public class ViewportMappingMaintainer {
 
     private record MappingRow(long id, Double latitude, Double longitude, Long cellId,
                               Double locationLatitude, Double locationLongitude, boolean emptyLocation) {
+    }
+
+    public ViewportMappingState lockForWrite() {
+        requireReadCommitted();
+        ViewportMappingState state = lockStateForWrite();
+        lockSource();
+        return state;
+    }
+
+    private void lockSource() {
+        jdbc.execute("LOCK TABLE parking_lots IN SHARE ROW EXCLUSIVE MODE");
+    }
+
+    private void requireReadCommitted() {
+        jdbc.execute((ConnectionCallback<Void>) connection -> {
+            if (connection.getTransactionIsolation() != Connection.TRANSACTION_READ_COMMITTED) {
+                throw new IllegalTransactionStateException("viewport 매핑 갱신은 READ COMMITTED가 필요합니다.");
+            }
+            return null;
+        });
+    }
+
+    public ViewportMappingState read() {
+        List<ViewportMappingState> states = jdbc.query(SELECT, (rows, index) ->
+                new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
+        if (states.isEmpty()) {
+            return null;
+        }
+        return states.getFirst();
+    }
+
+    private ViewportMappingState lockStateForWrite() {
+        requireTransaction();
+        List<ViewportMappingState> states = jdbc.query(SELECT + " FOR UPDATE", (rows, index) ->
+                new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
+        if (states.size() != 1) {
+            throw new IllegalStateException("viewport 매핑 상태 한 행을 잠그지 못해 원본 쓰기를 중단합니다.");
+        }
+        return states.getFirst();
+    }
+
+    public ViewportMappingState publishState(int gridSizeMeters, boolean ready) {
+        requireTransaction();
+        int updated = jdbc.update("""
+                UPDATE parking_viewport_cache_state SET grid_size_meters = ?, projection_ready = ? WHERE id = 1
+                """, gridSizeMeters, ready);
+        if (updated != 1) {
+            throw new IllegalStateException("viewport 매핑 상태 갱신 실패로 원본 transaction을 롤백합니다.");
+        }
+        return new ViewportMappingState(gridSizeMeters, ready);
+    }
+
+    private void requireTransaction() {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
+            throw new IllegalStateException("viewport 매핑 갱신은 공통 쓰기 transaction이 필요합니다.");
+        }
     }
 }

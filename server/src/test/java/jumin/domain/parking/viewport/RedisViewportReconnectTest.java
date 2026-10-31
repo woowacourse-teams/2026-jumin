@@ -8,6 +8,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
@@ -30,42 +33,29 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-class RedisViewportGenerationTest {
+class RedisViewportReconnectTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    @DisplayName("이전 연결의 늦은 실패는 복구된 새 연결의 회로를 다시 열지 않는다")
-    void stale_failure_cannot_poison_recovered_connection() throws Exception {
+    @DisplayName("한 요청의 늦은 실패가 공유 연결의 다른 요청과 후속 조회를 중단하지 않는다")
+    void late_failure_does_not_close_shared_connection() throws Exception {
         // given
         RedisClient client = mock(RedisClient.class);
-        StatefulRedisConnection<byte[], byte[]> slow = mock(StatefulRedisConnection.class);
-        StatefulRedisConnection<byte[], byte[]> failed = mock(StatefulRedisConnection.class);
-        StatefulRedisConnection<byte[], byte[]> recovered = mock(StatefulRedisConnection.class);
-        RedisCommands<byte[], byte[]> slowCommands = mock(RedisCommands.class);
-        RedisCommands<byte[], byte[]> failedCommands = mock(RedisCommands.class);
-        RedisCommands<byte[], byte[]> recoveredCommands = mock(RedisCommands.class);
-        for (var connection : List.of(slow, failed, recovered)) {
-            when(connection.isOpen()).thenReturn(true);
-        }
-        when(slow.sync()).thenReturn(slowCommands);
-        when(failed.sync()).thenReturn(failedCommands);
-        when(recovered.sync()).thenReturn(recoveredCommands);
-        when(client.connect(any(RedisCodec.class), any(RedisURI.class))).thenReturn(slow, failed, recovered);
+        StatefulRedisConnection<byte[], byte[]> connection = mock(StatefulRedisConnection.class);
+        RedisCommands<byte[], byte[]> commands = mock(RedisCommands.class);
+        when(connection.sync()).thenReturn(commands);
+        when(client.connect(any(RedisCodec.class), any(RedisURI.class))).thenReturn(connection);
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        when(slowCommands.eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
+        when(commands.eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
                 .thenAnswer(invocation -> {
                     started.countDown();
-                    assertThat(release.await(10, TimeUnit.SECONDS)).isTrue();
-                    throw new RedisConnectionException("old connection failed");
-                });
-        when(failedCommands.eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                .thenThrow(new RedisConnectionException("connection failed"));
-        when(recoveredCommands.eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                .thenReturn(Collections.singletonList(null));
+                    assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+                    throw new RedisConnectionException("late request failure");
+                }).thenReturn(Collections.singletonList(null));
         ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setCacheTimeout(Duration.ofSeconds(20));
-        ViewportCellKey key = new ViewportCellKey("generation", 1, 1, 1000, 1);
+        properties.setCacheTimeout(Duration.ofSeconds(10));
+        ViewportCellKey key = new ViewportCellKey("reconnect", 1, 1, 1000, 1);
         try (MockedStatic<RedisClient> factory = mockStatic(RedisClient.class);
              var threads = Executors.newVirtualThreadPerTaskExecutor()) {
             factory.when(() -> RedisClient.create(any(ClientResources.class), any(RedisURI.class))).thenReturn(client);
@@ -73,15 +63,15 @@ class RedisViewportGenerationTest {
                     new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
                     new ViewportCellCover(new ViewportSquareGrid(), properties), new ViewportMetrics(new SimpleMeterRegistry()))) {
                 // when
-                var old = CompletableFuture.supplyAsync(() -> store.getMany(List.of(key), deadline()), threads);
+                var first = CompletableFuture.supplyAsync(() -> store.getMany(List.of(key), deadline()), threads);
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                assertThatThrownBy(() -> store.getMany(List.of(key), deadline())).isInstanceOf(ViewportStoreException.class);
-                Thread.sleep(5100);
                 assertThat(store.getMany(List.of(key), deadline())).isEmpty();
                 release.countDown();
                 // then
-                assertThatThrownBy(() -> old.get(3, TimeUnit.SECONDS)).hasCauseInstanceOf(ViewportStoreException.class);
+                assertThatThrownBy(() -> first.get(3, TimeUnit.SECONDS)).hasCauseInstanceOf(ViewportStoreException.class);
                 assertThat(store.getMany(List.of(key), deadline())).isEmpty();
+                verify(client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
+                verify(connection, never()).close();
             } finally {
                 release.countDown();
             }

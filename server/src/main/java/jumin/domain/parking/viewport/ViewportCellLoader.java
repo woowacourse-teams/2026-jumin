@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ViewportCellLoader implements AutoCloseable {
 
-    private record LoadKey(ViewportCellKey key, Object lane) { }
     private record Loaded(ViewportCell cell, boolean fromSource, ViewportObservation owner) { }
 
     private static final class CellLoad {
@@ -30,7 +29,7 @@ public class ViewportCellLoader implements AutoCloseable {
     private final ViewportReadRepository repository;
     private final ViewportCacheProperties properties;
     private final ViewportMetrics metrics;
-    private final Map<LoadKey, CellLoad> loads = new ConcurrentHashMap<>();
+    private final Map<ViewportCellKey, CellLoad> loads = new ConcurrentHashMap<>();
     private final Semaphore slots;
     private volatile boolean closed;
 
@@ -51,12 +50,11 @@ public class ViewportCellLoader implements AutoCloseable {
 
     public List<ViewportCell> resolve(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
                                      ViewportDeadline deadline, ViewportObservation observation, boolean bypassStore) {
-        Object lane = properties.isSingleflight() ? null : new Object();
-        Map<LoadKey, CellLoad> registered = new LinkedHashMap<>();
+        Map<ViewportCellKey, CellLoad> registered = new LinkedHashMap<>();
         List<CellLoad> locked = new ArrayList<>();
         try {
             requireOpen();
-            registerMissingCells(keys, hits, lane, registered);
+            registerMissingCells(keys, hits, registered);
             acquireCellLocks(registered, locked, deadline);
             requireOpen();
             loadMissing(registered, deadline, observation, bypassStore);
@@ -67,7 +65,7 @@ public class ViewportCellLoader implements AutoCloseable {
                     result.add(hit);
                     continue;
                 }
-                Loaded loaded = registered.get(new LoadKey(key, lane)).result;
+                Loaded loaded = registered.get(key).result;
                 observation.consume(loaded.fromSource(), loaded.owner() != observation);
                 result.add(loaded.cell());
             }
@@ -87,21 +85,20 @@ public class ViewportCellLoader implements AutoCloseable {
     }
 
     private void registerMissingCells(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
-                                      Object lane, Map<LoadKey, CellLoad> registered) {
+                                      Map<ViewportCellKey, CellLoad> registered) {
         for (ViewportCellKey key : keys) {
             if (hits.containsKey(key)) {
                 continue;
             }
-            LoadKey loadKey = new LoadKey(key, lane);
-            registered.put(loadKey, register(loadKey));
+            registered.put(key, register(key));
         }
     }
 
-    private void acquireCellLocks(Map<LoadKey, CellLoad> registered, List<CellLoad> locked,
+    private void acquireCellLocks(Map<ViewportCellKey, CellLoad> registered, List<CellLoad> locked,
                                   ViewportDeadline deadline) {
-        List<LoadKey> ordered = registered.keySet().stream()
-                .sorted(Comparator.comparing(key -> key.key().redisKey())).toList();
-        for (LoadKey key : ordered) {
+        List<ViewportCellKey> ordered = registered.keySet().stream()
+                .sorted(Comparator.comparing(ViewportCellKey::redisKey)).toList();
+        for (ViewportCellKey key : ordered) {
             CellLoad load = registered.get(key);
             lock(load, deadline);
             locked.add(load);
@@ -111,7 +108,7 @@ public class ViewportCellLoader implements AutoCloseable {
         }
     }
 
-    private CellLoad register(LoadKey key) {
+    private CellLoad register(ViewportCellKey key) {
         return loads.compute(key, (ignored, current) -> {
             if (current != null) {
                 metrics.count("flights", "follower_registered", 1);
@@ -127,7 +124,7 @@ public class ViewportCellLoader implements AutoCloseable {
         });
     }
 
-    private void unregister(LoadKey key, CellLoad registered) {
+    private void unregister(ViewportCellKey key, CellLoad registered) {
         loads.computeIfPresent(key, (ignored, current) -> {
             if (current != registered) {
                 return current;
@@ -153,12 +150,12 @@ public class ViewportCellLoader implements AutoCloseable {
         }
     }
 
-    private void loadMissing(Map<LoadKey, CellLoad> registered, ViewportDeadline deadline,
+    private void loadMissing(Map<ViewportCellKey, CellLoad> registered, ViewportDeadline deadline,
                              ViewportObservation observation, boolean bypassStore) {
         Map<ViewportCellKey, CellLoad> missing = new LinkedHashMap<>();
         registered.forEach((key, load) -> {
             if (load.result == null) {
-                missing.put(key.key(), load);
+                missing.put(key, load);
             }
         });
         if (missing.isEmpty()) {

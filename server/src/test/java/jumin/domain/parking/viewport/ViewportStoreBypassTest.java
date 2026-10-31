@@ -222,43 +222,31 @@ class ViewportStoreBypassTest {
     }
 
     @Test
-    @DisplayName("singleflight를 끄면 장애 시에도 서로 다른 요청의 셀 source 작업을 합치지 않는다")
-    void respects_disabled_singleflight_during_bypass() throws Exception {
+    @DisplayName("캐시 장애 중 순차 요청은 이전 요청 결과를 별도 메모리 캐시에 남기지 않는다")
+    void sequential_bypass_requests_reload_from_database() {
+        // given
         ViewportCacheProperties properties = properties();
-        properties.setSingleflight(false);
-        int gridSizeMeters = gridSizeMeters();
-        ViewportCellKey key = key(gridSizeMeters, 10);
+        ViewportCellKey key = key(gridSizeMeters(), 10);
         ViewportCell cell = new ViewportCell(key, List.of(item(1, 100)));
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         ViewportCellStore store = new EmptyViewportCellStore() {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                throw new ViewportStoreException("injected initial read failure");
+                throw new ViewportStoreException("injected read failure");
             }
         };
         ViewportReadRepository repository = mock(ViewportReadRepository.class);
-
-        CompletableFuture<Map<ViewportCellKey, ViewportCell>> source = new CompletableFuture<>();
-        CountDownLatch started = new CountDownLatch(2);
-        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
-            started.countDown();
-            return source.join();
-        });
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        when(repository.load(anyList(), any(), any())).thenReturn(Map.of(key, cell));
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
-            var first = CompletableFuture.supplyAsync(() -> search(service), executor);
-            var second = CompletableFuture.supplyAsync(() -> search(service), executor);
-            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
-
-            source.complete(Map.of(key, cell));
-
-            assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(response(item(1, 100)));
-            assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(response(item(1, 100)));
+            // when
+            var first = search(service);
+            var second = search(service);
+            // then
+            assertThat(first).isEqualTo(response(item(1, 100)));
+            assertThat(second).isEqualTo(first);
             verify(repository, times(2)).load(anyList(), any(), any());
             verify(repository, times(0)).fallback(any(), any(), anyInt(), any(), any());
-        } finally {
-            source.completeExceptionally(new AssertionError("test finished before completing source"));
         }
     }
 

@@ -76,7 +76,7 @@ class ViewportSearchIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactions;
     @Autowired private ViewportWriteCoordinator writer;
-    @Autowired private ViewportMappingStateRepository mappingStates;
+    @Autowired private ViewportMappingRepository mappingStates;
     @Autowired private ViewportSearchService service;
     @Autowired private ParkingSearchService legacy;
     @Autowired private ViewportCacheProperties properties;

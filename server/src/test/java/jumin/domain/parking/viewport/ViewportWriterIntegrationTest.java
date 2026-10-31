@@ -31,7 +31,7 @@ class ViewportWriterIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactions;
     @Autowired private ViewportWriteCoordinator writer;
-    @Autowired private ViewportMappingStateRepository states;
+    @Autowired private ViewportMappingRepository states;
     @Autowired private ViewportSquareGrid grid;
 
     @BeforeEach

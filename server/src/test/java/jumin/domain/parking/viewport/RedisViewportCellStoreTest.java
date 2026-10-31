@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.KillArgs;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
@@ -290,10 +291,12 @@ class RedisViewportCellStoreTest {
     }
 
     @Test
-    @DisplayName("서버 지연 timeout 뒤 반복 요청이 회로 만료를 연장하지 않아 복구된다")
+    @DisplayName("서버 지연 timeout 뒤 후속 요청은 같은 연결에서 정상 응답으로 복구된다")
     void recovers_after_timeout_under_repeated_requests() throws Exception {
+        // given
         ViewportCacheProperties properties = properties();
         properties.setRedisConnectTimeout(Duration.ofSeconds(1));
+        properties.setCacheTimeout(Duration.ofMillis(50));
         ViewportCell full = full(properties, 1);
         ViewportMetrics metrics = new ViewportMetrics(new SimpleMeterRegistry());
         RedisClient client = RedisClient.create(properties.getRedisUri());
@@ -302,29 +305,50 @@ class RedisViewportCellStoreTest {
                      new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
                      new ViewportCellCover(new ViewportSquareGrid(), properties), metrics)) {
             store.putMany(List.of(full), deadline());
-            properties.setCacheTimeout(Duration.ofMillis(20));
-            raw.sync().clientPause(150);
-
+            raw.sync().clientPause(250);
+            // when
             assertThatThrownBy(() -> store.getMany(List.of(full.key()), deadline()))
                     .isInstanceOf(ViewportStoreException.class);
+            // then
             assertThat(metrics.registry().counter("parking.viewport.store_error", "outcome", "operation_timeout").count())
                     .isEqualTo(1);
-            long until = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-            while (System.nanoTime() < until) {
-                if (until - System.nanoTime() <= Duration.ofMillis(500).toNanos()) {
-                    properties.setCacheTimeout(Duration.ofSeconds(1));
-                }
-                Thread.sleep(50);
+            long until = System.nanoTime() + Duration.ofSeconds(3).toNanos();
+            while (true) {
                 try {
-                    store.getMany(List.of(full.key()), deadline());
-                } catch (ViewportStoreException ignored) {
+                    assertThat(store.getMany(List.of(full.key()), deadline())).containsEntry(full.key(), full);
+                    break;
+                } catch (ViewportStoreException unavailable) {
+                    assertThat(System.nanoTime()).isLessThan(until);
+                    Thread.sleep(25);
                 }
             }
-            properties.setCacheTimeout(Duration.ofSeconds(1));
-            assertThat(metrics.registry().counter("parking.viewport.store_error", "outcome", "circuit_open").count())
-                    .isPositive();
-            Thread.sleep(100);
-            assertThat(store.getMany(List.of(full.key()), deadline())).containsEntry(full.key(), full);
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("실제 Redis가 연결을 끊어도 공유 연결은 재연결하여 저장된 셀을 다시 읽는다")
+    void reconnects_after_server_disconnect() throws Exception {
+        // given
+        ViewportCacheProperties properties = properties();
+        ViewportCell full = full(properties, 1);
+        RedisClient client = RedisClient.create(properties.getRedisUri());
+        try (var raw = client.connect(ByteArrayCodec.INSTANCE); ViewportCellStore store = store(properties)) {
+            store.putMany(List.of(full), deadline());
+            // when
+            assertThat(raw.sync().clientKill(KillArgs.Builder.typeNormal().skipme())).isEqualTo(1);
+            // then
+            long until = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+            while (true) {
+                try {
+                    assertThat(store.getMany(List.of(full.key()), deadline())).containsEntry(full.key(), full);
+                    break;
+                } catch (ViewportStoreException disconnected) {
+                    assertThat(System.nanoTime()).isLessThan(until);
+                    Thread.sleep(25);
+                }
+            }
         } finally {
             client.shutdown();
         }

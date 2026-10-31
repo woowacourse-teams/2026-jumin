@@ -4,8 +4,6 @@ import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisCommandExecutionException;
 import io.lettuce.core.RedisCommandTimeoutException;
-import io.lettuce.core.RedisConnectionException;
-import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.SocketOptions;
@@ -24,15 +22,10 @@ import java.nio.file.Path;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -64,8 +57,6 @@ public class RedisViewportCellStore implements ViewportCellStore {
             return #KEYS
             """;
 
-    private record Lease(StatefulRedisConnection<byte[], byte[]> connection, long generation) { }
-
     private final ViewportCacheProperties properties;
     private final ViewportCellCodec codec;
     private final ViewportCellCover cover;
@@ -74,10 +65,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
     private final RedisClient client;
     private final RedisURI uri;
     private final Semaphore slots;
-    private final ArrayDeque<Lease> idle = new ArrayDeque<>();
-    private final Set<StatefulRedisConnection<byte[], byte[]>> connections = new HashSet<>();
-    private long generation;
-    private long circuitUntil;
+    private StatefulRedisConnection<byte[], byte[]> connection;
     private boolean closed;
 
     public RedisViewportCellStore(ViewportCacheProperties properties, ViewportCellCodec codec,
@@ -92,7 +80,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
         resources = DefaultClientResources.builder().ioThreadPoolSize(2).computationThreadPoolSize(2).build();
         client = RedisClient.create(resources, uri);
         ClientOptions.Builder options = ClientOptions.builder().protocolVersion(ProtocolVersion.RESP2)
-                .autoReconnect(false).requestQueueSize(16)
+                .autoReconnect(true).replayFilter(command -> true).requestQueueSize(properties.getMaxConcurrentRedis())
                 .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
                 .socketOptions(SocketOptions.builder().connectTimeout(properties.getEffectiveRedisConnectTimeout()).build());
         if (tls != null) {
@@ -166,19 +154,19 @@ public class RedisViewportCellStore implements ViewportCellStore {
         }
         validateBatch(keys.size());
         ViewportDeadline deadline = cacheDeadline(caller);
-        Lease lease = null;
+        acquire();
         long started = System.nanoTime();
         try {
-            lease = borrow(deadline);
+            StatefulRedisConnection<byte[], byte[]> active = connection(deadline);
             byte[][] encodedKeys = keys.stream().map(key -> text(key.redisKey())).toArray(byte[][]::new);
             deadline.requireRemaining();
-            List<?> values = lease.connection().sync().eval(READ, ScriptOutputType.MULTI, encodedKeys,
+            List<?> values = active.sync().eval(READ, ScriptOutputType.MULTI, encodedKeys,
                     text(properties.getMaxValueBytes()), text(properties.getMaxRequestBytes()), text(properties.getMaxCells()));
             return decodeValues(keys, values, deadline);
         } catch (RuntimeException failure) {
-            throw storeFailure(lease, caller, failure);
+            throw storeFailure(caller, failure);
         } finally {
-            release(lease);
+            slots.release();
             metrics.time("store_get", started);
         }
     }
@@ -197,125 +185,43 @@ public class RedisViewportCellStore implements ViewportCellStore {
             throw new ViewportStoreBudgetException("원격 cache 저장 batch 한도를 초과했습니다.");
         }
         ViewportDeadline deadline = cacheDeadline(caller);
-        Lease lease = null;
+        acquire();
         long started = System.nanoTime();
         try {
             WriteBatch batch = encodeBatch(cacheable);
             deadline.requireRemaining();
-            lease = borrow(deadline);
+            StatefulRedisConnection<byte[], byte[]> active = connection(deadline);
             deadline.requireRemaining();
-            lease.connection().sync().eval(WRITE, ScriptOutputType.INTEGER, batch.keys(), batch.arguments());
+            active.sync().eval(WRITE, ScriptOutputType.INTEGER, batch.keys(), batch.arguments());
         } catch (RuntimeException failure) {
-            throw storeFailure(lease, caller, failure);
+            throw storeFailure(caller, failure);
         } finally {
-            release(lease);
+            slots.release();
             metrics.time("store_put", started);
         }
     }
 
-    private Lease borrow(ViewportDeadline deadline) {
+    private void acquire() {
         if (!slots.tryAcquire()) {
             metrics.count("store_error", "transport_rejected", 1);
             throw new ViewportStoreException("원격 cache 동시 조회 한도를 초과했습니다.");
         }
-        StatefulRedisConnection<byte[], byte[]> opened = null;
-        long version = -1;
-        try {
-            synchronized (this) {
-                requireAvailable();
-                Lease existing = takeReusableConnection(deadline);
-                if (existing != null) {
-                    return existing;
-                }
-                version = generation;
-            }
-            opened = client.connect(ByteArrayCodec.INSTANCE, uri);
-            synchronized (this) {
-                requireAvailable();
-                if (generation != version) {
-                    throw new ViewportStoreException("원격 cache 연결이 교체되었습니다.");
-                }
-                deadline.requireRemaining();
-                opened.setTimeout(Duration.ofNanos(Math.max(1, deadline.remainingNanos())));
-                connections.add(opened);
-                return new Lease(opened, version);
-            }
-        } catch (RuntimeException | Error failure) {
-            try {
-                if (opened != null) {
-                    opened.close();
-                }
-            } catch (RuntimeException closeFailure) {
-                failure.addSuppressed(closeFailure);
-            } finally {
-                slots.release();
-            }
-            if (failure instanceof RedisException) {
-                synchronized (this) {
-                    if (!closed && version == generation) {
-                        openCircuit();
-                    }
-                }
-                metrics.count("store_error", failure instanceof RedisCommandTimeoutException
-                        ? "connect_timeout" : "connection_error", 1);
-                throw new ViewportStoreException("원격 cache 연결에 실패했습니다.", failure);
-            }
-            throw failure;
-        }
     }
 
-    private Lease takeReusableConnection(ViewportDeadline deadline) {
-        while (!idle.isEmpty()) {
-            Lease existing = idle.removeFirst();
-            if (existing.generation() != generation || !existing.connection().isOpen()) {
-                connections.remove(existing.connection());
-                existing.connection().close();
-                continue;
-            }
-            existing.connection().setTimeout(Duration.ofNanos(Math.max(1, deadline.remainingNanos())));
-            return existing;
+    private synchronized StatefulRedisConnection<byte[], byte[]> connection(ViewportDeadline deadline) {
+        if (closed) {
+            throw new ViewportStoreException("원격 cache가 종료되었습니다.");
         }
-        return null;
+        deadline.requireRemaining();
+        if (connection == null) {
+            connection = client.connect(ByteArrayCodec.INSTANCE, uri);
+            connection.setTimeout(properties.getCacheTimeout());
+        }
+        deadline.requireRemaining();
+        return connection;
     }
 
-    private synchronized void requireAvailable() {
-        if (closed || circuitUntil - System.nanoTime() > 0) {
-            metrics.count("store_error", "circuit_open", 1);
-            throw new ViewportStoreException("원격 cache 회로가 열려 있습니다.");
-        }
-    }
-
-    private synchronized void openCircuit() {
-        generation++;
-        circuitUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-    }
-
-    private void release(Lease lease) {
-        if (lease == null) {
-            return;
-        }
-        boolean reusable;
-        synchronized (this) {
-            reusable = !closed && lease.generation() == generation
-                    && connections.contains(lease.connection()) && lease.connection().isOpen();
-            if (reusable) {
-                idle.addLast(lease);
-            } else {
-                connections.remove(lease.connection());
-            }
-        }
-        try {
-            if (!reusable) {
-                lease.connection().close();
-            }
-        } catch (RuntimeException closeFailure) {
-            metrics.count("store_error", "close_failure", 1);
-        } finally {
-            slots.release();
-        }
-    }
-
-    private RuntimeException storeFailure(Lease lease, ViewportDeadline caller, RuntimeException failure) {
+    private RuntimeException storeFailure(ViewportDeadline caller, RuntimeException failure) {
         if (failure instanceof ViewportStoreBudgetException) {
             metrics.count("store_error", "budget", 1);
             return failure;
@@ -327,32 +233,14 @@ public class RedisViewportCellStore implements ViewportCellStore {
         if (failure instanceof ViewportStoreException) {
             return failure;
         }
-        if (lease != null && isCommandFailure(failure) && !hasConnectionFailure(lease.connection(), failure)) {
-            metrics.count("store_error", "command_error", 1);
-            return new ViewportStoreException("원격 cache 명령에 실패했습니다.", failure);
-        }
         boolean callerExpired = caller.remainingNanos() == 0;
-        discardFailedConnection(lease, callerExpired);
+        String outcome = failure instanceof RedisCommandExecutionException ? "command_error" : "connection_error";
         if (failure instanceof RedisCommandTimeoutException) {
-            metrics.count("store_error", callerExpired ? "caller_timeout" : "operation_timeout", 1);
-        } else {
-            metrics.count("store_error", "connection_error", 1);
+            outcome = callerExpired ? "caller_timeout" : "operation_timeout";
         }
+        metrics.count("store_error", outcome, 1);
         return callerExpired ? ViewportFailureReason.UNCLASSIFIED.failure(failure)
                 : new ViewportStoreException("원격 cache 명령에 실패했습니다.", failure);
-    }
-
-    private void discardFailedConnection(Lease lease, boolean callerExpired) {
-        if (lease == null) {
-            return;
-        }
-        synchronized (this) {
-            connections.remove(lease.connection());
-            if (callerExpired || lease.generation() != generation) {
-                return;
-            }
-            openCircuit();
-        }
     }
 
     private Map<ViewportCellKey, ViewportCell> decodeValues(List<ViewportCellKey> keys, List<?> values,
@@ -417,33 +305,6 @@ public class RedisViewportCellStore implements ViewportCellStore {
 
     private record WriteBatch(byte[][] keys, byte[][] arguments) { }
 
-    private static boolean isCommandFailure(Throwable failure) {
-        return failure instanceof RedisCommandExecutionException;
-    }
-
-    private static boolean hasConnectionFailure(StatefulRedisConnection<byte[], byte[]> active, Throwable failure) {
-        if (!active.isOpen()) {
-            return true;
-        }
-        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
-            if (cause instanceof RedisConnectionException || cause instanceof IOException) {
-                return true;
-            }
-            if (isDisconnectedRedisException(cause)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isDisconnectedRedisException(Throwable failure) {
-        return failure.getClass() == RedisException.class && ("Connection closed".equals(failure.getMessage())
-                || "Connection disconnected".equals(failure.getMessage())
-                || "Connection is closed".equals(failure.getMessage())
-                || "Currently not connected. Commands are rejected.".equals(failure.getMessage()));
-    }
-
     private void validateBatch(int size) {
         if (size > properties.getMaxCells()) {
             metrics.count("store_error", "budget", 1);
@@ -457,19 +318,13 @@ public class RedisViewportCellStore implements ViewportCellStore {
 
     @Override
     public void close() {
-        List<StatefulRedisConnection<byte[], byte[]>> owned;
         synchronized (this) {
             if (closed) {
                 return;
             }
             closed = true;
-            generation++;
-            owned = List.copyOf(connections);
-            connections.clear();
-            idle.clear();
         }
         List<Runnable> cleanup = new ArrayList<>();
-        owned.forEach(connection -> cleanup.add(connection::close));
         cleanup.add(() -> client.shutdown(Duration.ZERO, Duration.ofSeconds(1)));
         cleanup.add(() -> resources.shutdown(0, 1, TimeUnit.SECONDS).syncUninterruptibly());
         Throwable failure = runCleanup(cleanup);
@@ -494,13 +349,11 @@ public class RedisViewportCellStore implements ViewportCellStore {
     }
 
     private static Throwable mergeCleanupFailure(Throwable failure, Throwable cleanupFailure) {
-        if (cleanupFailure instanceof Error && !(failure instanceof Error)) {
-            if (failure != null) {
-                cleanupFailure.addSuppressed(failure);
-            }
+        if (failure == null) {
             return cleanupFailure;
         }
-        if (failure == null) {
+        if (cleanupFailure instanceof Error && !(failure instanceof Error)) {
+            cleanupFailure.addSuppressed(failure);
             return cleanupFailure;
         }
         if (failure != cleanupFailure) {

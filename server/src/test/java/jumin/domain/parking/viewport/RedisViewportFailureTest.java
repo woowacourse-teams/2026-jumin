@@ -61,7 +61,6 @@ class RedisViewportFailureTest {
             // then
             assertThatThrownBy(() -> fixture.store.getMany(List.of(key(3)), deadline())).isInstanceOf(ViewportStoreException.class);
             assertThat(fixture.count("transport_rejected")).isEqualTo(1);
-            assertThat(fixture.count("circuit_open")).isZero();
             release.countDown();
             assertThat(first.get(5, TimeUnit.SECONDS)).isEmpty();
             assertThat(second.get(5, TimeUnit.SECONDS)).isEmpty();
@@ -92,56 +91,58 @@ class RedisViewportFailureTest {
     }
 
     @Test
-    @DisplayName("연결 장애는 해당 연결을 닫고 후속 요청을 열린 회로에서 거절한다")
-    void connection_failure_opens_circuit() {
+    @DisplayName("연결 장애 후 공유 연결의 복구된 명령은 별도 회로 대기 없이 성공한다")
+    void connection_failure_allows_recovered_commands() {
         // given
         try (Fixture fixture = new Fixture(properties())) {
             when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                    .thenThrow(new RedisConnectionException("closed"));
+                    .thenThrow(new RedisConnectionException("closed")).thenReturn(Collections.singletonList(null));
             // when & then
             assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).isInstanceOf(ViewportStoreException.class);
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).hasMessageContaining("회로");
+            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
             assertThat(fixture.count("connection_error")).isEqualTo(1);
-            assertThat(fixture.count("circuit_open")).isEqualTo(1);
-            verify(fixture.connection, times(1)).close();
+            verify(fixture.client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
+            verify(fixture.connection, never()).close();
         }
     }
 
     @Test
-    @DisplayName("캐시 명령 시간 초과는 연결을 폐기하고 반복 요청이 회로 만료를 연장하지 않는다")
-    void command_timeout_discards_connection() {
+    @DisplayName("한 명령의 시간 초과는 공유 연결을 닫지 않으며 다음 명령은 성공한다")
+    void command_timeout_preserves_shared_connection() {
         // given
         try (Fixture fixture = new Fixture(properties())) {
             when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                    .thenThrow(new RedisCommandTimeoutException("timeout"));
+                    .thenThrow(new RedisCommandTimeoutException("timeout")).thenReturn(Collections.singletonList(null));
             // when & then
             assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).isInstanceOf(ViewportStoreException.class);
             assertThat(fixture.count("operation_timeout")).isEqualTo(1);
-            verify(fixture.connection, times(1)).close();
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).hasMessageContaining("회로");
+            verify(fixture.connection, never()).close();
+            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
             assertThat(fixture.count("operation_timeout")).isEqualTo(1);
         }
     }
 
     @Test
-    @DisplayName("연결 실패는 슬롯을 반환하고 연결 실패와 열린 회로를 구분한다")
+    @DisplayName("최초 연결 실패는 슬롯을 반환하며 다음 요청은 연결을 다시 시도한다")
     void connect_failure_releases_capacity() {
         // given
         try (Fixture fixture = new Fixture(properties())) {
             when(fixture.client.connect(any(RedisCodec.class), any(RedisURI.class)))
-                    .thenThrow(new RedisConnectionException("unreachable"));
+                    .thenThrow(new RedisConnectionException("unreachable")).thenReturn(fixture.connection);
+            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
+                    .thenReturn(Collections.singletonList(null));
             // when & then
             assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).isInstanceOf(ViewportStoreException.class);
             assertThat(fixture.metrics.registry().get("parking.viewport.redis.active").gauge().value()).isZero();
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).hasMessageContaining("회로");
+            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
             assertThat(fixture.count("connection_error")).isEqualTo(1);
-            assertThat(fixture.count("circuit_open")).isEqualTo(1);
+            verify(fixture.client, times(2)).connect(any(RedisCodec.class), any(RedisURI.class));
         }
     }
 
     @Test
-    @DisplayName("동기 연결이 요청 기한을 넘기면 실제 반환까지 기다린 뒤 늦은 연결을 닫는다")
-    void closes_connection_that_arrives_after_deadline() throws Exception {
+    @DisplayName("늦게 열린 공유 연결은 만료 요청의 명령을 실행하지 않고 후속 요청에서 재사용한다")
+    void reuses_late_connection_without_running_expired_command() throws Exception {
         // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -162,7 +163,12 @@ class RedisViewportFailureTest {
             assertThat(request).isNotCompleted();
             release.countDown();
             assertThatThrownBy(() -> request.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
-            verify(fixture.connection, times(1)).close();
+            verify(fixture.commands, never()).eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class));
+            verify(fixture.connection, never()).close();
+            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
+                    .thenReturn(Collections.singletonList(null));
+            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
+            verify(fixture.client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
             assertThat(fixture.metrics.registry().get("parking.viewport.redis.active").gauge().value()).isZero();
         } finally {
             release.countDown();
@@ -197,7 +203,6 @@ class RedisViewportFailureTest {
             assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
             verify(fixture.connection, never()).close();
             assertThat(fixture.count("budget")).isEqualTo(1);
-            assertThat(fixture.count("circuit_open")).isZero();
         }
     }
 

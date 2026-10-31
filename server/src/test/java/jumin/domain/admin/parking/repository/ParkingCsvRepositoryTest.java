@@ -42,8 +42,7 @@ import jumin.domain.admin.parking.service.ParkingCsvSyncService;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.viewport.ViewportSquareGrid;
-import jumin.domain.parking.viewport.ViewportMappingMaintainer;
-import jumin.domain.parking.viewport.ViewportMappingStateRepository;
+import jumin.domain.parking.viewport.ViewportMappingRepository;
 import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1015,9 +1014,8 @@ class ParkingCsvRepositoryTest {
         }
         repository.stageRows(batch);
         repository.prepareStaging();
-        ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(jdbcTemplate,
-                new ViewportMappingStateRepository(jdbcTemplate),
-                new ViewportMappingMaintainer(jdbcTemplate, new ViewportSquareGrid()), new ViewportCacheProperties());
+        ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(
+                new ViewportMappingRepository(jdbcTemplate, new ViewportSquareGrid()), new ViewportCacheProperties());
         ParkingCsvSyncService syncService = new ParkingCsvSyncService(
                 repository, Clock.fixed(now, ZoneOffset.UTC), viewportWriter);
         ParkingSyncSummary actual = syncService.syncStaged();

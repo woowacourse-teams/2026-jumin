@@ -31,7 +31,7 @@ import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
 import jumin.domain.parking.viewport.ViewportSquareGrid;
 import jumin.domain.parking.viewport.ViewportMappingState;
-import jumin.domain.parking.viewport.ViewportMappingStateRepository;
+import jumin.domain.parking.viewport.ViewportMappingRepository;
 import jumin.domain.parking.viewport.ViewportWriteCoordinator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +69,7 @@ class ParkingCsvSyncServiceIntegrationTest {
     private ViewportWriteCoordinator viewportWriter;
 
     @Autowired
-    private ViewportMappingStateRepository viewportVersions;
+    private ViewportMappingRepository viewportVersions;
 
     @Autowired
     private ViewportSquareGrid viewportGrid;
