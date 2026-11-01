@@ -107,7 +107,7 @@ class ViewportHttpStreamingTest {
                     HttpResponse.BodyHandlers.ofByteArray());
 
             assertThat(response.statusCode()).isEqualTo(500);
-            assertThat(new ObjectMapper().readTree(response.body()).get("message").asText())
+            assertThat(new ObjectMapper().readTree(response.body()).get("message").asString())
                     .isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
             response.headers().firstValueAsLong("Content-Length").ifPresent(size -> assertThat(size).isEqualTo(response.body().length));
             assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();

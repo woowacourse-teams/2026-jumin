@@ -177,7 +177,7 @@ class GlobalExceptionHandlerTest {
         ResultActions result = mockMvc.perform(get("/test/business"));
 
         // then
-        result.andExpect(status().isUnprocessableEntity())
+        result.andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.message").value("CSV 파일의 형식이 올바르지 않습니다."))
                 .andExpect(jsonPath("$.errors[0].field").value("rows[2].name"))
                 .andExpect(jsonPath("$.errors[0].message").value("주차장명은 필수입니다."));
@@ -257,7 +257,7 @@ class GlobalExceptionHandlerTest {
 
         // when & then
         mockMvc.perform(get("/test/business"))
-                .andExpect(status().isPayloadTooLarge())
+                .andExpect(status().isContentTooLarge())
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.message").value("업로드 파일 또는 요청 크기가 허용 한도를 초과했습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());
