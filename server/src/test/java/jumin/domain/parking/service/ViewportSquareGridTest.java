@@ -3,14 +3,14 @@ package jumin.domain.parking.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import jumin.config.ViewportCacheProperties;
-import jumin.domain.parking.cache.ViewportCellCodec;
 import jumin.domain.parking.model.ViewportBounds;
-import jumin.domain.parking.model.ViewportCell;
-import jumin.domain.parking.model.ViewportCellKey;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -98,31 +98,20 @@ class ViewportSquareGridTest {
     }
 
     @Test
-    @DisplayName("캐시 키는 그리드 크기와 square 알고리즘을 구분한다")
-    void namespaces_grid_size_and_algorithm() {
-        ViewportCellKey first = new ViewportCellKey("prod", 1, 1,
-                1000, 0);
-        ViewportCellKey second = new ViewportCellKey("prod", 1, 1,
-                2000, 0);
-        assertThat(first.redisKey()).contains(":viewport:square:wm1:", ":m1000:");
-        assertThat(first.redisKey()).isNotEqualTo(second.redisKey());
-        ViewportCellCodec codec = new ViewportCellCodec(1024, 10);
-        byte[] encoded = codec.encode(new ViewportCell(first, List.of()));
-        assertThatThrownBy(() -> codec.decode(second, encoded)).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
     @DisplayName("극점과 비정상 좌표 및 그리드 크기를 거절한다")
     void rejects_unsupported_coordinates_and_sizes() {
         assertThat(grid.supports(90, 127)).isFalse();
         assertThat(grid.supports(Double.NaN, 127)).isFalse();
         assertThat(grid.cover(new ViewportBounds(126, 86, 127, 87), 1000, 64)).isEmpty();
         assertThatThrownBy(() -> grid.cellId(90, 127, 1000)).isInstanceOf(IllegalArgumentException.class);
-        for (int size : List.of(-1, 0, 99, 20_001, Integer.MAX_VALUE)) {
-            assertThatThrownBy(() -> grid.cellId(37.5, 127, size)).isInstanceOf(IllegalArgumentException.class);
-            ViewportCacheProperties properties = new ViewportCacheProperties();
-            properties.setGridSizeMeters(size);
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            Validator validator = factory.getValidator();
+            for (int size : List.of(-1, 0, 99, 20_001, Integer.MAX_VALUE)) {
+                assertThatThrownBy(() -> grid.cellId(37.5, 127, size)).isInstanceOf(IllegalArgumentException.class);
+                ViewportCacheProperties properties = new ViewportCacheProperties();
+                properties.setGridSizeMeters(size);
+                assertThat(validator.validate(properties)).isNotEmpty();
+            }
         }
     }
 

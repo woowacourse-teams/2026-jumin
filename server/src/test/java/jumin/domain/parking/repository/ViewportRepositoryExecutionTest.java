@@ -3,8 +3,10 @@ package jumin.domain.parking.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,8 +51,8 @@ class ViewportRepositoryExecutionTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            var request = CompletableFuture.supplyAsync(() -> harness.db.read("source",
-                    ViewportDeadline.after(Duration.ofMillis(200)), ignored -> {
+            ViewportDeadline deadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
+            var request = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline, ignored -> {
                         started.countDown();
                         try {
                             if (!release.await(5, TimeUnit.SECONDS)) {
@@ -64,7 +66,8 @@ class ViewportRepositoryExecutionTest {
                     }), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             // when
-            Thread.sleep(250);
+            doReturn(0L).when(deadline).remainingNanos();
+            assertThatThrownBy(deadline::requireRemaining).isInstanceOf(BusinessException.class);
             var next = CompletableFuture.supplyAsync(() -> harness.db.read("source",
                     ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> 2), threads);
             // then
@@ -307,7 +310,7 @@ class ViewportRepositoryExecutionTest {
             });
             Runnable query = cellQuery
                     ? () -> harness.db.load(List.of(key), deadline)
-                    : () -> harness.db.fallback(bounds, request, 1, deadline, () -> { });
+                    : () -> harness.db.fallback(bounds, request, 1, deadline);
 
             // when & then
             assertThatThrownBy(query::run)

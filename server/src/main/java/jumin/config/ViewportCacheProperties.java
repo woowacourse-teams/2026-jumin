@@ -1,11 +1,21 @@
 package jumin.config;
 
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Getter;
 import lombok.AccessLevel;
 import lombok.Setter;
+import org.hibernate.validator.constraints.time.DurationMax;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
+@Validated
 @Getter
 @Setter
 @ConfigurationProperties("jumin.viewport.cache")
@@ -16,27 +26,71 @@ public class ViewportCacheProperties {
     private String environment = "local";
     @Setter(AccessLevel.NONE)
     private boolean environmentConfigured;
+    @Min(value = 100, message = "jumin.viewport.cache.grid-size-meters는 100 이상이어야 합니다.")
+    @Max(value = 20_000, message = "jumin.viewport.cache.grid-size-meters는 20000 이하여야 합니다.")
     private int gridSizeMeters = 1000;
+    @Min(value = 1, message = "jumin.viewport.cache.schema는 1 이상이어야 합니다.")
     private int schema = 1;
+    @Min(value = 1, message = "jumin.viewport.cache.policy는 1 이상이어야 합니다.")
     private int policy = 1;
+    @Min(value = 1, message = "jumin.viewport.cache.max-cells는 1 이상이어야 합니다.")
+    @Max(value = 256, message = "jumin.viewport.cache.max-cells는 256 이하여야 합니다.")
     private int maxCells = 64;
+    @Min(value = 1, message = "jumin.viewport.cache.max-cell-rows는 1 이상이어야 합니다.")
+    @Max(value = 16_384, message = "jumin.viewport.cache.max-cell-rows는 16384 이하여야 합니다.")
     private int maxCellRows = 4096;
+    @Min(value = 256, message = "jumin.viewport.cache.max-value-bytes는 256 이상이어야 합니다.")
+    @Max(value = 1_048_576, message = "jumin.viewport.cache.max-value-bytes는 1048576 이하여야 합니다.")
     private int maxValueBytes = 256 * 1024;
+    @Min(value = 320, message = "jumin.viewport.cache.max-request-bytes는 320 이상이어야 합니다.")
+    @Max(value = 8_388_608, message = "jumin.viewport.cache.max-request-bytes는 8388608 이하여야 합니다.")
     private int maxRequestBytes = 4 * 1024 * 1024;
+    @Min(value = 1, message = "jumin.viewport.cache.max-fallback-rows는 1 이상이어야 합니다.")
+    @Max(value = 1_000_000, message = "jumin.viewport.cache.max-fallback-rows는 1000000 이하여야 합니다.")
     private int maxFallbackRows = 1_000_000;
+    @Min(value = 0, message = "jumin.viewport.cache.max-concurrent-requests는 0 이상이어야 합니다.")
+    @Max(value = 64, message = "jumin.viewport.cache.max-concurrent-requests는 64 이하여야 합니다.")
     private int maxConcurrentRequests;
+    @Min(value = 1, message = "jumin.viewport.cache.max-concurrent-db는 1 이상이어야 합니다.")
+    @Max(value = 16, message = "jumin.viewport.cache.max-concurrent-db는 16 이하여야 합니다.")
     private int maxConcurrentDb = 3;
+    @Min(value = 1, message = "jumin.viewport.cache.db-queue는 1 이상이어야 합니다.")
+    @Max(value = 512, message = "jumin.viewport.cache.db-queue는 512 이하여야 합니다.")
     private int dbQueue = 256;
+    @Min(value = 1, message = "jumin.viewport.cache.max-concurrent-redis는 1 이상이어야 합니다.")
+    @Max(value = 16, message = "jumin.viewport.cache.max-concurrent-redis는 16 이하여야 합니다.")
     private int maxConcurrentRedis = 3;
+    @Min(value = 1, message = "jumin.viewport.cache.max-inflight-cells는 1 이상이어야 합니다.")
+    @Max(value = 4_096, message = "jumin.viewport.cache.max-inflight-cells는 4096 이하여야 합니다.")
     private int maxInflightCells = 2048;
+    @DecimalMin(value = "0", inclusive = false, message = "jumin.viewport.cache.max-width-degrees의 최솟값을 확인하세요.")
+    @DecimalMax(value = "0.1", message = "jumin.viewport.cache.max-width-degrees는 0.1 이하여야 합니다.")
     private double maxWidthDegrees = 0.05;
+    @DecimalMin(value = "0", inclusive = false, message = "jumin.viewport.cache.max-height-degrees의 최솟값을 확인하세요.")
+    @DecimalMax(value = "0.1", message = "jumin.viewport.cache.max-height-degrees는 0.1 이하여야 합니다.")
     private double maxHeightDegrees = 0.05;
+    @NotNull(message = "jumin.viewport.cache.ttl 값이 필요합니다.")
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.ttl는 0보다 커야 합니다.")
+    @DurationMax(days = 1, message = "jumin.viewport.cache.ttl는 1일 이하여야 합니다.")
     private Duration ttl = Duration.ofMinutes(10);
+    @NotNull(message = "jumin.viewport.cache.empty-ttl 값이 필요합니다.")
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.empty-ttl는 0보다 커야 합니다.")
+    @DurationMax(days = 1, message = "jumin.viewport.cache.empty-ttl는 1일 이하여야 합니다.")
     private Duration emptyTtl = Duration.ofMinutes(1);
+    @DecimalMin(value = "0", message = "jumin.viewport.cache.ttl-jitter의 최솟값을 확인하세요.")
+    @DecimalMax(value = "0.5", message = "jumin.viewport.cache.ttl-jitter는 0.5 이하여야 합니다.")
     private double ttlJitter = 0.2;
+    @NotNull(message = "jumin.viewport.cache.request-timeout 값이 필요합니다.")
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.request-timeout는 0보다 커야 합니다.")
+    @DurationMax(minutes = 1, message = "jumin.viewport.cache.request-timeout은 1분 이하여야 합니다.")
     private Duration requestTimeout = Duration.ofSeconds(2);
+    @NotNull(message = "jumin.viewport.cache.cache-timeout 값이 필요합니다.")
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.cache-timeout는 0보다 커야 합니다.")
     private Duration cacheTimeout = Duration.ofMillis(500);
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.redis-connect-timeout는 0보다 커야 합니다.")
     private Duration redisConnectTimeout;
+    @NotNull(message = "jumin.viewport.cache.db-timeout 값이 필요합니다.")
+    @DurationMin(nanos = 1, message = "jumin.viewport.cache.db-timeout는 0보다 커야 합니다.")
     private Duration dbTimeout = Duration.ofSeconds(1);
     private String redisUri = "redis://127.0.0.1:56379";
     private String redisUsername;
@@ -55,117 +109,57 @@ public class ViewportCacheProperties {
         return redisConnectTimeout;
     }
 
-    public void validate() {
-        validateDataLimits();
-        validateExecutionLimits();
-        validateCachePolicy();
-        if (enabled && !environmentConfigured) {
-            throw new IllegalArgumentException("jumin.viewport.cache.environment를 명시적으로 설정하세요.");
-        }
+    @AssertTrue(message = "jumin.viewport.cache.max-request-bytes는 max-value-bytes 이상이어야 합니다.")
+    public boolean isRequestCapacitySufficient() {
+        return maxRequestBytes >= maxValueBytes;
     }
 
-    private void validateDataLimits() {
-        if (gridSizeMeters < 100 || gridSizeMeters > 20_000) {
-            throw invalidSetting("grid-size-meters");
-        }
-        if (schema < 1) {
-            throw invalidSetting("schema");
-        }
-        if (policy < 1) {
-            throw invalidSetting("policy");
-        }
-        if (maxCells < 1 || maxCells > 256) {
-            throw invalidSetting("max-cells");
-        }
-        if (maxCellRows < 1 || maxCellRows > 16_384) {
-            throw invalidSetting("max-cell-rows");
-        }
-        if (maxFallbackRows < 1 || maxFallbackRows > 1_000_000) {
-            throw invalidSetting("max-fallback-rows");
-        }
-        if (maxValueBytes < 256 || maxValueBytes > 1024 * 1024) {
-            throw invalidSetting("max-value-bytes");
-        }
-        if (maxRequestBytes < 320 || maxRequestBytes > 8 * 1024 * 1024) {
-            throw invalidSetting("max-request-bytes");
-        }
-        if (maxRequestBytes < maxValueBytes) {
-            throw invalidSetting("max-request-bytes / max-value-bytes");
-        }
+    @AssertTrue(message = "jumin.viewport.cache.max-inflight-cells는 max-cells 이상이어야 합니다.")
+    public boolean isInflightCapacitySufficient() {
+        return maxInflightCells >= maxCells;
     }
 
-    private void validateExecutionLimits() {
-        if (maxConcurrentRequests < 0 || maxConcurrentRequests > 64) {
-            throw invalidSetting("max-concurrent-requests");
-        }
-        if (maxConcurrentDb < 1 || maxConcurrentDb > 16) {
-            throw invalidSetting("max-concurrent-db");
-        }
-        if (dbQueue < 1 || dbQueue > 512) {
-            throw invalidSetting("db-queue");
-        }
-        if (maxConcurrentRedis < 1 || maxConcurrentRedis > 16) {
-            throw invalidSetting("max-concurrent-redis");
-        }
-        if (maxInflightCells < maxCells || maxInflightCells > 4096) {
-            throw invalidSetting("max-inflight-cells / max-cells");
-        }
-        if (maxConcurrentRequests > 0
-                && (long) maxRequestBytes * maxConcurrentRequests > 32L * 1024 * 1024) {
-            throw invalidSetting("max-concurrent-requests / max-request-bytes");
-        }
-        if (2L * maxConcurrentRedis * maxRequestBytes > 64L * 1024 * 1024) {
-            throw invalidSetting("max-concurrent-redis / max-request-bytes");
-        }
+    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-requests / max-request-bytes의 메모리 한도는 32 MiB입니다.")
+    public boolean isRequestMemoryWithinBudget() {
+        return maxConcurrentRequests == 0 || (long) maxRequestBytes * maxConcurrentRequests <= 32L * 1024 * 1024;
+    }
+
+    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-redis / max-request-bytes의 메모리 한도는 64 MiB입니다.")
+    public boolean isRedisMemoryWithinBudget() {
+        return 2L * maxConcurrentRedis * maxRequestBytes <= 64L * 1024 * 1024;
+    }
+
+    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-requests / max-concurrent-db / "
+            + "max-concurrent-redis / max-request-bytes의 전체 메모리 한도는 128 MiB입니다.")
+    public boolean isCombinedMemoryWithinBudget() {
         long concurrentCopies = maxConcurrentRequests + 2L * maxConcurrentDb + 2L * maxConcurrentRedis;
-        if (concurrentCopies * maxRequestBytes > 128L * 1024 * 1024) {
-            throw invalidSetting("max-concurrent-requests / max-concurrent-db / max-concurrent-redis / max-request-bytes");
-        }
+        return concurrentCopies * maxRequestBytes <= 128L * 1024 * 1024;
     }
 
-    private void validateCachePolicy() {
-        if (!Double.isFinite(maxWidthDegrees) || maxWidthDegrees <= 0 || maxWidthDegrees > 0.1) {
-            throw invalidSetting("max-width-degrees");
-        }
-        if (!Double.isFinite(maxHeightDegrees) || maxHeightDegrees <= 0 || maxHeightDegrees > 0.1) {
-            throw invalidSetting("max-height-degrees");
-        }
-        if (!Double.isFinite(ttlJitter) || ttlJitter < 0 || ttlJitter > 0.5) {
-            throw invalidSetting("ttl-jitter");
-        }
-        if (isMissingOrNonPositive(ttl) || ttl.compareTo(Duration.ofDays(1)) > 0) {
-            throw invalidSetting("ttl");
-        }
-        if (isMissingOrNonPositive(emptyTtl) || emptyTtl.compareTo(Duration.ofDays(1)) > 0) {
-            throw invalidSetting("empty-ttl");
-        }
-        validateTimeouts();
-        if (environment == null || !environment.matches("[a-zA-Z0-9_-]{1,48}")) {
-            throw invalidSetting("environment");
-        }
+    @AssertTrue(message = "jumin.viewport.cache.cache-timeout은 request-timeout 이하여야 합니다.")
+    public boolean isCacheTimeoutWithinRequest() {
+        return withinRequestTimeout(cacheTimeout);
     }
 
-    private void validateTimeouts() {
-        if (isMissingOrNonPositive(requestTimeout) || requestTimeout.compareTo(Duration.ofMinutes(1)) > 0) {
-            throw invalidSetting("request-timeout");
-        }
-        if (isMissingOrNonPositive(cacheTimeout) || cacheTimeout.compareTo(requestTimeout) > 0) {
-            throw invalidSetting("cache-timeout / request-timeout");
-        }
-        if (isMissingOrNonPositive(dbTimeout) || dbTimeout.compareTo(requestTimeout) > 0) {
-            throw invalidSetting("db-timeout / request-timeout");
-        }
-        if (redisConnectTimeout != null && (isMissingOrNonPositive(redisConnectTimeout)
-                || redisConnectTimeout.compareTo(requestTimeout) > 0)) {
-            throw invalidSetting("redis-connect-timeout / request-timeout");
-        }
+    @AssertTrue(message = "jumin.viewport.cache.db-timeout은 request-timeout 이하여야 합니다.")
+    public boolean isDbTimeoutWithinRequest() {
+        return withinRequestTimeout(dbTimeout);
     }
 
-    private static boolean isMissingOrNonPositive(Duration duration) {
-        return duration == null || duration.isNegative() || duration.isZero();
+    @AssertTrue(message = "jumin.viewport.cache.redis-connect-timeout은 request-timeout 이하여야 합니다.")
+    public boolean isRedisConnectTimeoutWithinRequest() {
+        return withinRequestTimeout(redisConnectTimeout);
     }
 
-    private static IllegalArgumentException invalidSetting(String setting) {
-        return new IllegalArgumentException("jumin.viewport.cache." + setting + " 설정의 범위와 자원 한도를 확인하세요.");
+    private boolean withinRequestTimeout(Duration timeout) {
+        return timeout == null || requestTimeout == null || timeout.compareTo(requestTimeout) <= 0;
+    }
+
+    @AssertTrue(message = "jumin.viewport.cache.environment의 형식을 확인하고 캐시 사용 시 명시적으로 설정하세요.")
+    public boolean isEnvironmentValid() {
+        if (enabled && !environmentConfigured) {
+            return false;
+        }
+        return environment != null && environment.matches("[a-zA-Z0-9_-]{1,48}");
     }
 }

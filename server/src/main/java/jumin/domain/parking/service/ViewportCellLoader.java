@@ -19,25 +19,21 @@ import jumin.domain.parking.model.ViewportCell;
 import jumin.domain.parking.model.ViewportCellKey;
 import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.monitoring.ViewportMetrics;
-import jumin.domain.parking.monitoring.ViewportObservation;
 import jumin.domain.parking.repository.ViewportRepository;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ViewportCellLoader implements AutoCloseable {
 
-    private record Loaded(ViewportCell cell, boolean fromSource, ViewportObservation owner) { }
-
     private static final class CellLoad {
         private final ReentrantLock lock = new ReentrantLock();
         private int users;
-        private Loaded result;
+        private ViewportCell result;
         private RuntimeException failure;
     }
 
     private final ViewportCellStore store;
     private final ViewportRepository repository;
-    private final ViewportCacheProperties properties;
     private final ViewportMetrics metrics;
     private final Map<ViewportCellKey, CellLoad> loads = new ConcurrentHashMap<>();
     private final Semaphore slots;
@@ -47,19 +43,18 @@ public class ViewportCellLoader implements AutoCloseable {
                               ViewportCacheProperties properties, ViewportMetrics metrics) {
         this.store = store;
         this.repository = repository;
-        this.properties = properties;
         this.metrics = metrics;
         slots = new Semaphore(properties.getMaxInflightCells());
         metrics.registerLoader(loads);
     }
 
     public List<ViewportCell> resolve(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
-                                     ViewportDeadline deadline, ViewportObservation observation) {
-        return resolve(keys, hits, deadline, observation, false);
+                                     ViewportDeadline deadline) {
+        return resolve(keys, hits, deadline, false);
     }
 
     public List<ViewportCell> resolve(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
-                                     ViewportDeadline deadline, ViewportObservation observation, boolean bypassStore) {
+                                     ViewportDeadline deadline, boolean bypassStore) {
         Map<ViewportCellKey, CellLoad> registered = new LinkedHashMap<>();
         List<CellLoad> locked = new ArrayList<>();
         try {
@@ -67,7 +62,7 @@ public class ViewportCellLoader implements AutoCloseable {
             registerMissingCells(keys, hits, registered);
             acquireCellLocks(registered, locked, deadline);
             requireOpen();
-            loadMissing(registered, deadline, observation, bypassStore);
+            loadMissing(registered, deadline, bypassStore);
             List<ViewportCell> result = new ArrayList<>(keys.size());
             for (ViewportCellKey key : keys) {
                 ViewportCell hit = hits.get(key);
@@ -75,9 +70,7 @@ public class ViewportCellLoader implements AutoCloseable {
                     result.add(hit);
                     continue;
                 }
-                Loaded loaded = registered.get(key).result;
-                observation.consume(loaded.fromSource(), loaded.owner() != observation);
-                result.add(loaded.cell());
+                result.add(registered.get(key).result);
             }
             deadline.requireRemaining();
             return List.copyOf(result);
@@ -161,7 +154,7 @@ public class ViewportCellLoader implements AutoCloseable {
     }
 
     private void loadMissing(Map<ViewportCellKey, CellLoad> registered, ViewportDeadline deadline,
-                             ViewportObservation observation, boolean bypassStore) {
+                             boolean bypassStore) {
         Map<ViewportCellKey, CellLoad> missing = new LinkedHashMap<>();
         registered.forEach((key, load) -> {
             if (load.result == null) {
@@ -172,31 +165,30 @@ public class ViewportCellLoader implements AutoCloseable {
             return;
         }
         Map<ViewportCellKey, ViewportCell> rechecked = recheck(List.copyOf(missing.keySet()), deadline,
-                observation, bypassStore);
+                bypassStore);
         metrics.count("cells", "recheck_hit", rechecked.size());
         rechecked.forEach((key, cell) -> {
             CellLoad load = missing.remove(key);
             if (load != null) {
-                load.result = new Loaded(cell, false, observation);
+                load.result = cell;
             }
         });
         if (missing.isEmpty()) {
             return;
         }
         deadline.requireRemaining();
-        Map<ViewportCellKey, ViewportCell> loaded = repository.load(List.copyOf(missing.keySet()), deadline,
-                observation::sourceStarted);
+        Map<ViewportCellKey, ViewportCell> loaded = repository.load(List.copyOf(missing.keySet()), deadline);
         if (loaded == null || !loaded.keySet().containsAll(missing.keySet())) {
             throw ViewportFailureReason.CELL_INCOMPLETE_BATCH.failure();
         }
         requireOpen();
         deadline.requireRemaining();
         persist(loaded, deadline);
-        missing.forEach((key, load) -> load.result = new Loaded(loaded.get(key), true, observation));
+        missing.forEach((key, load) -> load.result = loaded.get(key));
     }
 
     private Map<ViewportCellKey, ViewportCell> recheck(List<ViewportCellKey> keys, ViewportDeadline deadline,
-                                                     ViewportObservation observation, boolean bypassStore) {
+                                                     boolean bypassStore) {
         if (bypassStore) {
             return Map.of();
         }
@@ -209,7 +201,6 @@ public class ViewportCellLoader implements AutoCloseable {
             throw budget;
         } catch (ViewportStoreException failure) {
             recordRecheckFailure();
-            observation.storeBypassed();
             metrics.count("store", "bypass_recheck", 1);
             return Map.of();
         } finally {

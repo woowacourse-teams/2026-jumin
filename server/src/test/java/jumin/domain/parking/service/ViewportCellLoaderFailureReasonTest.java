@@ -22,7 +22,6 @@ import jumin.domain.parking.model.ViewportCell;
 import jumin.domain.parking.model.ViewportCellKey;
 import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.monitoring.ViewportMetrics;
-import jumin.domain.parking.monitoring.ViewportObservation;
 import jumin.domain.parking.repository.ViewportRepository;
 import jumin.global.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
@@ -43,7 +42,7 @@ class ViewportCellLoaderFailureReasonTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ViewportRepository repository = mock(ViewportRepository.class);
-        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+        when(repository.load(anyList(), any())).thenAnswer(invocation -> {
             started.countDown();
             assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
             return Map.of(key(1), new ViewportCell(key(1), List.of()));
@@ -51,12 +50,12 @@ class ViewportCellLoaderFailureReasonTest {
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
              var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
             // when
-            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             waitForFollower(registry);
             // then
-            assertThatThrownBy(() -> resolve(loader, key(2), metrics)).isInstanceOfSatisfying(BusinessException.class,
+            assertThatThrownBy(() -> resolve(loader, key(2))).isInstanceOfSatisfying(BusinessException.class,
                     failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_FLIGHT_LIMIT.name()));
             release.countDown();
             assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
@@ -74,16 +73,16 @@ class ViewportCellLoaderFailureReasonTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ViewportRepository repository = mock(ViewportRepository.class);
-        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+        when(repository.load(anyList(), any())).thenAnswer(invocation -> {
             started.countDown();
             assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
             return Map.of(key(1), new ViewportCell(key(1), List.of()));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
              var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
-            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             waitForFollower(registry);
             // when
             loader.close();
@@ -91,7 +90,7 @@ class ViewportCellLoaderFailureReasonTest {
             assertThatThrownBy(() -> follower.get(2, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class)
                     .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
                             .isEqualTo(ViewportFailureReason.CELL_LOADER_CLOSED.name()));
-            assertThatThrownBy(() -> resolve(loader, key(2), metrics)).isInstanceOfSatisfying(BusinessException.class,
+            assertThatThrownBy(() -> resolve(loader, key(2))).isInstanceOfSatisfying(BusinessException.class,
                     failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_LOADER_CLOSED.name()));
             release.countDown();
             assertThatThrownBy(() -> owner.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
@@ -107,12 +106,12 @@ class ViewportCellLoaderFailureReasonTest {
         ViewportMetrics metrics = metrics();
         ViewportRepository repository = mock(ViewportRepository.class);
         ViewportCell cell = new ViewportCell(key(1), List.of());
-        when(repository.load(anyList(), any(), any())).thenReturn(Map.of()).thenReturn(Map.of(key(1), cell));
+        when(repository.load(anyList(), any())).thenReturn(Map.of()).thenReturn(Map.of(key(1), cell));
         try (var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
             // when & then
-            assertThatThrownBy(() -> resolve(loader, key(1), metrics)).isInstanceOfSatisfying(BusinessException.class,
+            assertThatThrownBy(() -> resolve(loader, key(1))).isInstanceOfSatisfying(BusinessException.class,
                     failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_INCOMPLETE_BATCH.name()));
-            assertThat(resolve(loader, key(1), metrics)).containsExactly(cell);
+            assertThat(resolve(loader, key(1))).containsExactly(cell);
         }
     }
 
@@ -124,18 +123,17 @@ class ViewportCellLoaderFailureReasonTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ViewportRepository repository = mock(ViewportRepository.class);
-        when(repository.load(anyList(), any(), any())).thenAnswer(invocation -> {
+        when(repository.load(anyList(), any())).thenAnswer(invocation -> {
             started.countDown();
             assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
             return Map.of(key(1), new ViewportCell(key(1), List.of()));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
              var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
-            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1), metrics), threads);
+            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             // when & then
-            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)),
-                    new ViewportObservation(metrics))).isInstanceOf(BusinessException.class);
+            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)))).isInstanceOf(BusinessException.class);
             assertThat(owner).isNotCompleted();
             release.countDown();
             assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
@@ -144,8 +142,8 @@ class ViewportCellLoaderFailureReasonTest {
         }
     }
 
-    private static List<ViewportCell> resolve(ViewportCellLoader loader, ViewportCellKey key, ViewportMetrics metrics) {
-        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)), new ViewportObservation(metrics));
+    private static List<ViewportCell> resolve(ViewportCellLoader loader, ViewportCellKey key) {
+        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)));
     }
 
     private ViewportMetrics metrics() {

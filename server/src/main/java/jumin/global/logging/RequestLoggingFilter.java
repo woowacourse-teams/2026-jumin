@@ -42,16 +42,21 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             Object matchedPattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
             String route = resolveRoute(isHealthCheck, matchedPattern);
             long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.atInfo()
-                    .setMessage("HTTP request completed")
-                    .addKeyValue("method", request.getMethod())
-                    .addKeyValue("path", route)
-                    .addKeyValue("requestType", isHealthCheck ? "health" : "application")
-                    .addKeyValue("status", response.getStatus())
-                    .addKeyValue("durationMs", durationMs)
-                    .log();
+            logRequestCompleted(request, response, route, isHealthCheck, durationMs);
             MDC.remove(REQUEST_ID_KEY);
         }
+    }
+
+    private void logRequestCompleted(HttpServletRequest request, HttpServletResponse response, String route,
+                                     boolean isHealthCheck, long durationMs) {
+        log.atInfo()
+                .setMessage("HTTP request completed")
+                .addKeyValue("method", request.getMethod())
+                .addKeyValue("path", route)
+                .addKeyValue("requestType", isHealthCheck ? "health" : "application")
+                .addKeyValue("status", response.getStatus())
+                .addKeyValue("durationMs", durationMs)
+                .log();
     }
 
     private static String resolveRoute(boolean isHealthCheck, Object matchedPattern) {

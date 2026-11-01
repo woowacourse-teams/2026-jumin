@@ -33,27 +33,6 @@ import org.junit.jupiter.api.Test;
 class ViewportAdmissionTest {
 
     @Test
-    @DisplayName("0은 요청 admission 제한을 해제하고 설정의 다른 한도는 계속 검사한다")
-    void validates_unlimited_setting_and_retains_other_limits() {
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-
-        assertThat(properties.getMaxConcurrentRequests()).isZero();
-        properties.validate();
-
-        properties.setMaxConcurrentRequests(0);
-        properties.validate();
-        properties.setMaxConcurrentDb(0);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setMaxConcurrentDb(3);
-        properties.setMaxConcurrentRequests(-1);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setMaxConcurrentRequests(65);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setMaxConcurrentRequests(9);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
     @DisplayName("제한 해제 시 12개 동시 요청을 거절하지 않고 응답 완료까지 활성 수를 추적한다")
     void unlimited_admits_concurrent_requests_and_tracks_until_completion() throws Exception {
         int requestCount = 12;
@@ -61,7 +40,7 @@ class ViewportAdmissionTest {
         fixture.properties.setMaxConcurrentRequests(0);
         CountDownLatch entered = new CountDownLatch(requestCount);
         CountDownLatch proceed = new CountDownLatch(1);
-        when(fixture.repository.fallback(any(), any(), anyInt(), any(), any())).thenAnswer(invocation -> {
+        when(fixture.repository.fallback(any(), any(), anyInt(), any())).thenAnswer(invocation -> {
             entered.countDown();
             if (!proceed.await(10, TimeUnit.SECONDS)) {
                 throw new IllegalStateException("request latch timed out");
@@ -113,7 +92,7 @@ class ViewportAdmissionTest {
     void configured_limit_rejects_ninth_request_and_reuses_released_capacity() {
         Fixture fixture = new Fixture();
         fixture.properties.setMaxConcurrentRequests(8);
-        when(fixture.repository.fallback(any(), any(), anyInt(), any(), any()))
+        when(fixture.repository.fallback(any(), any(), anyInt(), any()))
                 .thenAnswer(invocation -> body());
         ViewportSearchService service = fixture.service(fixedClock());
         assertThat(fixture.limit()).isEqualTo(8);
@@ -153,7 +132,7 @@ class ViewportAdmissionTest {
 
             Fixture execution = new Fixture();
             execution.properties.setMaxConcurrentRequests(limit);
-            when(execution.repository.fallback(any(), any(), anyInt(), any(), any()))
+            when(execution.repository.fallback(any(), any(), anyInt(), any()))
                     .thenThrow(new IllegalStateException("fallback failure"));
             ViewportSearchService executionService = execution.service(fixedClock());
             assertThatThrownBy(() -> executionService.search(request())).isInstanceOf(IllegalStateException.class);

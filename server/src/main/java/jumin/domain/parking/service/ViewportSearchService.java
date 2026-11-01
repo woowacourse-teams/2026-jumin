@@ -28,7 +28,6 @@ import jumin.domain.parking.model.ViewportCellKey;
 import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.model.ViewportItem;
 import jumin.domain.parking.monitoring.ViewportMetrics;
-import jumin.domain.parking.monitoring.ViewportObservation;
 import jumin.domain.parking.repository.ViewportRepository;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
@@ -76,12 +75,11 @@ public class ViewportSearchService {
         if (!properties.isEnabled()) {
             return new ViewportBody(legacy.searchViewport(request));
         }
-        ViewportObservation observation = new ViewportObservation(metrics);
         acquireRequest();
         try {
-            return searchAdmitted(bounds, request, observation);
+            return searchAdmitted(bounds, request);
         } catch (RuntimeException | Error failure) {
-            finishRequest(observation, false);
+            finishRequest(false);
             if (failure instanceof DataAccessException || failure instanceof TransactionException) {
                 throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
             }
@@ -97,21 +95,20 @@ public class ViewportSearchService {
         activeRequests.incrementAndGet();
     }
 
-    private ViewportBody searchAdmitted(ViewportBounds bounds, ParkingLotViewportRequest request,
-                                       ViewportObservation observation) {
+    private ViewportBody searchAdmitted(ViewportBounds bounds, ParkingLotViewportRequest request) {
         ViewportDeadline deadline = ViewportDeadline.after(properties.getRequestTimeout());
         DayOfWeek day = LocalDate.ofInstant(clock.instant(), SEOUL).getDayOfWeek();
-        ViewportBody body = execute(bounds, request, day, deadline, observation);
+        ViewportBody body = execute(bounds, request, day, deadline);
         if (deadline.remainingNanos() == 0) {
             body.close();
             deadline.requireRemaining();
         }
-        return body.onCompletion(success -> finishRequest(observation, success));
+        return body.onCompletion(this::finishRequest);
     }
 
-    private void finishRequest(ViewportObservation observation, boolean success) {
+    private void finishRequest(boolean success) {
         try {
-            observation.finish(success);
+            metrics.count("logical", success ? "success" : "failure", 1);
         } finally {
             releaseRequest();
         }
@@ -126,23 +123,23 @@ public class ViewportSearchService {
     }
 
     private ViewportBody execute(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
-                                 ViewportDeadline deadline, ViewportObservation observation) {
+                                 ViewportDeadline deadline) {
         List<Long> cells = coveredCells(bounds);
         if (cells.isEmpty()) {
-            return fallback(bounds, request, day, deadline, observation);
+            return fallback(bounds, request, day, deadline);
         }
         try {
-            return searchCells(cells, bounds, request, day, deadline, observation);
+            return searchCells(cells, bounds, request, day, deadline);
         } catch (ViewportFallbackException bypass) {
             if (bypass.isCellTooLarge()) {
                 metrics.count("requests", "oversize_bypass", 1);
             }
-            return fallback(bounds, request, day, deadline, observation);
+            return fallback(bounds, request, day, deadline);
         } catch (ViewportStoreBudgetException bypass) {
-            return fallback(bounds, request, day, deadline, observation);
+            return fallback(bounds, request, day, deadline);
         } catch (ViewportStoreException bypass) {
             metrics.count("store", "assemble_failure", 1);
-            return fallback(bounds, request, day, deadline, observation);
+            return fallback(bounds, request, day, deadline);
         }
     }
 
@@ -154,13 +151,12 @@ public class ViewportSearchService {
     }
 
     private ViewportBody searchCells(List<Long> cells, ViewportBounds bounds, ParkingLotViewportRequest request,
-                                     DayOfWeek day, ViewportDeadline deadline, ViewportObservation observation) {
+                                     DayOfWeek day, ViewportDeadline deadline) {
         List<ViewportCellKey> keys = cells.stream().map(cell -> new ViewportCellKey(properties.getEnvironment(),
                 properties.getSchema(), properties.getPolicy(), properties.getGridSizeMeters(), cell)).toList();
-        observation.eligible();
-        CacheLookup lookup = lookup(keys, deadline, observation);
+        CacheLookup lookup = lookup(keys, deadline);
         deadline.requireRemaining();
-        List<ViewportCell> loaded = loader.resolve(keys, lookup.hits(), deadline, observation,
+        List<ViewportCell> loaded = loader.resolve(keys, lookup.hits(), deadline,
                 lookup.bypassStore());
         long started = System.nanoTime();
         try {
@@ -170,11 +166,12 @@ public class ViewportSearchService {
         }
     }
 
-    private CacheLookup lookup(List<ViewportCellKey> keys, ViewportDeadline deadline, ViewportObservation observation) {
+    private CacheLookup lookup(List<ViewportCellKey> keys, ViewportDeadline deadline) {
         long started = System.nanoTime();
         try {
             Map<ViewportCellKey, ViewportCell> hits = store.getMany(keys, deadline);
-            observation.firstLookup(keys.size(), hits.size());
+            metrics.count("cells", "hit", hits.size());
+            metrics.count("cells", "miss", keys.size() - hits.size());
             return new CacheLookup(hits, false);
         } catch (ViewportStoreBudgetException budget) {
             recordInitialLookupFailure();
@@ -182,7 +179,6 @@ public class ViewportSearchService {
             throw budget;
         } catch (ViewportStoreException failure) {
             recordInitialLookupFailure();
-            observation.firstLookupFailed();
             metrics.count("store", "bypass_initial", 1);
             return new CacheLookup(Map.of(), true);
         } finally {
@@ -196,9 +192,9 @@ public class ViewportSearchService {
     }
 
     private ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
-                                  ViewportDeadline deadline, ViewportObservation observation) {
-        observation.fallback();
-        return repository.fallback(bounds, request, day.getValue(), deadline, observation::sourceStarted);
+                                  ViewportDeadline deadline) {
+        metrics.count("logical", "fallback", 1);
+        return repository.fallback(bounds, request, day.getValue(), deadline);
     }
 
     private ViewportBody assemble(List<ViewportCell> cells, ViewportBounds bounds,

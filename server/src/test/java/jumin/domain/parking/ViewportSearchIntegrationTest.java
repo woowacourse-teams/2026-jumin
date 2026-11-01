@@ -35,9 +35,7 @@ import jumin.domain.parking.model.ViewportCellKey;
 import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.model.ViewportMappingState;
 import jumin.domain.parking.monitoring.ViewportMetrics;
-import jumin.domain.parking.monitoring.ViewportObservation;
 import jumin.domain.parking.repository.ViewportRepository;
-import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import jumin.domain.parking.service.ParkingSearchService;
 import jumin.domain.parking.service.ViewportCellCover;
 import jumin.domain.parking.service.ViewportCellLoader;
@@ -142,7 +140,7 @@ class ViewportSearchIntegrationTest {
                 for (long cellId : cellIds) {
                     ViewportCellKey key = new ViewportCellKey(properties.getEnvironment(),1,1,mappingState.gridSizeMeters(),cellId);
                     requests.add(CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(),
-                            ViewportDeadline.after(Duration.ofSeconds(2)), new ViewportObservation(new ViewportMetrics(metrics))), threads));
+                            ViewportDeadline.after(Duration.ofSeconds(2))), threads));
                 }
                 assertThat(writesStarted.await(5,TimeUnit.SECONDS)).isTrue();
                 assertThat(requests).allSatisfy(request -> assertThat(request).isNotCompleted());

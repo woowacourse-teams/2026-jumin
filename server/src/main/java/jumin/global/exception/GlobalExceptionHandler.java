@@ -3,8 +3,6 @@ package jumin.global.exception;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.parking.exception.ViewportFailureDiagnostics;
-import jumin.domain.parking.exception.ViewportFailureSummary;
 import jumin.global.response.ApiErrorResponse;
 import jumin.global.response.ValidationErrorField;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +26,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ParkingCsvException.class)
     public ResponseEntity<Object> handleParkingCsvException(ParkingCsvException exception) {
         if (exception.getStatus().is5xxServerError()) {
-            log.atError()
-                    .setMessage("주차장 CSV 처리 중 서버 예외가 발생했습니다.")
-                    .addKeyValue("status", exception.getStatus().value())
-                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                    .setCause(exception)
-                    .log();
+            logParkingCsvServerError(exception);
         }
 
         return ResponseEntity.status(exception.getStatus())
@@ -48,19 +41,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Object> handleBusinessException(BusinessException exception) {
         if (exception.getErrorCode() == ErrorCode.VIEWPORT_UNAVAILABLE) {
-            logViewportFailure(exception);
+            logViewportUnavailable(exception);
         }
         return createResponse(exception.getErrorCode());
-    }
-
-    private void logViewportFailure(BusinessException exception) {
-        ViewportFailureSummary failure = ViewportFailureDiagnostics.inspect(exception);
-        log.atWarn().setMessage("viewport 자원 보호로 요청을 완료하지 못했습니다")
-                .addKeyValue("reason", failure.reason())
-                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                .addKeyValue("causeType", failure.causeType())
-                .addKeyValue("sqlState", failure.sqlState())
-                .log();
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -70,12 +53,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpectedException(Exception exception) {
-        log.atError()
-                .setMessage("예상하지 못한 예외가 발생했습니다.")
-                .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                .setCause(exception)
-                .log();
+        logUnexpectedException(exception);
         return createResponse(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 
@@ -106,12 +84,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request
     ) {
         if (exception.isForReturnValue()) {
-            log.atError()
-                    .setMessage("반환값 검증에 실패했습니다.")
-                    .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                    .setCause(exception)
-                    .log();
+            logReturnValueValidationFailure(exception);
 
             ApiErrorResponse response = ApiErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
 
@@ -162,12 +135,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request
     ) {
         if (status != null && status.is5xxServerError()) {
-            log.atError()
-                    .setMessage("Spring MVC 처리 중 서버 예외가 발생했습니다.")
-                    .addKeyValue("status", status.value())
-                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
-                    .setCause(exception)
-                    .log();
+            logSpringMvcServerError(exception, status);
         }
 
         ApiErrorResponse response = ApiErrorResponse.of(resolveMessage(status));
@@ -179,6 +147,49 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 status,
                 request
         );
+    }
+
+    private void logParkingCsvServerError(ParkingCsvException exception) {
+        log.atError()
+                .setMessage("주차장 CSV 처리 중 서버 예외가 발생했습니다.")
+                .addKeyValue("status", exception.getStatus().value())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log();
+    }
+
+    private void logViewportUnavailable(BusinessException exception) {
+        log.atWarn().setMessage("viewport 자원 보호로 요청을 완료하지 못했습니다")
+                .addKeyValue("errorCode", exception.getErrorCode().name())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .log();
+    }
+
+    private void logUnexpectedException(Exception exception) {
+        log.atError()
+                .setMessage("예상하지 못한 예외가 발생했습니다.")
+                .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log();
+    }
+
+    private void logReturnValueValidationFailure(HandlerMethodValidationException exception) {
+        log.atError()
+                .setMessage("반환값 검증에 실패했습니다.")
+                .addKeyValue("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log();
+    }
+
+    private void logSpringMvcServerError(Exception exception, HttpStatusCode status) {
+        log.atError()
+                .setMessage("Spring MVC 처리 중 서버 예외가 발생했습니다.")
+                .addKeyValue("status", status.value())
+                .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log();
     }
 
     private ResponseEntity<Object> handleSpringMvcException(

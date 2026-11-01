@@ -1,18 +1,39 @@
 package jumin.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.validation.BindValidationException;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Configuration;
 
 class ViewportCachePropertiesTest {
+
+    private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
+    private static final Validator VALIDATOR = VALIDATOR_FACTORY.getValidator();
+
+    @AfterAll
+    static void closeValidatorFactory() {
+        VALIDATOR_FACTORY.close();
+    }
 
     @Test
     @DisplayName("DB 대기 한도와 동기 Redis 동시성 기본값을 적용한다")
@@ -21,31 +42,13 @@ class ViewportCachePropertiesTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
 
         // when
-        properties.validate();
+        assertValid(properties);
 
         // then
         assertThat(properties.getMaxConcurrentDb()).isEqualTo(3);
         assertThat(properties.getDbQueue()).isEqualTo(256);
         assertThat(properties.getMaxConcurrentRedis()).isEqualTo(3);
         assertThat(properties.getMaxConcurrentRequests()).isZero();
-    }
-
-    @Test
-    @DisplayName("공유 DB 대기열과 Redis transport 동시성의 설정 범위를 검증한다")
-    void rejects_invalid_capacities() {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-
-        // when & then
-        properties.setDbQueue(0);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setDbQueue(513);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setDbQueue(32);
-        properties.setMaxConcurrentRedis(0);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
-        properties.setMaxConcurrentRedis(17);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -56,21 +59,21 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRequests(8);
 
         // when & then
-        properties.validate();
+        assertValid(properties);
         properties.setMaxConcurrentDb(16);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        assertInvalid(properties);
         properties.setMaxConcurrentDb(3);
         properties.setMaxConcurrentRedis(6);
-        properties.validate();
+        assertValid(properties);
         properties.setMaxConcurrentRedis(9);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        assertInvalid(properties);
 
         properties.setMaxConcurrentRequests(0);
         properties.setMaxConcurrentDb(1);
         properties.setMaxConcurrentRedis(8);
-        properties.validate();
+        assertValid(properties);
         properties.setMaxConcurrentRedis(9);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        assertInvalid(properties);
     }
 
     @Test
@@ -87,11 +90,11 @@ class ViewportCachePropertiesTest {
         properties.setRedisConnectTimeout(Duration.ofMillis(500));
         assertThat(properties.getEffectiveRedisConnectTimeout()).isEqualTo(Duration.ofMillis(500));
         assertThat(properties.getCacheTimeout()).isEqualTo(Duration.ofMillis(80));
-        properties.validate();
+        assertValid(properties);
         properties.setRedisConnectTimeout(Duration.ZERO);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        assertInvalid(properties);
         properties.setRedisConnectTimeout(Duration.ofSeconds(3));
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class);
+        assertInvalid(properties);
     }
     @ParameterizedTest(name = "{0}")
     @MethodSource("integerLimits")
@@ -106,16 +109,14 @@ class ViewportCachePropertiesTest {
         properties.setMaxRequestBytes(setting.equals("max-value-bytes") ? 8 * 1024 * 1024 : 512);
         // when & then
         setter.accept(properties, minimum);
-        properties.validate();
+        assertValid(properties);
         setter.accept(properties, maximum);
-        properties.validate();
+        assertValid(properties);
         setter.accept(properties, minimum - 1);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("jumin.viewport.cache." + setting);
+        assertInvalid(properties, "jumin.viewport.cache." + setting);
         if (maximum < Integer.MAX_VALUE) {
             setter.accept(properties, maximum + 1);
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("jumin.viewport.cache." + setting);
+            assertInvalid(properties, "jumin.viewport.cache." + setting);
         }
     }
 
@@ -150,14 +151,17 @@ class ViewportCachePropertiesTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
         // when & then
         setter.accept(properties, minimum);
-        properties.validate();
+        assertValid(properties);
         setter.accept(properties, maximum);
-        properties.validate();
+        assertValid(properties);
+        if (minimum == 0) {
+            setter.accept(properties, -0.0);
+            assertValid(properties);
+        }
         for (double invalid : new double[]{Math.nextDown(minimum), Math.nextUp(maximum),
                 Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
             setter.accept(properties, invalid);
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("jumin.viewport.cache." + setting);
+            assertInvalid(properties, "jumin.viewport.cache." + setting);
         }
     }
 
@@ -185,21 +189,19 @@ class ViewportCachePropertiesTest {
         properties.setDbTimeout(Duration.ofNanos(1));
         // when & then
         setter.accept(properties, Duration.ofNanos(1));
-        properties.validate();
+        assertValid(properties);
         setter.accept(properties, maximum);
-        properties.validate();
+        assertValid(properties);
         for (Duration invalid : new Duration[]{Duration.ZERO, Duration.ofNanos(-1), maximum.plusNanos(1)}) {
             setter.accept(properties, invalid);
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("jumin.viewport.cache." + setting);
+            assertInvalid(properties, "jumin.viewport.cache." + setting);
         }
         setter.accept(properties, null);
         if (setting.equals("redis-connect-timeout")) {
-            properties.validate();
+            assertValid(properties);
             assertThat(properties.getEffectiveRedisConnectTimeout()).isEqualTo(properties.getCacheTimeout());
         } else {
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("jumin.viewport.cache." + setting);
+            assertInvalid(properties, "jumin.viewport.cache." + setting);
         }
     }
 
@@ -224,12 +226,13 @@ class ViewportCachePropertiesTest {
         // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setMaxConcurrentRequests(8);
-        properties.validate();
-        // when
+        assertValid(properties);
+        // when & then
+        properties.setMaxConcurrentRequests(9);
+        assertInvalid(properties, "max-concurrent-requests", "max-request-bytes");
+        properties.setMaxConcurrentRequests(8);
         properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
-        // then
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("max-concurrent-requests").hasMessageContaining("max-request-bytes");
+        assertInvalid(properties, "max-concurrent-requests", "max-request-bytes");
     }
 
     @Test
@@ -239,12 +242,11 @@ class ViewportCachePropertiesTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setMaxConcurrentDb(1);
         properties.setMaxConcurrentRedis(8);
-        properties.validate();
+        assertValid(properties);
         // when
         properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
         // then
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("max-concurrent-redis").hasMessageContaining("max-request-bytes");
+        assertInvalid(properties, "max-concurrent-redis", "max-request-bytes");
     }
 
     @Test
@@ -254,13 +256,11 @@ class ViewportCachePropertiesTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setMaxConcurrentDb(9);
         properties.setMaxConcurrentRedis(7);
-        properties.validate();
+        assertValid(properties);
         // when
         properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
         // then
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("max-concurrent-requests").hasMessageContaining("max-concurrent-db")
-                .hasMessageContaining("max-concurrent-redis").hasMessageContaining("max-request-bytes");
+        assertInvalid(properties, "max-concurrent-requests", "max-concurrent-db", "max-concurrent-redis", "max-request-bytes");
     }
 
     @Test
@@ -271,15 +271,13 @@ class ViewportCachePropertiesTest {
         properties.setMaxValueBytes(1024);
         properties.setMaxRequestBytes(1024);
         properties.setMaxInflightCells(properties.getMaxCells());
-        properties.validate();
+        assertValid(properties);
         // when & then
         properties.setMaxRequestBytes(1023);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("max-request-bytes").hasMessageContaining("max-value-bytes");
+        assertInvalid(properties, "max-request-bytes", "max-value-bytes");
         properties.setMaxRequestBytes(1024);
         properties.setMaxInflightCells(properties.getMaxCells() - 1);
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("max-inflight-cells").hasMessageContaining("max-cells");
+        assertInvalid(properties, "max-inflight-cells", "max-cells");
     }
 
     @Test
@@ -289,17 +287,151 @@ class ViewportCachePropertiesTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setEnabled(true);
         // when & then
-        assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("jumin.viewport.cache.environment");
+        assertInvalid(properties, "jumin.viewport.cache.environment");
         for (String valid : new String[]{"a", "A_0-" + "x".repeat(44)}) {
             properties.setEnvironment(valid);
-            properties.validate();
+            assertValid(properties);
         }
         for (String invalid : new String[]{null, "", "x".repeat(49), "password=private-value"}) {
             properties.setEnvironment(invalid);
-            assertThatThrownBy(properties::validate).isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("jumin.viewport.cache.environment")
-                    .hasMessageNotContaining("password=private-value");
+            assertInvalid(properties, "jumin.viewport.cache.environment");
+            assertThat(VALIDATOR.validate(properties)).extracting(ConstraintViolation::getMessage)
+                    .allSatisfy(message -> assertThat(message).doesNotContain("password=private-value"));
         }
+    }
+
+    @Test
+    @DisplayName("필수 Duration과 다른 범위가 동시에 잘못돼도 검증 순서에 따른 예외 없이 거절한다")
+    void validates_missing_durations_without_depending_on_constraint_order() {
+        // given
+        ViewportCacheProperties properties = new ViewportCacheProperties();
+        properties.setTtl(null);
+        properties.setEmptyTtl(null);
+        properties.setRequestTimeout(null);
+        properties.setCacheTimeout(null);
+        properties.setDbTimeout(null);
+        properties.setMaxConcurrentRequests(Integer.MAX_VALUE);
+        properties.setMaxConcurrentDb(Integer.MAX_VALUE);
+        properties.setMaxConcurrentRedis(Integer.MAX_VALUE);
+        properties.setMaxRequestBytes(Integer.MAX_VALUE);
+
+        // when
+        var violations = VALIDATOR.validate(properties);
+
+        // then
+        for (String setting : new String[]{"ttl", "empty-ttl", "request-timeout", "cache-timeout", "db-timeout"}) {
+            assertThat(violations).anySatisfy(violation ->
+                    assertThat(violation.getMessage()).contains("jumin.viewport.cache." + setting));
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("bindingCases")
+    @DisplayName("설정 바인딩만으로 경계값을 허용하고 잘못된 설정의 시작을 거부한다")
+    void validates_during_configuration_binding(String name, String expectedSetting,
+                                               Class<? extends Throwable> expectedFailure, String[] settings) {
+        // given
+        ApplicationContextRunner runner = new ApplicationContextRunner()
+                .withUserConfiguration(BindingConfiguration.class)
+                .withPropertyValues(Stream.of(settings)
+                        .map(value -> "jumin.viewport.cache." + value).toArray(String[]::new));
+
+        // when & then
+        runner.run(context -> {
+            if (expectedSetting == null) {
+                assertThat(context).hasNotFailed();
+                assertValid(context.getBean(ViewportCacheProperties.class));
+                return;
+            }
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(expectedFailure)
+                    .hasStackTraceContaining("jumin.viewport.cache").hasStackTraceContaining(expectedSetting);
+        });
+    }
+
+    private static Stream<Arguments> bindingCases() {
+        return Stream.of(
+                binding("기본 설정", null),
+                binding("캐시 활성화와 기본 환경 명시", null, "enabled=true", "environment=local"),
+                binding("캐시 비활성화 중 잘못된 정수", "grid-size-meters", "grid-size-meters=99"),
+                binding("활성화 중 환경 누락", "environment", "enabled=true"),
+                Arguments.of("내부 상태 설정으로 환경 명시를 우회하지 못함", "environment-configured",
+                        IllegalStateException.class, new String[]{"enabled=true", "environment-configured=true"}),
+                binding("데이터 크기 관계", "max-request-bytes", "max-value-bytes=1024", "max-request-bytes=1023"),
+                binding("셀 수 관계", "max-inflight-cells", "max-inflight-cells=63"),
+                binding("요청 메모리 경계", null, "max-concurrent-requests=8"),
+                binding("요청 메모리 초과", "max-concurrent-requests", "max-concurrent-requests=9"),
+                binding("Redis 메모리 경계", null, "max-concurrent-db=1", "max-concurrent-redis=8"),
+                binding("Redis 메모리 초과", "max-concurrent-redis", "max-concurrent-db=1", "max-concurrent-redis=9"),
+                binding("전체 메모리 경계", null, "max-concurrent-db=9", "max-concurrent-redis=7"),
+                binding("전체 메모리 초과", "max-concurrent-db", "max-concurrent-db=9",
+                        "max-concurrent-redis=7", "max-request-bytes=4194305"),
+                binding("요청보다 긴 캐시 제한시간", "cache-timeout", "cache-timeout=3s"),
+                binding("선택 연결 제한시간 경계", null, "redis-connect-timeout=2s"),
+                binding("요청보다 긴 연결 제한시간", "redis-connect-timeout", "redis-connect-timeout=3s"),
+                binding("TTL 경계", null, "ttl=24h", "empty-ttl=24h"),
+                binding("TTL 초과", "ttl", "ttl=P1DT0.000000001S"),
+                binding("유한하지 않은 너비", "max-width-degrees", "max-width-degrees=NaN")
+        );
+    }
+
+    private static Arguments binding(String name, String expectedSetting, String... settings) {
+        return Arguments.of(name, expectedSetting, BindValidationException.class, settings);
+    }
+
+    @Test
+    @DisplayName("빈 제한시간 문자열을 바인딩하면 기존 기본값을 유지한다")
+    void empty_duration_keeps_default_during_binding() {
+        // given
+        ApplicationContextRunner runner = new ApplicationContextRunner()
+                .withUserConfiguration(BindingConfiguration.class)
+                .withPropertyValues("jumin.viewport.cache.request-timeout=");
+
+        // when & then
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(ViewportCacheProperties.class).getRequestTimeout())
+                    .isEqualTo(Duration.ofSeconds(2));
+        });
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("바인딩 검증 실패도 잘못된 환경 값과 비밀을 예외 및 로그에 노출하지 않는다")
+    void binding_failure_does_not_expose_invalid_environment(CapturedOutput output) {
+        // given
+        String secret = "password=private-value";
+        ApplicationContextRunner runner = new ApplicationContextRunner()
+                .withUserConfiguration(BindingConfiguration.class)
+                .withPropertyValues("jumin.viewport.cache.enabled=true", "jumin.viewport.cache.environment=" + secret);
+
+        // when & then
+        runner.run(context -> {
+            assertThat(context).hasFailed();
+            Throwable failure = context.getStartupFailure();
+            assertThat(failure).hasRootCauseInstanceOf(BindValidationException.class);
+            StringWriter trace = new StringWriter();
+            failure.printStackTrace(new PrintWriter(trace));
+            assertThat(trace.toString()).contains("jumin.viewport.cache.environment").doesNotContain(secret);
+        });
+        assertThat(output).doesNotContain(secret);
+    }
+
+    private static void assertValid(ViewportCacheProperties properties) {
+        assertThat(VALIDATOR.validate(properties)).isEmpty();
+    }
+
+    private static void assertInvalid(ViewportCacheProperties properties, String... settings) {
+        var violations = VALIDATOR.validate(properties);
+        assertThat(violations).isNotEmpty();
+        if (settings.length == 0) {
+            return;
+        }
+        assertThat(violations).anySatisfy(violation -> assertThat(violation.getMessage()).contains(settings));
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties(ViewportCacheProperties.class)
+    static class BindingConfiguration {
     }
 }

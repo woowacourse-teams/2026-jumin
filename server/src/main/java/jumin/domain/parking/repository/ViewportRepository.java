@@ -50,15 +50,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Repository
 public class ViewportRepository {
 
-    private static final String FIELDS = """
+    private static final String VIEWPORT_FIELDS = """
             l.id, l.latitude, l.longitude, l.capacity, l.mechanical, l.is_public,
             o.weekday_paid, o.saturday_paid, o.holiday_paid
             """;
-    private static final String CELLS = """
+    private static final String SELECT_CELLS_SQL = """
             WITH cells AS (SELECT unnest(ARRAY[:cells]::BIGINT[]) AS cell_id)
             SELECT state.grid_size_meters, state.projection_ready,
                    cells.cell_id,
-            """ + FIELDS + """
+            """ + VIEWPORT_FIELDS + """
             FROM parking_viewport_cache_state state
             CROSS JOIN cells
             LEFT JOIN LATERAL (
@@ -72,7 +72,7 @@ public class ViewportRepository {
             WHERE state.id = 1
             ORDER BY cells.cell_id, l.id
             """;
-    private static final String FALLBACK = "SELECT " + FIELDS + """
+    private static final String SELECT_FALLBACK_SQL = "SELECT " + VIEWPORT_FIELDS + """
             FROM parking_lots l LEFT JOIN parking_operations o ON o.parking_lot_id = l.id
             WHERE l.active = TRUE AND l.location IS NOT NULL
               AND l.name IS NOT NULL AND l.address IS NOT NULL
@@ -86,10 +86,32 @@ public class ViewportRepository {
             """;
 
     private static final int BATCH_SIZE = 500;
-    private static final String SELECT = """
+    private static final String SELECT_MAPPING_STATE_SQL = """
             SELECT grid_size_meters, projection_ready
             FROM parking_viewport_cache_state WHERE id = 1
             """;
+    private static final String LOCK_MAPPING_STATE_SQL = SELECT_MAPPING_STATE_SQL + " FOR UPDATE";
+    private static final String LOCK_SOURCE_SQL = "LOCK TABLE parking_lots IN SHARE ROW EXCLUSIVE MODE";
+    private static final String UPDATE_CELL_MAPPING_SQL = """
+            UPDATE parking_lots SET viewport_grid_cell = ?
+            WHERE id = ? AND latitude IS NOT DISTINCT FROM ?
+              AND longitude IS NOT DISTINCT FROM ?
+            """;
+    private static final String MAPPING_BATCH_SELECT = """
+            SELECT id, latitude, longitude, viewport_grid_cell,
+                   ST_X(location::geometry) AS location_longitude,
+                   ST_Y(location::geometry) AS location_latitude,
+                   COALESCE(ST_IsEmpty(location::geometry), TRUE) AS empty_location
+            FROM parking_lots
+            """;
+    private static final String SELECT_FIRST_MAPPING_BATCH_SQL = MAPPING_BATCH_SELECT
+            + " ORDER BY id LIMIT " + BATCH_SIZE;
+    private static final String SELECT_NEXT_MAPPING_BATCH_SQL = MAPPING_BATCH_SELECT
+            + "WHERE id > ? ORDER BY id LIMIT " + BATCH_SIZE;
+    private static final String UPDATE_MAPPING_STATE_SQL = """
+            UPDATE parking_viewport_cache_state SET grid_size_meters = ?, projection_ready = ? WHERE id = 1
+            """;
+    private static final String SET_STATEMENT_TIMEOUT_SQL_PREFIX = "SET LOCAL statement_timeout = ";
 
     private final JdbcTemplate mappingJdbc;
     private final JdbcTemplate jdbc;
@@ -111,7 +133,6 @@ public class ViewportRepository {
 
     public ViewportRepository(JdbcTemplate primaryJdbc, ViewportCacheProperties properties, ViewportMetrics metrics,
                               ParkingLodScoreCalculator scores, ViewportSquareGrid grid) {
-        properties.validate();
         DataSource source = Objects.requireNonNull(primaryJdbc.getDataSource(), "viewport DataSource is required");
         mappingJdbc = primaryJdbc;
         this.properties = properties;
@@ -129,14 +150,10 @@ public class ViewportRepository {
         metrics.registerDatabase(active, queued, stageActive("source"), stageActive("fallback"));
     }
 
-    public Map<ViewportCellKey, ViewportCell> load(List<ViewportCellKey> keys,
-                                                                     ViewportDeadline deadline) {
-        return load(keys, deadline, () -> { });
-    }
-
-    public Map<ViewportCellKey, ViewportCell> load(List<ViewportCellKey> keys,
-                                                                     ViewportDeadline deadline,
-                                                                     Runnable sourceStarted) {
+    public Map<ViewportCellKey, ViewportCell> load(
+            List<ViewportCellKey> keys,
+            ViewportDeadline deadline
+    ) {
         if (keys.isEmpty() || keys.size() > properties.getMaxCells()) {
             throw new IllegalArgumentException("셀 batch 범위가 잘못되었습니다.");
         }
@@ -149,9 +166,8 @@ public class ViewportRepository {
                 .addValue("cell_row_limit", properties.getMaxCellRows() + 1);
         return read("source", deadline, ignored -> {
             deadline.requireRemaining();
-            sourceStarted.run();
             metrics.count("sql", "cell_batch", 1);
-            return named.query(CELLS, parameters, rows -> {
+            return named.query(SELECT_CELLS_SQL, parameters, rows -> {
                 return readCells(rows, keys, gridSizeMeters, deadline);
             });
         });
@@ -189,7 +205,7 @@ public class ViewportRepository {
     }
 
     public ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
-                                       ViewportDeadline deadline, Runnable sourceStarted) {
+                                       ViewportDeadline deadline) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("west", bounds.west()).addValue("south", bounds.south())
                 .addValue("east", bounds.east()).addValue("north", bounds.north())
@@ -198,9 +214,8 @@ public class ViewportRepository {
                 .addValue("row_limit", properties.getMaxFallbackRows() + 1);
         return read("fallback", deadline, ignored -> {
             deadline.requireRemaining();
-            sourceStarted.run();
             metrics.count("sql", "fallback", 1);
-            return named.query(FALLBACK, parameters, rows -> {
+            return named.query(SELECT_FALLBACK_SQL, parameters, rows -> {
                 return readFallback(rows, deadline);
             });
         });
@@ -297,11 +312,7 @@ public class ViewportRepository {
         if (updates.isEmpty()) {
             return;
         }
-        int[] counts = mappingJdbc.batchUpdate("""
-                UPDATE parking_lots SET viewport_grid_cell = ?
-                WHERE id = ? AND latitude IS NOT DISTINCT FROM ?
-                  AND longitude IS NOT DISTINCT FROM ?
-                """, updates);
+        int[] counts = mappingJdbc.batchUpdate(UPDATE_CELL_MAPPING_SQL, updates);
         for (int count : counts) {
             if (count != 1) {
                 throw new IllegalStateException("동시 원본 변경으로 사각형 grid mapping을 검증할 수 없습니다.");
@@ -310,19 +321,12 @@ public class ViewportRepository {
     }
 
     private List<MappingRow> findBatch(Long afterId) {
-        String condition = "";
+        String sql = SELECT_FIRST_MAPPING_BATCH_SQL;
         Object[] parameters = new Object[0];
         if (afterId != null) {
-            condition = "WHERE id > ?";
+            sql = SELECT_NEXT_MAPPING_BATCH_SQL;
             parameters = new Object[]{afterId};
         }
-        String sql = """
-                SELECT id, latitude, longitude, viewport_grid_cell,
-                       ST_X(location::geometry) AS location_longitude,
-                       ST_Y(location::geometry) AS location_latitude,
-                       COALESCE(ST_IsEmpty(location::geometry), TRUE) AS empty_location
-                FROM parking_lots
-                """ + condition + " ORDER BY id LIMIT " + BATCH_SIZE;
         return mappingJdbc.query(sql, (rows, index) -> new MappingRow(rows.getLong("id"),
                 rows.getObject("latitude", Double.class), rows.getObject("longitude", Double.class),
                 rows.getObject("viewport_grid_cell", Long.class), rows.getObject("location_latitude", Double.class),
@@ -344,7 +348,7 @@ public class ViewportRepository {
     }
 
     private void lockSource() {
-        mappingJdbc.execute("LOCK TABLE parking_lots IN SHARE ROW EXCLUSIVE MODE");
+        mappingJdbc.execute(LOCK_SOURCE_SQL);
     }
 
     private void requireReadCommitted() {
@@ -357,7 +361,7 @@ public class ViewportRepository {
     }
 
     public ViewportMappingState readMappingState() {
-        List<ViewportMappingState> states = mappingJdbc.query(SELECT, (rows, index) ->
+        List<ViewportMappingState> states = mappingJdbc.query(SELECT_MAPPING_STATE_SQL, (rows, index) ->
                 new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
         if (states.isEmpty()) {
             return null;
@@ -367,7 +371,7 @@ public class ViewportRepository {
 
     private ViewportMappingState lockStateForWrite() {
         requireTransaction();
-        List<ViewportMappingState> states = mappingJdbc.query(SELECT + " FOR UPDATE", (rows, index) ->
+        List<ViewportMappingState> states = mappingJdbc.query(LOCK_MAPPING_STATE_SQL, (rows, index) ->
                 new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
         if (states.size() != 1) {
             throw new IllegalStateException("viewport 매핑 상태 한 행을 잠그지 못해 원본 쓰기를 중단합니다.");
@@ -377,9 +381,7 @@ public class ViewportRepository {
 
     public ViewportMappingState publishState(int gridSizeMeters, boolean ready) {
         requireTransaction();
-        int updated = mappingJdbc.update("""
-                UPDATE parking_viewport_cache_state SET grid_size_meters = ?, projection_ready = ? WHERE id = 1
-                """, gridSizeMeters, ready);
+        int updated = mappingJdbc.update(UPDATE_MAPPING_STATE_SQL, gridSizeMeters, ready);
         if (updated != 1) {
             throw new IllegalStateException("viewport 매핑 상태 갱신 실패로 원본 transaction을 롤백합니다.");
         }
@@ -483,7 +485,7 @@ public class ViewportRepository {
         requireDbRemaining(deadline);
         long statementTimeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
                 Math.min(deadline.remainingNanos(), dbTimeoutNanos)));
-        jdbc.execute("SET LOCAL statement_timeout = " + statementTimeoutMillis);
+        jdbc.execute(SET_STATEMENT_TIMEOUT_SQL_PREFIX + statementTimeoutMillis);
         requireDbRemaining(deadline);
         T value = query.apply(jdbc);
         produced.set(value);

@@ -14,13 +14,21 @@ import org.junit.jupiter.api.Test;
 class ViewportTtlContractTest {
 
     @Test
-    @DisplayName("캐시 키는 환경과 격자 크기 및 셀별로 분리되고 데이터 revision을 사용하지 않는다")
+    @DisplayName("TTL 캐시 키는 환경과 격자 크기를 구분하고 다른 격자의 payload를 거절한다")
     void separates_namespaces_and_grid_sizes() {
+        // given
         ViewportCellKey key = new ViewportCellKey("dev", 1, 1, 1000, 42);
+        ViewportCellKey otherGrid = new ViewportCellKey("dev", 1, 1, 2000, 42);
+        ViewportCellCodec codec = new ViewportCellCodec(1024, 10);
 
+        // when
+        byte[] encoded = codec.encode(new ViewportCell(key, List.of()));
+
+        // then
         assertThat(key.redisKey()).isEqualTo("jumin:dev:viewport:square:wm1:ttl:cell:s1:p1:m1000:2a");
         assertThat(new ViewportCellKey("prod", 1, 1, 1000, 42).redisKey()).isNotEqualTo(key.redisKey());
-        assertThat(new ViewportCellKey("dev", 1, 1, 2000, 42).redisKey()).isNotEqualTo(key.redisKey());
+        assertThat(otherGrid.redisKey()).isNotEqualTo(key.redisKey());
+        assertThatThrownBy(() -> codec.decode(otherGrid, encoded)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

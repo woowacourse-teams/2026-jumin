@@ -15,7 +15,6 @@ public class ViewportCacheConfig {
 
     @Bean
     public ViewportCellCodec viewportCellCodec(ViewportCacheProperties properties) {
-        properties.validate();
         return new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows());
     }
 
