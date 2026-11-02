@@ -1,18 +1,18 @@
 import { css } from '@emotion/css';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { BackIcon } from '../../../shared/components/ui/icons';
+import { BackIcon } from '../../shared/components/ui/icons';
 
-import { BottomNav } from '../../../shared/components/service/BottomNav';
-import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
-import { RecentHistoryRow } from '../../../shared/components/service/RecentHistoryRow';
+import { BottomNav } from '../../shared/components/service/BottomNav';
+import { DeepLinkModal } from '../../shared/components/service/directions/DeepLinkModal';
+import { RecentHistoryRow } from '../../shared/components/service/RecentHistoryRow';
 import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 import {
   loadRecentParkingUses,
   type RecentParkingLot,
   saveRecentParkingUse,
-} from '../../../shared/utils/recentParkingUses';
+} from '../../shared/utils/recentParkingUses';
 
 const formatMonthDay = (usedAt: string) =>
   new Intl.DateTimeFormat('ko-KR', {

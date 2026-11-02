@@ -8,12 +8,12 @@ import {
   FeedbackIcon,
   GuideIcon,
   InstallIcon,
-} from '../../../shared/components/ui/icons';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
-import { GuideModal } from '../../../shared/components/service/guide/GuideModal';
-import { FEEDBACK_URL } from '../../../shared/constants/help';
-import { useModal } from '../../../shared/hooks/useModal';
-import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
+} from '../../shared/components/ui/icons';
+import { BottomNav } from '../../shared/components/service/BottomNav';
+import { GuideModal } from '../../shared/components/service/guide/GuideModal';
+import { FEEDBACK_URL } from '../../shared/constants/help';
+import { useModal } from '../../shared/hooks/useModal';
+import { usePwaInstall } from '../../shared/hooks/usePwaInstall';
 import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 

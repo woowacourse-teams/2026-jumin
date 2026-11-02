@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
-import { ApiError } from '../../api/apiError';
-import { submitParkingReport } from '../../api/reportParkingData';
+import { ApiError } from '../../src/api/apiError';
+import { submitParkingReport } from '../../src/api/reportParkingData';
 import { server } from '../msw/server';
 
 describe('주차장 데이터 신고 API', () => {

@@ -1,4 +1,4 @@
-import { getParkingLotDetail, searchParkingLots } from '../../api/parkingLots';
+import { getParkingLotDetail, searchParkingLots } from '../../src/api/parkingLots';
 import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
 import { searchCondition } from '../testData';
 

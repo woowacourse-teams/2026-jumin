@@ -1,4 +1,4 @@
-import type { ParkingLotSummary } from '../../../../api/contracts';
+import type { ParkingLotSummary } from '../../../api/contracts';
 import type { RecommendationType } from '../types/recommendation';
 
 export const getSortValue = (parkingLot: ParkingLotSummary, type: RecommendationType) => {

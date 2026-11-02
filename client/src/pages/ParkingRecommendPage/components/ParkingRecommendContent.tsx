@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { css } from '@emotion/css';
-import type { ParkingLotSummary } from '../../../../api/contracts';
-import { trackEvent } from '../../../../shared/analytics';
-import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
-import { eventName } from '../../../../shared/monitoring/constants';
-import type { BottomSheetSnap } from '../../../../shared/types/ui';
-import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
+import type { ParkingLotSummary } from '../../../api/contracts';
+import { trackEvent } from '../../../shared/analytics';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { eventName } from '../../../shared/monitoring/constants';
+import type { BottomSheetSnap } from '../../../shared/types/ui';
+import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 import type { RecommendationType } from '../types/recommendation';

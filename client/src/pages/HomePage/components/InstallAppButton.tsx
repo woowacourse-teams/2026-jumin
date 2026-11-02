@@ -1,6 +1,6 @@
 import { css } from '@emotion/css';
 import { useEffect, useSyncExternalStore } from 'react';
-import { ChevronRightIcon } from '../../../../shared/components/ui/icons';
+import { ChevronRightIcon } from '../../../shared/components/ui/icons';
 
 import brandMark from '../../../../assets/icons/brandMark.svg';
 import { color } from '../../../theme/color';
@@ -10,7 +10,7 @@ import {
   initializeInstallPrompt,
   requestPwaInstall,
   subscribeToInstallAvailability,
-} from '../../../../shared/pwa/installPrompt';
+} from '../../../shared/pwa/installPrompt';
 
 export const InstallAppButton = () => {
   const isInstallAvailable = useSyncExternalStore(

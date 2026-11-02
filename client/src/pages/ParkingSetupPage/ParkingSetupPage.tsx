@@ -3,11 +3,11 @@ import { Navigate, useOutletContext, useSearchParams } from 'react-router';
 
 import { ParkingSetupContent } from './components/ParkingSetupContent';
 import type { SetupDestination } from './types/destination';
-import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { STEP_PATH, useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { useSearchLocationQuery } from './hooks/useSearchLocationQuery';
-import { buildQueryString } from '../../../shared/hooks/useQueryParams';
-import type { Coordinates } from '../../../shared/types/coordinates';
-import type { ParkingSearchCondition } from '../../../shared/types/navigation';
+import { buildQueryString } from '../../shared/hooks/useQueryParams';
+import type { Coordinates } from '../../shared/types/coordinates';
+import type { ParkingSearchCondition } from '../../shared/types/navigation';
 
 export const ParkingSetupPage = () => {
   const { move } = useStepNavigation('setup');

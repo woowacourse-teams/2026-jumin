@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { cleanup, render } from '@testing-library/react';
 
-import { NaverMapMarker } from '../../shared/maps/NaverMapMarker';
+import { NaverMapMarker } from '../../src/shared/maps/NaverMapMarker';
 
 class MockPoint {
   constructor(

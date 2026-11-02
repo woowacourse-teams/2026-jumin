@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { delay, http, HttpResponse } from 'msw';
 
-import { useParkingReport } from '../../shared/hooks/useParkingReport';
+import { useParkingReport } from '../../src/shared/hooks/useParkingReport';
 import { createTestQueryClient } from '../renderWithProviders';
 import { server } from '../msw/server';
 

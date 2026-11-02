@@ -5,22 +5,22 @@ import { useCallback, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
-import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
+import { NaverMapMarker } from '../../shared/maps/NaverMapMarker';
 import { CurrentLocationButton } from './components/CurrentLocationButton';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
-import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
-import type { ParkingLotViewport } from '../../../api/contracts';
-import { useMapClick } from '../../../shared/hooks/useMapClick';
+import { BottomNav } from '../../shared/components/service/BottomNav';
+import { SearchBar } from '../../shared/components/service/destination/SearchBar';
+import type { ParkingLotViewport } from '../../api/contracts';
+import { useMapClick } from '../../shared/hooks/useMapClick';
 import { ParkingInformationPanel } from './components/ParkingInformationPanel';
-import { trackEvent } from '../../../shared/analytics';
-import { eventName } from '../../../shared/monitoring/constants';
-import type { ParkingFilters } from '../../../shared/types/parkingFilters';
-import { ParkingFilterBar } from '../../../shared/components/service/parking/ParkingFilterBar';
+import { trackEvent } from '../../shared/analytics';
+import { eventName } from '../../shared/monitoring/constants';
+import type { ParkingFilters } from '../../shared/types/parkingFilters';
+import { ParkingFilterBar } from '../../shared/components/service/parking/ParkingFilterBar';
 import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
-import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
-import type { BottomSheetSnap } from '../../../shared/types/ui';
-import { buildQueryString } from '../../../shared/hooks/useQueryParams';
+import { useStepNavigation } from '../../shared/hooks/useStepNavigation';
+import type { BottomSheetSnap } from '../../shared/types/ui';
+import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,

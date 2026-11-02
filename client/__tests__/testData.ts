@@ -1,5 +1,5 @@
 import { destinationFixtures } from '../mocks/fixtures/destinations';
-import type { ParkingSearchCondition } from '../shared/types/navigation';
+import type { ParkingSearchCondition } from '../src/shared/types/navigation';
 
 const destination = destinationFixtures[0]!;
 

@@ -2,11 +2,11 @@ import { jest } from '@jest/globals';
 import { act, cleanup } from '@testing-library/react';
 import { Outlet, Route, Routes } from 'react-router';
 
-import { getMapCenterForMarkerY } from '../../shared/maps/getMapCenterForMarkerY';
+import { getMapCenterForMarkerY } from '../../src/shared/maps/getMapCenterForMarkerY';
 import { ParkingInformationPanel } from '../../src/pages/HomePage/components/ParkingInformationPanel';
 import { ParkingRecommendPage } from '../../src/pages/ParkingRecommendPage/ParkingRecommendPage';
-import { parkingSearchQueryOptions } from '../../api/queries/parkingSearchQuery';
-import { viewportParkingLotDetailQueryOptions } from '../../api/queries/viewportParkingLotDetailQuery';
+import { parkingSearchQueryOptions } from '../../src/api/queries/parkingSearchQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../src/api/queries/viewportParkingLotDetailQuery';
 import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
 import { parkingViewportLots } from '../../mocks/fixtures/parkingViewport';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';

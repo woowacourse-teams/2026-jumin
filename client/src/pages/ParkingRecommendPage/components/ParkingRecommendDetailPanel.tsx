@@ -1,10 +1,10 @@
 import { useQueries } from '@tanstack/react-query';
 import { css } from '@emotion/css';
-import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
-import { parkingDetailQueryOptions } from '../../../../api/queries/parkingDetailQuery';
-import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
-import { ErrorCard } from '../../../../shared/components/service/ErrorCard';
-import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { parkingDetailQueryOptions } from '../../../api/queries/parkingDetailQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../../api/queries/viewportParkingLotDetailQuery';
+import { ErrorCard } from '../../../shared/components/service/ErrorCard';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { ParkingDetailSkeleton } from '../LoadingUI/ParkingDetailSkeleton';
 import { ParkingRecommendDetailContent } from './ParkingRecommendDetailContent';
 

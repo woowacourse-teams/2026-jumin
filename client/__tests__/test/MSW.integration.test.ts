@@ -1,8 +1,8 @@
 import { http, HttpResponse } from 'msw';
 
-import { getParkingLotsInViewport, searchDestinations } from '../../api/parkingLots';
-import { parkingViewportQueryOptions } from '../../api/queries/parkingViewportQuery';
-import { parkingLotViewportResponseSchema } from '../../api/parkingLotsSchema';
+import { getParkingLotsInViewport, searchDestinations } from '../../src/api/parkingLots';
+import { parkingViewportQueryOptions } from '../../src/api/queries/parkingViewportQuery';
+import { parkingLotViewportResponseSchema } from '../../src/api/parkingLotsSchema';
 import {
   parkingViewportFilterMetadata,
   parkingViewportLots,

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
-import { getParkingLotDetail } from '../../api/parkingLots';
+import { getParkingLotDetail } from '../../src/api/parkingLots';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
 import { server } from '../msw/server';
 import { searchCondition } from '../testData';

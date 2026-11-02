@@ -2,7 +2,7 @@ import { act, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { PropsWithChildren } from 'react';
 import { MemoryRouter, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
-import { useStepNavigation } from '../../shared/hooks/useStepNavigation';
+import { useStepNavigation } from '../../src/shared/hooks/useStepNavigation';
 import { ParkingSetupPage } from '../../src/pages/ParkingSetupPage/ParkingSetupPage';
 import { useSearchLocationQuery } from '../../src/pages/ParkingSetupPage/hooks/useSearchLocationQuery';
 import { useCenterLocationQuery } from '../../src/pages/SearchPage/hooks/useCenterLocationQuery';

@@ -4,11 +4,11 @@ import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { delay, http, HttpResponse } from 'msw';
 
-import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
-import type { ParkingLikeState } from '../../api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../api/queries/viewportParkingLotDetailQuery';
+import { API_ERROR_MESSAGES } from '../../src/api/apiErrorMessages';
+import type { ParkingLikeState } from '../../src/api/contracts';
+import { viewportParkingLotDetailQueryOptions } from '../../src/api/queries/viewportParkingLotDetailQuery';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
-import { useParkingLike } from '../../shared/hooks/useParkingLike';
+import { useParkingLike } from '../../src/shared/hooks/useParkingLike';
 import { createTestQueryClient } from '../renderWithProviders';
 import { server } from '../msw/server';
 

@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 import { http, HttpResponse } from 'msw';
-import { updateParkingLike } from '../../api/parkingLikes';
-import { getParkingLotDetail, getViewportParkingLotDetail } from '../../api/parkingLots';
+import { updateParkingLike } from '../../src/api/parkingLikes';
+import { getParkingLotDetail, getViewportParkingLotDetail } from '../../src/api/parkingLots';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { server } from '../msw/server';
 import { searchCondition } from '../testData';
-import { getGuestId, UUID_V4_PATTERN } from '../../shared/utils/guestId';
+import { getGuestId, UUID_V4_PATTERN } from '../../src/shared/utils/guestId';
 
 describe('주차장 좋아요 API와 익명 ID', () => {
   it('UUID v4를 localStorage에 저장하고 이후 요청에서 재사용한다', () => {

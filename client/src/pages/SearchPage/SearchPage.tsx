@@ -1,12 +1,12 @@
 import { css } from '@emotion/css';
-import type { Destination } from '../../../api/contracts';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
+import type { Destination } from '../../api/contracts';
+import { BottomNav } from '../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
-import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { STEP_PATH, useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { Navigate } from 'react-router';
 import { useCenterLocationQuery } from './hooks/useCenterLocationQuery';
-import { buildQueryString } from '../../../shared/hooks/useQueryParams';
+import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 export const SearchPage = () => {
   const { move } = useStepNavigation('search');
