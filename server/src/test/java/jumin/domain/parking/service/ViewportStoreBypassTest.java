@@ -33,7 +33,6 @@ import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.exception.ViewportFallbackException;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
@@ -80,7 +79,7 @@ class ViewportStoreBypassTest {
         CountDownLatch recheckStarted = new CountDownLatch(1);
         CountDownLatch releaseRecheck = new CountDownLatch(1);
         CountDownLatch followerRegistered = new CountDownLatch(1);
-        CountDownLatch observed = new CountDownLatch(2);
+
         AtomicInteger initialReads = new AtomicInteger();
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ViewportMetrics metrics = new ViewportMetrics(registry) {
@@ -89,8 +88,6 @@ class ViewportStoreBypassTest {
                 super.count(metric, outcome, amount);
                 if (metric.equals("flights") && outcome.equals("follower_registered")) {
                     followerRegistered.countDown();
-                } else if (metric.equals("logical") && outcome.equals("success")) {
-                    observed.countDown();
                 }
             }
         };
@@ -135,14 +132,11 @@ class ViewportStoreBypassTest {
                 ParkingLotViewportResponses expected = response(item(1, 100));
                 assertThat(owner.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
                 assertThat(follower.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
-                assertThat(observed.await(10, TimeUnit.SECONDS)).isTrue();
                 assertThat(initialReads).hasValue(2);
                 verify(repository, times(0)).load(anyList(), any());
                 verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
                 assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(1);
                 assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(1);
-                assertThat(counter(registry, "logical", "success")).isEqualTo(2);
-                assertThat(counter(registry, "logical", "failure")).isZero();
                 assertThat(counter(registry, "cells", "hit")).isZero();
                 assertThat(counter(registry, "cells", "miss")).isEqualTo(1);
             } finally {
@@ -154,7 +148,7 @@ class ViewportStoreBypassTest {
     private void exerciseConcurrentFailure(boolean failInitial) throws Exception {
         int requestCount = 100;
         CountDownLatch followers = new CountDownLatch(requestCount - 1);
-        CountDownLatch observed = new CountDownLatch(requestCount);
+
         CountDownLatch writeFailed = new CountDownLatch(1);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ViewportMetrics metrics = new ViewportMetrics(registry) {
@@ -163,8 +157,6 @@ class ViewportStoreBypassTest {
                 super.count(metric, outcome, amount);
                 if (metric.equals("flights") && outcome.equals("follower_registered")) {
                     followers.countDown();
-                } else if (metric.equals("logical") && outcome.equals("success")) {
-                    observed.countDown();
                 } else if (metric.equals("store") && outcome.equals("put_failure")) {
                     writeFailed.countDown();
                 }
@@ -225,7 +217,6 @@ class ViewportStoreBypassTest {
                 assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
             }
             assertThat(writeFailed.await(10, TimeUnit.SECONDS)).isTrue();
-            assertThat(observed.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(initialReads).hasValue(requestCount);
             assertThat(rechecks).hasValue(failInitial ? 0 : 1);
             verify(repository, times(1)).load(anyList(), any());
@@ -235,8 +226,6 @@ class ViewportStoreBypassTest {
             assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(failInitial ? requestCount : 0);
             assertThat(counter(registry, "store", "bypass_recheck")).isEqualTo(failInitial ? 0 : 1);
             assertThat(counter(registry, "store", "put_failure")).isEqualTo(1);
-            assertThat(counter(registry, "logical", "success")).isEqualTo(requestCount);
-            assertThat(counter(registry, "logical", "failure")).isZero();
             assertThat(counter(registry, "cells", "hit")).isZero();
             assertThat(counter(registry, "cells", "miss")).isEqualTo(failInitial ? 0 : requestCount);
         } finally {
@@ -297,7 +286,7 @@ class ViewportStoreBypassTest {
 
             ParkingLotViewportResponses expected = response(item(1, 100));
             when(repository.fallback(any(), any(), anyInt(), any()))
-                    .thenAnswer(invocation -> new ViewportBody(expected));
+                    .thenAnswer(invocation -> expected);
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
@@ -367,7 +356,7 @@ class ViewportStoreBypassTest {
                     .thenThrow(ViewportFallbackException.cellTooLarge());
             ParkingLotViewportResponses expected = response(duplicate);
             when(repository.fallback(any(), any(), anyInt(), any()))
-                    .thenAnswer(invocation -> new ViewportBody(expected));
+                    .thenAnswer(invocation -> expected);
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
@@ -424,11 +413,10 @@ class ViewportStoreBypassTest {
 
     @Test
     @ExtendWith(OutputCaptureExtension.class)
-    @DisplayName("기본 적중·미스·우회·응답 성공과 실패 지표 및 슬롯 회수를 유지한다")
-    void retains_basic_metrics_and_request_capacity(CapturedOutput output) {
+    @DisplayName("기본 적중·미스·우회 지표와 조회 실패 응답을 유지한다")
+    void retains_basic_cache_and_fallback_metrics(CapturedOutput output) {
         // given
         ViewportCacheProperties properties = properties();
-        properties.setMaxConcurrentRequests(1);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ViewportMetrics metrics = new ViewportMetrics(registry);
         ViewportCellKey key = key(gridSizeMeters(), 10);
@@ -445,7 +433,7 @@ class ViewportStoreBypassTest {
         ViewportRepository repository = mock(ViewportRepository.class);
         when(repository.load(anyList(), any())).thenReturn(Map.of(key, cell));
         when(repository.fallback(any(), any(), anyInt(), any()))
-                .thenAnswer(invocation -> new ViewportBody(response(item)))
+                .thenAnswer(invocation -> response(item))
                 .thenThrow(ViewportFailureReason.DB_QUEUE_FULL.failure());
         ViewportCellCover cover = mock(ViewportCellCover.class);
         when(cover.cover(any()))
@@ -463,11 +451,7 @@ class ViewportStoreBypassTest {
             assertThat(search(service)).isEqualTo(response(item));
             assertThat(search(service)).isEqualTo(response(item));
             assertThat(search(service)).isEqualTo(response(item));
-            try (ViewportBody body = service.search(new ParkingLotViewportRequest(
-                    126.99, 37.49, 127.01, 37.51, false, false, false))) {
-                body.complete(false);
-                body.complete(true);
-            }
+            assertThat(search(service)).isEqualTo(response(item));
             assertThatThrownBy(() -> search(service)).isInstanceOfSatisfying(BusinessException.class,
                     failure -> assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
 
@@ -475,9 +459,6 @@ class ViewportStoreBypassTest {
             assertThat(counter(registry, "cells", "hit")).isEqualTo(2);
             assertThat(counter(registry, "cells", "miss")).isEqualTo(1);
             assertThat(counter(registry, "logical", "fallback")).isEqualTo(2);
-            assertThat(counter(registry, "logical", "success")).isEqualTo(3);
-            assertThat(counter(registry, "logical", "failure")).isEqualTo(2);
-            assertThat(registry.get("parking.viewport.requests.active").gauge().value()).isZero();
             verify(repository).load(anyList(), any());
             verify(repository, times(2)).fallback(any(), any(), anyInt(), any());
             assertThat(output).doesNotContain("viewport cache request completed", "sourceIndependent",
@@ -486,11 +467,10 @@ class ViewportStoreBypassTest {
     }
 
     @Test
-    @DisplayName("fallback 전체 JSON은 고정 캐시 일괄 예산을 넘겨도 잘리지 않고 요청 슬롯을 반환한다")
+    @DisplayName("fallback 전체 JSON은 고정 캐시 일괄 예산을 넘겨도 잘리지 않는다")
     void fallback_response_can_exceed_cache_batch_budget() throws Exception {
         // given
         ViewportCacheProperties properties = properties();
-        properties.setMaxConcurrentRequests(1);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         ViewportMetrics metrics = new ViewportMetrics(registry);
         ParkingLotViewportResponses response = ParkingLotViewportResponses.from(LongStream.rangeClosed(1, 100_000)
@@ -498,13 +478,12 @@ class ViewportStoreBypassTest {
         byte[] json = new ObjectMapper().writeValueAsBytes(response);
         assertThat(json.length).isGreaterThan(MAX_REQUEST_BYTES);
         ViewportRepository repository = mock(ViewportRepository.class);
-        when(repository.fallback(any(), any(), anyInt(), any())).thenReturn(new ViewportBody(response));
+        when(repository.fallback(any(), any(), anyInt(), any())).thenReturn(response);
         ViewportCellStore store = new EmptyViewportCellStore();
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of());
             // when & then
             assertThat(search(service)).isEqualTo(response);
-            assertThat(registry.get("parking.viewport.requests.active").gauge().value()).isZero();
         }
     }
 
@@ -521,18 +500,16 @@ class ViewportStoreBypassTest {
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setEnabled(true);
         properties.setEnvironment("bypass");
-        properties.setMaxConcurrentRequests(0);
         properties.setRequestTimeout(Duration.ofSeconds(30));
         return properties;
     }
 
     private ParkingLotViewportResponses search(ViewportSearchService service) {
-        try (ViewportBody body = service.search(new ParkingLotViewportRequest(
-                126.99, 37.49, 127.01, 37.51, false, false, false))) {
-            ParkingLotViewportResponses result = (ParkingLotViewportResponses) body.value();
-            body.complete(true);
-            return result;
-        }
+        ParkingLotViewportResponses body = service.search(new ParkingLotViewportRequest(
+                126.99, 37.49, 127.01, 37.51, false, false, false));
+        ParkingLotViewportResponses result = body;
+
+        return result;
     }
 
     private ParkingLotViewportResponses response(ViewportItem... items) {

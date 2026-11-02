@@ -1,14 +1,12 @@
 package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
-import jumin.config.ViewportResponseCompletion;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.service.ViewportSearchService;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,12 +32,11 @@ public class ParkingSearchController {
     }
 
     @GetMapping("/viewport")
-    public ResponseEntity<?> searchViewport(
-            @Valid @ModelAttribute ParkingLotViewportRequest request, HttpServletRequest servletRequest
+    public ResponseEntity<ParkingLotViewportResponses> searchViewport(
+            @Valid @ModelAttribute ParkingLotViewportRequest request
     ) {
-        ViewportBody body = viewportSearchService.search(request);
-        servletRequest.setAttribute(ViewportResponseCompletion.BODY_ATTRIBUTE, body);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body.value());
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                .body(viewportSearchService.search(request));
     }
 
     @GetMapping("/viewport/{parkingLotId}")

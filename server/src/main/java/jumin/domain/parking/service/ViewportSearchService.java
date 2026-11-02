@@ -13,14 +13,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.exception.ViewportFallbackException;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
@@ -52,8 +49,6 @@ public class ViewportSearchService {
     private final ViewportMetrics metrics;
     private final ParkingLodScoreCalculator scores;
     private final Clock clock;
-    private final Semaphore requests;
-    private final AtomicInteger activeRequests = new AtomicInteger();
 
     public ViewportSearchService(ViewportCacheProperties properties, ParkingSearchService legacy,
                                  ViewportCellCover cover, ViewportRepository repository,
@@ -68,21 +63,16 @@ public class ViewportSearchService {
         this.metrics = metrics;
         this.scores = scores;
         this.clock = clock;
-        int maximumRequests = properties.getMaxConcurrentRequests();
-        requests = maximumRequests == 0 ? null : new Semaphore(maximumRequests);
-        metrics.registerRequests(activeRequests, maximumRequests);
     }
 
-    public ViewportBody search(ParkingLotViewportRequest request) {
+    public ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
         ViewportBounds bounds = ViewportBounds.from(request);
         if (!properties.isEnabled()) {
-            return new ViewportBody(legacy.searchViewport(request));
+            return legacy.searchViewport(request);
         }
-        acquireRequest();
         try {
-            return searchAdmitted(bounds, request);
+            return searchWithinDeadline(bounds, request);
         } catch (RuntimeException | Error failure) {
-            finishRequest(false);
             if (failure instanceof DataAccessException || failure instanceof TransactionException) {
                 throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
             }
@@ -90,42 +80,17 @@ public class ViewportSearchService {
         }
     }
 
-    private void acquireRequest() {
-        if (requests != null && !requests.tryAcquire()) {
-            metrics.count("requests", "admission_rejected", 1);
-            throw ViewportFailureReason.UNCLASSIFIED.failure();
-        }
-        activeRequests.incrementAndGet();
-    }
-
-    private ViewportBody searchAdmitted(ViewportBounds bounds, ParkingLotViewportRequest request) {
+    private ParkingLotViewportResponses searchWithinDeadline(ViewportBounds bounds, ParkingLotViewportRequest request) {
         ViewportDeadline deadline = ViewportDeadline.after(properties.getRequestTimeout());
         DayOfWeek day = LocalDate.ofInstant(clock.instant(), SEOUL).getDayOfWeek();
-        ViewportBody body = execute(bounds, request, day, deadline);
+        ParkingLotViewportResponses response = execute(bounds, request, day, deadline);
         if (deadline.remainingNanos() == 0) {
-            body.close();
             deadline.requireRemaining();
         }
-        return body.onCompletion(this::finishRequest);
+        return response;
     }
 
-    private void finishRequest(boolean success) {
-        try {
-            metrics.count("logical", success ? "success" : "failure", 1);
-        } finally {
-            releaseRequest();
-        }
-    }
-
-    private void releaseRequest() {
-        activeRequests.decrementAndGet();
-        if (requests == null) {
-            return;
-        }
-        requests.release();
-    }
-
-    private ViewportBody execute(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
+    private ParkingLotViewportResponses execute(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
                                  ViewportDeadline deadline) {
         List<Long> cells = coveredCells(bounds);
         if (cells.isEmpty()) {
@@ -153,7 +118,7 @@ public class ViewportSearchService {
         return cells;
     }
 
-    private ViewportBody searchCells(List<Long> cells, ViewportBounds bounds, ParkingLotViewportRequest request,
+    private ParkingLotViewportResponses searchCells(List<Long> cells, ViewportBounds bounds, ParkingLotViewportRequest request,
                                      DayOfWeek day, ViewportDeadline deadline) {
         List<ViewportCellKey> keys = cells.stream()
                 .map(cell -> new ViewportCellKey(properties.getEnvironment(), GRID_SIZE_METERS, cell))
@@ -195,13 +160,13 @@ public class ViewportSearchService {
         metrics.count("store", "initial_get_failure", 1);
     }
 
-    private ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
+    private ParkingLotViewportResponses fallback(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
                                   ViewportDeadline deadline) {
         metrics.count("logical", "fallback", 1);
         return repository.fallback(bounds, request, day.getValue(), deadline);
     }
 
-    private ViewportBody assemble(List<ViewportCell> cells, ViewportBounds bounds,
+    private ParkingLotViewportResponses assemble(List<ViewportCell> cells, ViewportBounds bounds,
                                   ParkingLotViewportRequest request, DayOfWeek day) {
         requireAssemblyBudget(cells);
         Set<Long> ids = new HashSet<>();
@@ -210,7 +175,7 @@ public class ViewportSearchService {
             appendMatchingItems(cell, bounds, request, day, ids, rows);
         }
         rows.sort(Comparator.comparingLong(ParkingLotViewportResponse::id));
-        return new ViewportBody(ParkingLotViewportResponses.from(rows));
+        return ParkingLotViewportResponses.from(rows);
     }
 
     private void requireAssemblyBudget(List<ViewportCell> cells) {

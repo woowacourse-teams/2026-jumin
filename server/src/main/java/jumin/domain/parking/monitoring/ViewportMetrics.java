@@ -26,11 +26,6 @@ public class ViewportMetrics {
                 .record(Math.max(0, System.nanoTime() - startedAt), TimeUnit.NANOSECONDS);
     }
 
-    public void registerRequests(AtomicInteger active, int limit) {
-        gauge("requests.active", active::get);
-        gauge("requests.limit", () -> limit);
-    }
-
     public void registerLoader(Map<?, ?> loads) {
         gauge("loader.flights", loads::size);
     }

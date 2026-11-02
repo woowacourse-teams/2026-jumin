@@ -27,7 +27,6 @@ import jumin.domain.parking.cache.ViewportCellCodec;
 import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.model.ViewportBounds;
 import jumin.domain.parking.model.ViewportCell;
 import jumin.domain.parking.model.ViewportCellKey;
@@ -355,11 +354,7 @@ class ViewportInvalidationRaceIntegrationTest {
         }
 
         private ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
-            try (ViewportBody body = service.search(request)) {
-                ParkingLotViewportResponses response = (ParkingLotViewportResponses) body.value();
-                body.complete(true);
-                return response;
-            }
+            return service.search(request);
         }
 
         private double sourceReads() {

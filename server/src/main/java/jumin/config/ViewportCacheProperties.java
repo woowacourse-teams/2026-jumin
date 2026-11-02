@@ -35,9 +35,6 @@ public class ViewportCacheProperties {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private boolean environmentConfigured;
-    @Min(value = 0, message = "jumin.viewport.cache.max-concurrent-requests는 0 이상이어야 합니다.")
-    @Max(value = 64, message = "jumin.viewport.cache.max-concurrent-requests는 64 이하여야 합니다.")
-    private int maxConcurrentRequests;
     @Min(value = 1, message = "jumin.viewport.cache.max-concurrent-db는 1 이상이어야 합니다.")
     @Max(value = 16, message = "jumin.viewport.cache.max-concurrent-db는 16 이하여야 합니다.")
     private int maxConcurrentDb = 3;
@@ -81,20 +78,15 @@ public class ViewportCacheProperties {
         return redisConnectTimeout;
     }
 
-    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-requests의 메모리 한도는 32 MiB입니다(고정 처리 예산 4 MiB).")
-    public boolean isRequestMemoryWithinBudget() {
-        return maxConcurrentRequests == 0 || (long) MAX_REQUEST_BYTES * maxConcurrentRequests <= 32L * 1024 * 1024;
-    }
-
     @AssertTrue(message = "jumin.viewport.cache.max-concurrent-redis의 메모리 한도는 64 MiB입니다(고정 처리 예산 4 MiB).")
     public boolean isRedisMemoryWithinBudget() {
         return 2L * maxConcurrentRedis * MAX_REQUEST_BYTES <= 64L * 1024 * 1024;
     }
 
-    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-requests / max-concurrent-db / "
-            + "max-concurrent-redis의 전체 메모리 한도는 128 MiB입니다(고정 처리 예산 4 MiB).")
+    @AssertTrue(message = "jumin.viewport.cache.max-concurrent-db / max-concurrent-redis의 "
+            + "전체 메모리 한도는 128 MiB입니다(고정 처리 예산 4 MiB).")
     public boolean isCombinedMemoryWithinBudget() {
-        long concurrentCopies = maxConcurrentRequests + 2L * maxConcurrentDb + 2L * maxConcurrentRedis;
+        long concurrentCopies = 2L * maxConcurrentDb + 2L * maxConcurrentRedis;
         return concurrentCopies * MAX_REQUEST_BYTES <= 128L * 1024 * 1024;
     }
 

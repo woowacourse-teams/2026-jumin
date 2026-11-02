@@ -37,7 +37,6 @@ import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.model.ViewportBounds;
 import jumin.domain.parking.model.ViewportCell;
 import jumin.domain.parking.model.ViewportCellKey;
@@ -115,6 +114,27 @@ class ViewportSearchIntegrationTest {
     private ViewportRepository db;
     @MockitoBean
     private Clock clock;
+
+    @Test
+    @DisplayName("캐시 비활성 경로도 기존 DTO를 그대로 반환하고 셀 캐시 조회를 시작하지 않는다")
+    void disabled_cache_preserves_legacy_response() {
+        // given
+        ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
+        ParkingLotViewportResponses expected = legacy.searchViewport(request);
+        double lookups = counter("cells", "hit") + counter("cells", "miss");
+        boolean enabled = properties.isEnabled();
+        properties.setEnabled(false);
+        try {
+            // when
+            ParkingLotViewportResponses actual = service.search(request);
+
+            // then
+            assertThat(actual).isEqualTo(expected);
+            assertThat(counter("cells", "hit") + counter("cells", "miss")).isEqualTo(lookups);
+        } finally {
+            properties.setEnabled(enabled);
+        }
+    }
 
     @Test
     @DisplayName("NOT NULL 이름 조건이 단순화돼도 사각형 partial index를 셀 조회의 접근 경로로 사용할 수 있다")
@@ -433,14 +453,12 @@ class ViewportSearchIntegrationTest {
         ParkingLotViewportResponses expected = legacy.searchViewport(request);
 
         // when & then
-        try (ViewportBody body = service.search(request)) {
-            ParkingLotViewportResponses actual = (ParkingLotViewportResponses) body.value();
+        ParkingLotViewportResponses actual = service.search(request);
 
-            assertThat(actual).isEqualTo(expected);
-            assertThat(actual.totalCount()).isGreaterThan(100);
-            assertThat(actual.parkingLots().getLast().id()).isEqualTo(9_007_199_254_740_993L);
-            body.complete(true);
-        }
+        assertThat(actual).isEqualTo(expected);
+        assertThat(actual.totalCount()).isGreaterThan(100);
+        assertThat(actual.parkingLots().getLast().id()).isEqualTo(9_007_199_254_740_993L);
+
     }
 
     @Test
@@ -491,11 +509,7 @@ class ViewportSearchIntegrationTest {
     }
 
     private ParkingLotViewportResponses search(ViewportSearchService target, ParkingLotViewportRequest request) {
-        try (ViewportBody body = target.search(request)) {
-            ParkingLotViewportResponses value = (ParkingLotViewportResponses) body.value();
-            body.complete(true);
-            return value;
-        }
+        return target.search(request);
     }
 
     private double counter(String name, String outcome) {

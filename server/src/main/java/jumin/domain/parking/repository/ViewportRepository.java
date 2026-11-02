@@ -27,7 +27,6 @@ import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.exception.ViewportFallbackException;
 import jumin.domain.parking.model.ViewportBounds;
@@ -204,7 +203,7 @@ public class ViewportRepository {
         return Map.copyOf(result);
     }
 
-    public ViewportBody fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
+    public ParkingLotViewportResponses fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
                                        ViewportDeadline deadline) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("west", bounds.west()).addValue("south", bounds.south())
@@ -221,7 +220,7 @@ public class ViewportRepository {
         });
     }
 
-    private ViewportBody readFallback(ResultSet rows, ViewportDeadline deadline) throws SQLException {
+    private ParkingLotViewportResponses readFallback(ResultSet rows, ViewportDeadline deadline) throws SQLException {
         List<ParkingLotViewportResponse> response = new ArrayList<>();
         while (nextRow(rows, deadline)) {
             if (response.size() >= MAX_FALLBACK_ROWS) {
@@ -232,7 +231,7 @@ public class ViewportRepository {
                     scores.calculate(item.capacity())));
         }
         deadline.requireRemaining();
-        return new ViewportBody(ParkingLotViewportResponses.from(response));
+        return ParkingLotViewportResponses.from(response);
     }
 
     private static boolean nextRow(ResultSet rows, ViewportDeadline deadline) throws SQLException {

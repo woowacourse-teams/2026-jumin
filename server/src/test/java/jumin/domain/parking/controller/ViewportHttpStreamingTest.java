@@ -11,14 +11,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
-import jumin.config.ViewportResponseCompletion;
 import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.service.ParkingSearchService;
 import jumin.domain.parking.service.ViewportSearchService;
 import jumin.global.exception.ErrorCode;
@@ -49,7 +44,7 @@ class ViewportHttpStreamingTest {
         context = new AnnotationConfigServletWebServerApplicationContext();
         context.registerBean(ParkingSearchService.class, () -> mock(ParkingSearchService.class));
         context.registerBean(ViewportSearchService.class, () -> service);
-        context.register(Web.class, ParkingSearchController.class, GlobalExceptionHandler.class, ViewportResponseCompletion.class);
+        context.register(Web.class, ParkingSearchController.class, GlobalExceptionHandler.class);
         context.refresh();
         endpoint = URI.create("http://127.0.0.1:" + context.getWebServer().getPort()
                 + "/api/parking/viewport?westLongitude=126.99&southLatitude=37.49&eastLongitude=127.01&northLatitude=37.51");
@@ -65,21 +60,18 @@ class ViewportHttpStreamingTest {
     @Test
     @DisplayName("실제 HTTP에서 모든 항목과 큰 정수 ID를 완전한 JSON으로 응답한다")
     void serves_complete_response_over_http() throws Exception {
+        // given
         long firstId = 9_007_199_254_740_993L;
         List<ParkingLotViewportResponse> rows = LongStream.range(0, 100)
                 .mapToObj(index -> new ParkingLotViewportResponse(firstId + index, 37.5, 127, 0.5)).toList();
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            ViewportBody body = new ViewportBody(ParkingLotViewportResponses.from(rows));
-            AtomicReference<Boolean> completed = new AtomicReference<>();
-            CountDownLatch finished = new CountDownLatch(1);
-            when(service.search(any())).thenReturn(body.onCompletion(success -> {
-                completed.set(success);
-                finished.countDown();
-            }));
+        when(service.search(any())).thenReturn(ParkingLotViewportResponses.from(rows));
 
+        // when
+        try (HttpClient client = HttpClient.newHttpClient()) {
             HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(5)).build(),
                     HttpResponse.BodyHandlers.ofByteArray());
 
+            // then
             assertThat(response.statusCode()).isEqualTo(200);
             var json = new ObjectMapper().readTree(response.body());
             assertThat(json.get("totalCount").asInt()).isEqualTo(100);
@@ -87,37 +79,28 @@ class ViewportHttpStreamingTest {
             assertThat(json.get("parkingLots").get(0).get("id").asLong()).isEqualTo(firstId);
             assertThat(json.get("parkingLots").get(99).get("id").asLong()).isEqualTo(firstId + 99);
             response.headers().firstValueAsLong("Content-Length").ifPresent(size -> assertThat(size).isEqualTo(response.body().length));
-            assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(completed.get()).isTrue();
         }
     }
 
     @Test
     @DisplayName("실제 HTTP에서 직렬화에 실패해도 완전한 500 JSON과 올바른 길이를 응답한다")
-    void does_not_record_success_on_serialization_failure() throws Exception {
-        AtomicReference<Boolean> completed = new AtomicReference<>();
-        CountDownLatch finished = new CountDownLatch(1);
-        when(service.search(any())).thenReturn(new ViewportBody(new BrokenResponse()).onCompletion(success -> {
-            completed.set(success);
-            finished.countDown();
-        }));
+    void returns_error_response_on_serialization_failure() throws Exception {
+        // given
+        ParkingLotViewportResponses broken = mock(ParkingLotViewportResponses.class);
+        when(broken.totalCount()).thenThrow(new IllegalStateException("injected serialization failure"));
+        when(broken.parkingLots()).thenThrow(new IllegalStateException("injected serialization failure"));
+        when(service.search(any())).thenReturn(broken);
 
+        // when
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(5)).build(),
                     HttpResponse.BodyHandlers.ofByteArray());
 
+            // then
             assertThat(response.statusCode()).isEqualTo(500);
             assertThat(new ObjectMapper().readTree(response.body()).get("message").asString())
                     .isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
             response.headers().firstValueAsLong("Content-Length").ifPresent(size -> assertThat(size).isEqualTo(response.body().length));
-            assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
-            assertThat(completed.get()).isFalse();
-        }
-    }
-
-    static class BrokenResponse {
-        public String getValue() {
-            throw new IllegalStateException("injected serialization failure");
         }
     }
 

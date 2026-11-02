@@ -35,6 +35,8 @@ Variables: VIEWPORT_CACHE_ENABLED(기본 false), VIEWPORT_CACHE_TTL(10m), VIEWPO
 
 전용 읽기/관측 계정, 별도 연결 풀, 세션 관측 함수, DB 인증 제한시간 전제, DB 쓰기 보호 트리거와 epoch/revision은 사용하지 않는다. 기존 DB 풀을 공유하므로 다른 API와 연결을 경쟁한다. 요청/쿼리 시간 제한과 DB 실행 수 제한은 유지하지만 네트워크 장애 때 실제 서버 세션 수까지 엄격하게 보장하지 않는다.
 
+viewport 전용 요청 동시 제한과 응답 완료 callback은 사용하지 않는다. `max-concurrent-requests`와 `JUMIN_VIEWPORT_CACHE_MAXCONCURRENTREQUESTS` 설정은 제거한다. 응답은 기존 JSON 구조의 DTO를 직접 반환한다. DB·Redis 자체 동시 제한, 시간 제한과 캐시 예산은 유지한다. 요청 활성 수·제한·입장 거절 및 응답 완료 기준 성공/실패 지표는 제거하고, 캐시 hit/miss·fallback·실패·단계 시간과 DB·Redis·셀 병합 지표는 유지한다.
+
 대용량 fallback 응답은 메모리에 구성한다. 행 상한 초과 시 부분 결과를 반환하지 않는다. 캐시 batch 예산은 전체 응답이나 모든 동시 요청의 힙 상한이 아니다.
 
 ## Redis EC2 자동 배포

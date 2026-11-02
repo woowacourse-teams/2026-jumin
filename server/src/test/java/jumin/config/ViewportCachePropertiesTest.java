@@ -50,7 +50,6 @@ class ViewportCachePropertiesTest {
         // then
         assertThat(properties.getMaxConcurrentDb()).isEqualTo(3);
         assertThat(properties.getMaxConcurrentRedis()).isEqualTo(3);
-        assertThat(properties.getMaxConcurrentRequests()).isZero();
     }
 
     @Test
@@ -58,7 +57,6 @@ class ViewportCachePropertiesTest {
     void validates_combined_and_redis_memory_budgets() {
         // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxConcurrentRequests(8);
 
         // when & then
         assertValid(properties);
@@ -70,7 +68,6 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRedis(9);
         assertInvalid(properties);
 
-        properties.setMaxConcurrentRequests(0);
         properties.setMaxConcurrentDb(1);
         properties.setMaxConcurrentRedis(8);
         assertValid(properties);
@@ -122,7 +119,6 @@ class ViewportCachePropertiesTest {
 
     private static Stream<Arguments> integerLimits() {
         return Stream.of(
-                integer("max-concurrent-requests", ViewportCacheProperties::setMaxConcurrentRequests, 0, 8),
                 integer("max-concurrent-db", ViewportCacheProperties::setMaxConcurrentDb, 1, 15),
                 integer("max-concurrent-redis", ViewportCacheProperties::setMaxConcurrentRedis, 1, 8));
     }
@@ -175,18 +171,7 @@ class ViewportCachePropertiesTest {
         return Arguments.of(setting, setter, maximum);
     }
 
-    @Test
-    @DisplayName("고정 처리 예산에서 요청 메모리 32 MiB 경계를 유지한다")
-    void preserves_request_memory_boundary() {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxConcurrentRequests(8);
-        assertValid(properties);
-        // when
-        properties.setMaxConcurrentRequests(9);
-        // then
-        assertInvalid(properties, "max-concurrent-requests");
-    }
+
 
     @Test
     @DisplayName("Redis 메모리 64 MiB 경계 초과는 관련 설정명을 모두 표시한다")
@@ -213,7 +198,7 @@ class ViewportCachePropertiesTest {
         // when
         properties.setMaxConcurrentDb(10);
         // then
-        assertInvalid(properties, "max-concurrent-requests", "max-concurrent-db", "max-concurrent-redis");
+        assertInvalid(properties, "max-concurrent-db", "max-concurrent-redis");
     }
 
     @Test
@@ -246,7 +231,6 @@ class ViewportCachePropertiesTest {
         properties.setRequestTimeout(null);
         properties.setCacheTimeout(null);
         properties.setDbTimeout(null);
-        properties.setMaxConcurrentRequests(Integer.MAX_VALUE);
         properties.setMaxConcurrentDb(Integer.MAX_VALUE);
         properties.setMaxConcurrentRedis(Integer.MAX_VALUE);
 
@@ -312,8 +296,6 @@ class ViewportCachePropertiesTest {
                 binding("활성화 중 환경 누락", "environment", "enabled=true"),
                 Arguments.of("내부 상태 설정으로 환경 명시를 우회하지 못함", "environment",
                         BindValidationException.class, new String[]{"enabled=true", "environment-configured=true"}),
-                binding("요청 메모리 경계", null, "max-concurrent-requests=8"),
-                binding("요청 메모리 초과", "max-concurrent-requests", "max-concurrent-requests=9"),
                 binding("Redis 메모리 경계", null, "max-concurrent-db=1", "max-concurrent-redis=8"),
                 binding("Redis 메모리 초과", "max-concurrent-redis", "max-concurrent-db=1", "max-concurrent-redis=9"),
                 binding("전체 메모리 경계", null, "max-concurrent-db=9", "max-concurrent-redis=7"),

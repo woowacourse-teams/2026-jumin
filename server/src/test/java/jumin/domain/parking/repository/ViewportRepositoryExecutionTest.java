@@ -35,7 +35,6 @@ import java.util.stream.IntStream;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
-import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.model.ViewportBounds;
 import jumin.domain.parking.model.ViewportCellKey;
@@ -364,12 +363,10 @@ class ViewportRepositoryExecutionTest {
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
             // when & then
-            try (ViewportBody body = harness.db.fallback(bounds, request, 1,
-                    ViewportDeadline.after(Duration.ofSeconds(30)))) {
-                ParkingLotViewportResponses response = (ParkingLotViewportResponses) body.value();
-                assertThat(response.totalCount()).isEqualTo(MAX_FALLBACK_ROWS);
-                assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_FALLBACK_ROWS);
-            }
+            ParkingLotViewportResponses response = harness.db.fallback(bounds, request, 1,
+                    ViewportDeadline.after(Duration.ofSeconds(30)));
+            assertThat(response.totalCount()).isEqualTo(MAX_FALLBACK_ROWS);
+            assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_FALLBACK_ROWS);
             cursor.set(0);
             rowCount.set(MAX_FALLBACK_ROWS + 1);
             assertThatThrownBy(() -> harness.db.fallback(bounds, request, 1,
@@ -449,9 +446,8 @@ class ViewportRepositoryExecutionTest {
             ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
-            try (ViewportBody body = db.fallback(bounds, request, 1, deadline)) {
-                return ((ParkingLotViewportResponses) body.value()).totalCount();
-            }
+            ParkingLotViewportResponses response = db.fallback(bounds, request, 1, deadline);
+            return response.totalCount();
         }
 
         @Override

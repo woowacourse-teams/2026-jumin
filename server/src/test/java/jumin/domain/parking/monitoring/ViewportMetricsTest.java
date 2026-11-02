@@ -36,20 +36,17 @@ class ViewportMetricsTest {
         // given
         var registry = new SimpleMeterRegistry();
         var metrics = new ViewportMetrics(registry);
-        var requests = new AtomicInteger();
         var redis = new AtomicInteger();
         var active = new AtomicInteger();
         var queued = new AtomicInteger();
         var source = new AtomicInteger();
         var fallback = new AtomicInteger();
         Map<String, Object> loads = new HashMap<>();
-        metrics.registerRequests(requests, 7);
         metrics.registerRedis(redis::get);
         metrics.registerLoader(loads);
         metrics.registerDatabase(active, queued, source, fallback);
 
         // when
-        requests.set(3);
         redis.set(2);
         active.set(4);
         queued.set(5);
@@ -58,8 +55,6 @@ class ViewportMetricsTest {
         loads.put("cell", new Object());
 
         // then
-        assertThat(registry.get("parking.viewport.requests.active").gauge().value()).isEqualTo(3);
-        assertThat(registry.get("parking.viewport.requests.limit").gauge().value()).isEqualTo(7);
         assertThat(registry.get("parking.viewport.redis.active").gauge().value()).isEqualTo(2);
         assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isEqualTo(1);
         assertThat(registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(4);
