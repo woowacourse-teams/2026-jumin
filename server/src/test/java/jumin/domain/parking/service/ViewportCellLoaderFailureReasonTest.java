@@ -1,5 +1,7 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELLS;
+import static jumin.config.ViewportCacheProperties.MAX_INFLIGHT_CELLS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,13 +11,15 @@ import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import jumin.config.ViewportCacheProperties;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.model.ViewportCell;
@@ -32,34 +36,43 @@ class ViewportCellLoaderFailureReasonTest {
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
     @Test
-    @DisplayName("셀 한도 초과는 다른 키만 거절하고 같은 키의 대기 요청은 기존 결과를 공유한다")
+    @DisplayName("고정 셀 한도 초과는 새 키만 거절하고 같은 키의 대기 요청은 기존 결과를 공유한다")
     void preserves_registered_load_when_capacity_is_full() throws Exception {
         // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxCells(1);
-        properties.setMaxInflightCells(1);
         ViewportMetrics metrics = metrics();
-        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch started = new CountDownLatch(MAX_INFLIGHT_CELLS / MAX_CELLS);
         CountDownLatch release = new CountDownLatch(1);
         ViewportRepository repository = mock(ViewportRepository.class);
         when(repository.load(anyList(), any())).thenAnswer(invocation -> {
+            List<ViewportCellKey> keys = invocation.getArgument(0);
             started.countDown();
-            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
-            return Map.of(key(1), new ViewportCell(key(1), List.of()));
+            assertThat(release.await(10, TimeUnit.SECONDS)).isTrue();
+            return keys.stream().collect(Collectors.toMap(key -> key, key -> new ViewportCell(key, List.of())));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, properties, metrics)) {
-            // when
-            var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
+            List<CompletableFuture<List<ViewportCell>>> owners = new ArrayList<>();
+            for (int offset = 0; offset < MAX_INFLIGHT_CELLS; offset += MAX_CELLS) {
+                List<ViewportCellKey> keys = LongStream.rangeClosed(offset + 1L, offset + MAX_CELLS)
+                        .mapToObj(ViewportCellLoaderFailureReasonTest::key).toList();
+                owners.add(CompletableFuture.supplyAsync(() -> loader.resolve(keys, Map.of(),
+                        ViewportDeadline.after(Duration.ofSeconds(30)), false), threads));
+            }
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            // when
             var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             waitForFollower(registry);
             // then
-            assertThatThrownBy(() -> resolve(loader, key(2))).isInstanceOfSatisfying(BusinessException.class,
-                    failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_FLIGHT_LIMIT.name()));
+            assertThatThrownBy(() -> resolve(loader, key(MAX_INFLIGHT_CELLS + 1L)))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_FLIGHT_LIMIT.name()));
             release.countDown();
-            assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
+            for (var owner : owners) {
+                assertThat(owner.get(10, TimeUnit.SECONDS)).hasSize(MAX_CELLS);
+            }
             assertThat(follower.get(5, TimeUnit.SECONDS)).hasSize(1);
+            assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isZero();
+            assertThat(resolve(loader, key(MAX_INFLIGHT_CELLS + 1L))).hasSize(1);
         } finally {
             release.countDown();
         }
@@ -79,7 +92,7 @@ class ViewportCellLoaderFailureReasonTest {
             return Map.of(key(1), new ViewportCell(key(1), List.of()));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
             var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
@@ -107,7 +120,7 @@ class ViewportCellLoaderFailureReasonTest {
         ViewportRepository repository = mock(ViewportRepository.class);
         ViewportCell cell = new ViewportCell(key(1), List.of());
         when(repository.load(anyList(), any())).thenReturn(Map.of()).thenReturn(Map.of(key(1), cell));
-        try (var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+        try (var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
             // when & then
             assertThatThrownBy(() -> resolve(loader, key(1))).isInstanceOfSatisfying(BusinessException.class,
                     failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.CELL_INCOMPLETE_BATCH.name()));
@@ -129,11 +142,11 @@ class ViewportCellLoaderFailureReasonTest {
             return Map.of(key(1), new ViewportCell(key(1), List.of()));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
             var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             // when & then
-            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)))).isInstanceOf(BusinessException.class);
+            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)), false)).isInstanceOf(BusinessException.class);
             assertThat(owner).isNotCompleted();
             release.countDown();
             assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);
@@ -143,7 +156,7 @@ class ViewportCellLoaderFailureReasonTest {
     }
 
     private static List<ViewportCell> resolve(ViewportCellLoader loader, ViewportCellKey key) {
-        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)));
+        return loader.resolve(List.of(key), Map.of(), ViewportDeadline.after(Duration.ofSeconds(10)), false);
     }
 
     private ViewportMetrics metrics() {
@@ -151,7 +164,7 @@ class ViewportCellLoaderFailureReasonTest {
     }
 
     private static ViewportCellKey key(long id) {
-        return new ViewportCellKey("reason", 1, 1, 1000, id);
+        return new ViewportCellKey("reason", 1000, id);
     }
 
     private static void waitForFollower(SimpleMeterRegistry registry) throws Exception {

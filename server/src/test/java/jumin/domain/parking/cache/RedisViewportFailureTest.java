@@ -1,5 +1,8 @@
 package jumin.domain.parking.cache;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELLS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.LongStream;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
 import jumin.domain.parking.exception.ViewportStoreException;
@@ -188,13 +192,13 @@ class RedisViewportFailureTest {
     void rejects_key_budget_before_connection() {
         // given
         ViewportCacheProperties properties = properties();
-        properties.setMaxCells(1);
         try (Fixture fixture = new Fixture(properties)) {
             // when & then
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1), key(2)), deadline()))
+            assertThatThrownBy(() -> fixture.store.getMany(LongStream.rangeClosed(1, MAX_CELLS + 1)
+                    .mapToObj(RedisViewportFailureTest::key).toList(), deadline()))
                     .isInstanceOf(ViewportStoreBudgetException.class);
-            assertThatThrownBy(() -> fixture.store.putMany(List.of(new ViewportCell(key(1), List.of()),
-                    new ViewportCell(key(2), List.of())), deadline())).isInstanceOf(ViewportStoreBudgetException.class);
+            assertThatThrownBy(() -> fixture.store.putMany(LongStream.rangeClosed(1, MAX_CELLS + 1)
+                    .mapToObj(id -> new ViewportCell(key(id), List.of())).toList(), deadline())).isInstanceOf(ViewportStoreBudgetException.class);
             verify(fixture.client, never()).connect(any(RedisCodec.class), any(RedisURI.class));
         }
     }
@@ -221,7 +225,7 @@ class RedisViewportFailureTest {
     }
 
     private static ViewportCellKey key(long id) {
-        return new ViewportCellKey("failure", 1, 1, 1000, id);
+        return new ViewportCellKey("failure", 1000, id);
     }
 
     private static ViewportDeadline deadline() {
@@ -243,8 +247,8 @@ class RedisViewportFailureTest {
             when(client.connect(any(RedisCodec.class), any(RedisURI.class))).thenReturn(connection);
             factory.when(() -> RedisClient.create(any(ClientResources.class), any(RedisURI.class))).thenReturn(client);
             store = new RedisViewportCellStore(properties,
-                    new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
-                    new ViewportCellCover(new ViewportSquareGrid(), properties), metrics);
+                    new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS),
+                    new ViewportCellCover(new ViewportSquareGrid()), metrics);
         }
 
         private double count(String outcome) {

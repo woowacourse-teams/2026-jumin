@@ -1,6 +1,7 @@
 package jumin.domain.parking.service;
 
-import jumin.config.ViewportCacheProperties;
+import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
+
 import jumin.domain.parking.model.ViewportMappingState;
 import jumin.domain.parking.repository.ViewportRepository;
 import org.springframework.stereotype.Service;
@@ -11,11 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ViewportWriteCoordinator {
 
     private final ViewportRepository mappings;
-    private final ViewportCacheProperties properties;
 
-    public ViewportWriteCoordinator(ViewportRepository mappings, ViewportCacheProperties properties) {
+    public ViewportWriteCoordinator(ViewportRepository mappings) {
         this.mappings = mappings;
-        this.properties = properties;
     }
 
     public ViewportMappingState beforeSourceWrite() {
@@ -33,7 +32,7 @@ public class ViewportWriteCoordinator {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public ViewportMappingState prepare() {
         mappings.lockForWrite();
-        boolean valid = mappings.repairAndVerify(properties.getGridSizeMeters());
-        return mappings.publishState(properties.getGridSizeMeters(), valid);
+        boolean valid = mappings.repairAndVerify(GRID_SIZE_METERS);
+        return mappings.publishState(GRID_SIZE_METERS, valid);
     }
 }

@@ -1,5 +1,6 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.MAX_REQUEST_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.LongStream;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
 import jumin.domain.parking.cache.ViewportCellStore;
@@ -49,24 +51,28 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import tools.jackson.databind.ObjectMapper;
 
 class ViewportStoreBypassTest {
 
     @Test
     @DisplayName("최초 cache 조회 장애가 발생한 100개 요청은 하나의 셀 source 작업을 공유한다")
     void coalesces_one_hundred_requests_after_initial_read_failure() throws Exception {
+        // given & when & then
         exerciseConcurrentFailure(true);
     }
 
     @Test
     @DisplayName("owner cache 재조회 장애가 발생한 100개 요청은 하나의 셀 source 작업을 공유한다")
     void coalesces_one_hundred_requests_after_owner_recheck_failure() throws Exception {
+        // given & when & then
         exerciseConcurrentFailure(false);
     }
 
     @Test
     @DisplayName("최초 조회 실패 후 다른 요청의 재조회 적중을 공유하면 source 없이 성공한다")
     void initial_failure_can_share_an_owner_recheck_hit() throws Exception {
+        // given
         ViewportCacheProperties properties = properties();
         int gridSizeMeters = gridSizeMeters();
         ViewportCellKey key = key(gridSizeMeters, 10);
@@ -114,9 +120,11 @@ class ViewportStoreBypassTest {
         ViewportRepository repository = mock(ViewportRepository.class);
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+             ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             try {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
+
+                // when & then
                 var owner = CompletableFuture.supplyAsync(() -> search(service), executor);
                 assertThat(recheckStarted.await(10, TimeUnit.SECONDS)).isTrue();
                 var follower = CompletableFuture.supplyAsync(() -> search(service), executor);
@@ -201,7 +209,7 @@ class ViewportStoreBypassTest {
             return source.join();
         });
         try (var executor = Executors.newVirtualThreadPerTaskExecutor();
-             ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+             ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
             List<CompletableFuture<ParkingLotViewportResponses>> requests = new ArrayList<>();
             for (int index = 0; index < requestCount; index++) {
@@ -253,7 +261,7 @@ class ViewportStoreBypassTest {
         };
         ViewportRepository repository = mock(ViewportRepository.class);
         when(repository.load(anyList(), any())).thenReturn(Map.of(key, cell));
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
             // when
             var first = search(service);
@@ -269,6 +277,7 @@ class ViewportStoreBypassTest {
     @Test
     @DisplayName("최초 조회와 재조회 각각의 cache 용량 초과는 셀 로딩이 아닌 전체 조회를 사용한다")
     void budget_failures_keep_fallback_for_initial_and_recheck() {
+        // given
         for (boolean failInitial : List.of(true, false)) {
             ViewportCacheProperties properties = properties();
             SimpleMeterRegistry registry = new SimpleMeterRegistry();
@@ -289,9 +298,10 @@ class ViewportStoreBypassTest {
             ParkingLotViewportResponses expected = response(item(1, 100));
             when(repository.fallback(any(), any(), anyInt(), any()))
                     .thenAnswer(invocation -> new ViewportBody(expected));
-            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
+                // when & then
                 assertThat(search(service)).isEqualTo(expected);
 
                 verify(repository, times(0)).load(anyList(), any());
@@ -306,6 +316,7 @@ class ViewportStoreBypassTest {
     @Test
     @DisplayName("전체 요청 deadline이 소진된 조회는 cache 오류 뒤에 source 작업을 시작하지 않는다")
     void expired_request_deadline_does_not_start_source() {
+        // given
         ViewportCacheProperties properties = properties();
         properties.setRequestTimeout(Duration.ZERO);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
@@ -318,9 +329,10 @@ class ViewportStoreBypassTest {
         };
         ViewportRepository repository = mock(ViewportRepository.class);
 
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
 
+            // when & then
             assertThatThrownBy(() -> search(service))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
@@ -333,6 +345,7 @@ class ViewportStoreBypassTest {
     @Test
     @DisplayName("셀 source 용량 초과와 조립 중 중복 항목 오류는 전체 조회로 정확한 결과를 반환한다")
     void source_oversize_and_assembly_integrity_failure_keep_fallback() {
+        // given
         for (boolean oversize : List.of(true, false)) {
             ViewportCacheProperties properties = properties();
             int gridSizeMeters = gridSizeMeters();
@@ -355,9 +368,10 @@ class ViewportStoreBypassTest {
             ParkingLotViewportResponses expected = response(duplicate);
             when(repository.fallback(any(), any(), anyInt(), any()))
                     .thenAnswer(invocation -> new ViewportBody(expected));
-            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+            try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
+                // when & then
                 assertThat(search(service)).isEqualTo(expected);
 
                 verify(repository, times(oversize ? 1 : 0)).load(anyList(), any());
@@ -373,6 +387,7 @@ class ViewportStoreBypassTest {
     @Test
     @DisplayName("부분 cache 적중 후 재조회 장애가 나면 누락된 셀만 source에서 로드한다")
     void preserves_partial_hits_on_recheck_failure() {
+        // given
         ViewportCacheProperties properties = properties();
         int gridSizeMeters = gridSizeMeters();
         ViewportCellKey first = key(gridSizeMeters, 10);
@@ -396,9 +411,10 @@ class ViewportStoreBypassTest {
 
         when(repository.load(anyList(), any()))
                 .thenReturn(Map.of(second, new ViewportCell(second, List.of(missing))));
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
 
+            // when & then
             assertThat(search(service)).isEqualTo(response(hit, missing));
 
             verify(repository, times(1)).load(eq(List.of(second)), any());
@@ -438,7 +454,7 @@ class ViewportStoreBypassTest {
                 .thenReturn(List.of())
                 .thenReturn(List.of(10L))
                 .thenReturn(List.of());
-        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = new ViewportSearchService(properties, mock(ParkingSearchService.class),
                     cover, repository, store, loader, metrics, new ParkingLodScoreCalculator(),
                     Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
@@ -466,6 +482,29 @@ class ViewportStoreBypassTest {
             verify(repository, times(2)).fallback(any(), any(), anyInt(), any());
             assertThat(output).doesNotContain("viewport cache request completed", "sourceIndependent",
                     "ownSourceSql", "sourceFollower");
+        }
+    }
+
+    @Test
+    @DisplayName("fallback 전체 JSON은 고정 캐시 일괄 예산을 넘겨도 잘리지 않고 요청 슬롯을 반환한다")
+    void fallback_response_can_exceed_cache_batch_budget() throws Exception {
+        // given
+        ViewportCacheProperties properties = properties();
+        properties.setMaxConcurrentRequests(1);
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        ViewportMetrics metrics = new ViewportMetrics(registry);
+        ParkingLotViewportResponses response = ParkingLotViewportResponses.from(LongStream.rangeClosed(1, 100_000)
+                .mapToObj(id -> new ParkingLotViewportResponse(id, 37.5, 127, 50)).toList());
+        byte[] json = new ObjectMapper().writeValueAsBytes(response);
+        assertThat(json.length).isGreaterThan(MAX_REQUEST_BYTES);
+        ViewportRepository repository = mock(ViewportRepository.class);
+        when(repository.fallback(any(), any(), anyInt(), any())).thenReturn(new ViewportBody(response));
+        ViewportCellStore store = new EmptyViewportCellStore();
+        try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
+            ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of());
+            // when & then
+            assertThat(search(service)).isEqualTo(response);
+            assertThat(registry.get("parking.viewport.requests.active").gauge().value()).isZero();
         }
     }
 
@@ -509,7 +548,7 @@ class ViewportStoreBypassTest {
     }
 
     private ViewportCellKey key(int gridSizeMeters, long cell) {
-        return new ViewportCellKey("bypass", 1, 1, gridSizeMeters, cell);
+        return new ViewportCellKey("bypass", gridSizeMeters, cell);
     }
 
     private ViewportItem item(long id, int capacity) {

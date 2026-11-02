@@ -1,5 +1,7 @@
 package jumin.domain.parking.cache;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,6 +29,7 @@ class RedisViewportShutdownTest {
     @Test
     @DisplayName("client shutdown이 중단 예외를 던져도 owned event executor를 종료하고 interrupt를 보존한다")
     void cleans_owned_resources_after_client_shutdown_failure() {
+        // given
         RedisClient client = mock(RedisClient.class);
         AtomicReference<ClientResources> owned = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -40,10 +43,11 @@ class RedisViewportShutdownTest {
             });
             ViewportCacheProperties properties = new ViewportCacheProperties();
             RedisViewportCellStore store = new RedisViewportCellStore(properties,
-                    new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
-                    new ViewportCellCover(new ViewportSquareGrid(), properties), new ViewportMetrics(new SimpleMeterRegistry()));
+                    new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS),
+                    new ViewportCellCover(new ViewportSquareGrid()), new ViewportMetrics(new SimpleMeterRegistry()));
 
             try {
+                // when & then
                 assertThatThrownBy(store::close).isInstanceOf(RedisCommandInterruptedException.class);
                 assertThat(owned.get().eventExecutorGroup().isShuttingDown()).isTrue();
                 assertThat(Thread.currentThread().isInterrupted()).isTrue();

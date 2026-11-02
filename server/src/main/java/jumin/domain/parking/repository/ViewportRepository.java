@@ -1,5 +1,11 @@
 package jumin.domain.parking.repository;
 
+import static jumin.config.ViewportCacheProperties.DB_QUEUE;
+import static jumin.config.ViewportCacheProperties.MAX_CELLS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_FALLBACK_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_REQUEST_BYTES;
+
 import jakarta.annotation.PreDestroy;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -16,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.sql.DataSource;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -86,11 +92,10 @@ public class ViewportRepository {
             """;
 
     private static final int BATCH_SIZE = 500;
-    private static final String SELECT_MAPPING_STATE_SQL = """
+    private static final String LOCK_MAPPING_STATE_SQL = """
             SELECT grid_size_meters, projection_ready
             FROM parking_viewport_cache_state WHERE id = 1
-            """;
-    private static final String LOCK_MAPPING_STATE_SQL = SELECT_MAPPING_STATE_SQL + " FOR UPDATE";
+            """ + " FOR UPDATE";
     private static final String LOCK_SOURCE_SQL = "LOCK TABLE parking_lots IN SHARE ROW EXCLUSIVE MODE";
     private static final String UPDATE_CELL_MAPPING_SQL = """
             UPDATE parking_lots SET viewport_grid_cell = ?
@@ -116,7 +121,6 @@ public class ViewportRepository {
     private final JdbcTemplate mappingJdbc;
     private final JdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate named;
-    private final ViewportCacheProperties properties;
     private final ViewportMetrics metrics;
     private final ParkingLodScoreCalculator scores;
     private final ViewportSquareGrid grid;
@@ -125,7 +129,6 @@ public class ViewportRepository {
     private final ReentrantLock admission = new ReentrantLock(true);
     private final Condition capacity = admission.newCondition();
     private final int maximum;
-    private final int queueLimit;
     private final AtomicInteger queued = new AtomicInteger();
     private final AtomicInteger active = new AtomicInteger();
     private final Map<String, AtomicInteger> activeByStage = new ConcurrentHashMap<>();
@@ -135,7 +138,6 @@ public class ViewportRepository {
                               ParkingLodScoreCalculator scores, ViewportSquareGrid grid) {
         DataSource source = Objects.requireNonNull(primaryJdbc.getDataSource(), "viewport DataSource is required");
         mappingJdbc = primaryJdbc;
-        this.properties = properties;
         this.metrics = metrics;
         this.scores = scores;
         this.grid = grid;
@@ -146,7 +148,6 @@ public class ViewportRepository {
         named = new NamedParameterJdbcTemplate(jdbc);
         transactions = new DataSourceTransactionManager(source);
         maximum = properties.getMaxConcurrentDb();
-        queueLimit = properties.getDbQueue();
         metrics.registerDatabase(active, queued, stageActive("source"), stageActive("fallback"));
     }
 
@@ -154,7 +155,7 @@ public class ViewportRepository {
             List<ViewportCellKey> keys,
             ViewportDeadline deadline
     ) {
-        if (keys.isEmpty() || keys.size() > properties.getMaxCells()) {
+        if (keys.isEmpty() || keys.size() > MAX_CELLS) {
             throw new IllegalArgumentException("셀 batch 범위가 잘못되었습니다.");
         }
         int gridSizeMeters = keys.getFirst().gridSizeMeters();
@@ -163,8 +164,8 @@ public class ViewportRepository {
         }
         MapSqlParameterSource parameters = new MapSqlParameterSource("cells", keys.stream()
                 .map(ViewportCellKey::cellId).toList())
-                .addValue("cell_row_limit", properties.getMaxCellRows() + 1);
-        return read("source", deadline, ignored -> {
+                .addValue("cell_row_limit", MAX_CELL_ROWS + 1);
+        return read("source", deadline, () -> {
             deadline.requireRemaining();
             metrics.count("sql", "cell_batch", 1);
             return named.query(SELECT_CELLS_SQL, parameters, rows -> {
@@ -189,8 +190,8 @@ public class ViewportRepository {
                 continue;
             }
             List<ViewportItem> cell = items.get(rows.getLong("cell_id"));
-            if (cell == null || cell.size() >= properties.getMaxCellRows()
-                    || ++count * 160L > properties.getMaxRequestBytes()) {
+            if (cell == null || cell.size() >= MAX_CELL_ROWS
+                    || ++count * 160L > MAX_REQUEST_BYTES) {
                 throw ViewportFallbackException.cellTooLarge();
             }
             cell.add(itemOf(rows));
@@ -211,8 +212,8 @@ public class ViewportRepository {
                 .addValue("east", bounds.east()).addValue("north", bounds.north())
                 .addValue("free", request.freeOnly()).addValue("mechanical", request.excludeMechanical())
                 .addValue("public", request.isPublic()).addValue("day", day)
-                .addValue("row_limit", properties.getMaxFallbackRows() + 1);
-        return read("fallback", deadline, ignored -> {
+                .addValue("row_limit", MAX_FALLBACK_ROWS + 1);
+        return read("fallback", deadline, () -> {
             deadline.requireRemaining();
             metrics.count("sql", "fallback", 1);
             return named.query(SELECT_FALLBACK_SQL, parameters, rows -> {
@@ -224,7 +225,7 @@ public class ViewportRepository {
     private ViewportBody readFallback(ResultSet rows, ViewportDeadline deadline) throws SQLException {
         List<ParkingLotViewportResponse> response = new ArrayList<>();
         while (nextRow(rows, deadline)) {
-            if (response.size() >= properties.getMaxFallbackRows()) {
+            if (response.size() >= MAX_FALLBACK_ROWS) {
                 throw ViewportFailureReason.UNCLASSIFIED.failure();
             }
             ViewportItem item = itemOf(rows);
@@ -360,15 +361,6 @@ public class ViewportRepository {
         });
     }
 
-    public ViewportMappingState readMappingState() {
-        List<ViewportMappingState> states = mappingJdbc.query(SELECT_MAPPING_STATE_SQL, (rows, index) ->
-                new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
-        if (states.isEmpty()) {
-            return null;
-        }
-        return states.getFirst();
-    }
-
     private ViewportMappingState lockStateForWrite() {
         requireTransaction();
         List<ViewportMappingState> states = mappingJdbc.query(LOCK_MAPPING_STATE_SQL, (rows, index) ->
@@ -395,7 +387,7 @@ public class ViewportRepository {
         }
     }
 
-    public <T> T read(String stage, ViewportDeadline deadline, Function<JdbcTemplate, T> query) {
+    private <T> T read(String stage, ViewportDeadline deadline, Supplier<T> query) {
         acquire(deadline);
         stageActive(stage).incrementAndGet();
         long started = System.nanoTime();
@@ -435,7 +427,7 @@ public class ViewportRepository {
     }
 
     private void awaitCapacity(ViewportDeadline deadline) {
-        if (queued.get() >= queueLimit) {
+        if (queued.get() >= DB_QUEUE) {
             metrics.count("db", "queue_rejected", 1);
             throw ViewportFailureReason.DB_QUEUE_FULL.failure();
         }
@@ -470,7 +462,7 @@ public class ViewportRepository {
         }
     }
 
-    private <T> T executeRead(ViewportDeadline deadline, Function<JdbcTemplate, T> query,
+    private <T> T executeRead(ViewportDeadline deadline, Supplier<T> query,
                               AtomicReference<T> produced) {
         long remainingNanos = Math.min(deadline.remainingNanos(), dbTimeoutNanos);
         requireDbRemaining(deadline);
@@ -480,14 +472,14 @@ public class ViewportRepository {
         return transaction.execute(status -> queryInTransaction(deadline, query, produced));
     }
 
-    private <T> T queryInTransaction(ViewportDeadline deadline, Function<JdbcTemplate, T> query,
+    private <T> T queryInTransaction(ViewportDeadline deadline, Supplier<T> query,
                                       AtomicReference<T> produced) {
         requireDbRemaining(deadline);
         long statementTimeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
                 Math.min(deadline.remainingNanos(), dbTimeoutNanos)));
         jdbc.execute(SET_STATEMENT_TIMEOUT_SQL_PREFIX + statementTimeoutMillis);
         requireDbRemaining(deadline);
-        T value = query.apply(jdbc);
+        T value = query.get();
         produced.set(value);
         requireDbRemaining(deadline);
         return value;

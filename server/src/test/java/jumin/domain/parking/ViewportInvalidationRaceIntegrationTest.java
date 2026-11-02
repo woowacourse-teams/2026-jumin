@@ -1,5 +1,8 @@
 package jumin.domain.parking;
 
+import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.lettuce.core.RedisClient;
@@ -76,10 +79,14 @@ class ViewportInvalidationRaceIntegrationTest {
     private static final int OLD_CAPACITY = 50;
     private static final int NEW_CAPACITY = 200;
 
-    @Autowired private JdbcTemplate jdbc;
-    @Autowired private PlatformTransactionManager transactions;
-    @Autowired private ViewportWriteCoordinator writer;
-    @Autowired private ParkingSearchService legacy;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private PlatformTransactionManager transactions;
+    @Autowired
+    private ViewportWriteCoordinator writer;
+    @Autowired
+    private ParkingSearchService legacy;
 
     @DynamicPropertySource
     static void redisProperties(DynamicPropertyRegistry registry) {
@@ -112,6 +119,7 @@ class ViewportInvalidationRaceIntegrationTest {
     @Test
     @DisplayName("TTL 전용 warm 셀은 commit 뒤에도 이전 값을 제공하고 Redis 만료 뒤 원본을 다시 읽는다")
     void ttl_only_serves_old_value_after_commit_until_expiry_and_reloads() throws Exception {
+        // given
         String environment = environment();
         RedisClient client = RedisClient.create(redisUri());
         try (var raw = client.connect(); var events = client.connectPubSub();
@@ -129,9 +137,10 @@ class ViewportInvalidationRaceIntegrationTest {
             raw.sync().configSet("notify-keyspace-events", "Ex");
             events.sync().subscribe("__keyevent@0__:expired");
 
+            // when & then
             assertCapacity(reader.search(), OLD_CAPACITY);
             reader.store.awaitWrite();
-            assertThat(raw.sync().pttl(key.redisKey())).isPositive().isLessThanOrEqualTo(6000);
+            assertThat(raw.sync().pttl(key.redisKey())).isPositive().isLessThanOrEqualTo(7200);
             double sourceReads = reader.sourceReads();
 
             commitCapacityChange();
@@ -153,12 +162,15 @@ class ViewportInvalidationRaceIntegrationTest {
     @Test
     @DisplayName("이동 전 셀과 빈 이동 후 셀은 각 TTL까지 유지되고 만료 뒤 원본을 다시 읽는다")
     void ttl_mode_keeps_stale_old_and_empty_new_cells_until_expiry_after_move() throws Exception {
+        // given
         RedisClient client = RedisClient.create(redisUri());
         try (var raw = client.connect();
              Harness reader = new Harness(environment(), false, Duration.ofMinutes(1), Duration.ofSeconds(30))) {
             ViewportCellKey oldKey = reader.ttlKey(REQUEST);
             ViewportCellKey newKey = reader.ttlKey(MOVED_REQUEST);
             assertThat(oldKey).isNotEqualTo(newKey);
+
+            // when & then
             assertCapacity(reader.search(REQUEST), OLD_CAPACITY);
             assertThat(reader.search(MOVED_REQUEST).parkingLots()).isEmpty();
             long untilStored = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
@@ -168,8 +180,8 @@ class ViewportInvalidationRaceIntegrationTest {
             assertThat(raw.sync().exists(oldKey.redisKey(), newKey.redisKey())).isEqualTo(2);
             long oldTtl = raw.sync().pttl(oldKey.redisKey());
             long emptyTtl = raw.sync().pttl(newKey.redisKey());
-            assertThat(oldTtl).isPositive().isLessThanOrEqualTo(60_000);
-            assertThat(emptyTtl).isPositive().isLessThanOrEqualTo(30_000);
+            assertThat(oldTtl).isPositive().isLessThanOrEqualTo(72_000);
+            assertThat(emptyTtl).isPositive().isLessThanOrEqualTo(36_000);
             assertThat(oldTtl).isGreaterThan(emptyTtl);
 
             new TransactionTemplate(transactions).executeWithoutResult(status -> {
@@ -315,17 +327,16 @@ class ViewportInvalidationRaceIntegrationTest {
             properties.setRedisUri(redisUri());
             properties.setTtl(ttl);
             properties.setEmptyTtl(emptyTtl);
-            properties.setTtlJitter(0);
             properties.setRequestTimeout(Duration.ofSeconds(20));
             properties.setCacheTimeout(Duration.ofSeconds(2));
-            cover = new ViewportCellCover(new ViewportSquareGrid(), properties);
+            cover = new ViewportCellCover(new ViewportSquareGrid());
             assertThat(cover.cover(ViewportBounds.from(REQUEST))).hasSize(1);
             redis = new RedisViewportCellStore(properties,
-                    new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()), cover, metrics);
+                    new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS), cover, metrics);
             store = new ObservedStore(redis, pauseWrite);
             repository = new ViewportRepository(jdbc, properties, metrics,
                     new ParkingLodScoreCalculator(), new ViewportSquareGrid());
-            loader = new ViewportCellLoader(store, repository, properties, metrics);
+            loader = new ViewportCellLoader(store, repository, metrics);
             service = new ViewportSearchService(properties, legacy, cover, repository, store, loader, metrics,
                     new ParkingLodScoreCalculator(), Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
         }
@@ -335,8 +346,8 @@ class ViewportInvalidationRaceIntegrationTest {
         }
 
         private ViewportCellKey ttlKey(ParkingLotViewportRequest request) {
-            return new ViewportCellKey(properties.getEnvironment(), properties.getSchema(), properties.getPolicy(),
-                    properties.getGridSizeMeters(), cover.cover(ViewportBounds.from(request)).getFirst());
+            return new ViewportCellKey(properties.getEnvironment(), GRID_SIZE_METERS,
+                    cover.cover(ViewportBounds.from(request)).getFirst());
         }
 
         private ParkingLotViewportResponses search() {

@@ -1,5 +1,8 @@
 package jumin.config;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
+
 import jumin.domain.parking.cache.RedisViewportCellStore;
 import jumin.domain.parking.cache.ViewportCellCodec;
 import jumin.domain.parking.cache.ViewportCellStore;
@@ -14,8 +17,8 @@ import org.springframework.context.annotation.Configuration;
 public class ViewportCacheConfig {
 
     @Bean
-    public ViewportCellCodec viewportCellCodec(ViewportCacheProperties properties) {
-        return new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows());
+    public ViewportCellCodec viewportCellCodec() {
+        return new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS);
     }
 
     @Bean(destroyMethod = "close")

@@ -1,5 +1,7 @@
 package jumin.domain.parking.cache;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,10 +9,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
@@ -61,13 +63,13 @@ class RedisViewportReconnectTest {
                 }).thenReturn(Collections.singletonList(null));
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setCacheTimeout(Duration.ofSeconds(10));
-        ViewportCellKey key = new ViewportCellKey("reconnect", 1, 1, 1000, 1);
+        ViewportCellKey key = new ViewportCellKey("reconnect", 1000, 1);
         try (MockedStatic<RedisClient> factory = mockStatic(RedisClient.class);
              var threads = Executors.newVirtualThreadPerTaskExecutor()) {
             factory.when(() -> RedisClient.create(any(ClientResources.class), any(RedisURI.class))).thenReturn(client);
             try (var store = new RedisViewportCellStore(properties,
-                    new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
-                    new ViewportCellCover(new ViewportSquareGrid(), properties), new ViewportMetrics(new SimpleMeterRegistry()))) {
+                    new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS),
+                    new ViewportCellCover(new ViewportSquareGrid()), new ViewportMetrics(new SimpleMeterRegistry()))) {
                 // when
                 var first = CompletableFuture.supplyAsync(() -> store.getMany(List.of(key), deadline()), threads);
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();

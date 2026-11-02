@@ -1,9 +1,11 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.MAX_INFLIGHT_CELLS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,7 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
 import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.exception.ViewportFallbackException;
@@ -36,6 +37,28 @@ import org.junit.jupiter.api.Test;
 class ViewportCellLoaderTest {
 
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+
+    @Test
+    @DisplayName("초기 hit와 재조회 hit 및 DB 결과가 섞여도 요청 셀 순서를 유지한다")
+    void preserves_requested_order_across_hit_recheck_and_database() {
+        // given
+        ViewportCell cached = new ViewportCell(key(3), List.of());
+        ViewportCell rechecked = new ViewportCell(key(1), List.of());
+        ViewportCell loaded = new ViewportCell(key(2), List.of());
+        ViewportCellStore store = mock(ViewportCellStore.class);
+        ViewportRepository repository = mock(ViewportRepository.class);
+        when(store.getMany(anyList(), any())).thenReturn(Map.of(rechecked.key(), rechecked));
+        when(repository.load(anyList(), any())).thenReturn(Map.of(loaded.key(), loaded));
+        try (var loader = new ViewportCellLoader(store, repository, metrics())) {
+            // when
+            List<ViewportCell> result = loader.resolve(List.of(cached.key(), loaded.key(), rechecked.key()),
+                    Map.of(cached.key(), cached), deadline(), false);
+
+            // then
+            assertThat(result).containsExactly(cached, loaded, rechecked);
+            verify(repository).load(eq(List.of(loaded.key())), any());
+        }
+    }
 
     @Test
     @DisplayName("같은 셀의 1000개 요청은 DB 조회와 동기 캐시 저장 한 번을 함께 기다린다")
@@ -70,11 +93,8 @@ class ViewportCellLoaderTest {
                 await(writeRelease);
             }
         };
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxCells(1);
-        properties.setMaxInflightCells(1);
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+             var loader = new ViewportCellLoader(store, repository, metrics)) {
             // when
             List<CompletableFuture<List<ViewportCell>>> requests = new ArrayList<>();
             for (int index = 0; index < 1000; index++) {
@@ -119,10 +139,10 @@ class ViewportCellLoaderTest {
             return Map.of(key, cell);
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
             // when
             ViewportDeadline deadline = ViewportDeadline.after(Duration.ofMillis(100));
-            var owner = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(), deadline), threads);
+            var owner = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key), Map.of(), deadline, false), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key), threads);
             waitForFollowers(registry, 1);
@@ -156,13 +176,13 @@ class ViewportCellLoaderTest {
             return keys.stream().collect(Collectors.toMap(key -> key, key -> new ViewportCell(key, List.of())));
         });
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, new ViewportCacheProperties(), metrics)) {
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics)) {
             // when
             var first = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key(2), key(1)), Map.of(),
-                    deadline()), threads);
+                    deadline(), false), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             var second = CompletableFuture.supplyAsync(() -> loader.resolve(List.of(key(1), key(2)), Map.of(),
-                    deadline()), threads);
+                    deadline(), false), threads);
             waitForFollowers(registry, 2);
             release.countDown();
             // then
@@ -183,15 +203,19 @@ class ViewportCellLoaderTest {
         ViewportCellKey key = key(1);
         ViewportCell cell = new ViewportCell(key, List.of());
         ViewportCellStore store = new EmptyViewportCellStore();
-        when(repository.load(anyList(), any())).thenThrow(ViewportFallbackException.mappingUnavailable())
-                .thenReturn(Map.of(key, cell));
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxCells(1);
-        properties.setMaxInflightCells(1);
-        try (var loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+        AtomicInteger calls = new AtomicInteger();
+        when(repository.load(anyList(), any())).thenAnswer(invocation -> {
+            if (calls.incrementAndGet() % 2 == 1) {
+                throw ViewportFallbackException.mappingUnavailable();
+            }
+            return Map.of(key, cell);
+        });
+        try (var loader = new ViewportCellLoader(store, repository, metrics)) {
             // when & then
-            assertThatThrownBy(() -> resolve(loader, key)).isInstanceOf(ViewportFallbackException.class);
-            assertThat(resolve(loader, key)).containsExactly(cell);
+            for (int attempt = 0; attempt <= MAX_INFLIGHT_CELLS; attempt++) {
+                assertThatThrownBy(() -> resolve(loader, key)).isInstanceOf(ViewportFallbackException.class);
+                assertThat(resolve(loader, key)).containsExactly(cell);
+            }
             assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isZero();
         }
     }
@@ -213,11 +237,8 @@ class ViewportCellLoaderTest {
             await(release);
             throw new AssertionError("recheck failed");
         }).thenReturn(Map.of());
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxCells(1);
-        properties.setMaxInflightCells(1);
         try (var threads = Executors.newVirtualThreadPerTaskExecutor();
-             var loader = new ViewportCellLoader(store, repository, properties, metrics)) {
+             var loader = new ViewportCellLoader(store, repository, metrics)) {
             // when
             var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key), threads);
             assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
@@ -235,7 +256,7 @@ class ViewportCellLoaderTest {
     }
 
     private static List<ViewportCell> resolve(ViewportCellLoader loader, ViewportCellKey key) {
-        return loader.resolve(List.of(key), Map.of(), deadline());
+        return loader.resolve(List.of(key), Map.of(), deadline(), false);
     }
 
     private ViewportMetrics metrics() {
@@ -243,7 +264,7 @@ class ViewportCellLoaderTest {
     }
 
     private static ViewportCellKey key(long id) {
-        return new ViewportCellKey("test", 1, 1, 1000, id);
+        return new ViewportCellKey("test", 1000, id);
     }
 
     private static ViewportDeadline deadline() {

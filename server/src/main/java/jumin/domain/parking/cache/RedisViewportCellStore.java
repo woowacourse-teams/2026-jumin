@@ -1,5 +1,10 @@
 package jumin.domain.parking.cache;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELLS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_REQUEST_BYTES;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
+
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisCommandExecutionException;
@@ -43,6 +48,8 @@ import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 
 public class RedisViewportCellStore implements ViewportCellStore {
+
+    private static final double TTL_JITTER_RATIO = 0.2;
 
     private static final String READ = """
             local total = 0
@@ -137,14 +144,18 @@ public class RedisViewportCellStore implements ViewportCellStore {
         }
         try {
             Path path = Path.of(certificate);
-            try (InputStream input = Files.newInputStream(path)) {
-                if (CertificateFactory.getInstance("X.509").generateCertificates(input).isEmpty()) {
-                    throw new IllegalArgumentException();
-                }
-            }
+            requireCertificate(path);
             return SslOptions.builder().jdkSslProvider().trustManager(path.toFile()).build();
         } catch (IOException | CertificateException | RuntimeException invalid) {
             throw new IllegalArgumentException("Redis TLS 인증서 파일을 읽을 수 없습니다.");
+        }
+    }
+
+    private static void requireCertificate(Path path) throws IOException, CertificateException {
+        try (InputStream input = Files.newInputStream(path)) {
+            if (CertificateFactory.getInstance("X.509").generateCertificates(input).isEmpty()) {
+                throw new IllegalArgumentException();
+            }
         }
     }
 
@@ -169,7 +180,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
             byte[][] encodedKeys = keys.stream().map(key -> text(key.redisKey())).toArray(byte[][]::new);
             deadline.requireRemaining();
             List<?> values = active.sync().eval(READ, ScriptOutputType.MULTI, encodedKeys,
-                    text(properties.getMaxValueBytes()), text(properties.getMaxRequestBytes()), text(properties.getMaxCells()));
+                    text(MAX_VALUE_BYTES), text(MAX_REQUEST_BYTES), text(MAX_CELLS));
             return decodeValues(keys, values, deadline);
         } catch (RuntimeException failure) {
             throw storeFailure(caller, failure);
@@ -188,7 +199,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
         if (cacheable.isEmpty()) {
             return;
         }
-        if (cacheable.stream().mapToLong(ViewportCell::estimatedHeapBytes).sum() > properties.getMaxRequestBytes()) {
+        if (cacheable.stream().mapToLong(ViewportCell::estimatedHeapBytes).sum() > MAX_REQUEST_BYTES) {
             metrics.count("store_error", "budget", 1);
             throw new ViewportStoreBudgetException("원격 cache 저장 batch 한도를 초과했습니다.");
         }
@@ -265,17 +276,26 @@ public class RedisViewportCellStore implements ViewportCellStore {
                 continue;
             }
             ViewportCellKey key = keys.get(index);
-            try {
-                ViewportCell cell = decodeCell(key, (byte[]) values.get(index),
-                        properties.getMaxRequestBytes() - heap, deadline);
-                heap += cell.estimatedHeapBytes();
-                result.put(key, cell);
-            } catch (IllegalArgumentException failure) {
-                metrics.count("store", "corrupt", 1);
+            ViewportCell cell = decodeStoredCell(key, (byte[]) values.get(index),
+                    MAX_REQUEST_BYTES - heap, deadline);
+            if (cell == null) {
+                continue;
             }
+            heap += cell.estimatedHeapBytes();
+            result.put(key, cell);
         }
         deadline.requireRemaining();
         return Map.copyOf(result);
+    }
+
+    private ViewportCell decodeStoredCell(ViewportCellKey key, byte[] value, long remainingBytes,
+                                          ViewportDeadline deadline) {
+        try {
+            return decodeCell(key, value, remainingBytes, deadline);
+        } catch (IllegalArgumentException failure) {
+            metrics.count("store", "corrupt", 1);
+            return null;
+        }
     }
 
     private ViewportCell decodeCell(ViewportCellKey key, byte[] value, long remainingBytes,
@@ -291,8 +311,8 @@ public class RedisViewportCellStore implements ViewportCellStore {
     }
 
     private boolean isCacheable(ViewportCell cell) {
-        return cell.items().size() <= properties.getMaxCellRows()
-                && codec.encodedSize(cell) <= properties.getMaxValueBytes();
+        return cell.items().size() <= MAX_CELL_ROWS
+                && codec.encodedSize(cell) <= MAX_VALUE_BYTES;
     }
 
     private WriteBatch encodeBatch(List<ViewportCell> cells) {
@@ -304,7 +324,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
             arguments[index * 2] = codec.encode(cell);
             long baseTtlMillis = cell.items().isEmpty()
                     ? properties.getEmptyTtl().toMillis() : properties.getTtl().toMillis();
-            double ttlMultiplier = 1 + ThreadLocalRandom.current().nextDouble(-1, 1) * properties.getTtlJitter();
+            double ttlMultiplier = 1 + ThreadLocalRandom.current().nextDouble(-1, 1) * TTL_JITTER_RATIO;
             long ttlMillis = Math.max(1, (long) (baseTtlMillis * ttlMultiplier));
             arguments[index * 2 + 1] = text(ttlMillis);
         }
@@ -314,7 +334,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
     private record WriteBatch(byte[][] keys, byte[][] arguments) { }
 
     private void validateBatch(int size) {
-        if (size > properties.getMaxCells()) {
+        if (size > MAX_CELLS) {
             metrics.count("store_error", "budget", 1);
             throw new ViewportStoreBudgetException("원격 cache key 한도를 초과했습니다.");
         }

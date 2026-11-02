@@ -29,9 +29,8 @@ import jumin.domain.admin.parking.model.ParkingOperationValues;
 import jumin.domain.admin.parking.model.ParkingScheduleValues;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
-import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.domain.parking.model.ViewportMappingState;
-import jumin.domain.parking.repository.ViewportRepository;
+import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.domain.parking.service.ViewportWriteCoordinator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,9 +68,6 @@ class ParkingCsvSyncServiceIntegrationTest {
     private ViewportWriteCoordinator viewportWriter;
 
     @Autowired
-    private ViewportRepository viewportVersions;
-
-    @Autowired
     private ViewportSquareGrid viewportGrid;
 
     @MockitoBean
@@ -100,7 +96,7 @@ class ParkingCsvSyncServiceIntegrationTest {
 
         // when
         ParkingCsvSummaryResponse summary = sync(List.of(changed), NEXT_UPLOAD_AT);
-        ViewportMappingState after = viewportVersions.readMappingState();
+        ViewportMappingState after = mappingState();
 
         // then
         assertSummary(summary, 0, 1, 0, 0, 0);
@@ -111,7 +107,7 @@ class ParkingCsvSyncServiceIntegrationTest {
                 changed.lot().name())).isEqualTo(viewportGrid.cellId(
                         changed.lot().latitude(), changed.lot().longitude(), 1000));
         assertSummary(sync(List.of(changed), NEXT_UPLOAD_AT), 0, 0, 0, 0, 1);
-        assertThat(viewportVersions.readMappingState()).isEqualTo(after);
+        assertThat(mappingState()).isEqualTo(after);
     }
 
     @Test
@@ -609,6 +605,11 @@ class ParkingCsvSyncServiceIntegrationTest {
 
     private String name(int index) {
         return "배치 주차장-" + index;
+    }
+
+    private ViewportMappingState mappingState() {
+        return jdbc.queryForObject("SELECT grid_size_meters, projection_ready FROM parking_viewport_cache_state WHERE id = 1",
+                (rows, index) -> new ViewportMappingState(rows.getInt("grid_size_meters"), rows.getBoolean("projection_ready")));
     }
 
     private Map<String, ParkingDbRow> byName(List<ParkingDbRow> rows) {

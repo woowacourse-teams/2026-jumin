@@ -1,15 +1,12 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.MAX_SPAN_DEGREES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.model.ViewportBounds;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +18,7 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("공식 Web Mercator 표본의 투영 위치를 1000m 사각형으로 나눈다")
     void matches_known_projected_coordinate() {
+        // given & when & then
         long cell = grid.cellId(49, 2, 1000);
         assertThat((int) (cell >> 32)).isEqualTo(222);
         assertThat((int) cell).isEqualTo(6274);
@@ -29,6 +27,7 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("음수 좌표는 0 방향 절삭 대신 floor로 분할하고 사분면 ID가 충돌하지 않는다")
     void floors_negative_coordinates_without_id_collisions() {
+        // given & when & then
         assertThat(grid.cellId(0, 0, 1000)).isZero();
         HashSet<Long> cells = new HashSet<>();
         for (double latitude : List.of(-0.00001, 0.00001)) {
@@ -45,8 +44,11 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("적도와 원점의 최소 부동소수점 범위도 점이 속한 셀을 빠뜨리지 않는다")
     void covers_subnormal_coordinates_through_zero() {
+        // given
         ViewportBounds bounds = new ViewportBounds(-Double.MIN_VALUE, -Double.MIN_VALUE,
                 Double.MIN_VALUE, Double.MIN_VALUE);
+
+        // when & then
         List<Long> cells = grid.cover(bounds, 1000, 4);
         assertThat(cells).isNotEmpty();
         for (double coordinate : List.of(-Double.MIN_VALUE, 0.0, Double.MIN_VALUE)) {
@@ -57,9 +59,12 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("최대 셀 수와 정확히 같은 범위는 허용하고 초과 범위는 열거 전에 우회한다")
     void checks_cell_count_before_allocation() {
+        // given
         double east = longitude(1999);
         double north = latitude(1999);
         ViewportBounds fourCells = new ViewportBounds(0, 0, east, north);
+
+        // when & then
         assertThat(grid.cover(fourCells, 1000, 4)).hasSize(4);
         assertThat(grid.cover(fourCells, 1000, 3)).isEmpty();
         assertThat(grid.cover(new ViewportBounds(-180, -85, 180, 85), 100, 256)).isEmpty();
@@ -68,12 +73,15 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("지원 크기와 모든 사분면에서 cover가 내부 및 네 경계의 점을 포함한다")
     void covers_seeded_points_and_inclusive_edges() {
+        // given
         Random random = new Random(20261029);
         for (int size : List.of(100, 500, 1000, 20_000)) {
             for (int index = 0; index < 200; index++) {
                 double west = -170 + random.nextDouble() * 340;
                 double south = -80 + random.nextDouble() * 160;
                 ViewportBounds bounds = new ViewportBounds(west, south, west + 0.0005, south + 0.0005);
+
+                // when & then
                 List<Long> cells = grid.cover(bounds, size, 64);
                 assertThat(cells).isNotEmpty().doesNotHaveDuplicates().isSorted();
                 for (int sample = 0; sample < 16; sample++) {
@@ -90,7 +98,10 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("서로 다른 viewport 안의 같은 위치는 동일한 그리드 키를 재사용한다")
     void reuses_cells_between_overlapping_viewports() {
+        // given
         long point = grid.cellId(37.5, 127, 1000);
+
+        // when & then
         List<Long> first = grid.cover(new ViewportBounds(126.999, 37.499, 127.001, 37.501), 1000, 64);
         List<Long> second = grid.cover(new ViewportBounds(126.9995, 37.4995, 127.0015, 37.5015), 1000, 64);
         assertThat(first).contains(point);
@@ -100,19 +111,31 @@ class ViewportSquareGridTest {
     @Test
     @DisplayName("극점과 비정상 좌표 및 그리드 크기를 거절한다")
     void rejects_unsupported_coordinates_and_sizes() {
+        // given & when & then
         assertThat(grid.supports(90, 127)).isFalse();
         assertThat(grid.supports(Double.NaN, 127)).isFalse();
         assertThat(grid.cover(new ViewportBounds(126, 86, 127, 87), 1000, 64)).isEmpty();
         assertThatThrownBy(() -> grid.cellId(90, 127, 1000)).isInstanceOf(IllegalArgumentException.class);
-        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
-            Validator validator = factory.getValidator();
-            for (int size : List.of(-1, 0, 99, 20_001, Integer.MAX_VALUE)) {
-                assertThatThrownBy(() -> grid.cellId(37.5, 127, size)).isInstanceOf(IllegalArgumentException.class);
-                ViewportCacheProperties properties = new ViewportCacheProperties();
-                properties.setGridSizeMeters(size);
-                assertThat(validator.validate(properties)).isNotEmpty();
-            }
+        for (int size : List.of(-1, 0, 99, 20_001, Integer.MAX_VALUE)) {
+            assertThatThrownBy(() -> grid.cellId(37.5, 127, size)).isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    @Test
+    @DisplayName("공통 범위는 두 축의 경계를 허용하고 어느 한 축이라도 넘으면 우회한다")
+    void applies_common_span_to_both_axes() {
+        // given
+        ViewportCellCover cover = new ViewportCellCover(grid);
+        double west = 127;
+        double south = 37.5;
+
+        // when & then
+        assertThat(cover.cover(new ViewportBounds(west, south, west + 0.04, south + 0.04))).isNotEmpty();
+        double east = west + MAX_SPAN_DEGREES;
+        double north = south + MAX_SPAN_DEGREES;
+        assertThat(cover.cover(new ViewportBounds(west, south, east, north))).isNotEmpty();
+        assertThat(cover.cover(new ViewportBounds(west, south, Math.nextUp(east), north))).isEmpty();
+        assertThat(cover.cover(new ViewportBounds(west, south, east, Math.nextUp(north)))).isEmpty();
     }
 
     private static double longitude(double x) {

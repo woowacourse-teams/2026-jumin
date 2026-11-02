@@ -1,5 +1,8 @@
 package jumin.domain.parking.cache;
 
+import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -53,7 +56,7 @@ class RedisViewportTlsIntegrationTest {
             "redis:7.4.12-bookworm@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5");
     private static final String ACL = """
             user default off
-            user viewport on >viewport-test-password ~jumin:dev_sq_*:viewport:square:wm1:* -@all +ping +echo +select +eval +type +unlink +strlen +get +set +client|setname +client|setinfo
+            user viewport on >viewport-test-password ~jumin:dev_sq_*:viewport:square:ttl:cell:m* -@all +ping +echo +select +eval +type +unlink +strlen +get +set +client|setname +client|setinfo
             """;
 
     @TempDir
@@ -99,11 +102,13 @@ class RedisViewportTlsIntegrationTest {
     @Test
     @DisplayName("전용 PEM과 분리된 ACL 인증으로 실제 TLS Redis 셀을 쓰고 읽는다")
     void reads_and_writes_over_authenticated_tls_without_changing_default_trust() throws Exception {
+        // given
         SSLContext defaultTrust = SSLContext.getDefault();
         ViewportCacheProperties properties = properties(redis, trustedCertificate, PASSWORD);
         ViewportCell cell = cell(properties);
 
         try (RedisViewportCellStore store = store(properties)) {
+            // when & then
             store.putMany(List.of(cell), deadline());
             assertThat(store.getMany(List.of(cell.key()), deadline())).containsOnlyKeys(cell.key())
                     .containsEntry(cell.key(), cell);
@@ -114,6 +119,7 @@ class RedisViewportTlsIntegrationTest {
     @Test
     @DisplayName("신뢰하지 않은 인증서나 다른 호스트의 인증서는 실제 Lettuce 연결을 거절한다")
     void rejects_wrong_ca_and_mismatched_ip_or_host() throws Exception {
+        // given & when & then
         Throwable wrongCa = connectionFailureWithoutSecrets(properties(redis, mismatchedCertificate, PASSWORD), PASSWORD);
         assertThat(hasCause(wrongCa, SSLHandshakeException.class)).isTrue();
         Throwable wrongName = connectionFailureWithoutSecrets(
@@ -124,6 +130,7 @@ class RedisViewportTlsIntegrationTest {
     @Test
     @DisplayName("잘못된 ACL 비밀번호는 실패하고 예외에 비밀번호를 포함하지 않는다")
     void rejects_wrong_acl_password_without_exposing_it() throws Exception {
+        // given & when & then
         Throwable failure = connectionFailureWithoutSecrets(properties(redis, trustedCertificate, WRONG_PASSWORD),
                 WRONG_PASSWORD);
         assertThat(hasCause(failure, RedisCommandExecutionException.class)).isTrue();
@@ -211,15 +218,14 @@ class RedisViewportTlsIntegrationTest {
 
     private static RedisViewportCellStore store(ViewportCacheProperties properties) {
         return new RedisViewportCellStore(properties,
-                new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
-                new ViewportCellCover(new ViewportSquareGrid(), properties),
+                new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS),
+                new ViewportCellCover(new ViewportSquareGrid()),
                 new ViewportMetrics(new SimpleMeterRegistry()));
     }
 
     private static ViewportCell cell(ViewportCacheProperties properties) {
-        long cellId = new ViewportSquareGrid().cellId(37.5, 127.0, properties.getGridSizeMeters());
-        ViewportCellKey key = new ViewportCellKey(properties.getEnvironment(), properties.getSchema(),
-                properties.getPolicy(), properties.getGridSizeMeters(), cellId);
+        long cellId = new ViewportSquareGrid().cellId(37.5, 127.0, GRID_SIZE_METERS);
+        ViewportCellKey key = new ViewportCellKey(properties.getEnvironment(), GRID_SIZE_METERS, cellId);
         return new ViewportCell(key, List.of(new ViewportItem(1, 37.5, 127.0, 50,
                 false, true, false, false, false)));
     }

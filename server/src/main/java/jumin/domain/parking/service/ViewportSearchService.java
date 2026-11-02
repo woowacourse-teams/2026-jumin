@@ -1,5 +1,8 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
+import static jumin.config.ViewportCacheProperties.MAX_REQUEST_BYTES;
+
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -152,8 +155,9 @@ public class ViewportSearchService {
 
     private ViewportBody searchCells(List<Long> cells, ViewportBounds bounds, ParkingLotViewportRequest request,
                                      DayOfWeek day, ViewportDeadline deadline) {
-        List<ViewportCellKey> keys = cells.stream().map(cell -> new ViewportCellKey(properties.getEnvironment(),
-                properties.getSchema(), properties.getPolicy(), properties.getGridSizeMeters(), cell)).toList();
+        List<ViewportCellKey> keys = cells.stream()
+                .map(cell -> new ViewportCellKey(properties.getEnvironment(), GRID_SIZE_METERS, cell))
+                .toList();
         CacheLookup lookup = lookup(keys, deadline);
         deadline.requireRemaining();
         List<ViewportCell> loaded = loader.resolve(keys, lookup.hits(), deadline,
@@ -213,7 +217,7 @@ public class ViewportSearchService {
         long heap = cells.stream().mapToLong(ViewportCell::estimatedHeapBytes).sum();
         long items = cells.stream().mapToLong(cell -> cell.items().size()).sum();
         long assemblyHeap = heap + items * 256L + cells.size() * 256L + 1024;
-        if (assemblyHeap > properties.getMaxRequestBytes()) {
+        if (assemblyHeap > MAX_REQUEST_BYTES) {
             throw ViewportFallbackException.cellTooLarge();
         }
     }

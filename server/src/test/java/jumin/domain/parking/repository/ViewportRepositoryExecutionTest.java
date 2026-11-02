@@ -1,17 +1,23 @@
 package jumin.domain.parking.repository;
 
+import static jumin.config.ViewportCacheProperties.DB_QUEUE;
+import static jumin.config.ViewportCacheProperties.MAX_FALLBACK_ROWS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zaxxer.hikari.HikariDataSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,8 +31,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
+import jumin.domain.parking.dto.ViewportBody;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.model.ViewportBounds;
 import jumin.domain.parking.model.ViewportCellKey;
@@ -51,32 +60,23 @@ class ViewportRepositoryExecutionTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
             ViewportDeadline deadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
-            var request = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline, ignored -> {
-                        started.countDown();
-                        try {
-                            if (!release.await(5, TimeUnit.SECONDS)) {
-                                throw new IllegalStateException("release timeout");
-                            }
-                        } catch (InterruptedException failure) {
-                            Thread.currentThread().interrupt();
-                            throw new IllegalStateException(failure);
-                        }
-                        return 1;
-                    }), threads);
+            var request = CompletableFuture.supplyAsync(() -> harness.load(deadline), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
             // when
             doReturn(0L).when(deadline).remainingNanos();
             assertThatThrownBy(deadline::requireRemaining).isInstanceOf(BusinessException.class);
-            var next = CompletableFuture.supplyAsync(() -> harness.db.read("source",
-                    ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> 2), threads);
+            var next = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
+
             // then
             assertThat(request).isNotCompleted();
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
             assertThat(next).isNotCompleted();
             release.countDown();
             assertThatThrownBy(() -> request.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
-            assertThat(next.get(5, TimeUnit.SECONDS)).isEqualTo(2);
+            assertThat(next.get(5, TimeUnit.SECONDS)).isEqualTo(1);
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
         } finally {
             release.countDown();
@@ -86,13 +86,14 @@ class ViewportRepositoryExecutionTest {
     @Test
     @DisplayName("조회 실패 뒤 후속 요청은 영구 차단 없이 다시 실행된다")
     void failure_does_not_fence_subsequent_requests() throws Exception {
+        // given
         try (Harness harness = new Harness()) {
-            assertThatThrownBy(() -> harness.db.read("source", ViewportDeadline.after(Duration.ofSeconds(5)),
-                    ignored -> { throw new IllegalStateException("query failed"); }))
-                    .isInstanceOf(IllegalStateException.class);
+            harness.beforeQuery.set(() -> { throw new IllegalStateException("query failed"); });
 
-            Integer result = harness.db.read("source", ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> 2);
-            assertThat(result).isEqualTo(2);
+            // when & then
+            assertThatThrownBy(() -> harness.load(deadline())).isInstanceOf(IllegalStateException.class);
+            harness.beforeQuery.set(() -> { });
+            assertThat(harness.load(deadline())).isEqualTo(1);
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
         }
     }
@@ -100,14 +101,17 @@ class ViewportRepositoryExecutionTest {
     @Test
     @DisplayName("중단된 DB 작업의 다른 비즈니스 오류는 viewport 기한 오류로 바꾸지 않는다")
     void preserves_other_business_errors_when_db_worker_is_interrupted() throws Exception {
+        // given
         try (Harness harness = new Harness()) {
             BusinessException inputFailure = new BusinessException(ErrorCode.INVALID_INPUT);
+            harness.beforeQuery.set(() -> {
+                Thread.currentThread().interrupt();
+                throw inputFailure;
+            });
+
             // when & then
             try {
-                assertThatThrownBy(() -> harness.db.read("source", ViewportDeadline.after(Duration.ofSeconds(5)), ignored -> {
-                    Thread.currentThread().interrupt();
-                    throw inputFailure;
-                })).isSameAs(inputFailure);
+                assertThatThrownBy(() -> harness.load(deadline())).isSameAs(inputFailure);
             } finally {
                 Thread.interrupted();
             }
@@ -117,10 +121,13 @@ class ViewportRepositoryExecutionTest {
     @Test
     @DisplayName("viewport 종료가 공유 DB 풀을 닫거나 공용 JdbcTemplate 설정을 변경하지 않는다")
     void preserves_shared_datasource_and_template_settings() throws Exception {
+        // given
         Harness harness = new Harness();
 
+        // when
         harness.db.close();
 
+        // then
         verify(harness.pool, never()).close();
         assertThat(harness.primary.getQueryTimeout()).isEqualTo(17);
         assertThat(harness.primary.getFetchSize()).isEqualTo(32);
@@ -134,22 +141,25 @@ class ViewportRepositoryExecutionTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            var running = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline(), ignored -> {
-                started.countDown();
-                await(release);
-                return 1;
-            }), threads);
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
+            var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-            var waiting = CompletableFuture.supplyAsync(() -> harness.db.read("fallback", deadline(), ignored -> 2), threads);
-            awaitQueued(harness, 1);
+            List<CompletableFuture<Integer>> waiting = IntStream.range(0, DB_QUEUE)
+                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> harness.fallback(
+                            ViewportDeadline.after(Duration.ofSeconds(30))), threads))
+                    .toList();
+            awaitQueued(harness, DB_QUEUE);
+
             // when & then
-            assertThatThrownBy(() -> harness.db.read("source", deadline(), ignored -> 3))
+            assertThatThrownBy(() -> harness.load(deadline()))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_QUEUE_FULL.name()));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
             release.countDown();
             assertThat(running.get(5, TimeUnit.SECONDS)).isEqualTo(1);
-            assertThat(waiting.get(5, TimeUnit.SECONDS)).isEqualTo(2);
+            for (var request : waiting) {
+                assertThat(request.get(10, TimeUnit.SECONDS)).isZero();
+            }
             assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
         } finally {
             release.countDown();
@@ -164,22 +174,19 @@ class ViewportRepositoryExecutionTest {
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queries = new AtomicInteger();
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            var running = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline(), ignored -> {
-                started.countDown();
-                await(release);
-                return 1;
-            }), threads);
+            harness.beforeQuery.set(() -> { queries.incrementAndGet(); started.countDown(); await(release); });
+            var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
             // when & then
-            assertThatThrownBy(() -> harness.db.read("fallback", ViewportDeadline.after(Duration.ofMillis(30)),
-                    ignored -> queries.incrementAndGet())).isInstanceOfSatisfying(BusinessException.class,
-                    failure -> assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
-            assertThat(queries).hasValue(0);
+            assertThatThrownBy(() -> harness.fallback(ViewportDeadline.after(Duration.ofMillis(30))))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
+            assertThat(queries).hasValue(1);
             assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
             release.countDown();
             assertThat(running.get(5, TimeUnit.SECONDS)).isEqualTo(1);
-            Integer value = harness.db.read("source", deadline(), ignored -> 2);
-            assertThat(value).isEqualTo(2);
+            assertThat(harness.load(deadline())).isEqualTo(1);
         } finally {
             release.countDown();
         }
@@ -192,16 +199,15 @@ class ViewportRepositoryExecutionTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            var running = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline(), ignored -> {
-                started.countDown();
-                await(release);
-                return 1;
-            }), threads);
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
+            var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-            var waiting = CompletableFuture.supplyAsync(() -> harness.db.read("fallback", deadline(), ignored -> 2), threads);
+            var waiting = CompletableFuture.supplyAsync(() -> harness.fallback(deadline()), threads);
             awaitQueued(harness, 1);
+
             // when
             harness.db.close();
+
             // then
             assertThatThrownBy(() -> waiting.get(2, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class)
                     .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
@@ -221,10 +227,12 @@ class ViewportRepositoryExecutionTest {
         // given
         try (Harness harness = new Harness()) {
             AtomicInteger queries = new AtomicInteger();
+            harness.beforeQuery.set(queries::incrementAndGet);
             harness.db.close();
+
             // when & then
             harness.db.close();
-            assertThatThrownBy(() -> harness.db.read("source", deadline(), ignored -> queries.incrementAndGet()))
+            assertThatThrownBy(() -> harness.load(deadline()))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_SHUTTING_DOWN.name()));
             assertThat(queries).hasValue(0);
@@ -240,24 +248,23 @@ class ViewportRepositoryExecutionTest {
         AtomicReference<Throwable> failure = new AtomicReference<>();
         AtomicBoolean interrupted = new AtomicBoolean();
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            var running = CompletableFuture.supplyAsync(() -> harness.db.read("source", deadline(), ignored -> {
-                started.countDown();
-                await(release);
-                return 1;
-            }), threads);
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
+            var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             Thread waiter = Thread.ofVirtual().start(() -> {
                 try {
-                    harness.db.read("fallback", deadline(), ignored -> 2);
+                    harness.fallback(deadline());
                 } catch (Throwable rejected) {
                     failure.set(rejected);
                     interrupted.set(Thread.currentThread().isInterrupted());
                 }
             });
             awaitQueued(harness, 1);
+
             // when
             waiter.interrupt();
             waiter.join(2000);
+
             // then
             assertThat(waiter.isAlive()).isFalse();
             assertThat(failure.get()).isInstanceOf(BusinessException.class);
@@ -276,11 +283,9 @@ class ViewportRepositoryExecutionTest {
     void rejects_expired_request_before_query() throws Exception {
         // given
         try (Harness harness = new Harness()) {
-            AtomicInteger queries = new AtomicInteger();
             // when & then
-            assertThatThrownBy(() -> harness.db.read("source", ViewportDeadline.after(Duration.ZERO),
-                    ignored -> queries.incrementAndGet())).isInstanceOf(BusinessException.class);
-            assertThat(queries).hasValue(0);
+            assertThatThrownBy(() -> harness.load(ViewportDeadline.after(Duration.ZERO)))
+                    .isInstanceOf(BusinessException.class);
             verify(harness.pool, never()).getConnection();
         }
     }
@@ -298,7 +303,7 @@ class ViewportRepositoryExecutionTest {
             ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
-            ViewportCellKey key = new ViewportCellKey("deadline", 1, 1, 1000, 1);
+            ViewportCellKey key = new ViewportCellKey("deadline", 1000, 1);
             ViewportDeadline deadline = ViewportDeadline.after(Duration.ofSeconds(1));
             AtomicInteger fetches = new AtomicInteger();
             when(rows.next()).thenAnswer(invocation -> {
@@ -323,6 +328,55 @@ class ViewportRepositoryExecutionTest {
             verify(statement).executeQuery();
             verify(rows, never()).getLong(anyString());
             verify(rows, never()).getBoolean(anyString());
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        }
+    }
+
+    @Test
+    @DisplayName("고정 fallback 행 상한까지 모두 반환하고 초과하면 부분 결과 없이 실패한다")
+    void fallback_preserves_fixed_row_limit_without_truncating() throws Exception {
+        // given
+        AtomicInteger cursor = new AtomicInteger();
+        AtomicInteger rowCount = new AtomicInteger(MAX_FALLBACK_ROWS);
+        ResultSet rows = (ResultSet) Proxy.newProxyInstance(ResultSet.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (proxy, operation, arguments) -> switch (operation.getName()) {
+                    case "next" -> cursor.incrementAndGet() <= rowCount.get();
+                    case "getLong" -> (long) cursor.get();
+                    case "getDouble" -> {
+                        if ("latitude".equals(arguments[0])) {
+                            yield 37.5;
+                        }
+                        yield 127.0;
+                    }
+                    case "getObject" -> switch ((String) arguments[0]) {
+                        case "capacity" -> 50;
+                        case "is_public" -> true;
+                        default -> false;
+                    };
+                    case "wasNull", "isClosed" -> false;
+                    default -> null;
+                });
+        try (Harness harness = new Harness(Duration.ofSeconds(30))) {
+            PreparedStatement statement = mock(PreparedStatement.class);
+            when(harness.pool.getConnection().prepareStatement(anyString())).thenReturn(statement);
+            when(statement.executeQuery()).thenReturn(rows);
+            ViewportBounds bounds = new ViewportBounds(126.5, 37, 127.5, 38);
+            ParkingLotViewportRequest request = new ParkingLotViewportRequest(
+                    bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
+            // when & then
+            try (ViewportBody body = harness.db.fallback(bounds, request, 1,
+                    ViewportDeadline.after(Duration.ofSeconds(30)))) {
+                ParkingLotViewportResponses response = (ParkingLotViewportResponses) body.value();
+                assertThat(response.totalCount()).isEqualTo(MAX_FALLBACK_ROWS);
+                assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_FALLBACK_ROWS);
+            }
+            cursor.set(0);
+            rowCount.set(MAX_FALLBACK_ROWS + 1);
+            assertThatThrownBy(() -> harness.db.fallback(bounds, request, 1,
+                    ViewportDeadline.after(Duration.ofSeconds(30))))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+            verify(statement, times(2)).setObject(anyInt(), eq(MAX_FALLBACK_ROWS + 1));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
         }
     }
@@ -353,19 +407,51 @@ class ViewportRepositoryExecutionTest {
         private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
         private final JdbcTemplate primary = new JdbcTemplate(pool);
         private final ViewportRepository db;
+        private final AtomicReference<Runnable> beforeQuery = new AtomicReference<>(() -> { });
 
         private Harness() throws Exception {
+            this(Duration.ofSeconds(1));
+        }
+
+        private Harness(Duration dbTimeout) throws Exception {
             Connection connection = mock(Connection.class);
             when(connection.getAutoCommit()).thenReturn(true);
             when(connection.createStatement()).thenReturn(mock(Statement.class));
+            PreparedStatement statement = mock(PreparedStatement.class);
+            AtomicBoolean cellQuery = new AtomicBoolean();
+            when(connection.prepareStatement(anyString())).thenAnswer(invocation -> {
+                cellQuery.set(((String) invocation.getArgument(0)).contains("WITH cells"));
+                return statement;
+            });
+            when(statement.executeQuery()).thenAnswer(invocation -> {
+                beforeQuery.get().run();
+                ResultSet rows = mock(ResultSet.class);
+                when(rows.next()).thenReturn(cellQuery.get(), false);
+                when(rows.getBoolean("projection_ready")).thenReturn(true);
+                when(rows.getInt("grid_size_meters")).thenReturn(1000);
+                return rows;
+            });
             when(pool.getConnection()).thenReturn(connection);
             primary.setQueryTimeout(17);
             primary.setFetchSize(32);
             ViewportCacheProperties properties = new ViewportCacheProperties();
             properties.setMaxConcurrentDb(1);
-            properties.setDbQueue(1);
+            properties.setDbTimeout(dbTimeout);
             db = new ViewportRepository(primary, properties, new ViewportMetrics(registry),
                     new ParkingLodScoreCalculator(), new ViewportSquareGrid());
+        }
+
+        private int load(ViewportDeadline deadline) {
+            return db.load(List.of(new ViewportCellKey("execution", 1000, 1)), deadline).size();
+        }
+
+        private int fallback(ViewportDeadline deadline) {
+            ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
+            ParkingLotViewportRequest request = new ParkingLotViewportRequest(
+                    bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
+            try (ViewportBody body = db.fallback(bounds, request, 1, deadline)) {
+                return ((ParkingLotViewportResponses) body.value()).totalCount();
+            }
         }
 
         @Override

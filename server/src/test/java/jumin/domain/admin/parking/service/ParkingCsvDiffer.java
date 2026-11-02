@@ -78,7 +78,7 @@ public class ParkingCsvDiffer {
     private Map<ParkingKey, ParkingDbRow> createDatabaseMap(List<ParkingDbRow> databaseRows) {
         Map<ParkingKey, ParkingDbRow> rowsByKey = new LinkedHashMap<>();
         for (ParkingDbRow row : databaseRows) {
-            if (rowsByKey.putIfAbsent(row.key(), row) != null) {
+            if (rowsByKey.putIfAbsent(new ParkingKey(row.lot().name(), row.lot().address()), row) != null) {
                 throw new ParkingCsvException(HttpStatus.CONFLICT, "DB에 이름과 주소가 같은 주차장이 중복되어 있습니다.");
             }
         }

@@ -58,6 +58,7 @@ class GlobalExceptionHandlerTest {
     @ExtendWith(OutputCaptureExtension.class)
     @DisplayName("viewport 과부하는 원인을 노출하지 않고 기존 503 응답을 유지한다")
     void viewportOverloadPreserves503WithoutExposingCause(CapturedOutput output) throws Exception {
+        // given & when & then
         RuntimeException cause = new RuntimeException("private query parameters");
         BusinessException coded = ViewportFailureReason.DB_QUEUE_FULL.failure(cause);
         BusinessException exception = ViewportFailureReason.UNCLASSIFIED.failure(coded);
@@ -188,7 +189,7 @@ class GlobalExceptionHandlerTest {
     void businessExceptionReturnsDefinedStatusAndMessage() throws Exception {
         // given
         IOException cause = new IOException("private detail");
-        BusinessException exception = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, cause);
+        BusinessException exception = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, null, cause);
         given(exceptionTestService.business()).willThrow(exception);
 
         // when & then

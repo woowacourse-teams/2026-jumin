@@ -1020,7 +1020,7 @@ class ParkingCsvRepositoryTest {
         ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(
                 new ViewportRepository(jdbcTemplate, new ViewportCacheProperties(),
                         new ViewportMetrics(new SimpleMeterRegistry()), new ParkingLodScoreCalculator(),
-                        new ViewportSquareGrid()), new ViewportCacheProperties());
+                        new ViewportSquareGrid()));
         ParkingCsvSyncService syncService = new ParkingCsvSyncService(
                 repository, Clock.fixed(now, ZoneOffset.UTC), viewportWriter);
         ParkingSyncSummary actual = syncService.syncStaged();

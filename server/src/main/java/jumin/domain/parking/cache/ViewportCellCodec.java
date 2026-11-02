@@ -15,7 +15,8 @@ import jumin.domain.parking.model.ViewportItem;
 
 public class ViewportCellCodec {
 
-    private static final int MAGIC = 0x4A565433;
+    private static final int FIXED_BYTES = 22;
+    private static final int MAX_ENVIRONMENT_BYTES = 48;
     private final int maxBytes;
     private final int maxRows;
 
@@ -43,10 +44,7 @@ public class ViewportCellCodec {
 
     private void writeHeader(DataOutputStream out, ViewportCell cell) throws IOException {
         ViewportCellKey key = cell.key();
-        out.writeInt(MAGIC);
         out.writeUTF(key.environment());
-        out.writeInt(key.schema());
-        out.writeInt(key.policy());
         out.writeInt(key.gridSizeMeters());
         out.writeLong(key.cellId());
         out.writeInt(cell.items().size());
@@ -93,7 +91,7 @@ public class ViewportCellCodec {
     }
 
     public long encodedSize(ViewportCell cell) {
-        long size = 34L + cell.key().environment().length();
+        long size = FIXED_BYTES + cell.key().environment().length();
         for (ViewportItem item : cell.items()) {
             size += encodedItemSize(item);
         }
@@ -105,10 +103,6 @@ public class ViewportCellCodec {
             return 30;
         }
         return 34;
-    }
-
-    public ViewportCell decode(ViewportCellKey expected, byte[] bytes) {
-        return decode(expected, bytes, Long.MAX_VALUE);
     }
 
     public ViewportCell decode(ViewportCellKey expected, byte[] bytes, long decodedBudget) {
@@ -129,8 +123,13 @@ public class ViewportCellCodec {
     }
 
     private void requireValidSize(byte[] bytes) {
-        if (bytes == null || bytes.length < 35 || bytes.length > maxBytes) {
+        if (bytes == null || bytes.length < FIXED_BYTES + 1 || bytes.length > maxBytes) {
             throw new IllegalArgumentException("셀 byte 크기가 유효하지 않습니다.");
+        }
+        int environmentBytes = (Byte.toUnsignedInt(bytes[0]) << 8) | Byte.toUnsignedInt(bytes[1]);
+        if (environmentBytes < 1 || environmentBytes > MAX_ENVIRONMENT_BYTES
+                || bytes.length < FIXED_BYTES + environmentBytes) {
+            throw new IllegalArgumentException("셀 환경명 byte 길이가 유효하지 않습니다.");
         }
     }
 
@@ -144,10 +143,7 @@ public class ViewportCellCodec {
     }
 
     private ViewportCellKey readKey(DataInputStream in, ViewportCellKey expected) throws IOException {
-        if (in.readInt() != MAGIC) {
-            throw new IllegalArgumentException("셀 schema를 확인할 수 없습니다.");
-        }
-        ViewportCellKey actual = new ViewportCellKey(in.readUTF(), in.readInt(), in.readInt(), in.readInt(), in.readLong());
+        ViewportCellKey actual = new ViewportCellKey(in.readUTF(), in.readInt(), in.readLong());
         if (!expected.equals(actual)) {
             throw new IllegalArgumentException("동일한 namespace와 격자의 셀만 사용할 수 있습니다.");
         }

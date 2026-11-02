@@ -11,6 +11,9 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
+import jumin.domain.parking.model.ViewportBounds;
+import jumin.domain.parking.service.ViewportCellCover;
+import jumin.domain.parking.service.ViewportSquareGrid;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +49,6 @@ class ViewportCachePropertiesTest {
 
         // then
         assertThat(properties.getMaxConcurrentDb()).isEqualTo(3);
-        assertThat(properties.getDbQueue()).isEqualTo(256);
         assertThat(properties.getMaxConcurrentRedis()).isEqualTo(3);
         assertThat(properties.getMaxConcurrentRequests()).isZero();
     }
@@ -98,82 +100,35 @@ class ViewportCachePropertiesTest {
     }
     @ParameterizedTest(name = "{0}")
     @MethodSource("integerLimits")
-    @DisplayName("정수 설정은 기존 최솟값과 최댓값을 허용하고 범위 밖에서는 설정명을 표시한다")
+    @DisplayName("고정 처리 예산에서 동시 실행 설정의 경계를 허용하고 초과 시 설정명을 표시한다")
     void preserves_integer_boundaries(String setting, BiConsumer<ViewportCacheProperties, Integer> setter,
                                      int minimum, int maximum) {
         // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxCells(1);
-        properties.setMaxInflightCells(4096);
-        properties.setMaxValueBytes(256);
-        properties.setMaxRequestBytes(setting.equals("max-value-bytes") ? 8 * 1024 * 1024 : 512);
+        properties.setMaxConcurrentDb(1);
+        properties.setMaxConcurrentRedis(1);
         // when & then
         setter.accept(properties, minimum);
         assertValid(properties);
         setter.accept(properties, maximum);
         assertValid(properties);
         setter.accept(properties, minimum - 1);
-        assertInvalid(properties, "jumin.viewport.cache." + setting);
+        assertInvalid(properties, setting);
         if (maximum < Integer.MAX_VALUE) {
             setter.accept(properties, maximum + 1);
-            assertInvalid(properties, "jumin.viewport.cache." + setting);
+            assertInvalid(properties, setting);
         }
     }
 
     private static Stream<Arguments> integerLimits() {
         return Stream.of(
-                integer("grid-size-meters", ViewportCacheProperties::setGridSizeMeters, 100, 20_000),
-                integer("schema", ViewportCacheProperties::setSchema, 1, Integer.MAX_VALUE),
-                integer("policy", ViewportCacheProperties::setPolicy, 1, Integer.MAX_VALUE),
-                integer("max-cells", ViewportCacheProperties::setMaxCells, 1, 256),
-                integer("max-cell-rows", ViewportCacheProperties::setMaxCellRows, 1, 16_384),
-                integer("max-fallback-rows", ViewportCacheProperties::setMaxFallbackRows, 1, 1_000_000),
-                integer("max-value-bytes", ViewportCacheProperties::setMaxValueBytes, 256, 1024 * 1024),
-                integer("max-request-bytes", ViewportCacheProperties::setMaxRequestBytes, 320, 8 * 1024 * 1024),
-                integer("max-concurrent-requests", ViewportCacheProperties::setMaxConcurrentRequests, 0, 64),
-                integer("max-concurrent-db", ViewportCacheProperties::setMaxConcurrentDb, 1, 16),
-                integer("db-queue", ViewportCacheProperties::setDbQueue, 1, 512),
-                integer("max-concurrent-redis", ViewportCacheProperties::setMaxConcurrentRedis, 1, 16),
-                integer("max-inflight-cells", ViewportCacheProperties::setMaxInflightCells, 1, 4096));
+                integer("max-concurrent-requests", ViewportCacheProperties::setMaxConcurrentRequests, 0, 8),
+                integer("max-concurrent-db", ViewportCacheProperties::setMaxConcurrentDb, 1, 15),
+                integer("max-concurrent-redis", ViewportCacheProperties::setMaxConcurrentRedis, 1, 8));
     }
 
     private static Arguments integer(String setting, BiConsumer<ViewportCacheProperties, Integer> setter,
                                      int minimum, int maximum) {
-        return Arguments.of(setting, setter, minimum, maximum);
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("decimalLimits")
-    @DisplayName("소수 설정은 기존 경계를 유지하고 NaN과 무한대를 거절한다")
-    void preserves_decimal_boundaries(String setting, BiConsumer<ViewportCacheProperties, Double> setter,
-                                     double minimum, double maximum) {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        // when & then
-        setter.accept(properties, minimum);
-        assertValid(properties);
-        setter.accept(properties, maximum);
-        assertValid(properties);
-        if (minimum == 0) {
-            setter.accept(properties, -0.0);
-            assertValid(properties);
-        }
-        for (double invalid : new double[]{Math.nextDown(minimum), Math.nextUp(maximum),
-                Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
-            setter.accept(properties, invalid);
-            assertInvalid(properties, "jumin.viewport.cache." + setting);
-        }
-    }
-
-    private static Stream<Arguments> decimalLimits() {
-        return Stream.of(
-                decimal("max-width-degrees", ViewportCacheProperties::setMaxWidthDegrees, Double.MIN_VALUE, 0.1),
-                decimal("max-height-degrees", ViewportCacheProperties::setMaxHeightDegrees, Double.MIN_VALUE, 0.1),
-                decimal("ttl-jitter", ViewportCacheProperties::setTtlJitter, 0, 0.5));
-    }
-
-    private static Arguments decimal(String setting, BiConsumer<ViewportCacheProperties, Double> setter,
-                                     double minimum, double maximum) {
         return Arguments.of(setting, setter, minimum, maximum);
     }
 
@@ -221,18 +176,16 @@ class ViewportCachePropertiesTest {
     }
 
     @Test
-    @DisplayName("요청 메모리 32 MiB 경계 초과는 관련 설정명을 모두 표시한다")
+    @DisplayName("고정 처리 예산에서 요청 메모리 32 MiB 경계를 유지한다")
     void preserves_request_memory_boundary() {
         // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setMaxConcurrentRequests(8);
         assertValid(properties);
-        // when & then
+        // when
         properties.setMaxConcurrentRequests(9);
-        assertInvalid(properties, "max-concurrent-requests", "max-request-bytes");
-        properties.setMaxConcurrentRequests(8);
-        properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
-        assertInvalid(properties, "max-concurrent-requests", "max-request-bytes");
+        // then
+        assertInvalid(properties, "max-concurrent-requests");
     }
 
     @Test
@@ -244,9 +197,9 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRedis(8);
         assertValid(properties);
         // when
-        properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
+        properties.setMaxConcurrentRedis(9);
         // then
-        assertInvalid(properties, "max-concurrent-redis", "max-request-bytes");
+        assertInvalid(properties, "max-concurrent-redis");
     }
 
     @Test
@@ -258,26 +211,9 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRedis(7);
         assertValid(properties);
         // when
-        properties.setMaxRequestBytes(4 * 1024 * 1024 + 1);
+        properties.setMaxConcurrentDb(10);
         // then
-        assertInvalid(properties, "max-concurrent-requests", "max-concurrent-db", "max-concurrent-redis", "max-request-bytes");
-    }
-
-    @Test
-    @DisplayName("요청 용량은 셀 용량 이상이고 동시 셀 한도는 조회 셀 수 이상이어야 한다")
-    void preserves_related_data_limits() {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxValueBytes(1024);
-        properties.setMaxRequestBytes(1024);
-        properties.setMaxInflightCells(properties.getMaxCells());
-        assertValid(properties);
-        // when & then
-        properties.setMaxRequestBytes(1023);
-        assertInvalid(properties, "max-request-bytes", "max-value-bytes");
-        properties.setMaxRequestBytes(1024);
-        properties.setMaxInflightCells(properties.getMaxCells() - 1);
-        assertInvalid(properties, "max-inflight-cells", "max-cells");
+        assertInvalid(properties, "max-concurrent-requests", "max-concurrent-db", "max-concurrent-redis");
     }
 
     @Test
@@ -313,7 +249,6 @@ class ViewportCachePropertiesTest {
         properties.setMaxConcurrentRequests(Integer.MAX_VALUE);
         properties.setMaxConcurrentDb(Integer.MAX_VALUE);
         properties.setMaxConcurrentRedis(Integer.MAX_VALUE);
-        properties.setMaxRequestBytes(Integer.MAX_VALUE);
 
         // when
         var violations = VALIDATOR.validate(properties);
@@ -349,29 +284,46 @@ class ViewportCachePropertiesTest {
         });
     }
 
+    @Test
+    @DisplayName("이전 외부 셀 설정은 고정된 캐시 정책을 바꾸지 못한다")
+    void ignores_removed_cell_policy_settings() {
+        // given
+        ApplicationContextRunner runner = new ApplicationContextRunner()
+                .withUserConfiguration(BindingConfiguration.class, ViewportSquareGrid.class, ViewportCellCover.class)
+                .withPropertyValues("jumin.viewport.cache.grid-size-meters=2000",
+                        "jumin.viewport.cache.max-span-degrees=0.001", "jumin.viewport.cache.max-cells=1",
+                        "jumin.viewport.cache.max-cell-rows=1", "jumin.viewport.cache.max-value-bytes=1",
+                        "jumin.viewport.cache.max-inflight-cells=1", "jumin.viewport.cache.db-queue=1",
+                        "jumin.viewport.cache.max-request-bytes=1", "jumin.viewport.cache.max-fallback-rows=1");
+        // when & then
+        runner.run(context -> {
+            assertThat(context).hasNotFailed();
+            ViewportBounds bounds = new ViewportBounds(127, 37.5, 127.04, 37.54);
+            assertThat(context.getBean(ViewportCellCover.class).cover(bounds))
+                    .isEqualTo(new ViewportSquareGrid().cover(bounds, 1000, 64)).hasSizeGreaterThan(1);
+        });
+    }
+
     private static Stream<Arguments> bindingCases() {
         return Stream.of(
                 binding("기본 설정", null),
                 binding("캐시 활성화와 기본 환경 명시", null, "enabled=true", "environment=local"),
-                binding("캐시 비활성화 중 잘못된 정수", "grid-size-meters", "grid-size-meters=99"),
+                binding("캐시 비활성화 중 잘못된 정수", "max-concurrent-db", "max-concurrent-db=0"),
                 binding("활성화 중 환경 누락", "environment", "enabled=true"),
-                Arguments.of("내부 상태 설정으로 환경 명시를 우회하지 못함", "environment-configured",
-                        IllegalStateException.class, new String[]{"enabled=true", "environment-configured=true"}),
-                binding("데이터 크기 관계", "max-request-bytes", "max-value-bytes=1024", "max-request-bytes=1023"),
-                binding("셀 수 관계", "max-inflight-cells", "max-inflight-cells=63"),
+                Arguments.of("내부 상태 설정으로 환경 명시를 우회하지 못함", "environment",
+                        BindValidationException.class, new String[]{"enabled=true", "environment-configured=true"}),
                 binding("요청 메모리 경계", null, "max-concurrent-requests=8"),
                 binding("요청 메모리 초과", "max-concurrent-requests", "max-concurrent-requests=9"),
                 binding("Redis 메모리 경계", null, "max-concurrent-db=1", "max-concurrent-redis=8"),
                 binding("Redis 메모리 초과", "max-concurrent-redis", "max-concurrent-db=1", "max-concurrent-redis=9"),
                 binding("전체 메모리 경계", null, "max-concurrent-db=9", "max-concurrent-redis=7"),
-                binding("전체 메모리 초과", "max-concurrent-db", "max-concurrent-db=9",
-                        "max-concurrent-redis=7", "max-request-bytes=4194305"),
+                binding("전체 메모리 초과", "max-concurrent-db", "max-concurrent-db=10",
+                        "max-concurrent-redis=7"),
                 binding("요청보다 긴 캐시 제한시간", "cache-timeout", "cache-timeout=3s"),
                 binding("선택 연결 제한시간 경계", null, "redis-connect-timeout=2s"),
                 binding("요청보다 긴 연결 제한시간", "redis-connect-timeout", "redis-connect-timeout=3s"),
                 binding("TTL 경계", null, "ttl=24h", "empty-ttl=24h"),
-                binding("TTL 초과", "ttl", "ttl=P1DT0.000000001S"),
-                binding("유한하지 않은 너비", "max-width-degrees", "max-width-degrees=NaN")
+                binding("TTL 초과", "ttl", "ttl=P1DT0.000000001S")
         );
     }
 

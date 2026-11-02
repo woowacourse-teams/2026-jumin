@@ -1,5 +1,7 @@
 package jumin.config;
 
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -28,13 +30,16 @@ class RedisViewportConfigurationTest {
     Path temporary;
 
     @Test
-    @DisplayName("배포 환경변수의 Redis 주소와 자격증명 및 PEM 경로를 바인딩한다")
+    @DisplayName("환경변수의 Redis 연결 설정을 바인딩한다")
     void binds_deployment_environment_variables() {
+        // given
         Map<String, Object> variables = Map.of(
                 "JUMIN_VIEWPORT_CACHE_REDISURI", "rediss://redis.test:6379",
                 "JUMIN_VIEWPORT_CACHE_REDISUSERNAME", "viewport",
                 "JUMIN_VIEWPORT_CACHE_REDISPASSWORD", "only-for-test",
                 "JUMIN_VIEWPORT_CACHE_REDISTLSCAFILE", "/app/redis-ca.pem");
+
+        // when & then
         new ApplicationContextRunner()
                 .withUserConfiguration(BindingConfiguration.class)
                 .withInitializer(context -> context.getEnvironment().getPropertySources()
@@ -51,9 +56,12 @@ class RedisViewportConfigurationTest {
     @Test
     @DisplayName("URI에 넣은 비밀과 잘못된 URI를 거절하고 예외에서 값을 숨긴다")
     void rejects_uri_credentials_without_exposing_them() {
+        // given
         String secret = "uri-secret-never-log";
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setRedisUri("rediss://viewport:" + secret + "@127.0.0.1:6379");
+
+        // when & then
         assertRejectedWithoutSecret(properties, secret);
         properties.setRedisUri("rediss://viewport:" + secret + "@[invalid");
         assertRejectedWithoutSecret(properties, secret);
@@ -62,8 +70,11 @@ class RedisViewportConfigurationTest {
     @Test
     @DisplayName("부분 자격증명, 검증 해제, 평문 연결의 PEM과 잘못된 PEM을 거절한다")
     void rejects_incomplete_credentials_and_unsafe_tls() throws Exception {
+        // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
         properties.setRedisUsername("viewport");
+
+        // when & then
         assertRejectedWithoutSecret(properties, "unrelated-test-secret");
 
         properties.setRedisPassword("test-password");
@@ -92,8 +103,8 @@ class RedisViewportConfigurationTest {
 
     private static RedisViewportCellStore store(ViewportCacheProperties properties) {
         return new RedisViewportCellStore(properties,
-                new ViewportCellCodec(properties.getMaxValueBytes(), properties.getMaxCellRows()),
-                new ViewportCellCover(new ViewportSquareGrid(), properties),
+                new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS),
+                new ViewportCellCover(new ViewportSquareGrid()),
                 new ViewportMetrics(new SimpleMeterRegistry()));
     }
 

@@ -12,7 +12,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import jumin.TestcontainersConfiguration;
 import jumin.domain.parking.model.ViewportMappingState;
-import jumin.domain.parking.repository.ViewportRepository;
 import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.domain.parking.service.ViewportWriteCoordinator;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +34,6 @@ class ViewportWriterIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactions;
     @Autowired private ViewportWriteCoordinator writer;
-    @Autowired private ViewportRepository states;
     @Autowired private ViewportSquareGrid grid;
 
     @BeforeEach
@@ -47,6 +45,7 @@ class ViewportWriterIntegrationTest {
     @Test
     @DisplayName("초기 준비는 비활성 행도 매핑하고 투영 범위 밖의 좌표는 제외한다")
     void maps_existing_rows_including_inactive_rows() {
+        // given & when & then
         long inactive = insert(37.5, 127, false);
         long polar = insert(89, 127, true);
 
@@ -60,6 +59,7 @@ class ViewportWriterIntegrationTest {
     @Test
     @DisplayName("좌표 이동과 셀 매핑을 같은 트랜잭션에서 갱신한다")
     void updates_mapping_with_source_coordinates() {
+        // given & when & then
         long id = insert(37.5, 127, true);
         writer.prepare();
 
@@ -70,12 +70,14 @@ class ViewportWriterIntegrationTest {
         });
 
         assertThat(cell(id)).isEqualTo(grid.cellId(37.52, 127.02, 1000));
-        assertThat(states.readMappingState().ready()).isTrue();
+        assertThat(jdbc.queryForObject(
+                "SELECT projection_ready FROM parking_viewport_cache_state WHERE id = 1", Boolean.class)).isTrue();
     }
 
     @Test
     @DisplayName("원본 변경이 롤백되면 셀 매핑 변경도 함께 롤백된다")
     void rolls_back_mapping_with_source_changes() {
+        // given & when & then
         long id = insert(37.5, 127, true);
         writer.prepare();
         Long beforeCell = cell(id);
@@ -94,6 +96,7 @@ class ViewportWriterIntegrationTest {
     @Test
     @DisplayName("매핑 준비 뒤에도 별도 쓰기 프로토콜 없이 일반 데이터 갱신이 허용된다")
     void permits_ordinary_writes_without_protocol_trigger() {
+        // given & when & then
         long id = insert(37.5, 127, true);
         writer.prepare();
 
@@ -106,17 +109,20 @@ class ViewportWriterIntegrationTest {
     @Test
     @DisplayName("REPEATABLE READ에서는 초기 매핑 준비를 거절한다")
     void rejects_stale_snapshot_isolation() {
+        // given & when & then
         TransactionTemplate repeatable = tx();
         repeatable.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
 
         assertThatThrownBy(() -> repeatable.execute(status -> writer.prepare()))
                 .isInstanceOf(IllegalTransactionStateException.class);
-        assertThat(states.readMappingState().ready()).isFalse();
+        assertThat(jdbc.queryForObject(
+                "SELECT projection_ready FROM parking_viewport_cache_state WHERE id = 1", Boolean.class)).isFalse();
     }
 
     @Test
     @DisplayName("준비 전에 진행 중이던 삽입이 커밋되면 새 행까지 매핑한다")
     void waits_for_inflight_source_writer() throws Exception {
+        // given & when & then
         CountDownLatch inserted = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch preparing = new CountDownLatch(1);

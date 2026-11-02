@@ -1,5 +1,7 @@
 package jumin.domain.parking.service;
 
+import static jumin.config.ViewportCacheProperties.MAX_INFLIGHT_CELLS;
+
 import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -10,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
@@ -36,21 +37,15 @@ public class ViewportCellLoader implements AutoCloseable {
     private final ViewportRepository repository;
     private final ViewportMetrics metrics;
     private final Map<ViewportCellKey, CellLoad> loads = new ConcurrentHashMap<>();
-    private final Semaphore slots;
+    private final Semaphore slots = new Semaphore(MAX_INFLIGHT_CELLS);
     private volatile boolean closed;
 
     public ViewportCellLoader(ViewportCellStore store, ViewportRepository repository,
-                              ViewportCacheProperties properties, ViewportMetrics metrics) {
+                              ViewportMetrics metrics) {
         this.store = store;
         this.repository = repository;
         this.metrics = metrics;
-        slots = new Semaphore(properties.getMaxInflightCells());
         metrics.registerLoader(loads);
-    }
-
-    public List<ViewportCell> resolve(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
-                                     ViewportDeadline deadline) {
-        return resolve(keys, hits, deadline, false);
     }
 
     public List<ViewportCell> resolve(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
@@ -63,28 +58,48 @@ public class ViewportCellLoader implements AutoCloseable {
             acquireCellLocks(registered, locked, deadline);
             requireOpen();
             loadMissing(registered, deadline, bypassStore);
-            List<ViewportCell> result = new ArrayList<>(keys.size());
-            for (ViewportCellKey key : keys) {
-                ViewportCell hit = hits.get(key);
-                if (hit != null) {
-                    result.add(hit);
-                    continue;
-                }
-                result.add(registered.get(key).result);
-            }
+            List<ViewportCell> result = resolvedCells(keys, hits, registered);
             deadline.requireRemaining();
             return List.copyOf(result);
         } catch (RuntimeException | Error failure) {
-            RuntimeException reported = failure instanceof RuntimeException runtime
-                    ? runtime : ViewportFailureReason.UNCLASSIFIED.failure(failure);
-            locked.stream().filter(load -> load.result == null).forEach(load -> load.failure = reported);
-            throw reported;
+            throw recordLoadFailure(locked, failure);
         } finally {
             for (int index = locked.size() - 1; index >= 0; index--) {
                 locked.get(index).lock.unlock();
             }
             registered.forEach(this::unregister);
         }
+    }
+
+    private static List<ViewportCell> resolvedCells(List<ViewportCellKey> keys,
+                                                    Map<ViewportCellKey, ViewportCell> hits,
+                                                    Map<ViewportCellKey, CellLoad> registered) {
+        List<ViewportCell> result = new ArrayList<>(keys.size());
+        for (ViewportCellKey key : keys) {
+            ViewportCell hit = hits.get(key);
+            if (hit != null) {
+                result.add(hit);
+                continue;
+            }
+            result.add(registered.get(key).result);
+        }
+        return result;
+    }
+
+    private static RuntimeException recordLoadFailure(List<CellLoad> locked, Throwable failure) {
+        RuntimeException reported;
+        if (failure instanceof RuntimeException runtime) {
+            reported = runtime;
+        } else {
+            reported = ViewportFailureReason.UNCLASSIFIED.failure(failure);
+        }
+        for (CellLoad load : locked) {
+            if (load.result != null) {
+                continue;
+            }
+            load.failure = reported;
+        }
+        return reported;
     }
 
     private void registerMissingCells(List<ViewportCellKey> keys, Map<ViewportCellKey, ViewportCell> hits,
