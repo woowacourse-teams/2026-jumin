@@ -1,0 +1,3 @@
+interface:
+  display_name: "테스트 관리"
+  short_description: "코드 변경과 파일 이동에 맞춰 테스트를 분류하고 실행 경로를 점검합니다"
