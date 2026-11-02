@@ -1,4 +1,4 @@
-import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
+import destinationMarkerUrl from '../../../../../assets/icons/markers/destinationMarker.svg';
 import { NaverMapMarker } from '../../../maps/NaverMapMarker';
 import { SearchRadiusCircle } from '../../../maps/SearchRadiusCircle';
 

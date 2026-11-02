@@ -3,9 +3,9 @@ import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
 import { BackIcon } from '../../ui/icons';
 
-import guide1Image from '../../../../assets/guideImage/guide1.webp';
-import guide2Image from '../../../../assets/guideImage/guide2.webp';
-import guide3Image from '../../../../assets/guideImage/guide3.webp';
+import guide1Image from '../../../../../assets/guideImage/guide1.webp';
+import guide2Image from '../../../../../assets/guideImage/guide2.webp';
+import guide3Image from '../../../../../assets/guideImage/guide3.webp';
 import { color } from '../../../../theme/color';
 import { fontSize } from '../../../../theme/font';
 import { typography } from '../../../../theme/typography';

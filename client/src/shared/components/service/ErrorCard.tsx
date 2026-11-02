@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 
-import brandMark from '../../../assets/icons/brandMark.svg';
+import brandMark from '../../../../assets/icons/brandMark.svg';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 import { RetryIcon } from '../ui/icons';

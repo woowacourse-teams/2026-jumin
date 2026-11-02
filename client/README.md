@@ -13,6 +13,18 @@ pnpm build
 
 `pnpm build`는 타입 검사를 통과한 뒤 프로덕션 번들을 생성합니다.
 
+## 로컬 환경 변수
+
+`.env.example`을 `.env`로 복사하고 발급받은 네이버 지도 Client ID를 입력합니다.
+
+```dotenv
+NAVER_MAP_CLIENT_ID=발급받은_Client_ID
+```
+
+개발 서버와 빌드는 `client/.env`를 읽습니다. 이미 실행 환경에 지정된 변수는 `.env`의 값보다 우선합니다. `.env`는 Git 추적에서 제외하며, 값 변경 후에는 개발 서버를 재시작합니다.
+
+E2E도 같은 파일을 읽는 개발 서버를 실행하므로, 기존 3000번 포트의 개발 서버를 종료한 뒤 `pnpm test:e2e`를 실행합니다.
+
 ## Sentry 소스맵
 
 [Sentry 공식 Webpack 지침](https://docs.sentry.io/platforms/javascript/sourcemaps/uploading/webpack/)에 따라 프로덕션 빌드에서 `hidden-source-map`을 생성합니다. 개발·운영 CD의 빌드 단계는 JS와 소스맵을 Sentry에 업로드한 뒤 `.map` 파일을 삭제합니다. 삭제 후 동일한 JS를 Artifact로 전달하므로 AWS 설정을 변경하지 않습니다.
