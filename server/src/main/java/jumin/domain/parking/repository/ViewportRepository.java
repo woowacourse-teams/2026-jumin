@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -391,14 +390,11 @@ public class ViewportRepository {
         acquire(deadline);
         stageActive(stage).incrementAndGet();
         long started = System.nanoTime();
-        AtomicReference<T> produced = new AtomicReference<>();
         try {
-            T completed = executeRead(deadline, query, produced);
+            T completed = executeRead(deadline, query);
             requireDbRemaining(deadline);
-            produced.set(null);
             return completed;
         } catch (RuntimeException | Error failure) {
-            closeProduced(produced, failure);
             if (isUnclassifiedDeadlineFailure(failure, deadline)) {
                 throw ViewportFailureReason.DB_DEADLINE.failure(failure);
             }
@@ -462,38 +458,24 @@ public class ViewportRepository {
         }
     }
 
-    private <T> T executeRead(ViewportDeadline deadline, Supplier<T> query,
-                              AtomicReference<T> produced) {
+    private <T> T executeRead(ViewportDeadline deadline, Supplier<T> query) {
         long remainingNanos = Math.min(deadline.remainingNanos(), dbTimeoutNanos);
         requireDbRemaining(deadline);
         TransactionTemplate transaction = new TransactionTemplate(transactions);
         transaction.setReadOnly(true);
         transaction.setTimeout(secondsCeiling(Duration.ofNanos(remainingNanos)));
-        return transaction.execute(status -> queryInTransaction(deadline, query, produced));
+        return transaction.execute(status -> queryInTransaction(deadline, query));
     }
 
-    private <T> T queryInTransaction(ViewportDeadline deadline, Supplier<T> query,
-                                      AtomicReference<T> produced) {
+    private <T> T queryInTransaction(ViewportDeadline deadline, Supplier<T> query) {
         requireDbRemaining(deadline);
         long statementTimeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
                 Math.min(deadline.remainingNanos(), dbTimeoutNanos)));
         jdbc.execute(SET_STATEMENT_TIMEOUT_SQL_PREFIX + statementTimeoutMillis);
         requireDbRemaining(deadline);
         T value = query.get();
-        produced.set(value);
         requireDbRemaining(deadline);
         return value;
-    }
-
-    private static void closeProduced(AtomicReference<?> produced, Throwable failure) {
-        if (!(produced.getAndSet(null) instanceof AutoCloseable resource)) {
-            return;
-        }
-        try {
-            resource.close();
-        } catch (Exception closeFailure) {
-            failure.addSuppressed(closeFailure);
-        }
     }
 
     private static boolean isUnclassifiedDeadlineFailure(Throwable failure, ViewportDeadline deadline) {

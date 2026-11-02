@@ -84,7 +84,7 @@ class GlobalExceptionHandlerTest {
     void viewportFailureLogsOnlyCodeAndExceptionType(CapturedOutput output) throws Exception {
         // given
         SQLException sql = new SQLException("private SQL password=secret", "08006");
-        BusinessException exception = ViewportFailureReason.DB_SQL_ERROR.failure(sql);
+        BusinessException exception = ViewportFailureReason.UNCLASSIFIED.failure(sql);
         sql.addSuppressed(new RuntimeException("private suppressed token=secret"));
         given(exceptionTestService.business()).willThrow(exception);
 
@@ -97,9 +97,9 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.cause").doesNotExist())
                 .andExpect(jsonPath("$.reason").doesNotExist());
         assertThat(result.andReturn().getResponse().getContentAsString())
-                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", "DB_SQL_ERROR");
+                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", ViewportFailureReason.UNCLASSIFIED.name());
         assertThat(output).contains("VIEWPORT_UNAVAILABLE", "BusinessException")
-                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", "DB_SQL_ERROR",
+                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", ViewportFailureReason.UNCLASSIFIED.name(),
                         "sqlState", "causeType");
         assertThat(output.getAll()).containsOnlyOnce("viewport 자원 보호로 요청을 완료하지 못했습니다");
     }
