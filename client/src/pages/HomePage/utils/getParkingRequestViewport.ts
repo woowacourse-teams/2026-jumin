@@ -1,4 +1,4 @@
-import type { ParkingViewportParams } from '../../../../api/parkingLots';
+import type { ParkingViewportParams } from '../../../api/parkingLots';
 import type { MapViewport } from '../hooks/useMapViewport';
 
 export const getParkingRequestViewport = (viewport: MapViewport): ParkingViewportParams => {

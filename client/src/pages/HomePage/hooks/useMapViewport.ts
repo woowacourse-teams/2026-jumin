@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ParkingViewportParams } from '../../../../api/parkingLots';
+import type { ParkingViewportParams } from '../../../api/parkingLots';
 
 export type MapViewport = Readonly<
   ParkingViewportParams & {

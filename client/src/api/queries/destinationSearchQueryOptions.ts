@@ -1,0 +1,26 @@
+import { queryOptions } from '@tanstack/react-query';
+
+import type { DestinationSearchQueryKeyParams } from '../../shared/types/queryKeys';
+import { destinationKeys } from './destinationKeys';
+import { searchDestinations } from '../destination';
+
+export const destinationSearchQueryOptions = (key: DestinationSearchQueryKeyParams) => {
+  const normalizedQuery = key.query.trim();
+
+  return queryOptions({
+    queryKey: destinationKeys.search(normalizedQuery, key.latitude, key.longitude),
+
+    queryFn: ({ signal }) =>
+      searchDestinations(normalizedQuery, key.latitude, key.longitude, signal),
+
+    meta: {
+      feature: 'destination-search',
+      operation: 'search-destinations',
+    },
+
+    enabled: normalizedQuery.length >= 2,
+
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+};

@@ -1,4 +1,4 @@
-import type { ParkingLotSummary } from '../../api/contracts';
+import type { ParkingLotSummary } from '../../src/api/contracts';
 
 type Coordinates = ParkingLotSummary['location'];
 

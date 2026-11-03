@@ -1,4 +1,4 @@
-import type { ParkingSearchResponse } from '../../api/contracts';
+import type { ParkingSearchResponse } from '../../src/api/contracts';
 
 export const parkingSearchSuccess: ParkingSearchResponse = {
   searchRadiusMeters: 600,

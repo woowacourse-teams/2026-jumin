@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { useQueryParams } from '../../../../shared/hooks/useQueryParams';
-import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
-import { parseCoordinates } from '../../../../shared/utils/parseCoordinates';
+import { useQueryParams } from '../../../shared/hooks/useQueryParams';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
+import { parseCoordinates } from '../../../shared/utils/parseCoordinates';
 
 export const useSearchConditionQuery = (): ParkingSearchCondition | null => {
   const params = useQueryParams();

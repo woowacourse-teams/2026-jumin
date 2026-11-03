@@ -2,8 +2,8 @@ import { BrowserRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-import { initializeInstallPrompt } from './shared/pwa/installPrompt';
-import { applyGlobalStyles } from './shared/styles/globalStyle';
+import { initializeInstallPrompt } from './src/shared/pwa/installPrompt';
+import { applyGlobalStyles } from './src/shared/styles/globalStyle';
 import {
   CancelledError,
   QueryCache,
@@ -12,9 +12,9 @@ import {
 } from '@tanstack/react-query';
 
 import * as Sentry from '@sentry/react';
-import { initSentry } from './shared/sentry/initSentry';
-import { initClientAnalytics } from './shared/monitoring/initClientAnalytics';
-import { ApiError } from './api/apiError';
+import { initSentry } from './src/shared/sentry/initSentry';
+import { initClientAnalytics } from './src/shared/monitoring/initClientAnalytics';
+import { ApiError } from './src/api/apiError';
 
 initSentry();
 

@@ -1,4 +1,4 @@
-import type { ParkingLotViewport } from '../../api/contracts';
+import type { ParkingLotViewport } from '../../src/api/contracts';
 import { gangnamStationParkingLots } from './gangnamStationParkingLots';
 import { parkingSearchSuccess } from './parkingSearch';
 import { viewportParkingLotDetailFixtures } from './viewportParkingLotDetails';

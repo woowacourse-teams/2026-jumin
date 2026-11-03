@@ -1,4 +1,4 @@
-import type { ParkingLotViewport } from '../../../../api/contracts';
+import type { ParkingLotViewport } from '../../../api/contracts';
 
 export const REPRESENTATIVE_ZOOM = 15;
 export const REPRESENTATIVE_COUNT = 10;

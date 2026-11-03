@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import type { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../api/contracts';
 import { RecentSearchRow } from './RecentSearchRow';
 import { color } from '../../../theme/color';
 import { fontWeight } from '../../../theme/font';

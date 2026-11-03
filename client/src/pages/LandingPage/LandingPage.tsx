@@ -10,8 +10,8 @@ import {
   FreeParkingIcon,
   InstallIcon,
   LocationIcon,
-} from '../../../shared/components/ui/icons';
-import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
+} from '../../shared/components/ui/icons';
+import { usePwaInstall } from '../../shared/hooks/usePwaInstall';
 import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 import { LandingGuide } from './components/LandingGuide';

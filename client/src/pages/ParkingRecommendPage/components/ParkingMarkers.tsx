@@ -1,12 +1,12 @@
-import type { ParkingLotSummary } from '../../../../api/contracts';
+import type { ParkingLotSummary } from '../../../api/contracts';
 
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 import detailParkingMarkerUrl from '../../../../assets/icons/markers/selectedRecommandMarker.svg';
 
-import { DestinationMapOverlay } from '../../../../shared/components/service/destination/DestinationMapOverlay';
-import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
+import { DestinationMapOverlay } from '../../../shared/components/service/destination/DestinationMapOverlay';
+import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import { getParkingMarkerType, type ParkingMarkerType } from './parkingMarker';
 
 const markerIcons = {

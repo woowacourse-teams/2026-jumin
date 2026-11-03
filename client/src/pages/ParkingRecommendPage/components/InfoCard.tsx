@@ -1,11 +1,11 @@
 import { css } from '@emotion/css';
 
-import type { ParkingLotSummary } from '../../../../api/contracts';
-import { trackEvent } from '../../../../shared/analytics';
-import { eventName } from '../../../../shared/monitoring/constants';
+import type { ParkingLotSummary } from '../../../api/contracts';
+import { trackEvent } from '../../../shared/analytics';
+import { eventName } from '../../../shared/monitoring/constants';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import { DirectionsIcon, InformationIcon } from '../../../../shared/components/ui/icons';
+import { DirectionsIcon, InformationIcon } from '../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;

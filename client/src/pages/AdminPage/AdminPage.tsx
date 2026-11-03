@@ -8,12 +8,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { z } from 'zod';
-import { CheckIcon, UploadIcon } from '../../../shared/components/ui/icons';
+import { CheckIcon, UploadIcon } from '../../shared/components/ui/icons';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
 import parkingGuide from '../../../assets/guideImage/guide3.webp';
-import { ApiError, type FieldError } from '../../../api/apiError';
-import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { ApiError, type FieldError } from '../../api/apiError';
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import { ADMIN_MESSAGES } from './adminMessages';
 
 import {

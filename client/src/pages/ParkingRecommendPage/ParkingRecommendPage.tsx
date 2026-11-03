@@ -1,9 +1,9 @@
 import { Navigate, useOutletContext } from 'react-router';
-import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { STEP_PATH, useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { ParkingRecommendPanel } from './components/ParkingRecommendPanel';
 import { useSearchConditionQuery } from './hooks/useSearchConditionQuery';
-import { buildQueryString, useQueryParams } from '../../../shared/hooks/useQueryParams';
-import { parseCoordinates } from '../../../shared/utils/parseCoordinates';
+import { buildQueryString, useQueryParams } from '../../shared/hooks/useQueryParams';
+import { parseCoordinates } from '../../shared/utils/parseCoordinates';
 
 export const ParkingRecommendPage = () => {
   const { move } = useStepNavigation('recommend');

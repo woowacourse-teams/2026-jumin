@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
-import type { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../api/contracts';
 import { color } from '../../../theme/color';
-import { LocationIcon } from '../../../../shared/components/ui/icons';
+import { LocationIcon } from '../../../shared/components/ui/icons';
 import { typography } from '../../../theme/typography';
 
 interface Props {

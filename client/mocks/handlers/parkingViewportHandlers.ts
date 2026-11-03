@@ -1,6 +1,6 @@
 import { delay, http, HttpResponse } from 'msw';
 
-import type { ParkingLotViewportResponse } from '../../api/contracts';
+import type { ParkingLotViewportResponse } from '../../src/api/contracts';
 import { parkingViewportFilterMetadata, parkingViewportLots } from '../fixtures/parkingViewport';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
 

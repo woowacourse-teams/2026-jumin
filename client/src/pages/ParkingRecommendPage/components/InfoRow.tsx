@@ -1,13 +1,9 @@
 import { css, cx } from '@emotion/css';
 
-import type { ParkingLotSummary } from '../../../../api/contracts';
+import type { ParkingLotSummary } from '../../../api/contracts';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import {
-  DirectionsIcon,
-  InformationIcon,
-  LocationIcon,
-} from '../../../../shared/components/ui/icons';
+import { DirectionsIcon, InformationIcon, LocationIcon } from '../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
