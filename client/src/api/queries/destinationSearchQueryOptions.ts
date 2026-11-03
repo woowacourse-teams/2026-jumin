@@ -1,8 +1,8 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import type { DestinationSearchQueryKeyParams } from '../../shared/types/queryKeys';
-import { searchDestinations } from '../parkingLots';
 import { destinationKeys } from './destinationKeys';
+import { searchDestinations } from '../destination';
 
 export const destinationSearchQueryOptions = (key: DestinationSearchQueryKeyParams) => {
   const normalizedQuery = key.query.trim();

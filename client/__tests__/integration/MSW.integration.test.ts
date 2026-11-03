@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
-import { getParkingLotsInViewport, searchDestinations } from '../../src/api/parkingLots';
+import { getParkingLotsInViewport } from '../../src/api/parkingLots';
 import { parkingViewportQueryOptions } from '../../src/api/queries/parkingViewportQueryOptions';
 import { parkingLotViewportResponseSchema } from '../../src/api/parkingLotsSchema';
 import {
@@ -10,6 +10,7 @@ import {
 import { searchCondition } from '../testData';
 import { server } from '../msw/server';
 import { createTestQueryClient } from '../renderWithProviders';
+import { searchDestinations } from '../../src/api/destination';
 
 const viewportBounds = {
   southLatitude: 37,

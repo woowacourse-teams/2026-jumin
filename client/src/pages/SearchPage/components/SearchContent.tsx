@@ -6,8 +6,8 @@ import { destinationSearchQueryOptions } from '../../../api/queries/destinationS
 import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
-import { recentSearchesSchema } from '../../../api/parkingLotsSchema';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { recentSearchesSchema } from '../../../api/destinationSchema';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;

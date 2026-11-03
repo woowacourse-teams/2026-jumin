@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
-import { getDestinationName } from '../parkingLots';
 import { destinationKeys } from './destinationKeys';
+import { getDestinationName } from '../destination';
 
 interface DestinationNameQueryParams {
   latitude: number;

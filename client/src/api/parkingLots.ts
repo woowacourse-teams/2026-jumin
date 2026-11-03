@@ -1,14 +1,10 @@
 import type {
-  DestinationNameResponse,
-  DestinationSearchResponse,
   ParkingLotDetailResponse,
   ParkingLotViewportResponse,
   ParkingSearchResponse,
   ViewportParkingLotDetailResponse,
 } from './contracts';
 import {
-  destinationNameSchema,
-  destinationSearchSchema,
   parkingLotDetailSchema,
   parkingLotViewportResponseSchema,
   parkingSearchSchema,
@@ -43,38 +39,6 @@ export interface ParkingViewportParams {
 export type ParkingViewportFilters = ParkingFilters;
 
 export type ParkingViewportRequestParams = ParkingViewportParams & Partial<ParkingViewportFilters>;
-
-// 목적지를 검색 및 자동완성하는 메서드
-export const searchDestinations = async (
-  query: string,
-  latitude: number,
-  longitude: number,
-  signal?: AbortSignal,
-): Promise<DestinationSearchResponse> => {
-  const params = new URLSearchParams({
-    query,
-    latitude: String(latitude),
-    longitude: String(longitude),
-  });
-  const response = await request(`/api/destinations/search?${params.toString()}`, {
-    signal,
-  });
-
-  return parseApiResponse(response, destinationSearchSchema);
-};
-
-export const getDestinationName = async (
-  latitude: number,
-  longitude: number,
-  signal?: AbortSignal,
-): Promise<DestinationNameResponse> => {
-  const response = await request(
-    `/api/destinations/reverse-geocode?latitude=${latitude}&longitude=${longitude}`,
-    { signal },
-  );
-
-  return parseApiResponse(response, destinationNameSchema);
-};
 
 // 주차장 목록을 가져오는 메서드
 export async function searchParkingLots(

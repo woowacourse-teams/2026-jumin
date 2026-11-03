@@ -2,9 +2,6 @@ import z from 'zod';
 import {
   availabilityStatusSchema,
   dailyOperationsDaySchema,
-  destinationNameSchema,
-  destinationSchema,
-  destinationSearchSchema,
   feeCalculationStatusSchema,
   parkingFeeRuleSchema,
   parkingInformationSourceSchema,
@@ -19,6 +16,12 @@ import {
   parkingSearchSchema,
   viewportParkingLotDetailSchema,
 } from './parkingLotsSchema';
+
+import {
+  destinationNameSchema,
+  destinationSchema,
+  destinationSearchSchema,
+} from './destinationSchema';
 
 // 공통 타입
 export type AvailabilityStatus = z.infer<typeof availabilityStatusSchema>;
