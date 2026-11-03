@@ -15,7 +15,7 @@ import type { BottomSheetSnap } from '../../../shared/types/ui';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import { ParkingRecommendSkeleton } from '../LoadingUI/ParkingRecommendSkeleton';
 import type { RecommendationType } from '../types/recommendation';
-import { getSortValue, sortParkingLots } from '../utils/sorting';
+import { getSortValue, sortParkingLots } from '../utils/recommendationPolicy';
 import { ParkingMarkers } from './ParkingMarkers';
 import { ParkingRecommendContent } from './ParkingRecommendContent';
 import { ParkingRecommendDetailPanel } from './ParkingRecommendDetailPanel';

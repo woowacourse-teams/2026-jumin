@@ -9,7 +9,7 @@ import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 import type { RecommendationType } from '../types/recommendation';
-import { getRecommendationMessage } from '../utils/sorting';
+import { getRecommendationMessage } from '../utils/recommendationPolicy';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 
