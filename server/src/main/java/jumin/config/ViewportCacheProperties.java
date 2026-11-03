@@ -27,7 +27,7 @@ public class ViewportCacheProperties {
     public static final int MAX_INFLIGHT_CELLS = 2048;
     public static final int DB_QUEUE = 256;
     public static final int MAX_REQUEST_BYTES = 4 * 1024 * 1024;
-    public static final int MAX_FALLBACK_ROWS = 1_000_000;
+    public static final int MAX_VIEWPORT_ROWS = 1_000_000;
 
     private boolean enabled;
     private boolean prepareOnStartup;

@@ -1,9 +1,10 @@
 package jumin.domain.parking.repository;
 
 import static jumin.config.ViewportCacheProperties.DB_QUEUE;
-import static jumin.config.ViewportCacheProperties.MAX_FALLBACK_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VIEWPORT_ROWS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -22,7 +23,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -33,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import jumin.config.ViewportCacheProperties;
+import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.exception.ViewportFailureReason;
@@ -42,12 +47,16 @@ import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.monitoring.ViewportMetrics;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import jumin.domain.parking.service.ViewportSquareGrid;
+import jumin.domain.parking.service.ViewportCellCover;
+import jumin.domain.parking.service.ViewportCellLoader;
+import jumin.domain.parking.service.ViewportSearchService;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class ViewportRepositoryExecutionTest {
@@ -133,24 +142,25 @@ class ViewportRepositoryExecutionTest {
         harness.registry.close();
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @DisplayName("DB 실행과 대기 한도를 넘긴 요청만 거절하고 기존 요청은 완료한다")
-    void bounds_active_and_waiting_requests() throws Exception {
+    void bounds_active_and_waiting_requests(boolean cacheEnabled) throws Exception {
         // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            ViewportSearchService service = harness.service(cacheEnabled, Duration.ofSeconds(30));
             harness.beforeQuery.set(() -> { started.countDown(); await(release); });
             var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             List<CompletableFuture<Integer>> waiting = IntStream.range(0, DB_QUEUE)
-                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> harness.fallback(
-                            ViewportDeadline.after(Duration.ofSeconds(30))), threads))
+                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.search(request()).totalCount(), threads))
                     .toList();
             awaitQueued(harness, DB_QUEUE);
 
             // when & then
-            assertThatThrownBy(() -> harness.load(deadline()))
+            assertThatThrownBy(() -> service.search(request()))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_QUEUE_FULL.name()));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
@@ -165,20 +175,22 @@ class ViewportRepositoryExecutionTest {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @DisplayName("DB 용량을 기다리다 만료된 요청은 SQL을 실행하지 않고 대기 용량을 반환한다")
-    void expires_waiter_without_starting_query() throws Exception {
+    void expires_waiter_without_starting_query(boolean cacheEnabled) throws Exception {
         // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queries = new AtomicInteger();
         try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            ViewportSearchService service = harness.service(cacheEnabled, Duration.ofMillis(30));
             harness.beforeQuery.set(() -> { queries.incrementAndGet(); started.countDown(); await(release); });
             var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 
             // when & then
-            assertThatThrownBy(() -> harness.fallback(ViewportDeadline.after(Duration.ofMillis(30))))
+            assertThatThrownBy(() -> service.search(request()))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
             assertThat(queries).hasValue(1);
@@ -201,7 +213,7 @@ class ViewportRepositoryExecutionTest {
             harness.beforeQuery.set(() -> { started.countDown(); await(release); });
             var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-            var waiting = CompletableFuture.supplyAsync(() -> harness.fallback(deadline()), threads);
+            var waiting = CompletableFuture.supplyAsync(() -> harness.findWithinBounds(deadline()), threads);
             awaitQueued(harness, 1);
 
             // when
@@ -252,7 +264,7 @@ class ViewportRepositoryExecutionTest {
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             Thread waiter = Thread.ofVirtual().start(() -> {
                 try {
-                    harness.fallback(deadline());
+                    harness.findWithinBounds(deadline());
                 } catch (Throwable rejected) {
                     failure.set(rejected);
                     interrupted.set(Thread.currentThread().isInterrupted());
@@ -314,7 +326,7 @@ class ViewportRepositoryExecutionTest {
             });
             Runnable query = cellQuery
                     ? () -> harness.db.load(List.of(key), deadline)
-                    : () -> harness.db.fallback(bounds, request, 1, deadline);
+                    : () -> harness.db.findWithinBounds(bounds, request, 1, deadline);
 
             // when & then
             assertThatThrownBy(query::run)
@@ -331,12 +343,13 @@ class ViewportRepositoryExecutionTest {
         }
     }
 
-    @Test
-    @DisplayName("고정 fallback 행 상한까지 모두 반환하고 초과하면 부분 결과 없이 실패한다")
-    void fallback_preserves_fixed_row_limit_without_truncating() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("캐시 OFF와 fallback은 고정 전체 조회 행 상한까지 모두 반환하고 초과하면 부분 결과 없이 실패한다")
+    void whole_viewport_preserves_fixed_row_limit_without_truncating(boolean cacheEnabled) throws Exception {
         // given
         AtomicInteger cursor = new AtomicInteger();
-        AtomicInteger rowCount = new AtomicInteger(MAX_FALLBACK_ROWS);
+        AtomicInteger rowCount = new AtomicInteger(MAX_VIEWPORT_ROWS);
         ResultSet rows = (ResultSet) Proxy.newProxyInstance(ResultSet.class.getClassLoader(),
                 new Class<?>[]{ResultSet.class}, (proxy, operation, arguments) -> switch (operation.getName()) {
                     case "next" -> cursor.incrementAndGet() <= rowCount.get();
@@ -356,6 +369,7 @@ class ViewportRepositoryExecutionTest {
                     default -> null;
                 });
         try (Harness harness = new Harness(Duration.ofSeconds(30))) {
+            ViewportSearchService service = harness.service(cacheEnabled, Duration.ofSeconds(30));
             PreparedStatement statement = mock(PreparedStatement.class);
             when(harness.pool.getConnection().prepareStatement(anyString())).thenReturn(statement);
             when(statement.executeQuery()).thenReturn(rows);
@@ -363,19 +377,21 @@ class ViewportRepositoryExecutionTest {
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
             // when & then
-            ParkingLotViewportResponses response = harness.db.fallback(bounds, request, 1,
-                    ViewportDeadline.after(Duration.ofSeconds(30)));
-            assertThat(response.totalCount()).isEqualTo(MAX_FALLBACK_ROWS);
-            assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_FALLBACK_ROWS);
+            ParkingLotViewportResponses response = service.search(request);
+            assertThat(response.totalCount()).isEqualTo(MAX_VIEWPORT_ROWS);
+            assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_VIEWPORT_ROWS);
             cursor.set(0);
-            rowCount.set(MAX_FALLBACK_ROWS + 1);
-            assertThatThrownBy(() -> harness.db.fallback(bounds, request, 1,
-                    ViewportDeadline.after(Duration.ofSeconds(30))))
+            rowCount.set(MAX_VIEWPORT_ROWS + 1);
+            assertThatThrownBy(() -> service.search(request))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
-            verify(statement, times(2)).setObject(anyInt(), eq(MAX_FALLBACK_ROWS + 1));
+            verify(statement, times(2)).setObject(anyInt(), eq(MAX_VIEWPORT_ROWS + 1));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
         }
+    }
+
+    private static ParkingLotViewportRequest request() {
+        return new ParkingLotViewportRequest(126.99, 37.49, 127.01, 37.51, false, false, false);
     }
 
     private static ViewportDeadline deadline() {
@@ -438,15 +454,26 @@ class ViewportRepositoryExecutionTest {
                     new ParkingLodScoreCalculator(), new ViewportSquareGrid());
         }
 
+        private ViewportSearchService service(boolean cacheEnabled, Duration requestTimeout) {
+            ViewportCacheProperties properties = new ViewportCacheProperties();
+            properties.setEnabled(cacheEnabled);
+            properties.setRequestTimeout(requestTimeout);
+            ViewportCellCover cover = mock(ViewportCellCover.class);
+            when(cover.cover(any())).thenReturn(List.of());
+            return new ViewportSearchService(properties, cover, db, mock(ViewportCellStore.class),
+                    mock(ViewportCellLoader.class), new ViewportMetrics(registry), new ParkingLodScoreCalculator(),
+                    Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
+        }
+
         private int load(ViewportDeadline deadline) {
             return db.load(List.of(new ViewportCellKey("execution", 1000, 1)), deadline).size();
         }
 
-        private int fallback(ViewportDeadline deadline) {
+        private int findWithinBounds(ViewportDeadline deadline) {
             ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
-            ParkingLotViewportResponses response = db.fallback(bounds, request, 1, deadline);
+            ParkingLotViewportResponses response = db.findWithinBounds(bounds, request, 1, deadline);
             return response.totalCount();
         }
 

@@ -134,7 +134,7 @@ class ViewportStoreBypassTest {
                 assertThat(follower.get(10, TimeUnit.SECONDS)).isEqualTo(expected);
                 assertThat(initialReads).hasValue(2);
                 verify(repository, times(0)).load(anyList(), any());
-                verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
+                verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
                 assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(1);
                 assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(1);
                 assertThat(counter(registry, "cells", "hit")).isZero();
@@ -220,7 +220,7 @@ class ViewportStoreBypassTest {
             assertThat(initialReads).hasValue(requestCount);
             assertThat(rechecks).hasValue(failInitial ? 0 : 1);
             verify(repository, times(1)).load(anyList(), any());
-            verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
+            verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
             assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(failInitial ? requestCount : 0);
             assertThat(counter(registry, "store", "recheck_failure")).isEqualTo(failInitial ? 0 : 1);
             assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(failInitial ? requestCount : 0);
@@ -259,7 +259,7 @@ class ViewportStoreBypassTest {
             assertThat(first).isEqualTo(response(item(1, 100)));
             assertThat(second).isEqualTo(first);
             verify(repository, times(2)).load(anyList(), any());
-            verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
+            verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
         }
     }
 
@@ -285,7 +285,7 @@ class ViewportStoreBypassTest {
             ViewportRepository repository = mock(ViewportRepository.class);
 
             ParkingLotViewportResponses expected = response(item(1, 100));
-            when(repository.fallback(any(), any(), anyInt(), any()))
+            when(repository.findWithinBounds(any(), any(), anyInt(), any()))
                     .thenAnswer(invocation -> expected);
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L));
@@ -294,7 +294,7 @@ class ViewportStoreBypassTest {
                 assertThat(search(service)).isEqualTo(expected);
 
                 verify(repository, times(0)).load(anyList(), any());
-                verify(repository, times(1)).fallback(any(), any(), anyInt(), any());
+                verify(repository, times(1)).findWithinBounds(any(), any(), anyInt(), any());
                 assertThat(counter(registry, "store", failInitial ? "initial_get_budget" : "recheck_budget")).isEqualTo(1);
                 assertThat(counter(registry, "store", "bypass_initial")).isZero();
                 assertThat(counter(registry, "store", "bypass_recheck")).isZero();
@@ -327,7 +327,7 @@ class ViewportStoreBypassTest {
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
 
             verify(repository, times(0)).load(anyList(), any());
-            verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
+            verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
         }
     }
 
@@ -355,7 +355,7 @@ class ViewportStoreBypassTest {
             when(repository.load(anyList(), any()))
                     .thenThrow(ViewportFallbackException.cellTooLarge());
             ParkingLotViewportResponses expected = response(duplicate);
-            when(repository.fallback(any(), any(), anyInt(), any()))
+            when(repository.findWithinBounds(any(), any(), anyInt(), any()))
                     .thenAnswer(invocation -> expected);
             try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
                 ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of(10L, 20L));
@@ -364,7 +364,7 @@ class ViewportStoreBypassTest {
                 assertThat(search(service)).isEqualTo(expected);
 
                 verify(repository, times(oversize ? 1 : 0)).load(anyList(), any());
-                verify(repository, times(1)).fallback(any(), any(), anyInt(), any());
+                verify(repository, times(1)).findWithinBounds(any(), any(), anyInt(), any());
                 assertThat(counter(registry, "requests", "oversize_bypass")).isEqualTo(oversize ? 1 : 0);
                 assertThat(counter(registry, "store", "assemble_failure")).isEqualTo(oversize ? 0 : 1);
                 assertThat(counter(registry, "store", "bypass_initial")).isZero();
@@ -407,7 +407,7 @@ class ViewportStoreBypassTest {
             assertThat(search(service)).isEqualTo(response(hit, missing));
 
             verify(repository, times(1)).load(eq(List.of(second)), any());
-            verify(repository, times(0)).fallback(any(), any(), anyInt(), any());
+            verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
         }
     }
 
@@ -432,7 +432,7 @@ class ViewportStoreBypassTest {
         };
         ViewportRepository repository = mock(ViewportRepository.class);
         when(repository.load(anyList(), any())).thenReturn(Map.of(key, cell));
-        when(repository.fallback(any(), any(), anyInt(), any()))
+        when(repository.findWithinBounds(any(), any(), anyInt(), any()))
                 .thenAnswer(invocation -> response(item))
                 .thenThrow(ViewportFailureReason.DB_QUEUE_FULL.failure());
         ViewportCellCover cover = mock(ViewportCellCover.class);
@@ -443,7 +443,7 @@ class ViewportStoreBypassTest {
                 .thenReturn(List.of(10L))
                 .thenReturn(List.of());
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
-            ViewportSearchService service = new ViewportSearchService(properties, mock(ParkingSearchService.class),
+            ViewportSearchService service = new ViewportSearchService(properties,
                     cover, repository, store, loader, metrics, new ParkingLodScoreCalculator(),
                     Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
 
@@ -460,7 +460,7 @@ class ViewportStoreBypassTest {
             assertThat(counter(registry, "cells", "miss")).isEqualTo(1);
             assertThat(counter(registry, "logical", "fallback")).isEqualTo(2);
             verify(repository).load(anyList(), any());
-            verify(repository, times(2)).fallback(any(), any(), anyInt(), any());
+            verify(repository, times(2)).findWithinBounds(any(), any(), anyInt(), any());
             assertThat(output).doesNotContain("viewport cache request completed", "sourceIndependent",
                     "ownSourceSql", "sourceFollower");
         }
@@ -478,7 +478,7 @@ class ViewportStoreBypassTest {
         byte[] json = new ObjectMapper().writeValueAsBytes(response);
         assertThat(json.length).isGreaterThan(MAX_REQUEST_BYTES);
         ViewportRepository repository = mock(ViewportRepository.class);
-        when(repository.fallback(any(), any(), anyInt(), any())).thenReturn(response);
+        when(repository.findWithinBounds(any(), any(), anyInt(), any())).thenReturn(response);
         ViewportCellStore store = new EmptyViewportCellStore();
         try (ViewportCellLoader loader = new ViewportCellLoader(store, repository, metrics)) {
             ViewportSearchService service = service(properties, repository, store, loader, metrics, List.of());
@@ -492,7 +492,7 @@ class ViewportStoreBypassTest {
                                           ViewportMetrics metrics, List<Long> cells) {
         ViewportCellCover cover = mock(ViewportCellCover.class);
         when(cover.cover(any())).thenReturn(cells);
-        return new ViewportSearchService(properties, mock(ParkingSearchService.class), cover, repository, store, loader,
+        return new ViewportSearchService(properties, cover, repository, store, loader,
                 metrics, new ParkingLodScoreCalculator(), Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
     }
 

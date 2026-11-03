@@ -35,7 +35,7 @@ import jumin.domain.parking.model.ViewportMappingState;
 import jumin.domain.parking.monitoring.ViewportMetrics;
 import jumin.domain.parking.repository.ViewportRepository;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
-import jumin.domain.parking.service.ParkingSearchService;
+import jumin.domain.parking.repository.ViewportReferenceRepository;
 import jumin.domain.parking.service.ViewportCellCover;
 import jumin.domain.parking.service.ViewportCellLoader;
 import jumin.domain.parking.service.ViewportSearchService;
@@ -69,6 +69,8 @@ import org.testcontainers.utility.DockerImageName;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ViewportInvalidationRaceIntegrationTest {
 
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC);
+
     private static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine"))
             .withExposedPorts(6379);
     private static final ParkingLotViewportRequest REQUEST = new ParkingLotViewportRequest(
@@ -85,7 +87,7 @@ class ViewportInvalidationRaceIntegrationTest {
     @Autowired
     private ViewportWriteCoordinator writer;
     @Autowired
-    private ParkingSearchService legacy;
+    private ViewportReferenceRepository reference;
 
     @DynamicPropertySource
     static void redisProperties(DynamicPropertyRegistry registry) {
@@ -189,8 +191,8 @@ class ViewportInvalidationRaceIntegrationTest {
                 writer.afterSourceWrite(ticket);
             });
 
-            assertThat(legacy.searchViewport(REQUEST).parkingLots()).isEmpty();
-            assertCapacity(legacy.searchViewport(MOVED_REQUEST), OLD_CAPACITY);
+            assertThat(reference.searchViewport(REQUEST, CLOCK).parkingLots()).isEmpty();
+            assertCapacity(reference.searchViewport(MOVED_REQUEST, CLOCK), OLD_CAPACITY);
             assertCapacity(reader.search(REQUEST), OLD_CAPACITY);
             assertThat(reader.search(MOVED_REQUEST).parkingLots()).isEmpty();
             assertThat(raw.sync().pttl(oldKey.redisKey())).isPositive().isLessThanOrEqualTo(oldTtl);
@@ -203,8 +205,8 @@ class ViewportInvalidationRaceIntegrationTest {
                 Thread.sleep(10);
             }
             assertThat(raw.sync().exists(oldKey.redisKey(), newKey.redisKey())).isZero();
-            assertThat(reader.search(REQUEST)).isEqualTo(legacy.searchViewport(REQUEST));
-            assertThat(reader.search(MOVED_REQUEST)).isEqualTo(legacy.searchViewport(MOVED_REQUEST));
+            assertThat(reader.search(REQUEST)).isEqualTo(reference.searchViewport(REQUEST, CLOCK));
+            assertThat(reader.search(MOVED_REQUEST)).isEqualTo(reference.searchViewport(MOVED_REQUEST, CLOCK));
         } finally {
             client.shutdown();
         }
@@ -336,8 +338,8 @@ class ViewportInvalidationRaceIntegrationTest {
             repository = new ViewportRepository(jdbc, properties, metrics,
                     new ParkingLodScoreCalculator(), new ViewportSquareGrid());
             loader = new ViewportCellLoader(store, repository, metrics);
-            service = new ViewportSearchService(properties, legacy, cover, repository, store, loader, metrics,
-                    new ParkingLodScoreCalculator(), Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC));
+            service = new ViewportSearchService(properties, cover, repository, store, loader, metrics,
+                    new ParkingLodScoreCalculator(), CLOCK);
         }
 
         private ViewportCellKey ttlKey() {

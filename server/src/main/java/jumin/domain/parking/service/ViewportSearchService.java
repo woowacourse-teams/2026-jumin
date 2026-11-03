@@ -41,7 +41,6 @@ public class ViewportSearchService {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private final ViewportCacheProperties properties;
-    private final ParkingSearchService legacy;
     private final ViewportCellCover cover;
     private final ViewportRepository repository;
     private final ViewportCellStore store;
@@ -50,12 +49,11 @@ public class ViewportSearchService {
     private final ParkingLodScoreCalculator scores;
     private final Clock clock;
 
-    public ViewportSearchService(ViewportCacheProperties properties, ParkingSearchService legacy,
-                                 ViewportCellCover cover, ViewportRepository repository,
+    public ViewportSearchService(ViewportCacheProperties properties, ViewportCellCover cover,
+                                 ViewportRepository repository,
                                  ViewportCellStore store, ViewportCellLoader loader, ViewportMetrics metrics,
                                  ParkingLodScoreCalculator scores, Clock clock) {
         this.properties = properties;
-        this.legacy = legacy;
         this.cover = cover;
         this.repository = repository;
         this.store = store;
@@ -67,9 +65,6 @@ public class ViewportSearchService {
 
     public ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
         ViewportBounds bounds = ViewportBounds.from(request);
-        if (!properties.isEnabled()) {
-            return legacy.searchViewport(request);
-        }
         try {
             return searchWithinDeadline(bounds, request);
         } catch (RuntimeException | Error failure) {
@@ -92,6 +87,9 @@ public class ViewportSearchService {
 
     private ParkingLotViewportResponses execute(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
                                  ViewportDeadline deadline) {
+        if (!properties.isEnabled()) {
+            return repository.findWithinBounds(bounds, request, day.getValue(), deadline);
+        }
         List<Long> cells = coveredCells(bounds);
         if (cells.isEmpty()) {
             return fallback(bounds, request, day, deadline);
@@ -163,7 +161,7 @@ public class ViewportSearchService {
     private ParkingLotViewportResponses fallback(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
                                   ViewportDeadline deadline) {
         metrics.count("logical", "fallback", 1);
-        return repository.fallback(bounds, request, day.getValue(), deadline);
+        return repository.findWithinBounds(bounds, request, day.getValue(), deadline);
     }
 
     private ParkingLotViewportResponses assemble(List<ViewportCell> cells, ViewportBounds bounds,

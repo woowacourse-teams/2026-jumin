@@ -3,7 +3,7 @@ package jumin.domain.parking.repository;
 import static jumin.config.ViewportCacheProperties.DB_QUEUE;
 import static jumin.config.ViewportCacheProperties.MAX_CELLS;
 import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
-import static jumin.config.ViewportCacheProperties.MAX_FALLBACK_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VIEWPORT_ROWS;
 import static jumin.config.ViewportCacheProperties.MAX_REQUEST_BYTES;
 
 import jakarta.annotation.PreDestroy;
@@ -76,7 +76,7 @@ public class ViewportRepository {
             WHERE state.id = 1
             ORDER BY cells.cell_id, l.id
             """;
-    private static final String SELECT_FALLBACK_SQL = "SELECT " + VIEWPORT_FIELDS + """
+    private static final String SELECT_VIEWPORT_SQL = "SELECT " + VIEWPORT_FIELDS + """
             FROM parking_lots l LEFT JOIN parking_operations o ON o.parking_lot_id = l.id
             WHERE l.active = TRUE AND l.location IS NOT NULL
               AND l.name IS NOT NULL AND l.address IS NOT NULL
@@ -146,7 +146,7 @@ public class ViewportRepository {
         named = new NamedParameterJdbcTemplate(jdbc);
         transactions = new DataSourceTransactionManager(source);
         maximum = properties.getMaxConcurrentDb();
-        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("fallback"));
+        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("viewport"));
     }
 
     public Map<ViewportCellKey, ViewportCell> load(
@@ -203,27 +203,27 @@ public class ViewportRepository {
         return Map.copyOf(result);
     }
 
-    public ParkingLotViewportResponses fallback(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
-                                       ViewportDeadline deadline) {
+    public ParkingLotViewportResponses findWithinBounds(ViewportBounds bounds, ParkingLotViewportRequest request, int day,
+                                                       ViewportDeadline deadline) {
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("west", bounds.west()).addValue("south", bounds.south())
                 .addValue("east", bounds.east()).addValue("north", bounds.north())
                 .addValue("free", request.freeOnly()).addValue("mechanical", request.excludeMechanical())
                 .addValue("public", request.isPublic()).addValue("day", day)
-                .addValue("row_limit", MAX_FALLBACK_ROWS + 1);
-        return read("fallback", deadline, () -> {
+                .addValue("row_limit", MAX_VIEWPORT_ROWS + 1);
+        return read("viewport", deadline, () -> {
             deadline.requireRemaining();
-            metrics.count("sql", "fallback", 1);
-            return named.query(SELECT_FALLBACK_SQL, parameters, rows -> {
-                return readFallback(rows, deadline);
+            metrics.count("sql", "viewport", 1);
+            return named.query(SELECT_VIEWPORT_SQL, parameters, rows -> {
+                return readViewport(rows, deadline);
             });
         });
     }
 
-    private ParkingLotViewportResponses readFallback(ResultSet rows, ViewportDeadline deadline) throws SQLException {
+    private ParkingLotViewportResponses readViewport(ResultSet rows, ViewportDeadline deadline) throws SQLException {
         List<ParkingLotViewportResponse> response = new ArrayList<>();
         while (nextRow(rows, deadline)) {
-            if (response.size() >= MAX_FALLBACK_ROWS) {
+            if (response.size() >= MAX_VIEWPORT_ROWS) {
                 throw ViewportFailureReason.UNCLASSIFIED.failure();
             }
             ViewportItem item = itemOf(rows);

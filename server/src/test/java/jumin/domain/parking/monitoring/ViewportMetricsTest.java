@@ -62,7 +62,7 @@ class ViewportMetricsTest {
         assertThat(registry.get("parking.viewport.db.pending").gauge().value()).isEqualTo(9);
         assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "source").gauge().value())
                 .isEqualTo(1);
-        assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "fallback").gauge().value())
+        assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "viewport").gauge().value())
                 .isEqualTo(3);
 
         // when

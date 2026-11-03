@@ -44,8 +44,8 @@ import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.model.ViewportMappingState;
 import jumin.domain.parking.monitoring.ViewportMetrics;
 import jumin.domain.parking.repository.ViewportRepository;
+import jumin.domain.parking.repository.ViewportReferenceRepository;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
-import jumin.domain.parking.service.ParkingSearchService;
 import jumin.domain.parking.service.ViewportCellCover;
 import jumin.domain.parking.service.ViewportCellLoader;
 import jumin.domain.parking.service.ViewportSearchService;
@@ -57,6 +57,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.postgresql.core.BaseConnection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -105,7 +107,7 @@ class ViewportSearchIntegrationTest {
     @Autowired
     private ViewportSearchService service;
     @Autowired
-    private ParkingSearchService legacy;
+    private ViewportReferenceRepository reference;
     @Autowired
     private ViewportCacheProperties properties;
     @Autowired
@@ -117,11 +119,13 @@ class ViewportSearchIntegrationTest {
 
     @Test
     @DisplayName("캐시 비활성 경로도 기존 DTO를 그대로 반환하고 셀 캐시 조회를 시작하지 않는다")
-    void disabled_cache_preserves_legacy_response() {
+    void disabled_cache_preserves_reference_response() {
         // given
         ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
-        ParkingLotViewportResponses expected = legacy.searchViewport(request);
+        ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
         double lookups = counter("cells", "hit") + counter("cells", "miss");
+        double fallbacks = counter("logical", "fallback");
+        double queries = counter("sql", "viewport");
         boolean enabled = properties.isEnabled();
         properties.setEnabled(false);
         try {
@@ -131,6 +135,8 @@ class ViewportSearchIntegrationTest {
             // then
             assertThat(actual).isEqualTo(expected);
             assertThat(counter("cells", "hit") + counter("cells", "miss")).isEqualTo(lookups);
+            assertThat(counter("logical", "fallback")).isEqualTo(fallbacks);
+            assertThat(counter("sql", "viewport")).isEqualTo(queries + 1);
         } finally {
             properties.setEnabled(enabled);
         }
@@ -236,7 +242,7 @@ class ViewportSearchIntegrationTest {
 
         // when & then
         try {
-            assertThatThrownBy(() -> observed.fallback(ViewportBounds.from(request), request, 1, deadline))
+            assertThatThrownBy(() -> observed.findWithinBounds(ViewportBounds.from(request), request, 1, deadline))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             assertThat(consumed.get()).isPositive().isLessThan(80);
@@ -268,7 +274,7 @@ class ViewportSearchIntegrationTest {
 
         // when & then
         try {
-            assertThatThrownBy(() -> observed.fallback(ViewportBounds.from(request), request, 1,
+            assertThatThrownBy(() -> observed.findWithinBounds(ViewportBounds.from(request), request, 1,
                     ViewportDeadline.after(Duration.ofSeconds(2))))
                     .isInstanceOf(RuntimeException.class);
             assertThat(prepared).isTrue();
@@ -331,16 +337,22 @@ class ViewportSearchIntegrationTest {
     }
 
     @Test
-    @DisplayName("7요일과 8필터 조합에서 원본 JPA 조회와 cold 및 warm 캐시의 결과가 같다")
+    @DisplayName("7요일과 8필터 조합에서 원본 JPA 기준과 캐시 OFF 및 cold/warm 결과가 같다")
     void matches_original_for_every_day_and_filter() {
         // given
         for (int day = 0; day < 7; day++) {
             setDay(LocalDate.of(2026, 10, 26).plusDays(day).toString());
             for (int mask = 0; mask < 8; mask++) {
                 ParkingLotViewportRequest request = request(mask, 126.995, 37.495, 127.005, 37.505);
-                ParkingLotViewportResponses expected = legacy.searchViewport(request);
+                ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
 
                 // when & then
+                properties.setEnabled(false);
+                try {
+                    assertThat(search(request)).as("OFF day=%s mask=%s", day, mask).isEqualTo(expected);
+                } finally {
+                    properties.setEnabled(true);
+                }
                 assertThat(search(request)).as("day=%s mask=%s", day, mask).isEqualTo(expected);
                 assertThat(search(request)).as("warm day=%s mask=%s", day, mask).isEqualTo(expected);
             }
@@ -358,7 +370,14 @@ class ViewportSearchIntegrationTest {
             ParkingLotViewportRequest request = request(index % 8, west, south, west + 0.005, south + 0.005);
 
             // when & then
-            assertThat(search(request)).as("random viewport %s", index).isEqualTo(legacy.searchViewport(request));
+            ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
+            assertThat(search(request)).as("random viewport %s", index).isEqualTo(expected);
+            properties.setEnabled(false);
+            try {
+                assertThat(search(request)).as("OFF random viewport %s", index).isEqualTo(expected);
+            } finally {
+                properties.setEnabled(true);
+            }
         }
     }
 
@@ -374,10 +393,10 @@ class ViewportSearchIntegrationTest {
         double initial = counter("sql", "cell_batch");
 
         // when & then
-        assertThat(search(first)).isEqualTo(legacy.searchViewport(first));
+        assertThat(search(first)).isEqualTo(reference.searchViewport(first, clock));
         double afterFirst = counter("sql", "cell_batch");
         assertThat(afterFirst).isGreaterThan(initial);
-        assertThat(search(second)).isEqualTo(legacy.searchViewport(second));
+        assertThat(search(second)).isEqualTo(reference.searchViewport(second, clock));
         assertThat(counter("sql", "cell_batch")).isEqualTo(afterFirst);
     }
 
@@ -388,16 +407,16 @@ class ViewportSearchIntegrationTest {
         ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
         jdbc.update("UPDATE parking_viewport_cache_state SET grid_size_meters = 2000 WHERE id = 1");
         try {
-            double fallback = counter("sql", "fallback");
+            double fallback = counter("sql", "viewport");
             // when & then
-            assertThat(search(request)).isEqualTo(legacy.searchViewport(request));
-            assertThat(counter("sql", "fallback")).isEqualTo(fallback + 1);
+            assertThat(search(request)).isEqualTo(reference.searchViewport(request, clock));
+            assertThat(counter("sql", "viewport")).isEqualTo(fallback + 1);
             ViewportMappingState prepared = writer.prepare();
             assertThat(prepared.gridSizeMeters()).isEqualTo(GRID_SIZE_METERS);
             assertThat(prepared.ready()).isTrue();
-            assertThat(search(request)).isEqualTo(legacy.searchViewport(request));
+            assertThat(search(request)).isEqualTo(reference.searchViewport(request, clock));
             double source = counter("sql", "cell_batch");
-            assertThat(search(request)).isEqualTo(legacy.searchViewport(request));
+            assertThat(search(request)).isEqualTo(reference.searchViewport(request, clock));
             assertThat(counter("sql", "cell_batch")).isEqualTo(source);
         } finally {
             writer.prepare();
@@ -410,7 +429,7 @@ class ViewportSearchIntegrationTest {
         // given
         withFreshNamespace(() -> {
             ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
-            ParkingLotViewportResponses expected = legacy.searchViewport(request);
+            ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
             ViewportMappingState original = mappingState();
             for (String condition : List.of("missing", "not-ready", "wrong-grid")) {
                 properties.setEnvironment(ttlEnvironment());
@@ -423,13 +442,13 @@ class ViewportSearchIntegrationTest {
                     }
 
                     double sourcesBefore = counter("sql", "cell_batch");
-                    double fallbacksBefore = counter("sql", "fallback");
+                    double fallbacksBefore = counter("sql", "viewport");
                     double oversizeBypassesBefore = counter("requests", "oversize_bypass");
 
                     // when & then
                     assertThat(search(request)).as(condition).isEqualTo(expected);
                     assertThat(counter("sql", "cell_batch")).as(condition).isEqualTo(sourcesBefore + 1);
-                    assertThat(counter("sql", "fallback")).as(condition).isEqualTo(fallbacksBefore + 1);
+                    assertThat(counter("sql", "viewport")).as(condition).isEqualTo(fallbacksBefore + 1);
                     assertThat(counter("requests", "oversize_bypass")).as(condition)
                             .isEqualTo(oversizeBypassesBefore);
                 } finally {
@@ -445,20 +464,26 @@ class ViewportSearchIntegrationTest {
         });
     }
 
-    @Test
-    @DisplayName("캐시 범위 밖 전체 조회는 큰 정수 ID를 보존하고 전체 결과를 반환한다")
-    void falls_back_with_complete_response() {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("캐시 OFF와 fallback은 전체 목록과 큰 정수 ID의 정렬을 그대로 반환한다")
+    void returns_complete_response_from_both_whole_query_routes(boolean cacheEnabled) {
         // given
         ParkingLotViewportRequest request = request(0, 126.5, 37, 127.5, 38);
-        ParkingLotViewportResponses expected = legacy.searchViewport(request);
+        ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
+        boolean enabled = properties.isEnabled();
+        properties.setEnabled(cacheEnabled);
+        try {
+            // when
+            ParkingLotViewportResponses actual = service.search(request);
 
-        // when & then
-        ParkingLotViewportResponses actual = service.search(request);
-
-        assertThat(actual).isEqualTo(expected);
-        assertThat(actual.totalCount()).isGreaterThan(100);
-        assertThat(actual.parkingLots().getLast().id()).isEqualTo(9_007_199_254_740_993L);
-
+            // then
+            assertThat(actual).isEqualTo(expected);
+            assertThat(actual.totalCount()).isGreaterThan(100);
+            assertThat(actual.parkingLots().getLast().id()).isEqualTo(9_007_199_254_740_993L);
+        } finally {
+            properties.setEnabled(enabled);
+        }
     }
 
     @Test
@@ -469,7 +494,7 @@ class ViewportSearchIntegrationTest {
             setDay(day);
             for (int mask = 0; mask < 8; mask++) {
                 ParkingLotViewportRequest request = request(mask, 126.5, 37, 127.5, 38);
-                ParkingLotViewportResponses expected = legacy.searchViewport(request);
+                ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
 
                 // when & then
                 ParkingLotViewportResponses actual = search(request);
