@@ -4,7 +4,7 @@ import type { ParkingLotSummary } from '../../../api/contracts';
 import { trackEvent } from '../../../shared/analytics';
 import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
 import { eventName } from '../../../shared/monitoring/constants';
-import type { BottomSheetSnap } from '../../../shared/types/ui';
+import type { BottomSheetSnap } from '../../../shared/components/ui/BottomSheet';
 import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
@@ -48,7 +48,7 @@ export const ParkingRecommendContent = ({
   const [directionsParkingLot, setDirectionsParkingLot] = useState<ParkingLotSummary | null>(null);
 
   useLayoutEffect(() => {
-    if (!isActive || sheetSnap !== 'expanded' || !selectedParkingLot) return;
+    if (!isActive || sheetSnap === 'collapsed' || !selectedParkingLot) return;
 
     const list = parkingListRef.current;
     const index = parkingLots.findIndex(({ id }) => id === selectedParkingLot.id);

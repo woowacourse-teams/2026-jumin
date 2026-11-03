@@ -19,7 +19,7 @@ import { ParkingFilterBar } from '../../shared/components/service/parking/Parkin
 import { typography } from '../../theme/typography';
 import { color } from '../../theme/color';
 import { useStepNavigation } from '../../shared/hooks/useStepNavigation';
-import type { BottomSheetSnap } from '../../shared/types/ui';
+import { useBottomSheet } from '../../shared/hooks/useBottomSheet';
 import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 const currentLocationIcon = {
@@ -50,24 +50,33 @@ export const HomePage = () => {
   const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+  const sheet = useBottomSheet();
 
   const clearParkingSelection = useCallback(() => {
-    setSheetSnap('collapsed');
+    sheet.close();
     setSelectedParkingLot(null);
-  }, []);
+  }, [sheet.close]);
 
   const collapseBottomSheet = useCallback(() => {
-    setSheetSnap('collapsed');
-  }, []);
+    sheet.setSnap('collapsed');
+  }, [sheet.setSnap]);
 
   const handleViewportChange = useCallback(
     (nextViewport: MapViewport) => {
-      if (nextViewport.zoom < MIN_PARKING_MARKER_ZOOM) {
+      const isBelowMinZoom = nextViewport.zoom < MIN_PARKING_MARKER_ZOOM;
+
+      const isSelectedOutside =
+        selectedParkingLot !== null &&
+        (selectedParkingLot.latitude < nextViewport.southLatitude ||
+          selectedParkingLot.latitude > nextViewport.northLatitude ||
+          selectedParkingLot.longitude < nextViewport.westLongitude ||
+          selectedParkingLot.longitude > nextViewport.eastLongitude);
+
+      if (isBelowMinZoom || isSelectedOutside) {
         clearParkingSelection();
       }
     },
-    [clearParkingSelection],
+    [selectedParkingLot, clearParkingSelection],
   );
 
   const viewport = useMapViewport(map, { onViewportChange: handleViewportChange });
@@ -76,16 +85,19 @@ export const HomePage = () => {
   const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
-  const handleParkingMarkerClick = useCallback((parkingLot: ParkingLotViewport) => {
-    trackEvent(eventName.HOME_PAGE_MARKER);
-    setSelectedParkingLot(parkingLot);
-    setSheetSnap('expanded');
-  }, []);
+  const handleParkingMarkerClick = useCallback(
+    (parkingLot: ParkingLotViewport) => {
+      trackEvent(eventName.HOME_PAGE_MARKER);
+      setSelectedParkingLot(parkingLot);
+      sheet.open('medium');
+    },
+    [sheet.open],
+  );
 
   // 빈 지도 영역 클릭시 바텀시트 닫기
   useMapClick({
     map,
-    enabled: selectedParkingLot !== null && sheetSnap === 'expanded',
+    enabled: sheet.isOpen && sheet.snap !== 'collapsed',
     onMapClick: collapseBottomSheet,
   });
 
@@ -181,8 +193,9 @@ export const HomePage = () => {
         <ParkingInformationPanel
           map={map}
           parkingLot={selectedParkingLot}
-          snap={sheetSnap}
-          onSnapChange={setSheetSnap}
+          open={sheet.isOpen}
+          snap={sheet.snap}
+          onSnapChange={sheet.setSnap}
           onClose={clearParkingSelection}
         />
       )}
