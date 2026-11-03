@@ -2,7 +2,7 @@ import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
 import type { Destination } from '../../../api/contracts';
 import { useEffect, useState } from 'react';
-import { destinationSearchQueryOptions } from '../../../api/queries/destinationSearchQuery';
+import { destinationSearchQueryOptions } from '../../../api/queries/destinationSearchQueryOptions';
 import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';

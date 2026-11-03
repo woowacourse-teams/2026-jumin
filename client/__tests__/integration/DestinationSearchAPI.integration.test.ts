@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
 import { searchDestinations } from '../../src/api/parkingLots';
-import { destinationSearchQueryOptions } from '../../src/api/queries/destinationSearchQuery';
+import { destinationSearchQueryOptions } from '../../src/api/queries/destinationSearchQueryOptions';
 import { destinationFixtures } from '../../mocks/fixtures/destinations';
 import { server } from '../msw/server';
 import { createTestQueryClient } from '../renderWithProviders';

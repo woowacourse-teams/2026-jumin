@@ -2,7 +2,7 @@ import { useLayoutEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { ParkingLotViewport } from '../../../api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../../api/queries/viewportParkingLotDetailQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../../api/queries/viewportParkingLotDetailQueryOptions';
 import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../shared/components/ui/BottomSheet';
 import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from '../../ParkingRecommendPage/LoadingUI/ParkingDetailSkeleton';

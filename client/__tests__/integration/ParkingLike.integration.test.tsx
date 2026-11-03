@@ -6,7 +6,7 @@ import { delay, http, HttpResponse } from 'msw';
 
 import { API_ERROR_MESSAGES } from '../../src/api/apiErrorMessages';
 import type { ParkingLikeState } from '../../src/api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../src/api/queries/viewportParkingLotDetailQuery';
+import { viewportParkingLotDetailQueryOptions } from '../../src/api/queries/viewportParkingLotDetailQueryOptions';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { useParkingLike } from '../../src/shared/hooks/useParkingLike';
 import { createTestQueryClient } from '../renderWithProviders';

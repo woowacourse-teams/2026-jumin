@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { ParkingLotSummary } from '../../../api/contracts';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
-import { parkingSearchQueryOptions } from '../../../api/queries/parkingSearchQuery';
+import { parkingSearchQueryOptions } from '../../../api/queries/parkingSearchQueryOptions';
 import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../shared/components/ui/BottomSheet';
