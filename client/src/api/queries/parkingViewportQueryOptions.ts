@@ -4,7 +4,7 @@ import type {
   ParkingViewportFilters,
   ParkingViewportQueryParams,
 } from '../../shared/types/queryKeys';
-import { normalizeViewport } from '../../pages/HomePage/utils/normalizeViewport';
+import { normalizeViewport } from '../normalizeViewport';
 import { parkingKeys } from './parkingKeys';
 
 export const parkingViewportQueryOptions = (
