@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { destinationNameQueryOptions } from '../../../api/queries/destinationNameQuery';
+import { destinationNameQueryOptions } from '../../../api/queries/destinationNameQueryOptions';
 import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
 import type { SetupDestination } from '../types/destination';
 
