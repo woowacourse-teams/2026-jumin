@@ -183,7 +183,7 @@ test.describe('길찾기', () => {
     await page.goto('/recent');
     await page.getByRole('button', { name: new RegExp(PARKING_LOT.name) }).click();
 
-    const dialog = page.getByRole('dialog', { name: '길찾기 앱 선택' });
+    const dialog = page.getByRole('dialog', { name: '어떤 앱으로 갈까요?' });
     await expect(dialog).toBeVisible();
 
     const naverMapButton = dialog.getByRole('button', { name: /네이버 지도/ });
@@ -203,7 +203,7 @@ test.describe('길찾기', () => {
     expect(await page.evaluate(() => localStorage.getItem('recentParkingUses'))).toBeNull();
 
     await page.getByRole('button', { name: '길찾기 시작' }).click();
-    const dialog = page.getByRole('dialog', { name: '길찾기 앱 선택' });
+    const dialog = page.getByRole('dialog', { name: '어떤 앱으로 갈까요?' });
     await expect(dialog).toBeVisible();
 
     const naverMapButton = dialog.getByRole('button', { name: /네이버 지도/ });

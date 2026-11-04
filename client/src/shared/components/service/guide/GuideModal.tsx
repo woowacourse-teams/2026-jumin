@@ -1,3 +1,4 @@
+import { Row } from '../../ui/Row';
 import { useState } from 'react';
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
@@ -49,11 +50,11 @@ export const GuideModal = ({ onClose }: Props) => {
       className={modalStyle}
       shouldCloseOnOverlayClick
     >
-      <div className={topStyle}>
+      <Row justify="end">
         <button className={skipButtonStyle} type="button" onClick={onClose}>
           건너뛰기
         </button>
-      </div>
+      </Row>
 
       <div className={imageFrameStyle}>
         <img className={imageStyle} src={slide.image} alt={slide.imageDescription} />
@@ -64,7 +65,14 @@ export const GuideModal = ({ onClose }: Props) => {
         <p className={descriptionStyle}>{slide.description}</p>
       </div>
 
-      <div className={paginationStyle} role="status" aria-live="polite">
+      <Row
+        align="center"
+        justify="center"
+        gap={5}
+        className={paginationStyle}
+        role="status"
+        aria-live="polite"
+      >
         <span className={screenReaderOnlyStyle}>
           총 {slides.length}단계 중 {step + 1}단계
         </span>
@@ -75,7 +83,7 @@ export const GuideModal = ({ onClose }: Props) => {
             aria-hidden="true"
           />
         ))}
-      </div>
+      </Row>
 
       <div className={actionsStyle}>
         <button
@@ -127,11 +135,6 @@ const modalStyle = css`
     padding-right: 14px;
     padding-left: 14px;
   }
-`;
-
-const topStyle = css`
-  display: flex;
-  justify-content: flex-end;
 `;
 
 const skipButtonStyle = css`
@@ -193,10 +196,6 @@ const descriptionStyle = css`
 `;
 
 const paginationStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
   min-height: 28px;
 `;
 

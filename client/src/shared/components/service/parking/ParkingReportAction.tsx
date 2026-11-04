@@ -1,3 +1,5 @@
+import { Button } from '../../ui/Button';
+import { Row } from '../../ui/Row';
 import { css } from '@emotion/css';
 import { ParkingReportModal } from './ParkingReportModal';
 import { useParkingReport } from '../../../hooks/useParkingReport';
@@ -13,12 +15,12 @@ export function ParkingReportAction({ parkingLotId }: Props) {
 
   return (
     <>
-      <footer className={reportActionStyle}>
+      <Row as="footer" align="center" justify="end" gap={8} className={reportActionStyle}>
         <span>정보가 다른가요?</span>
-        <button type="button" className={reportButtonStyle} onClick={report.open}>
+        <Button variant="ghost" size="lg" onClick={report.open}>
           제보하기
-        </button>
-      </footer>
+        </Button>
+      </Row>
 
       {report.isOpen && <ParkingReportModal report={report} />}
     </>
@@ -26,38 +28,10 @@ export function ParkingReportAction({ parkingLotId }: Props) {
 }
 
 const reportActionStyle = css`
-  display: flex;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+
   margin-top: auto;
   padding-top: 24px;
   ${typography.caption};
   color: ${color.text.secondary};
-`;
-
-const reportButtonStyle = css`
-  flex-shrink: 0;
-  min-height: 48px;
-  padding: 0 8px;
-
-  font-family: inherit;
-  ${typography.label};
-  color: ${color.text.secondary};
-  text-align: center;
-
-  background: none;
-  border: 0;
-  border-radius: 12px;
-  cursor: pointer;
-
-  &:hover {
-    color: ${color.text.brand};
-  }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 3px;
-  }
 `;

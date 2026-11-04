@@ -1,3 +1,4 @@
+import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import type { Destination } from '../../api/contracts';
 import { BottomNav } from '../../shared/components/service/BottomNav';
@@ -25,7 +26,7 @@ export const SearchPage = () => {
   if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;
 
   return (
-    <main className={pageStyle}>
+    <Stack as="main" className={pageStyle}>
       <SearchContent
         viewportLatitude={centerLocation.latitude}
         viewportLongitude={centerLocation.longitude}
@@ -41,14 +42,11 @@ export const SearchPage = () => {
       >
         <BottomNav />
       </footer>
-    </main>
+    </Stack>
   );
 };
 
 const pageStyle = css`
-  display: flex;
-  flex-direction: column;
-
   width: 100%;
   height: 100%;
   overflow: hidden;

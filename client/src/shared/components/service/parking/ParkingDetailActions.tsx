@@ -46,11 +46,19 @@ export const ParkingDetailActions = ({
 
 const actionsStyle = css`
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   flex-shrink: 0;
   align-items: start;
   gap: 8px;
   margin: 4px 0px 16px 0px;
   padding-bottom: 14px;
   border-bottom: 1px solid ${color.border.default};
+
+  @media (max-width: 359px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
 `;

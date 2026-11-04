@@ -1,3 +1,4 @@
+import { Row } from '../../shared/components/ui/Row';
 import { css, injectGlobal } from '@emotion/css';
 import {
   useEffect,
@@ -336,12 +337,12 @@ export const AdminPage = () => {
   return (
     <main ref={pageRef} className={pageStyle} data-admin-page>
       <div className={contentStyle}>
-        <header className={headerStyle}>
-          <div className={brandStyle}>
+        <Row as="header" align="center" justify="between" gap={16} className={headerStyle}>
+          <Row align="center" gap={12} className={brandStyle}>
             <img src={brandMark} alt="" width="32" height="36" draggable={false} />
             <span>주차의민족</span>
             <h1 className={adminLabelStyle}>관리자 페이지</h1>
-          </div>
+          </Row>
           {session && (
             <button
               className={secondaryButtonStyle}
@@ -352,7 +353,7 @@ export const AdminPage = () => {
               로그아웃
             </button>
           )}
-        </header>
+        </Row>
 
         {!session ? (
           <div className={loginLayoutStyle}>
@@ -436,7 +437,7 @@ export const AdminPage = () => {
               </p>
               <img src={brandMark} alt="" className={workspaceMarkStyle} draggable={false} />
             </section>
-            <div className={tabsStyle} role="tablist" aria-label="관리자 기능">
+            <Row gap={8} className={tabsStyle} role="tablist" aria-label="관리자 기능">
               <button
                 ref={csvTabRef}
                 id="admin-csv-tab"
@@ -467,7 +468,7 @@ export const AdminPage = () => {
               >
                 제보 목록
               </button>
-            </div>
+            </Row>
             <div
               id="admin-csv-panel"
               className={tabPanelStyle}
@@ -586,12 +587,12 @@ export const AdminPage = () => {
 
                 {result && (
                   <section className={cardStyle} aria-labelledby="admin-result-title">
-                    <p className={successStyle} role="status">
+                    <Row as="p" align="center" gap={8} className={successStyle} role="status">
                       <span aria-hidden="true">
                         <CheckIcon size={18} />
                       </span>
                       CSV 동기화가 완료되었습니다.
-                    </p>
+                    </Row>
                     <h2 id="admin-result-title" className={sectionTitleStyle}>
                       동기화 결과
                     </h2>
@@ -636,7 +637,7 @@ export const AdminPage = () => {
               tabIndex={0}
             >
               <section className={cardStyle} aria-labelledby="admin-reviews-title">
-                <div className={reviewsHeaderStyle}>
+                <Row align="center" justify="between" gap={16} className={reviewsHeaderStyle}>
                   <div>
                     <p className={eyebrowStyle}>PARKING REPORTS</p>
                     <h2 id="admin-reviews-title" className={sectionTitleStyle}>
@@ -652,7 +653,7 @@ export const AdminPage = () => {
                   >
                     새로고침
                   </button>
-                </div>
+                </Row>
                 {reviews !== null && (
                   <p className={reviewCountStyle}>
                     전체 {reviews.length.toLocaleString('ko-KR')}건
@@ -664,7 +665,13 @@ export const AdminPage = () => {
                   </p>
                 )}
                 {reviewError && (
-                  <div className={reviewErrorStyle} role="alert">
+                  <Row
+                    align="center"
+                    justify="between"
+                    gap={16}
+                    className={reviewErrorStyle}
+                    role="alert"
+                  >
                     <div>
                       {reviews !== null && <strong>목록을 새로 불러오지 못했습니다.</strong>}
                       <p>{reviewError}</p>
@@ -677,7 +684,7 @@ export const AdminPage = () => {
                     >
                       다시 시도
                     </button>
-                  </div>
+                  </Row>
                 )}
                 {reviews?.length === 0 && !isLoadingReviews && (
                   <div className={emptyReviewsStyle}>
@@ -693,7 +700,7 @@ export const AdminPage = () => {
                     {reviews.map((review) => (
                       <li key={review.reviewId}>
                         <article className={reviewCardStyle} aria-label={`제보 ${review.reviewId}`}>
-                          <div className={reviewCardHeaderStyle}>
+                          <Row align="baseline" gap="6px 12px" className={reviewCardHeaderStyle}>
                             <span className={reviewIdentifierStyle}>제보 ID {review.reviewId}</span>
                             <span className={reviewIdentifierStyle}>
                               주차장 ID {review.parkingLotId}
@@ -708,7 +715,7 @@ export const AdminPage = () => {
                               <span>접수 시각</span>
                               {formatReviewCreatedAt(review.createdAt)}
                             </time>
-                          </div>
+                          </Row>
                           <p className={reviewDetailStyle}>
                             {review.detail?.trim() ? review.detail : '제보 내용 없음'}
                           </p>
@@ -721,10 +728,10 @@ export const AdminPage = () => {
             </div>
           </div>
         )}
-        <footer className={footerStyle}>
+        <Row as="footer" justify="between" gap={12} className={footerStyle}>
           <span>주차의민족</span>
           <span>주차장을 찾는 가장 간단한 방법</span>
-        </footer>
+        </Row>
       </div>
     </main>
   );
@@ -767,11 +774,8 @@ const contentStyle = css`
 `;
 
 const headerStyle = css`
-  display: flex;
   min-height: 48px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+
   margin-bottom: 36px;
 
   @media (max-width: 600px) {
@@ -781,9 +785,6 @@ const headerStyle = css`
 `;
 
 const brandStyle = css`
-  display: flex;
-  align-items: center;
-  gap: 12px;
   color: #101b37;
   font-size: 21px;
   font-weight: 800;
@@ -1007,8 +1008,6 @@ const workspaceStyle = css`
 `;
 
 const tabsStyle = css`
-  display: flex;
-  gap: 8px;
   padding: 6px;
   background: #e9ecf4;
   border-radius: 14px;
@@ -1055,11 +1054,6 @@ const tabPanelStyle = css`
 `;
 
 const reviewsHeaderStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-
   @media (max-width: 400px) {
     align-items: flex-start;
     flex-direction: column;
@@ -1084,10 +1078,6 @@ const reviewLoadingStyle = css`
 `;
 
 const reviewErrorStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   margin-top: 24px;
   padding: 18px;
   color: #991b1b;
@@ -1147,10 +1137,8 @@ const reviewCardStyle = css`
 `;
 
 const reviewCardHeaderStyle = css`
-  display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 12px;
+
   line-height: 1.6;
 
   & > * {
@@ -1539,9 +1527,6 @@ const validationListStyle = css`
 `;
 
 const successStyle = css`
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0 0 20px;
   color: #247657;
   font-size: 13px;
@@ -1650,9 +1635,6 @@ const hashStyle = css`
 `;
 
 const footerStyle = css`
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
   margin-top: 32px;
   padding-top: 20px;
   color: #697386;

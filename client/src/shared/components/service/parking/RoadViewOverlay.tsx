@@ -1,3 +1,4 @@
+import { Row } from '../../ui/Row';
 import { useEffect, useRef, useState } from 'react';
 
 import { css } from '@emotion/css';
@@ -139,7 +140,7 @@ export const RoadViewOverlay = ({
       className={contentStyle}
       shouldCloseOnOverlayClick={false}
     >
-      <header className={headerStyle}>
+      <Row as="header" align="start" gap={12} className={headerStyle}>
         <button
           className={closeButtonStyle}
           type="button"
@@ -153,7 +154,7 @@ export const RoadViewOverlay = ({
           <h2>{parkingLotName}</h2>
           <p>{parkingLotAddress}</p>
         </div>
-      </header>
+      </Row>
 
       <div ref={panoramaContainerRef} className={panoramaStyle} aria-label="로드뷰" />
 
@@ -203,10 +204,6 @@ const headerStyle = css`
   right: 0;
   left: 0;
   z-index: 2;
-
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
 
   padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 24px;
 

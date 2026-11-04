@@ -1,3 +1,5 @@
+import { Row } from '../../shared/components/ui/Row';
+import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -33,13 +35,13 @@ export const RecentUsePage = () => {
   };
 
   return (
-    <main className={pageStyle}>
-      <header className={headerStyle}>
+    <Stack as="main" className={pageStyle}>
+      <Row as="header" align="center" className={headerStyle}>
         <Link className={backButtonStyle} type="button" aria-label="이전 화면으로 이동" to="/">
           <BackIcon size={28} aria-hidden="true" />
         </Link>
         <h1 className={titleStyle}>최근 이용</h1>
-      </header>
+      </Row>
 
       <section className={listSectionStyle} aria-label="최근 이용한 주차장">
         {recentParkingUses.length === 0 ? (
@@ -70,17 +72,16 @@ export const RecentUsePage = () => {
           destination={{ name: selectedParkingLot.name, location: selectedParkingLot.location }}
         />
       )}
-    </main>
+    </Stack>
   );
 };
 
 const pageStyle = css`
   position: relative;
 
-  display: flex;
   width: 100%;
   height: 100%;
-  flex-direction: column;
+
   overflow: hidden;
 
   color: ${color.text.primary};
@@ -89,8 +90,6 @@ const pageStyle = css`
 `;
 
 const headerStyle = css`
-  display: flex;
-  align-items: center;
   text-align: center;
 
   min-height: calc(104px + env(safe-area-inset-top, 0px));

@@ -1,3 +1,5 @@
+import { Button } from '../ui/Button';
+import { Stack } from '../ui/Stack';
 import { css, cx } from '@emotion/css';
 
 import brandMark from '../../../../assets/icons/brandMark.svg';
@@ -12,19 +14,23 @@ interface Props {
 }
 
 export const ErrorCard = ({ label, onRetry, className }: Props) => (
-  <section className={cx(errorStyle, className)} role="alert">
+  <Stack as="section" align="center" gap={20} className={cx(errorStyle, className)} role="alert">
     <img className={logoStyle} src={brandMark} alt="" draggable={false} />
 
-    <div className={messageStyle}>
+    <Stack gap={6}>
       <h2 className={titleStyle}>{label}</h2>
       <p className={descriptionStyle}>네트워크 상태를 확인한 후 다시 시도해 주세요.</p>
-    </div>
+    </Stack>
 
-    <button className={retryButtonStyle} type="button" onClick={onRetry}>
-      <RetryIcon size={22} aria-hidden="true" />
+    <Button
+      size="lg"
+      isFullWidth
+      icon={<RetryIcon size={22} aria-hidden="true" />}
+      onClick={onRetry}
+    >
       다시 시도
-    </button>
-  </section>
+    </Button>
+  </Stack>
 );
 
 const errorStyle = css`
@@ -34,10 +40,6 @@ const errorStyle = css`
   left: 16px;
   z-index: 20;
 
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
   pointer-events: auto;
 
   padding: 28px 24px 24px;
@@ -61,12 +63,6 @@ const logoStyle = css`
   -webkit-user-drag: none;
 `;
 
-const messageStyle = css`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
 const titleStyle = css`
   margin: 0;
 
@@ -79,39 +75,4 @@ const descriptionStyle = css`
 
   ${typography.bodySmall};
   color: ${color.text.secondary};
-`;
-
-const retryButtonStyle = css`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-
-  width: 100%;
-  min-height: 52px;
-  padding: 0 20px;
-
-  font-family: inherit;
-  ${typography.label};
-  color: ${color.text.inverse};
-
-  background: ${color.background.brand};
-  border: 0;
-  border-radius: 14px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-
-  &:hover {
-    background: ${color.background.brandHovered};
-  }
-
-  &:active {
-    background: ${color.background.brandPressed};
-  }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 3px;
-  }
 `;

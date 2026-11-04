@@ -1,3 +1,5 @@
+import { Stack } from '../ui/Stack';
+import { Row } from '../ui/Row';
 import { css } from '@emotion/css';
 import { color } from '../../../theme/color';
 import { CloseIcon, HistoryIcon } from '../ui/icons';
@@ -20,17 +22,17 @@ export const RecentHistoryRow = ({
   onRemove,
   removeLabel,
 }: Props) => (
-  <li className={rowStyle}>
+  <Row as="li" align="center" className={rowStyle}>
     <button className={contentButtonStyle} type="button" onClick={onSelect}>
       <span className={historyIconStyle} aria-hidden="true">
         <HistoryIcon size={18} />
       </span>
 
-      <span className={textContainerStyle}>
+      <Stack as="span" gap={3} className={textContainerStyle}>
         <strong className={titleStyle}>{title}</strong>
         <span className={addressStyle}>{address}</span>
         {metadata && <span className={metadataStyle}>{metadata}</span>}
-      </span>
+      </Stack>
     </button>
 
     {onRemove && (
@@ -43,13 +45,10 @@ export const RecentHistoryRow = ({
         <CloseIcon size={20} aria-hidden="true" />
       </button>
     )}
-  </li>
+  </Row>
 );
 
 const rowStyle = css`
-  display: flex;
-  align-items: center;
-
   min-height: 66px;
 
   border-bottom: 1px solid ${color.border.default};
@@ -89,10 +88,7 @@ const historyIconStyle = css`
 `;
 
 const textContainerStyle = css`
-  display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 3px;
 `;
 
 const titleStyle = css`

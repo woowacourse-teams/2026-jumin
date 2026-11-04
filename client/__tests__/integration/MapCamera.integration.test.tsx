@@ -124,8 +124,8 @@ it('홈 시트를 펼칠 때만 선택한 주차장을 시트 위로 이동시�
   expect(fromCoordToOffset).toHaveBeenCalledWith(
     new MockPoint(parkingLot.latitude, parkingLot.longitude),
   );
-  // 높이 800에서 시트 높이 500과 간격 64를 제외한 Y=236에 마커가 보여야 한다.
-  expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 514), expect.anything());
+  // 높이 800에서 시트 높이 600(75%)과 간격 64를 제외한 Y=136에 마커가 보여야 한다.
+  expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 614), expect.anything());
   const moveCount = panTo.mock.calls.length;
 
   rerender(<ParkingInformationPanel {...props} snap="collapsed" />);
@@ -175,8 +175,8 @@ it.each(['collapsed', 'expanded'] as const)(
         new MockPoint(parkingLot.location.latitude, parkingLot.location.longitude),
       );
     } else {
-      // 지도 상단 100을 뺀 검색 바 하단 120과 시트 상단 300 사이의 중앙(Y=210).
-      expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 540), expect.anything());
+      // 지도 상단 100을 뺀 검색 바 하단 120과 시트 상단 200 사이의 중앙(Y=160).
+      expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 590), expect.anything());
     }
   },
 );

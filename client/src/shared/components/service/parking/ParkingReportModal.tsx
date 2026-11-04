@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { css } from '@emotion/css';
 import { Modal } from '../../ui/Modal';
+import { Button } from '../../ui/Button';
 import type { ParkingReport } from '../../../hooks/useParkingReport';
 import { color } from '../../../../theme/color';
 import { typography } from '../../../../theme/typography';
@@ -26,9 +27,9 @@ export const ParkingReportModal = ({ report }: Props) => {
           <p className={successMessageStyle} role="status">
             신고가 접수됐어요.
           </p>
-          <button className={submitButtonStyle} type="button" onClick={report.close}>
+          <Button isFullWidth className={submitButtonStyle} onClick={report.close}>
             확인
-          </button>
+          </Button>
         </div>
       ) : (
         <form className={formStyle} onSubmit={handleSubmit} aria-busy={report.isPending}>
@@ -56,9 +57,14 @@ export const ParkingReportModal = ({ report }: Props) => {
             </p>
           )}
 
-          <button className={submitButtonStyle} type="submit" disabled={!report.canSubmit}>
+          <Button
+            isFullWidth
+            className={submitButtonStyle}
+            type="submit"
+            disabled={!report.canSubmit}
+          >
             {report.isPending ? '전송 중…' : '신고 보내기'}
-          </button>
+          </Button>
         </form>
       )}
     </Modal>
@@ -117,34 +123,7 @@ const errorStyle = css`
 `;
 
 const submitButtonStyle = css`
-  width: 100%;
-  min-height: 48px;
   margin-top: 16px;
-  padding: 12px 16px;
-
-  ${typography.bodySmallStrong};
-  color: ${color.text.inverse};
-  font-family: inherit;
-
-  background: ${color.background.brand};
-  border: 0;
-  border-radius: 14px;
-  cursor: pointer;
-
-  &:active:not(:disabled) {
-    background: ${color.background.brandPressed};
-  }
-
-  &:disabled {
-    color: ${color.text.disabled};
-    background: ${color.background.disabled};
-    cursor: not-allowed;
-  }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 3px;
-  }
 `;
 
 const successStyle = css`

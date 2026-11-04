@@ -1,3 +1,5 @@
+import { Row } from '../../shared/components/ui/Row';
+import { Notice } from '../../shared/components/ui/Notice';
 import { useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
@@ -16,10 +18,8 @@ import { trackEvent } from '../../shared/analytics';
 import { eventName } from '../../shared/monitoring/constants';
 import type { ParkingFilters } from '../../shared/types/parkingFilters';
 import { ParkingFilterBar } from '../../shared/components/service/parking/ParkingFilterBar';
-import { typography } from '../../theme/typography';
-import { color } from '../../theme/color';
 import { useStepNavigation } from '../../shared/hooks/useStepNavigation';
-import type { BottomSheetSnap } from '../../shared/types/ui';
+import { useBottomSheet } from '../../shared/hooks/useBottomSheet';
 import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 const currentLocationIcon = {
@@ -50,24 +50,34 @@ export const HomePage = () => {
   const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
-  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>('collapsed');
+  const sheet = useBottomSheet();
+  const { close, setSnap, open } = sheet;
 
   const clearParkingSelection = useCallback(() => {
-    setSheetSnap('collapsed');
+    close();
     setSelectedParkingLot(null);
-  }, []);
+  }, [close]);
 
   const collapseBottomSheet = useCallback(() => {
-    setSheetSnap('collapsed');
-  }, []);
+    setSnap('collapsed');
+  }, [setSnap]);
 
   const handleViewportChange = useCallback(
     (nextViewport: MapViewport) => {
-      if (nextViewport.zoom < MIN_PARKING_MARKER_ZOOM) {
+      const isBelowMinZoom = nextViewport.zoom < MIN_PARKING_MARKER_ZOOM;
+
+      const isSelectedOutside =
+        selectedParkingLot !== null &&
+        (selectedParkingLot.latitude < nextViewport.southLatitude ||
+          selectedParkingLot.latitude > nextViewport.northLatitude ||
+          selectedParkingLot.longitude < nextViewport.westLongitude ||
+          selectedParkingLot.longitude > nextViewport.eastLongitude);
+
+      if (isBelowMinZoom || isSelectedOutside) {
         clearParkingSelection();
       }
     },
-    [clearParkingSelection],
+    [selectedParkingLot, clearParkingSelection],
   );
 
   const viewport = useMapViewport(map, { onViewportChange: handleViewportChange });
@@ -76,16 +86,19 @@ export const HomePage = () => {
   const canShowParkingLots = viewport !== null && viewport.zoom >= MIN_PARKING_MARKER_ZOOM;
 
   // 주차장 마커 클릭 핸들러
-  const handleParkingMarkerClick = useCallback((parkingLot: ParkingLotViewport) => {
-    trackEvent(eventName.HOME_PAGE_MARKER);
-    setSelectedParkingLot(parkingLot);
-    setSheetSnap('expanded');
-  }, []);
+  const handleParkingMarkerClick = useCallback(
+    (parkingLot: ParkingLotViewport) => {
+      trackEvent(eventName.HOME_PAGE_MARKER);
+      setSelectedParkingLot(parkingLot);
+      open('medium');
+    },
+    [open],
+  );
 
   // 빈 지도 영역 클릭시 바텀시트 닫기
   useMapClick({
     map,
-    enabled: selectedParkingLot !== null && sheetSnap === 'expanded',
+    enabled: sheet.isOpen && sheet.snap !== 'collapsed',
     onMapClick: collapseBottomSheet,
   });
 
@@ -142,11 +155,9 @@ export const HomePage = () => {
             onSelect={handleParkingMarkerClick}
           />
         ) : (
-          <div className={zoomGuideContainerStyle}>
-            <span className={zoomGuideStyle} role="status" aria-live="polite">
-              지도를 확대해서 주차장을 찾아보세요.
-            </span>
-          </div>
+          <Row align="center" justify="center">
+            <Notice className={zoomGuideStyle}>지도를 확대해서 주차장을 찾아보세요.</Notice>
+          </Row>
         ))}
       {currentLocation && (
         <>
@@ -181,8 +192,9 @@ export const HomePage = () => {
         <ParkingInformationPanel
           map={map}
           parkingLot={selectedParkingLot}
-          snap={sheetSnap}
-          onSnapChange={setSheetSnap}
+          open={sheet.isOpen}
+          snap={sheet.snap}
+          onSnapChange={sheet.setSnap}
           onClose={clearParkingSelection}
         />
       )}
@@ -211,29 +223,11 @@ const parkingFilterBarStyle = css`
   padding: 4px 16px 8px;
 `;
 
-const zoomGuideContainerStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const zoomGuideStyle = css`
   position: absolute;
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
   z-index: 1;
   width: 60%;
-
-  margin: 0;
-  padding: 10px 16px;
-
-  ${typography.label};
-  color: ${color.text.primary};
-  text-align: center;
-  word-break: keep-all;
-
-  background: rgb(255 255 255 / 94%);
-  border-radius: 999px;
-  box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
 `;
 
 const footerStyle = css`

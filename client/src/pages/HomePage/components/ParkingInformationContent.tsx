@@ -1,3 +1,4 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 
 import type {
@@ -112,7 +113,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   };
 
   return (
-    <section className={sheetContentStyle}>
+    <Stack as="section" className={sheetContentStyle}>
       <ParkingDetailActions
         parkingLotId={data.id}
         likeCount={data.likeCount}
@@ -120,7 +121,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
         onDirections={handleDirectionButtonClick}
         onRoadView={handleRoadViewButtonClick}
       />
-      <div className={scrollContentStyle}>
+      <Stack className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>
 
@@ -191,26 +192,19 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
             onRequestClose={() => setIsRoadViewOpen(false)}
           />
         )}
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 };
 const sheetContentStyle = css`
-  display: flex;
-  flex-direction: column;
-
   height: 100%;
-  min-height: 0;
 `;
 
 const scrollContentStyle = css`
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
 
   overflow-y: auto;
-  padding-inline-end: 15px;
   overscroll-behavior: contain;
 
   > section {

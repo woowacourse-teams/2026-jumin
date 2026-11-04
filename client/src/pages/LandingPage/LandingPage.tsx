@@ -1,3 +1,4 @@
+import { Row } from '../../shared/components/ui/Row';
 import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
@@ -25,20 +26,20 @@ export const LandingPage = () => {
       <a className={styles.skipLink} href="#landing-intro">
         본문 바로가기
       </a>
-      <header className={styles.header}>
+      <Row as="header" align="center" justify="between" gap={24} className={styles.header}>
         <Link className={styles.brand} to="/landing" aria-label="주차의민족 소개 홈">
           <img src={brandMark} alt="" width="29" height="32" />
           주차의민족
         </Link>
-        <nav className={styles.navigation} aria-label="랜딩페이지 메뉴">
+        <Row as="nav" gap={32} className={styles.navigation} aria-label="랜딩페이지 메뉴">
           <a href="#landing-intro">서비스 소개</a>
           <a href="#landing-guide">이용 방법</a>
           <a href="#landing-technology">기술 이야기</a>
-        </nav>
+        </Row>
         <Link className={styles.headerCta} to="/">
           시작하기 <ChevronRightIcon size={16} aria-hidden="true" />
         </Link>
-      </header>
+      </Row>
 
       <section className={styles.hero} aria-labelledby="landing-title">
         <div className={styles.heroCopy}>
@@ -53,18 +54,18 @@ export const LandingPage = () => {
             <br />
             거리와 예상 요금을 비교하고 길찾기까지 이어가세요.
           </p>
-          <div className={styles.actions}>
+          <Row align="center" gap={20} className={styles.actions}>
             <Link className={cx(styles.button, styles.primaryButton)} to="/">
               주차장 찾아보기 <ChevronRightIcon size={19} aria-hidden="true" />
             </Link>
             <a className={styles.textLink} href="#landing-guide">
               이용 방법 알아보기 <ArrowDownIcon size={17} aria-hidden="true" />
             </a>
-          </div>
+          </Row>
           <p className={styles.heroNote}>설치 없이 웹에서 바로 시작할 수 있어요.</p>
         </div>
         <figure className={styles.heroVisual}>
-          <div className={styles.visualStage}>
+          <Row align="center" justify="center" className={styles.visualStage}>
             <span className={styles.stageLabel}>목적지에서 주차장까지</span>
             <span className={styles.parkingSymbol} aria-hidden="true">
               P
@@ -78,20 +79,20 @@ export const LandingPage = () => {
                 fetchPriority="high"
               />
             </div>
-            <div className={styles.visualCaption}>
+            <Row align="center" gap={14} className={styles.visualCaption}>
               <LocationIcon size={27} aria-hidden="true" />
               <div>
                 <span>주차장을 고르는 나만의 기준</span>
                 <strong>거리도, 요금도 비교해서.</strong>
               </div>
-            </div>
-          </div>
+            </Row>
+          </Row>
           <figcaption>현재 서비스 화면 · 주차장 정보와 요금은 예시</figcaption>
         </figure>
       </section>
 
       <section id="landing-intro" className={styles.intro} aria-labelledby="landing-intro-title">
-        <div className={styles.sectionHeading}>
+        <Row align="end" justify="between" gap={32} className={styles.sectionHeading}>
           <div>
             <p className={styles.eyebrow}>01 / 서비스 소개</p>
             <h2 id="landing-intro-title">
@@ -105,7 +106,7 @@ export const LandingPage = () => {
             <br />
             이제 내 목적지와 조건을 기준으로 살펴보세요.
           </p>
-        </div>
+        </Row>
         <div className={styles.features}>
           <article>
             <LocationIcon className={styles.featureIcon} size={28} aria-hidden="true" />
@@ -148,7 +149,7 @@ export const LandingPage = () => {
         <p className={styles.description}>
           웹에서 바로 이용하거나, 홈 화면에 설치해 더 편하게 열어보세요.
         </p>
-        <div className={styles.actions}>
+        <Row align="center" gap={20} className={styles.actions}>
           <Link className={cx(styles.button, styles.primaryButton)} to="/">
             주차장 찾아보기 <ChevronRightIcon size={19} aria-hidden="true" />
           </Link>
@@ -161,20 +162,20 @@ export const LandingPage = () => {
             <InstallIcon size={19} aria-hidden="true" />
             {isInstalled ? '설치 완료' : isInstalling ? '설치창 여는 중' : '앱 설치하기'}
           </button>
-        </div>
+        </Row>
         <p className={styles.installMessage} role="status" aria-live="polite">
           {installMessage}
         </p>
       </section>
 
-      <footer className={styles.footer}>
+      <Row as="footer" align="center" gap={24} className={styles.footer}>
         <Link className={styles.brand} to="/landing">
           <img src={brandMark} alt="" width="23" height="26" />
           주차의민족
         </Link>
         <p>주차장을 찾는 가장 간단한 방법</p>
         <a href="#landing-technology">주차의민족의 기술 이야기</a>
-      </footer>
+      </Row>
     </main>
   );
 };
@@ -246,12 +247,9 @@ const styles = {
     }
   `,
   header: css`
-    display: flex;
     width: min(100% - 96px, 1200px);
     min-height: 100px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
+
     margin: 0 auto;
     padding-top: env(safe-area-inset-top, 0px);
     @media (max-width: 700px) {
@@ -280,8 +278,6 @@ const styles = {
     }
   `,
   navigation: css`
-    display: flex;
-    gap: 32px;
     ${typography.label};
     color: ${color.text.secondary};
     a {
@@ -385,10 +381,8 @@ const styles = {
     }
   `,
   actions: css`
-    display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 20px;
+
     margin-top: 32px;
     @media (max-width: 1000px) {
       gap: 16px;
@@ -445,10 +439,9 @@ const styles = {
   `,
   visualStage: css`
     position: relative;
-    display: flex;
+
     min-height: 580px;
-    align-items: center;
-    justify-content: center;
+
     overflow: hidden;
     padding: 54px 24px 64px;
     border-radius: 28px;
@@ -515,9 +508,7 @@ const styles = {
     right: 24px;
     bottom: 32px;
     left: 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
+
     padding: 18px 20px;
     border: 1px solid ${color.border.default};
     border-radius: 14px;
@@ -546,10 +537,6 @@ const styles = {
     }
   `,
   sectionHeading: css`
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 32px;
     h2 {
       margin-top: 20px;
       font-size: clamp(1.875rem, 3.3vw, 2.75rem);
@@ -654,11 +641,10 @@ const styles = {
     }
   `,
   footer: css`
-    display: flex;
     width: min(100% - 96px, 1200px);
-    align-items: center;
+
     flex-wrap: wrap;
-    gap: 24px;
+
     margin: 0 auto;
     padding: 40px 0 calc(40px + env(safe-area-inset-bottom, 0px));
     ${typography.caption};

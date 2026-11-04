@@ -1,3 +1,5 @@
+import { Row } from '../../../shared/components/ui/Row';
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 
 import home from '../../../../assets/landing/home.webp';
@@ -56,12 +58,12 @@ export const LandingGuide = () => (
 
       <ol className={styles.steps}>
         {steps.map((step, index) => (
-          <li className={styles.step} key={step.label}>
+          <Stack as="li" className={styles.step} key={step.label}>
             <div className={styles.copy}>
-              <p className={styles.label}>
+              <Row as="p" align="center" gap={12} className={styles.label}>
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 {step.label}
-              </p>
+              </Row>
               <h3>
                 {step.title[0]}
                 <br />
@@ -79,7 +81,7 @@ export const LandingGuide = () => (
                 loading="lazy"
               />
             </div>
-          </li>
+          </Stack>
         ))}
       </ol>
 
@@ -146,9 +148,8 @@ const styles = {
     }
   `,
   step: css`
-    display: flex;
     min-width: 0;
-    flex-direction: column;
+
     padding-top: 20px;
     border-top: 1px solid ${color.border.brand};
   `,
@@ -173,9 +174,6 @@ const styles = {
     }
   `,
   label: css`
-    display: flex;
-    align-items: center;
-    gap: 12px;
     margin: 0;
     ${typography.label};
     color: ${color.text.brand};

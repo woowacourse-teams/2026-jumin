@@ -7,11 +7,11 @@ import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
 import { parkingSearchQueryOptions } from '../../../api/queries/parkingSearchQueryOptions';
 import { ConditionBar } from '../../../shared/components/service/ConditionBar';
 import { ErrorCard } from '../../../shared/components/service/ErrorCard';
-import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../shared/components/ui/BottomSheet';
+import BottomSheet, { getBottomSheetSnapHeight } from '../../../shared/components/ui/BottomSheet';
+import { useBottomSheet } from '../../../shared/hooks/useBottomSheet';
 import { useMapClick } from '../../../shared/hooks/useMapClick';
 import { getMapCenterForMarkerY } from '../../../shared/maps/getMapCenterForMarkerY';
 import type { ParkingSearchCondition } from '../../../shared/types/navigation';
-import type { BottomSheetSnap } from '../../../shared/types/ui';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import { ParkingRecommendSkeleton } from '../LoadingUI/ParkingRecommendSkeleton';
 import type { RecommendationType } from '../types/recommendation';
@@ -32,14 +32,14 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
   const [recommendationType, setRecommendationType] = useState<RecommendationType>('BALANCED');
   const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotSummary | null>(null);
   const [detailParkingLot, setDetailParkingLot] = useState<ParkingLotSummary | null>(null);
-  const [recommendationSnap, setRecommendationSnap] = useState<BottomSheetSnap>('expanded');
-  const [detailSnap, setDetailSnap] = useState<BottomSheetSnap>('expanded');
+  const recommendationSheet = useBottomSheet({ initialIsOpen: true });
+  const detailSheet = useBottomSheet();
   const conditionBarRef = useRef<HTMLElement>(null);
 
   // 상세 대상의 유무로 모드를 구분해 별도의 mode와 대상이 어긋나지 않게 한다.
   const isDetail = detailParkingLot !== null;
-  const sheetSnap = isDetail ? detailSnap : recommendationSnap;
-  const setSheetSnap = isDetail ? setDetailSnap : setRecommendationSnap;
+  const sheet = isDetail ? detailSheet : recommendationSheet;
+  const sheetSnap = sheet.snap;
 
   const parkingLots = useMemo(
     () => sortParkingLots(recommendationQuery.data?.parkingLots ?? [], recommendationType),
@@ -53,12 +53,15 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
 
   useMapClick({
     map,
-    enabled: sheetSnap === 'expanded',
-    onMapClick: () => setSheetSnap('collapsed'),
+    enabled: sheet.isOpen && sheetSnap !== 'collapsed',
+    onMapClick: () => sheet.setSnap('collapsed'),
   });
 
   useEffect(() => {
-    if (!map || !activeParkingLot) return;
+    if (!sheet.isOpen || !map || !activeParkingLot || sheetSnap === 'full') return;
+
+    const mapHeight = map.getSize().height;
+    const sheetHeight = getBottomSheetSnapHeight(sheetSnap, mapHeight);
 
     const position = new naver.maps.LatLng(
       activeParkingLot.location.latitude,
@@ -66,6 +69,8 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
     );
 
     if (isDetail) {
+      // 검색 조건 바와 시트 사이에 지도 영역이 없으면 경계 계산을 생략한다.
+      if (mapHeight - sheetHeight <= 136) return;
       map.fitBounds(
         [
           new naver.maps.LatLng(
@@ -77,7 +82,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
         {
           top: 112,
           right: 40,
-          bottom: sheetSnap === 'expanded' ? BOTTOM_SHEET_HEIGHT + 24 : 124,
+          bottom: sheetSnap === 'collapsed' ? 124 : sheetHeight + 24,
           left: 40,
           maxZoom: 15,
         },
@@ -96,35 +101,50 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
 
     const headerBottom =
       header.getBoundingClientRect().bottom - map.getElement().getBoundingClientRect().top;
-    const targetY = (headerBottom + map.getSize().height - BOTTOM_SHEET_HEIGHT) / 2;
+    const sheetTop = mapHeight - sheetHeight;
+    if (sheetTop <= headerBottom) return;
+    const targetY = (headerBottom + sheetTop) / 2;
     const center = getMapCenterForMarkerY(map, position, targetY);
     map.panTo(center, { duration: 300 });
-  }, [map, activeParkingLot, isDetail, sheetSnap, searchCondition]);
+  }, [sheet.isOpen, map, activeParkingLot, isDetail, sheetSnap, searchCondition]);
 
   const selectParkingLot = (parkingLot: ParkingLotSummary) => {
     // 같은 주차장을 다시 눌러도 사용자가 옮긴 지도를 해당 위치로 이동한다.
     setSelectedParkingLot({ ...parkingLot });
-    setSheetSnap('expanded');
+    // 이미 펼친 목록에서는 사용자가 정한 높이를 유지한다.
+    sheet.setSnap((snap) => (snap === 'collapsed' ? 'expanded' : snap));
   };
 
   const openDetail = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLot({ ...parkingLot });
-    setDetailSnap('expanded');
+    detailSheet.open(sheetSnap === 'collapsed' ? 'expanded' : sheetSnap);
     setDetailParkingLot(parkingLot);
   };
 
+  const conditionBar = (
+    <ConditionBar
+      elementRef={conditionBarRef}
+      title={detailParkingLot?.name ?? searchCondition.destinationName}
+      description={
+        isDetail
+          ? searchCondition.destinationName
+          : `${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`
+      }
+      onBack={() => {
+        if (isDetail) {
+          detailSheet.close();
+          setDetailParkingLot(null);
+        } else {
+          recommendationSheet.close();
+          onBack();
+        }
+      }}
+    />
+  );
+
   return (
     <main className={pageStyle}>
-      <ConditionBar
-        elementRef={conditionBarRef}
-        title={detailParkingLot?.name ?? searchCondition.destinationName}
-        description={
-          isDetail
-            ? searchCondition.destinationName
-            : `${formatIsoDateTime(searchCondition.entryAt)} - ${formatIsoDateTime(searchCondition.exitAt)}`
-        }
-        onBack={isDetail ? () => setDetailParkingLot(null) : onBack}
-      />
+      {sheet.isOpen && sheetSnap !== 'full' && conditionBar}
       <ParkingMarkers
         map={map}
         destination={{
@@ -139,10 +159,11 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
         onSelect={selectParkingLot}
       />
       <BottomSheet
+        open={sheet.isOpen}
         snap={sheetSnap}
-        onSnapChange={setSheetSnap}
-        contentClassName={
-          !isDetail && recommendationQuery.data ? recommendationContentStyle : undefined
+        onSnapChange={sheet.setSnap}
+        header={
+          sheetSnap === 'full' ? <div className={fullHeaderStyle}>{conditionBar}</div> : undefined
         }
       >
         <div className={contentStyle} hidden={isDetail}>
@@ -153,7 +174,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
               recommendationType={recommendationType}
               selectedParkingLot={activeParkingLot}
               isActive={!isDetail}
-              sheetSnap={recommendationSnap}
+              sheetSnap={recommendationSheet.snap}
               onTypeChange={(type) => {
                 setRecommendationType(type);
                 setSelectedParkingLot(null);
@@ -199,14 +220,17 @@ const contentStyle = css`
   }
 `;
 
-// 배경은 시트 끝까지 채우고, 실제 콘텐츠의 여백은 추천 목록 안에서 적용한다.
-const recommendationContentStyle = css`
-  padding: 0;
-`;
-
 const inlineErrorStyle = css`
   position: relative;
   inset: auto;
   max-height: 100%;
   overflow-y: auto;
+`;
+
+const fullHeaderStyle = css`
+  > header {
+    position: static;
+    margin: 0 16px 16px;
+    box-shadow: none;
+  }
 `;
