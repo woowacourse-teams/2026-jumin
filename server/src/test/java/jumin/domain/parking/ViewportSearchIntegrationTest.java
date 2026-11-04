@@ -312,25 +312,7 @@ class ViewportSearchIntegrationTest {
             jdbc.execute("TRUNCATE parking_lots RESTART IDENTITY CASCADE");
             Random random = new Random(20261028);
             for (int index = 0; index < 150; index++) {
-                long id = index == 149 ? 9_007_199_254_740_993L : index + 1L;
-                double latitude = 37.49 + random.nextDouble() * 0.02;
-                double longitude = 126.99 + random.nextDouble() * 0.02;
-                if (index < 4) {
-                    latitude = index < 2 ? 37.495 : 37.505;
-                    longitude = index % 2 == 0 ? 126.995 : 127.005;
-                }
-                jdbc.update("""
-                        INSERT INTO parking_lots (id, source, source_external_id, name, address, latitude, longitude,
-                        capacity, mechanical, is_public, active, source_checked_at, created_at, updated_at)
-                        VALUES (?, 'DATA_GO_KR', ?, ?, 'test', ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
-                        """, id, Long.toString(id), "test " + id, latitude, longitude,
-                        index % 3 == 0 ? null : index, index % 2 == 0, tri(index / 3), index % 11 != 0);
-                if (index % 13 != 0) {
-                    jdbc.update("""
-                            INSERT INTO parking_operations (parking_lot_id, weekday_paid, saturday_paid, holiday_paid,
-                            source_checked_at, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW(), NOW())
-                            """, id, tri(index / 9), tri(index / 27), tri(index / 81));
-                }
+                insertFixtureParkingLot(index, random);
             }
         });
         assertThat(writer.prepare().ready()).isTrue();
@@ -556,5 +538,40 @@ class ViewportSearchIntegrationTest {
 
     private static ParkingLotViewportRequest request(int mask, double west, double south, double east, double north) {
         return new ParkingLotViewportRequest(west, south, east, north, (mask & 1) != 0, (mask & 2) != 0, (mask & 4) != 0);
+    }
+
+    private void insertFixtureParkingLot(int index, Random random) {
+        long id = index + 1L;
+        if (index == 149) {
+            id = 9_007_199_254_740_993L;
+        }
+        double latitude = 37.49 + random.nextDouble() * 0.02;
+        double longitude = 126.99 + random.nextDouble() * 0.02;
+        if (index < 4) {
+            latitude = 37.505;
+            if (index < 2) {
+                latitude = 37.495;
+            }
+            longitude = 127.005;
+            if (index % 2 == 0) {
+                longitude = 126.995;
+            }
+        }
+        Integer capacity = null;
+        if (index % 3 != 0) {
+            capacity = index;
+        }
+        jdbc.update("""
+                INSERT INTO parking_lots (id, source, source_external_id, name, address, latitude, longitude,
+                capacity, mechanical, is_public, active, source_checked_at, created_at, updated_at)
+                VALUES (?, 'DATA_GO_KR', ?, ?, 'test', ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
+                """, id, Long.toString(id), "test " + id, latitude, longitude,
+                capacity, index % 2 == 0, tri(index / 3), index % 11 != 0);
+        if (index % 13 != 0) {
+            jdbc.update("""
+                    INSERT INTO parking_operations (parking_lot_id, weekday_paid, saturday_paid, holiday_paid,
+                    source_checked_at, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW(), NOW())
+                    """, id, tri(index / 9), tri(index / 27), tri(index / 81));
+        }
     }
 }

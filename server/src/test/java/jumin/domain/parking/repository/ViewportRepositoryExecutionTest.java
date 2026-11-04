@@ -324,9 +324,10 @@ class ViewportRepositoryExecutionTest {
                 }
                 return present;
             });
-            Runnable query = cellQuery
-                    ? () -> harness.db.load(List.of(key), deadline)
-                    : () -> harness.db.findWithinBounds(bounds, request, 1, deadline);
+            Runnable query = () -> harness.db.findWithinBounds(bounds, request, 1, deadline);
+            if (cellQuery) {
+                query = () -> harness.db.load(List.of(key), deadline);
+            }
 
             // when & then
             assertThatThrownBy(query::run)

@@ -163,20 +163,8 @@ public class ParkingSearchService {
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
         Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
-        Integer estimatedFee = null;
-        if (operation != null) {
-            estimatedFee = operation.calculateFee(
-                    durationMinutes,
-                    request.entryAt().getDayOfWeek()
-            );
-        }
-
-        Double balancedScore = distanceMeters == null ? null : balancedScoreCalculator.calculate(
-                availabilityStatus,
-                distanceMeters,
-                estimatedFee,
-                durationMinutes
-        );
+        Integer estimatedFee = estimatedFee(operation, request, durationMinutes);
+        Double balancedScore = balancedScore(availabilityStatus, distanceMeters, estimatedFee, durationMinutes);
 
         return ParkingLotResponse.from(
                 parkingLot.getId(),
@@ -192,4 +180,18 @@ public class ParkingSearchService {
         );
     }
 
+    private Integer estimatedFee(ParkingOperation operation, ParkingSearchRequest request, int durationMinutes) {
+        if (operation == null) {
+            return null;
+        }
+        return operation.calculateFee(durationMinutes, request.entryAt().getDayOfWeek());
+    }
+
+    private Double balancedScore(ParkingAvailabilityStatus availabilityStatus, Integer distanceMeters,
+                                 Integer estimatedFee, int durationMinutes) {
+        if (distanceMeters == null) {
+            return null;
+        }
+        return balancedScoreCalculator.calculate(availabilityStatus, distanceMeters, estimatedFee, durationMinutes);
+    }
 }

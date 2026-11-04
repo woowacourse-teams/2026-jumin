@@ -382,7 +382,14 @@ class ViewportInvalidationRaceIntegrationTest {
 
         private ObservedStore(ViewportCellStore delegate, boolean pauseWrite) {
             this.delegate = delegate;
-            release = new CountDownLatch(pauseWrite ? 1 : 0);
+            release = createWriteReleaseLatch(pauseWrite);
+        }
+
+        private static CountDownLatch createWriteReleaseLatch(boolean pauseWrite) {
+            if (pauseWrite) {
+                return new CountDownLatch(1);
+            }
+            return new CountDownLatch(0);
         }
 
         @Override

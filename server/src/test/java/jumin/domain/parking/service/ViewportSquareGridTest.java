@@ -34,8 +34,16 @@ class ViewportSquareGridTest {
             for (double longitude : List.of(-0.00001, 0.00001)) {
                 long cell = grid.cellId(latitude, longitude, 1000);
                 cells.add(cell);
-                assertThat((int) (cell >> 32)).isEqualTo(longitude < 0 ? -1 : 0);
-                assertThat((int) cell).isEqualTo(latitude < 0 ? -1 : 0);
+                int expectedColumn = 0;
+                int expectedRow = 0;
+                if (longitude < 0) {
+                    expectedColumn = -1;
+                }
+                if (latitude < 0) {
+                    expectedRow = -1;
+                }
+                assertThat((int) (cell >> 32)).isEqualTo(expectedColumn);
+                assertThat((int) cell).isEqualTo(expectedRow);
             }
         }
         assertThat(cells).hasSize(4);
@@ -85,10 +93,8 @@ class ViewportSquareGridTest {
                 List<Long> cells = grid.cover(bounds, size, 64);
                 assertThat(cells).isNotEmpty().doesNotHaveDuplicates().isSorted();
                 for (int sample = 0; sample < 16; sample++) {
-                    double latitude = sample % 4 == 0 ? bounds.south() : sample % 4 == 1 ? bounds.north()
-                            : bounds.south() + random.nextDouble() * 0.0005;
-                    double longitude = sample % 4 == 2 ? bounds.west() : sample % 4 == 3 ? bounds.east()
-                            : bounds.west() + random.nextDouble() * 0.0005;
+                    double latitude = sampleLatitude(sample, bounds, random);
+                    double longitude = sampleLongitude(sample, bounds, random);
                     assertThat(cells).contains(grid.cellId(latitude, longitude, size));
                 }
             }
@@ -145,4 +151,24 @@ class ViewportSquareGridTest {
     private static double latitude(double y) {
         return StrictMath.toDegrees(StrictMath.atan(StrictMath.sinh(y / 6_378_137.0)));
     }
+    private static double sampleLatitude(int sample, ViewportBounds bounds, Random random) {
+        if (sample % 4 == 0) {
+            return bounds.south();
+        }
+        if (sample % 4 == 1) {
+            return bounds.north();
+        }
+        return bounds.south() + random.nextDouble() * 0.0005;
+    }
+
+    private static double sampleLongitude(int sample, ViewportBounds bounds, Random random) {
+        if (sample % 4 == 2) {
+            return bounds.west();
+        }
+        if (sample % 4 == 3) {
+            return bounds.east();
+        }
+        return bounds.west() + random.nextDouble() * 0.0005;
+    }
+
 }

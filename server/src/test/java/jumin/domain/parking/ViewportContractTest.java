@@ -153,10 +153,8 @@ class ViewportContractTest {
             List<Long> cells = cover.cover(bounds);
             assertThat(cells).isNotEmpty();
             for (int sample = 0; sample < 20; sample++) {
-                double latitude = sample == 0 ? south : sample == 1 ? bounds.north()
-                        : south + random.nextDouble() * 0.008;
-                double longitude = sample == 0 ? west : sample == 1 ? bounds.east()
-                        : west + random.nextDouble() * 0.012;
+                double latitude = sampleCoordinate(sample, south, bounds.north(), 0.008, random);
+                double longitude = sampleCoordinate(sample, west, bounds.east(), 0.012, random);
                 assertThat(cells).contains(grid.cellId(latitude, longitude, 1000));
             }
         }
@@ -232,4 +230,14 @@ class ViewportContractTest {
     private ParkingLotViewportRequest request(boolean free, boolean mechanical, boolean isPublic) {
         return new ParkingLotViewportRequest(126.99, 37.49, 127.01, 37.51, free, mechanical, isPublic);
     }
+    private static double sampleCoordinate(int sample, double lower, double upper, double spread, Random random) {
+        if (sample == 0) {
+            return lower;
+        }
+        if (sample == 1) {
+            return upper;
+        }
+        return lower + random.nextDouble() * spread;
+    }
+
 }

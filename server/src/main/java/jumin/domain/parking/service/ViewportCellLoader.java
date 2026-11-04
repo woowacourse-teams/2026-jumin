@@ -179,8 +179,17 @@ public class ViewportCellLoader implements AutoCloseable {
         if (missing.isEmpty()) {
             return;
         }
-        Map<ViewportCellKey, ViewportCell> rechecked = recheck(List.copyOf(missing.keySet()), deadline,
-                bypassStore);
+        fillFromCache(missing, deadline, bypassStore);
+        if (missing.isEmpty()) {
+            return;
+        }
+        Map<ViewportCellKey, ViewportCell> loaded = loadAndCache(missing, deadline);
+        missing.forEach((key, load) -> load.result = loaded.get(key));
+    }
+
+    private void fillFromCache(Map<ViewportCellKey, CellLoad> missing, ViewportDeadline deadline,
+                               boolean bypassStore) {
+        Map<ViewportCellKey, ViewportCell> rechecked = recheck(List.copyOf(missing.keySet()), deadline, bypassStore);
         metrics.count("cells", "recheck_hit", rechecked.size());
         rechecked.forEach((key, cell) -> {
             CellLoad load = missing.remove(key);
@@ -188,9 +197,10 @@ public class ViewportCellLoader implements AutoCloseable {
                 load.result = cell;
             }
         });
-        if (missing.isEmpty()) {
-            return;
-        }
+    }
+
+    private Map<ViewportCellKey, ViewportCell> loadAndCache(Map<ViewportCellKey, CellLoad> missing,
+                                                         ViewportDeadline deadline) {
         deadline.requireRemaining();
         Map<ViewportCellKey, ViewportCell> loaded = repository.load(List.copyOf(missing.keySet()), deadline);
         if (loaded == null || !loaded.keySet().containsAll(missing.keySet())) {
@@ -199,7 +209,7 @@ public class ViewportCellLoader implements AutoCloseable {
         requireOpen();
         deadline.requireRemaining();
         persist(loaded, deadline);
-        missing.forEach((key, load) -> load.result = loaded.get(key));
+        return loaded;
     }
 
     private Map<ViewportCellKey, ViewportCell> recheck(List<ViewportCellKey> keys, ViewportDeadline deadline,

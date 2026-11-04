@@ -218,16 +218,24 @@ class ViewportStoreBypassTest {
             }
             assertThat(writeFailed.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(initialReads).hasValue(requestCount);
-            assertThat(rechecks).hasValue(failInitial ? 0 : 1);
+            int expectedInitialFailures = 0;
+            int expectedRechecks = 1;
+            int expectedMisses = requestCount;
+            if (failInitial) {
+                expectedInitialFailures = requestCount;
+                expectedRechecks = 0;
+                expectedMisses = 0;
+            }
+            assertThat(rechecks).hasValue(expectedRechecks);
             verify(repository, times(1)).load(anyList(), any());
             verify(repository, times(0)).findWithinBounds(any(), any(), anyInt(), any());
-            assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(failInitial ? requestCount : 0);
-            assertThat(counter(registry, "store", "recheck_failure")).isEqualTo(failInitial ? 0 : 1);
-            assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(failInitial ? requestCount : 0);
-            assertThat(counter(registry, "store", "bypass_recheck")).isEqualTo(failInitial ? 0 : 1);
+            assertThat(counter(registry, "store", "initial_get_failure")).isEqualTo(expectedInitialFailures);
+            assertThat(counter(registry, "store", "recheck_failure")).isEqualTo(expectedRechecks);
+            assertThat(counter(registry, "store", "bypass_initial")).isEqualTo(expectedInitialFailures);
+            assertThat(counter(registry, "store", "bypass_recheck")).isEqualTo(expectedRechecks);
             assertThat(counter(registry, "store", "put_failure")).isEqualTo(1);
             assertThat(counter(registry, "cells", "hit")).isZero();
-            assertThat(counter(registry, "cells", "miss")).isEqualTo(failInitial ? 0 : requestCount);
+            assertThat(counter(registry, "cells", "miss")).isEqualTo(expectedMisses);
         } finally {
             source.completeExceptionally(new AssertionError("test finished before completing source"));
         }
@@ -295,7 +303,11 @@ class ViewportStoreBypassTest {
 
                 verify(repository, times(0)).load(anyList(), any());
                 verify(repository, times(1)).findWithinBounds(any(), any(), anyInt(), any());
-                assertThat(counter(registry, "store", failInitial ? "initial_get_budget" : "recheck_budget")).isEqualTo(1);
+                String expectedBudget = "recheck_budget";
+                if (failInitial) {
+                    expectedBudget = "initial_get_budget";
+                }
+                assertThat(counter(registry, "store", expectedBudget)).isEqualTo(1);
                 assertThat(counter(registry, "store", "bypass_initial")).isZero();
                 assertThat(counter(registry, "store", "bypass_recheck")).isZero();
             }
@@ -346,7 +358,10 @@ class ViewportStoreBypassTest {
             ViewportCellStore store = new EmptyViewportCellStore() {
                 @Override
                 public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
-                    return oversize ? Map.of() : Map.of(first, new ViewportCell(first, List.of(duplicate)),
+                    if (oversize) {
+                        return Map.of();
+                    }
+                    return Map.of(first, new ViewportCell(first, List.of(duplicate)),
                             second, new ViewportCell(second, List.of(duplicate)));
                 }
             };
@@ -363,10 +378,16 @@ class ViewportStoreBypassTest {
                 // when & then
                 assertThat(search(service)).isEqualTo(expected);
 
-                verify(repository, times(oversize ? 1 : 0)).load(anyList(), any());
+                int expectedLoads = 0;
+                int expectedAssemblyFailures = 1;
+                if (oversize) {
+                    expectedLoads = 1;
+                    expectedAssemblyFailures = 0;
+                }
+                verify(repository, times(expectedLoads)).load(anyList(), any());
                 verify(repository, times(1)).findWithinBounds(any(), any(), anyInt(), any());
-                assertThat(counter(registry, "requests", "oversize_bypass")).isEqualTo(oversize ? 1 : 0);
-                assertThat(counter(registry, "store", "assemble_failure")).isEqualTo(oversize ? 0 : 1);
+                assertThat(counter(registry, "requests", "oversize_bypass")).isEqualTo(expectedLoads);
+                assertThat(counter(registry, "store", "assemble_failure")).isEqualTo(expectedAssemblyFailures);
                 assertThat(counter(registry, "store", "bypass_initial")).isZero();
                 assertThat(counter(registry, "store", "bypass_recheck")).isZero();
             }
@@ -427,7 +448,10 @@ class ViewportStoreBypassTest {
             @Override
             public Map<ViewportCellKey, ViewportCell> getMany(List<ViewportCellKey> keys, ViewportDeadline deadline) {
                 int read = reads.incrementAndGet();
-                return read == 2 || read == 3 ? Map.of() : Map.of(key, cell);
+                if (read == 2 || read == 3) {
+                    return Map.of();
+                }
+                return Map.of(key, cell);
             }
         };
         ViewportRepository repository = mock(ViewportRepository.class);
