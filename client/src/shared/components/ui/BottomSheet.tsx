@@ -381,9 +381,11 @@ const headerStyle = css`
 `;
 
 const contentStyle = css`
+  --bottom-sheet-content-padding-x: ${bottomSheetTokens.content.paddingX}px;
+
   flex: 1;
   min-height: 0;
-  padding: 0 ${bottomSheetTokens.content.paddingX}px
+  padding: 0 var(--bottom-sheet-content-padding-x)
     max(${bottomSheetTokens.content.paddingBottomMin}px, env(safe-area-inset-bottom, 0px));
   overflow: hidden;
 `;
