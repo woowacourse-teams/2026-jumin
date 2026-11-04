@@ -51,15 +51,16 @@ export const HomePage = () => {
 
   // 바텀시트
   const sheet = useBottomSheet();
+  const { close, setSnap, open } = sheet;
 
   const clearParkingSelection = useCallback(() => {
-    sheet.close();
+    close();
     setSelectedParkingLot(null);
-  }, [sheet.close]);
+  }, [close]);
 
   const collapseBottomSheet = useCallback(() => {
-    sheet.setSnap('collapsed');
-  }, [sheet.setSnap]);
+    setSnap('collapsed');
+  }, [setSnap]);
 
   const handleViewportChange = useCallback(
     (nextViewport: MapViewport) => {
@@ -89,9 +90,9 @@ export const HomePage = () => {
     (parkingLot: ParkingLotViewport) => {
       trackEvent(eventName.HOME_PAGE_MARKER);
       setSelectedParkingLot(parkingLot);
-      sheet.open('medium');
+      open('medium');
     },
-    [sheet.open],
+    [open],
   );
 
   // 빈 지도 영역 클릭시 바텀시트 닫기
