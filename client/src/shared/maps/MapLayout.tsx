@@ -1,8 +1,9 @@
 import { css } from '@emotion/css';
 import { Suspense, useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 
 import { NaverMap } from './NaverMap';
+import { parseCoordinates } from '../utils/parseCoordinates';
 
 const DEFAULT_MAP_CENTER = {
   latitude: 37.4981,
@@ -11,12 +12,18 @@ const DEFAULT_MAP_CENTER = {
 
 export const MapLayout = () => {
   const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const { search } = useLocation();
+
+  const params = new URLSearchParams(search);
+
+  const initialCenter =
+    parseCoordinates(params.get('lat'), params.get('lng')) ?? DEFAULT_MAP_CENTER;
 
   return (
     <div className={layoutStyle}>
       <NaverMap
-        latitude={DEFAULT_MAP_CENTER.latitude}
-        longitude={DEFAULT_MAP_CENTER.longitude}
+        latitude={initialCenter.latitude}
+        longitude={initialCenter.longitude}
         onMapReady={setMap}
       />
       <Suspense fallback={<div role="status">페이지를 불러오는중...</div>}>
