@@ -28,25 +28,25 @@ type ButtonSizeToken = 'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconS
  */
 const BUTTON_SIZE = {
   lg: {
-    paddingX: '0.5rem' /* 8px */,
+    paddingX: '1.25rem' /* 20px */,
     paddingY: '1rem' /* 16px */,
     borderRadius: '0.875rem' /* 14px */,
     gap: '0.5rem' /* 8px */,
     iconSize: '1.375rem' /* 22px */,
   },
   md: {
-    paddingX: '0.25rem' /* 4px */,
+    paddingX: '1rem' /* 16px */,
     paddingY: '0.75rem' /* 12px */,
     borderRadius: '0.75rem' /* 12px */,
     gap: '0.25rem' /* 4px */,
     iconSize: '1.125rem' /* 18px */,
   },
   sm: {
-    paddingX: '0.0125rem' /* 2px */,
+    paddingX: '0.75rem' /* 12px */,
     paddingY: '0.5rem' /* 8px */,
-    borderRadius: '0.75rem' /* 12px */,
-    gap: '0.375rem' /* 6px */,
-    iconSize: '1rem' /* 16px */,
+    borderRadius: '0.625rem' /* 10px */,
+    gap: '0.125rem' /* 2px */,
+    iconSize: '0.875rem' /* 14px */,
   },
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 

@@ -1,8 +1,26 @@
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { Stack } from './Stack';
 import { CloseIcon } from './icons';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
+
+const MODAL = {
+  maxWidth: '340px',
+  padding: '26px 20px 18px',
+  radius: '24px',
+  shadow: '0 24px 64px rgb(16 27 55 / 24%)',
+  zIndex: 2000,
+  closeOffset: '14px',
+  closeSize: '36px',
+  closeRadius: '10px',
+  closeIconSize: 24,
+} as const;
+
+if (typeof document !== 'undefined') {
+  const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
+  if (appElement) ReactModal.setAppElement(appElement);
+}
 
 interface Props {
   onClose: () => void;
@@ -30,10 +48,10 @@ export const Modal = ({ onClose, label, description, children }: Props) => {
         aria-label={`${label} 닫기`}
         onClick={onClose}
       >
-        <CloseIcon size={24} aria-hidden="true" />
+        <CloseIcon size={MODAL.closeIconSize} aria-hidden="true" />
       </button>
 
-      <section className={contentStyle}>{children}</section>
+      <Stack as="section">{children}</Stack>
     </ReactModal>
   );
 };
@@ -41,7 +59,7 @@ export const Modal = ({ onClose, label, description, children }: Props) => {
 const overlayStyle = css`
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  z-index: ${MODAL.zIndex};
 
   display: grid;
   place-items: center;
@@ -55,37 +73,37 @@ const overlayStyle = css`
 const modalStyle = css`
   position: relative;
 
-  width: min(100%, 340px);
+  width: min(100%, ${MODAL.maxWidth});
   max-height: 100%;
-  padding: 26px 20px 18px;
+  padding: ${MODAL.padding};
   box-sizing: border-box;
   overflow-y: auto;
 
   color: ${color.text.primary};
   background: ${color.background.default};
   border: 0;
-  border-radius: 24px;
-  box-shadow: 0 24px 64px rgb(16 27 55 / 24%);
+  border-radius: ${MODAL.radius};
+  box-shadow: ${MODAL.shadow};
   outline: none;
 `;
 
 const closeButtonStyle = css`
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: ${MODAL.closeOffset};
+  right: ${MODAL.closeOffset};
 
   display: grid;
   place-items: center;
 
-  width: 36px;
-  height: 36px;
+  width: ${MODAL.closeSize};
+  height: ${MODAL.closeSize};
   padding: 0;
 
   color: ${color.icon.default};
 
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: ${MODAL.closeRadius};
   cursor: pointer;
 
   user-select: none;
@@ -114,12 +132,6 @@ const labelStyle = css`
   letter-spacing: -0.4px;
 `;
 
-const contentStyle = css`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
 const labelWithDescriptionStyle = css`
   margin: 0 40px 6px 0;
   color: ${color.text.primary};
@@ -128,6 +140,9 @@ const labelWithDescriptionStyle = css`
 
 const descriptionStyle = css`
   margin: 0 0 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   ${typography.caption};
   color: ${color.text.secondary};
