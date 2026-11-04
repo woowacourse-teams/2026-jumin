@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
 import jumin.domain.parking.exception.ViewportStoreException;
@@ -46,10 +47,39 @@ import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.global.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
 
 @SuppressWarnings("unchecked")
 class RedisViewportFailureTest {
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("recoverableCommandFailures")
+    @DisplayName("명령 실패는 공유 연결을 닫지 않고 다음 조회를 허용하며 오류를 한 번 기록한다")
+    void recoverable_command_failures_preserve_shared_connection(String name, RuntimeException failure, String outcome) {
+        // given
+        try (Fixture fixture = new Fixture(properties())) {
+            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
+                    .thenThrow(failure).thenReturn(Collections.singletonList(null));
+
+            // when & then
+            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline()))
+                    .isInstanceOf(ViewportStoreException.class);
+            assertThat(fixture.count(outcome)).isEqualTo(1);
+            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
+            assertThat(fixture.count(outcome)).isEqualTo(1);
+            verify(fixture.client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
+            verify(fixture.connection, never()).close();
+        }
+    }
+
+    private static Stream<Arguments> recoverableCommandFailures() {
+        return Stream.of(
+                Arguments.of("연결 오류", new RedisConnectionException("closed"), "connection_error"),
+                Arguments.of("명령 timeout", new RedisCommandTimeoutException("timeout"), "operation_timeout"));
+    }
 
     @Test
     @DisplayName("동기 Redis 동시성 한도를 넘긴 요청만 거절하고 진행 중인 요청은 유지한다")
@@ -99,38 +129,6 @@ class RedisViewportFailureTest {
             assertThat(fixture.count("command_error")).isEqualTo(2);
             verify(fixture.client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
             verify(fixture.connection, never()).close();
-        }
-    }
-
-    @Test
-    @DisplayName("연결 장애 후 공유 연결의 복구된 명령은 별도 회로 대기 없이 성공한다")
-    void connection_failure_allows_recovered_commands() {
-        // given
-        try (Fixture fixture = new Fixture(properties())) {
-            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                    .thenThrow(new RedisConnectionException("closed")).thenReturn(Collections.singletonList(null));
-            // when & then
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).isInstanceOf(ViewportStoreException.class);
-            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
-            assertThat(fixture.count("connection_error")).isEqualTo(1);
-            verify(fixture.client, times(1)).connect(any(RedisCodec.class), any(RedisURI.class));
-            verify(fixture.connection, never()).close();
-        }
-    }
-
-    @Test
-    @DisplayName("한 명령의 시간 초과는 공유 연결을 닫지 않으며 다음 명령은 성공한다")
-    void command_timeout_preserves_shared_connection() {
-        // given
-        try (Fixture fixture = new Fixture(properties())) {
-            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
-                    .thenThrow(new RedisCommandTimeoutException("timeout")).thenReturn(Collections.singletonList(null));
-            // when & then
-            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline())).isInstanceOf(ViewportStoreException.class);
-            assertThat(fixture.count("operation_timeout")).isEqualTo(1);
-            verify(fixture.connection, never()).close();
-            assertThat(fixture.store.getMany(List.of(key(1)), deadline())).isEmpty();
-            assertThat(fixture.count("operation_timeout")).isEqualTo(1);
         }
     }
 

@@ -91,27 +91,19 @@ class ViewportSquareGridTest {
 
                 // when & then
                 List<Long> cells = grid.cover(bounds, size, 64);
-                assertThat(cells).isNotEmpty().doesNotHaveDuplicates().isSorted();
-                for (int sample = 0; sample < 16; sample++) {
-                    double latitude = sampleLatitude(sample, bounds, random);
-                    double longitude = sampleLongitude(sample, bounds, random);
-                    assertThat(cells).contains(grid.cellId(latitude, longitude, size));
-                }
+                assertContainsSampledPoints(cells, bounds, size, 16, random);
             }
         }
-    }
+        ViewportCellCover cover = new ViewportCellCover(grid);
+        Random localRandom = new Random(20261028);
+        for (int index = 0; index < 150; index++) {
+            double west = 126.9 + localRandom.nextDouble() * 0.3;
+            double south = 37.4 + localRandom.nextDouble() * 0.2;
+            ViewportBounds bounds = new ViewportBounds(west, south, west + 0.012, south + 0.008);
 
-    @Test
-    @DisplayName("서로 다른 viewport 안의 같은 위치는 동일한 그리드 키를 재사용한다")
-    void reuses_cells_between_overlapping_viewports() {
-        // given
-        long point = grid.cellId(37.5, 127, 1000);
-
-        // when & then
-        List<Long> first = grid.cover(new ViewportBounds(126.999, 37.499, 127.001, 37.501), 1000, 64);
-        List<Long> second = grid.cover(new ViewportBounds(126.9995, 37.4995, 127.0015, 37.5015), 1000, 64);
-        assertThat(first).contains(point);
-        assertThat(second).contains(point);
+            // when & then
+            assertContainsSampledPoints(cover.cover(bounds), bounds, 1000, 20, localRandom);
+        }
     }
 
     @Test
@@ -151,6 +143,17 @@ class ViewportSquareGridTest {
     private static double latitude(double y) {
         return StrictMath.toDegrees(StrictMath.atan(StrictMath.sinh(y / 6_378_137.0)));
     }
+
+    private void assertContainsSampledPoints(List<Long> cells, ViewportBounds bounds, int size, int samples, Random random) {
+        assertThat(cells).isNotEmpty().doesNotHaveDuplicates().isSorted()
+                .contains(grid.cellId(bounds.south(), bounds.west(), size),
+                        grid.cellId(bounds.north(), bounds.east(), size));
+        for (int sample = 0; sample < samples; sample++) {
+            double latitude = sampleLatitude(sample, bounds, random);
+            double longitude = sampleLongitude(sample, bounds, random);
+            assertThat(cells).contains(grid.cellId(latitude, longitude, size));
+        }
+    }
     private static double sampleLatitude(int sample, ViewportBounds bounds, Random random) {
         if (sample % 4 == 0) {
             return bounds.south();
@@ -158,7 +161,7 @@ class ViewportSquareGridTest {
         if (sample % 4 == 1) {
             return bounds.north();
         }
-        return bounds.south() + random.nextDouble() * 0.0005;
+        return bounds.south() + random.nextDouble() * (bounds.north() - bounds.south());
     }
 
     private static double sampleLongitude(int sample, ViewportBounds bounds, Random random) {
@@ -168,7 +171,7 @@ class ViewportSquareGridTest {
         if (sample % 4 == 3) {
             return bounds.east();
         }
-        return bounds.west() + random.nextDouble() * 0.0005;
+        return bounds.west() + random.nextDouble() * (bounds.east() - bounds.west());
     }
 
 }

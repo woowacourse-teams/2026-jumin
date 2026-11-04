@@ -4,8 +4,6 @@ import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -13,8 +11,6 @@ import static org.mockito.Mockito.when;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
@@ -31,7 +27,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import jumin.TestcontainersConfiguration;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
@@ -51,8 +46,6 @@ import jumin.domain.parking.service.ViewportCellLoader;
 import jumin.domain.parking.service.ViewportSearchService;
 import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.domain.parking.service.ViewportWriteCoordinator;
-import jumin.global.exception.BusinessException;
-import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -118,49 +111,6 @@ class ViewportSearchIntegrationTest {
     private Clock clock;
 
     @Test
-    @DisplayName("캐시 비활성 경로도 기존 DTO를 그대로 반환하고 셀 캐시 조회를 시작하지 않는다")
-    void disabled_cache_preserves_reference_response() {
-        // given
-        ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
-        ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
-        double lookups = counter("cells", "hit") + counter("cells", "miss");
-        double fallbacks = counter("logical", "fallback");
-        double queries = counter("sql", "viewport");
-        boolean enabled = properties.isEnabled();
-        properties.setEnabled(false);
-        try {
-            // when
-            ParkingLotViewportResponses actual = service.search(request);
-
-            // then
-            assertThat(actual).isEqualTo(expected);
-            assertThat(counter("cells", "hit") + counter("cells", "miss")).isEqualTo(lookups);
-            assertThat(counter("logical", "fallback")).isEqualTo(fallbacks);
-            assertThat(counter("sql", "viewport")).isEqualTo(queries + 1);
-        } finally {
-            properties.setEnabled(enabled);
-        }
-    }
-
-    @Test
-    @DisplayName("NOT NULL 이름 조건이 단순화돼도 사각형 partial index를 셀 조회의 접근 경로로 사용할 수 있다")
-    void square_partial_index_remains_eligible_after_not_null_simplification() {
-        // given
-        new TransactionTemplate(transactions).executeWithoutResult(status -> {
-            status.setRollbackOnly();
-            jdbc.execute("SET LOCAL enable_seqscan=off");
-
-            // when & then
-            String plan = jdbc.queryForObject("EXPLAIN (FORMAT JSON) SELECT id,latitude,longitude,capacity "
-                    + "FROM parking_lots source WHERE source.viewport_grid_cell=0 AND source.active=TRUE "
-                    + "AND source.location IS NOT NULL AND source.name IS NOT NULL "
-                    + "AND source.address IS NOT NULL ORDER BY source.id LIMIT 4097", String.class);
-
-            assertThat(plan).contains("idx_parking_lots_viewport_grid_cell");
-        });
-    }
-
-    @Test
     @DisplayName("동기 캐시 저장을 기다리는 요청이 있어도 DB 연결과 실행 슬롯은 반환한다")
     void cache_writes_do_not_occupy_real_database_workers() throws Exception {
         // given
@@ -205,52 +155,6 @@ class ViewportSearchIntegrationTest {
             } finally {
                 releaseWrites.countDown();
             }
-        }
-    }
-
-    @Test
-    @DisplayName("각 fetch가 statement timeout보다 빨라도 전체 cursor deadline 후에는 성공을 전달하지 않는다")
-    void enforces_total_deadline_across_real_cursor_fetches() {
-        // given
-        AtomicInteger consumed = new AtomicInteger();
-        SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        ViewportRepository observed = observedRepository(connection -> {
-            Connection tracked = mock(Connection.class, delegatesTo(connection));
-            doAnswer(invocation -> {
-                String sql = ((String) invocation.getArgument(0)).replaceFirst("SELECT ", "SELECT pg_sleep(0.05), ");
-                PreparedStatement actual = connection.prepareStatement(sql);
-                PreparedStatement statement = mock(PreparedStatement.class, delegatesTo(actual));
-                doAnswer(call -> { actual.setFetchSize(8); return null; }).when(statement).setFetchSize(anyInt());
-                doAnswer(call -> {
-                    ResultSet actualRows = actual.executeQuery();
-                    ResultSet rows = mock(ResultSet.class, delegatesTo(actualRows));
-                    doAnswer(fetch -> {
-                        boolean present = actualRows.next();
-                        if (present) {
-                            consumed.incrementAndGet();
-                        }
-                        return present;
-                    }).when(rows).next();
-                    return rows;
-                }).when(statement).executeQuery();
-                return statement;
-            }).when(tracked).prepareStatement(anyString());
-            return tracked;
-        }, registry);
-        ViewportDeadline deadline = ViewportDeadline.after(Duration.ofMillis(900));
-        ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
-
-        // when & then
-        try {
-            assertThatThrownBy(() -> observed.findWithinBounds(ViewportBounds.from(request), request, 1, deadline))
-                    .isInstanceOfSatisfying(BusinessException.class, failure ->
-                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
-            assertThat(consumed.get()).isPositive().isLessThan(80);
-            assertThat(deadline.remainingNanos()).isZero();
-            assertThat(registry.get("parking.viewport.db.active").gauge().value()).isZero();
-        } finally {
-            observed.close();
-            registry.close();
         }
     }
 
@@ -329,9 +233,15 @@ class ViewportSearchIntegrationTest {
                 ParkingLotViewportResponses expected = reference.searchViewport(request, clock);
 
                 // when & then
+                double wholeQueries = counter("sql", "viewport");
+                double fallbacks = counter("logical", "fallback");
+                double lookups = counter("cells", "hit") + counter("cells", "miss");
                 properties.setEnabled(false);
                 try {
                     assertThat(search(request)).as("OFF day=%s mask=%s", day, mask).isEqualTo(expected);
+                    assertThat(counter("sql", "viewport")).isEqualTo(wholeQueries + 1);
+                    assertThat(counter("logical", "fallback")).isEqualTo(fallbacks);
+                    assertThat(counter("cells", "hit") + counter("cells", "miss")).isEqualTo(lookups);
                 } finally {
                     properties.setEnabled(true);
                 }

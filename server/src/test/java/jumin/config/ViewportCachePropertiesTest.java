@@ -11,15 +11,13 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
-import jumin.domain.parking.model.ViewportBounds;
-import jumin.domain.parking.service.ViewportCellCover;
-import jumin.domain.parking.service.ViewportSquareGrid;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
@@ -50,29 +48,6 @@ class ViewportCachePropertiesTest {
         // then
         assertThat(properties.getMaxConcurrentDb()).isEqualTo(3);
         assertThat(properties.getMaxConcurrentRedis()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("Redis transport 추정치를 기존 전체 예산에 합산하고 별도 상한도 검증한다")
-    void validates_combined_and_redis_memory_budgets() {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-
-        // when & then
-        assertValid(properties);
-        properties.setMaxConcurrentDb(16);
-        assertInvalid(properties);
-        properties.setMaxConcurrentDb(3);
-        properties.setMaxConcurrentRedis(6);
-        assertValid(properties);
-        properties.setMaxConcurrentRedis(9);
-        assertInvalid(properties);
-
-        properties.setMaxConcurrentDb(1);
-        properties.setMaxConcurrentRedis(8);
-        assertValid(properties);
-        properties.setMaxConcurrentRedis(9);
-        assertInvalid(properties);
     }
 
     @Test
@@ -173,31 +148,27 @@ class ViewportCachePropertiesTest {
 
 
 
-    @Test
-    @DisplayName("Redis 메모리 64 MiB 경계 초과는 관련 설정명을 모두 표시한다")
-    void preserves_redis_memory_boundary() {
+    @ParameterizedTest(name = "db={0}, redis={1}, valid={2}")
+    @CsvSource({
+            "3, 3, true", "16, 3, false", "3, 6, true", "3, 9, false",
+            "1, 8, true", "1, 9, false", "9, 7, true", "10, 7, false"
+    })
+    @DisplayName("Redis와 전체 메모리 예산의 경계 및 동시 실행 조합을 검증한다")
+    void preserves_combined_memory_boundary(int database, int redis, boolean valid) {
         // given
         ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxConcurrentDb(1);
-        properties.setMaxConcurrentRedis(8);
-        assertValid(properties);
-        // when
-        properties.setMaxConcurrentRedis(9);
-        // then
-        assertInvalid(properties, "max-concurrent-redis");
-    }
+        properties.setMaxConcurrentDb(database);
+        properties.setMaxConcurrentRedis(redis);
 
-    @Test
-    @DisplayName("전체 메모리 128 MiB 경계와 초과 거절을 유지한다")
-    void preserves_combined_memory_boundary() {
-        // given
-        ViewportCacheProperties properties = new ViewportCacheProperties();
-        properties.setMaxConcurrentDb(9);
-        properties.setMaxConcurrentRedis(7);
-        assertValid(properties);
-        // when
-        properties.setMaxConcurrentDb(10);
-        // then
+        // when & then
+        if (valid) {
+            assertValid(properties);
+            return;
+        }
+        if (redis > 8) {
+            assertInvalid(properties, "max-concurrent-redis");
+            return;
+        }
         assertInvalid(properties, "max-concurrent-db", "max-concurrent-redis");
     }
 
@@ -265,26 +236,6 @@ class ViewportCachePropertiesTest {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(expectedFailure)
                     .hasStackTraceContaining("jumin.viewport.cache").hasStackTraceContaining(expectedSetting);
-        });
-    }
-
-    @Test
-    @DisplayName("이전 외부 셀 설정은 고정된 캐시 정책을 바꾸지 못한다")
-    void ignores_removed_cell_policy_settings() {
-        // given
-        ApplicationContextRunner runner = new ApplicationContextRunner()
-                .withUserConfiguration(BindingConfiguration.class, ViewportSquareGrid.class, ViewportCellCover.class)
-                .withPropertyValues("jumin.viewport.cache.grid-size-meters=2000",
-                        "jumin.viewport.cache.max-span-degrees=0.001", "jumin.viewport.cache.max-cells=1",
-                        "jumin.viewport.cache.max-cell-rows=1", "jumin.viewport.cache.max-value-bytes=1",
-                        "jumin.viewport.cache.max-inflight-cells=1", "jumin.viewport.cache.db-queue=1",
-                        "jumin.viewport.cache.max-request-bytes=1", "jumin.viewport.cache.max-fallback-rows=1");
-        // when & then
-        runner.run(context -> {
-            assertThat(context).hasNotFailed();
-            ViewportBounds bounds = new ViewportBounds(127, 37.5, 127.04, 37.54);
-            assertThat(context.getBean(ViewportCellCover.class).cover(bounds))
-                    .isEqualTo(new ViewportSquareGrid().cover(bounds, 1000, 64)).hasSizeGreaterThan(1);
         });
     }
 

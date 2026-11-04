@@ -10,7 +10,6 @@ import java.lang.management.ManagementFactory;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.LongStream;
 import jumin.domain.parking.cache.ViewportCellCodec;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -138,29 +137,6 @@ class ViewportContractTest {
     }
 
     @Test
-    @DisplayName("고정 seed의 viewport 내부와 경계 표본을 직접 계산한 사각형 cover가 모두 포함한다")
-    void covers_reproducible_random_points() {
-        // given
-        ViewportCellCover cover = new ViewportCellCover(grid);
-        Random random = new Random(20261028);
-
-        for (int index = 0; index < 150; index++) {
-            double west = 126.9 + random.nextDouble() * 0.3;
-            double south = 37.4 + random.nextDouble() * 0.2;
-            ViewportBounds bounds = new ViewportBounds(west, south, west + 0.012, south + 0.008);
-
-            // when & then
-            List<Long> cells = cover.cover(bounds);
-            assertThat(cells).isNotEmpty();
-            for (int sample = 0; sample < 20; sample++) {
-                double latitude = sampleCoordinate(sample, south, bounds.north(), 0.008, random);
-                double longitude = sampleCoordinate(sample, west, bounds.east(), 0.012, random);
-                assertThat(cells).contains(grid.cellId(latitude, longitude, 1000));
-            }
-        }
-    }
-
-    @Test
     @DisplayName("대형 긴 띠와 지원 영역 밖은 셀 열거 전에 우회한다")
     void bypasses_large_and_unsupported_bounds() {
         // given
@@ -229,15 +205,6 @@ class ViewportContractTest {
 
     private ParkingLotViewportRequest request(boolean free, boolean mechanical, boolean isPublic) {
         return new ParkingLotViewportRequest(126.99, 37.49, 127.01, 37.51, free, mechanical, isPublic);
-    }
-    private static double sampleCoordinate(int sample, double lower, double upper, double spread, Random random) {
-        if (sample == 0) {
-            return lower;
-        }
-        if (sample == 1) {
-            return upper;
-        }
-        return lower + random.nextDouble() * spread;
     }
 
 }

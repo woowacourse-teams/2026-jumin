@@ -306,22 +306,30 @@ class ViewportRepositoryExecutionTest {
     @DisplayName("셀과 원본 조회에서 늦게 반환한 행과 EOF를 거절하고 추가 fetch를 실행하지 않는다")
     void rejects_row_returned_after_total_deadline(boolean cellQuery, boolean present) throws Exception {
         // given
-        try (Harness harness = new Harness()) {
+        try (Harness harness = new Harness(Duration.ofSeconds(30))) {
             PreparedStatement statement = mock(PreparedStatement.class);
+            PreparedStatement recoveryStatement = mock(PreparedStatement.class);
             ResultSet rows = mock(ResultSet.class);
-            when(harness.pool.getConnection().prepareStatement(anyString())).thenReturn(statement);
+            ResultSet recoveryRows = mock(ResultSet.class);
+            when(harness.connection.prepareStatement(anyString())).thenReturn(statement, recoveryStatement);
             when(statement.executeQuery()).thenReturn(rows);
+            when(recoveryStatement.executeQuery()).thenReturn(recoveryRows);
+            when(recoveryRows.next()).thenReturn(true, false);
+            when(recoveryRows.getBoolean("projection_ready")).thenReturn(true);
+            when(recoveryRows.getInt("grid_size_meters")).thenReturn(1000);
+            when(recoveryRows.getLong("id")).thenReturn(1L);
+            when(recoveryRows.getDouble("latitude")).thenReturn(37.5);
+            when(recoveryRows.getDouble("longitude")).thenReturn(127.0);
             ViewportBounds bounds = new ViewportBounds(126.99, 37.49, 127.01, 37.51);
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
             ViewportCellKey key = new ViewportCellKey("deadline", 1000, 1);
-            ViewportDeadline deadline = ViewportDeadline.after(Duration.ofSeconds(1));
+            ViewportDeadline deadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
+            doReturn(TimeUnit.SECONDS.toNanos(30)).when(deadline).remainingNanos();
             AtomicInteger fetches = new AtomicInteger();
             when(rows.next()).thenAnswer(invocation -> {
                 fetches.incrementAndGet();
-                while (deadline.remainingNanos() > 0) {
-                    Thread.sleep(1);
-                }
+                doReturn(0L).when(deadline).remainingNanos();
                 return present;
             });
             Runnable query = () -> harness.db.findWithinBounds(bounds, request, 1, deadline);
@@ -331,16 +339,48 @@ class ViewportRepositoryExecutionTest {
 
             // when & then
             assertThatThrownBy(query::run)
-                    .isInstanceOfSatisfying(BusinessException.class, failure ->
-                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+                    .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                        assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
+                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name());
+                    });
             assertThatThrownBy(query::run)
-                    .isInstanceOfSatisfying(BusinessException.class, failure ->
-                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+                    .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                        assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
+                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name());
+                    });
             assertThat(fetches).hasValue(1);
+            assertThat(deadline.remainingNanos()).isZero();
+            verify(harness.pool).getConnection();
             verify(statement).executeQuery();
             verify(rows, never()).getLong(anyString());
             verify(rows, never()).getBoolean(anyString());
+            verify(rows, never()).getInt(anyString());
+            verify(rows, never()).getDouble(anyString());
+            verify(rows, never()).getObject(anyString(), eq(Long.class));
+            verify(rows, never()).getObject(anyString(), eq(Integer.class));
+            verify(rows, never()).getObject(anyString(), eq(Boolean.class));
+            verify(rows).close();
+            verify(statement).close();
+            verify(harness.connection).rollback();
+            verify(harness.connection, never()).commit();
+            verify(harness.connection).close();
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+            assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
+
+            int recovered;
+            if (cellQuery) {
+                recovered = harness.load(deadline());
+            } else {
+                recovered = harness.findWithinBounds(deadline());
+            }
+            assertThat(recovered).isEqualTo(1);
+            verify(recoveryStatement).executeQuery();
+            verify(recoveryRows).close();
+            verify(recoveryStatement).close();
+            verify(harness.connection).commit();
+            verify(harness.connection, times(2)).close();
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+            assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
         }
     }
 
@@ -418,6 +458,7 @@ class ViewportRepositoryExecutionTest {
 
     private static final class Harness implements AutoCloseable {
         private final HikariDataSource pool = mock(HikariDataSource.class);
+        private final Connection connection = mock(Connection.class);
         private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
         private final JdbcTemplate primary = new JdbcTemplate(pool);
         private final ViewportRepository db;
@@ -428,7 +469,6 @@ class ViewportRepositoryExecutionTest {
         }
 
         private Harness(Duration dbTimeout) throws Exception {
-            Connection connection = mock(Connection.class);
             when(connection.getAutoCommit()).thenReturn(true);
             when(connection.createStatement()).thenReturn(mock(Statement.class));
             PreparedStatement statement = mock(PreparedStatement.class);

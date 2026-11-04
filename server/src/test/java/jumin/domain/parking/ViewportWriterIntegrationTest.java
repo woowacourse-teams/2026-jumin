@@ -72,6 +72,8 @@ class ViewportWriterIntegrationTest {
         assertThat(cell(id)).isEqualTo(grid.cellId(37.52, 127.02, 1000));
         assertThat(jdbc.queryForObject(
                 "SELECT projection_ready FROM parking_viewport_cache_state WHERE id = 1", Boolean.class)).isTrue();
+        assertThat(jdbc.update("UPDATE parking_lots SET capacity=123 WHERE id=?", id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT capacity FROM parking_lots WHERE id=?", Integer.class, id)).isEqualTo(123);
     }
 
     @Test
@@ -91,19 +93,6 @@ class ViewportWriterIntegrationTest {
 
         assertThat(cell(id)).isEqualTo(beforeCell);
         assertThat(jdbc.queryForObject("SELECT latitude FROM parking_lots WHERE id=?", Double.class, id)).isEqualTo(37.5);
-    }
-
-    @Test
-    @DisplayName("매핑 준비 뒤에도 별도 쓰기 프로토콜 없이 일반 데이터 갱신이 허용된다")
-    void permits_ordinary_writes_without_protocol_trigger() {
-        // given & when & then
-        long id = insert(37.5, 127, true);
-        writer.prepare();
-
-        int updated = jdbc.update("UPDATE parking_lots SET capacity=123 WHERE id=?", id);
-
-        assertThat(updated).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT capacity FROM parking_lots WHERE id=?", Integer.class, id)).isEqualTo(123);
     }
 
     @Test
