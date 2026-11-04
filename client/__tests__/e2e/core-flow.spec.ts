@@ -68,7 +68,7 @@ const getIntentSearchParams = (intentUrl: string) => {
   return new URL(routeUrl).searchParams;
 };
 
-test('서비스 페이지 코드를 기다리는 동안 기존 홈 화면과 지도를 유지한다', async ({ page }) => {
+test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
 
@@ -89,18 +89,16 @@ test('서비스 페이지 코드를 기다리는 동안 기존 홈 화면과 지
   });
 
   try {
-    await Promise.all([
-      chunkRequested,
-      page.getByRole('link', { name: '설정', exact: true }).click(),
-    ]);
-    await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+    await Promise.all([chunkRequested, page.getByRole('textbox', { name: '목적지 검색' }).click()]);
+    await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveCount(0);
     await expect(page.getByRole('region', { name: '지도', exact: true })).toBeVisible();
+    await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toBeVisible();
   } finally {
     releaseChunk();
   }
 
-  await expect(page.getByRole('heading', { name: '설정', level: 1 })).toBeVisible();
-  await expect(page.getByRole('region', { name: '지도', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+  await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toHaveCount(0);
 });
 
 test('서비스 페이지를 왕복해도 지도를 유지하고 지도 없는 화면에서는 숨긴다', async ({ page }) => {
