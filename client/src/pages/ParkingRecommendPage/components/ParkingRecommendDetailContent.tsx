@@ -196,7 +196,6 @@ export const ParkingRecommendDetailContent = ({
 
 const sheetContentStyle = css`
   height: 100%;
-  min-height: 0;
 `;
 
 const scrollContentStyle = css`

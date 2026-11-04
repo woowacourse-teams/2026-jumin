@@ -1,3 +1,4 @@
+import { Row } from '../../../shared/components/ui/Row';
 import { css } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../api/contracts';
@@ -46,7 +47,7 @@ export const InfoCard = ({
         aria-pressed={isActive}
         onClick={() => onSelect(parkingLot)}
       />
-      <header className={headerStyle}>
+      <Row as="header" align="center" justify="between" gap={8} className={headerStyle}>
         <h3 className={nameStyle}>{name}</h3>
         <button
           className={detailButtonStyle}
@@ -56,11 +57,11 @@ export const InfoCard = ({
         >
           <InformationIcon size={24} aria-hidden="true" />
         </button>
-      </header>
-      <p className={descriptionStyle}>
+      </Row>
+      <Row as="p" align="center" gap="4px 8px" className={descriptionStyle}>
         <span className={rankStyle}>추천 {rank}위</span>
         {description}
-      </p>
+      </Row>
       <strong className={priceStyle}>
         {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
       </strong>
@@ -116,10 +117,6 @@ const headerStyle = css`
   z-index: 1;
   pointer-events: none;
   grid-area: header;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 `;
 
 const nameStyle = css`
@@ -136,10 +133,9 @@ const nameStyle = css`
 
 const descriptionStyle = css`
   grid-area: description;
-  display: flex;
+
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
+
   pointer-events: none;
 
   margin: 4px 0 12px;

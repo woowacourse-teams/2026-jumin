@@ -1,3 +1,4 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { css } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../api/contracts';
@@ -78,7 +79,7 @@ export const ParkingRecommendContent = ({
   };
 
   return (
-    <section className={sheetContentStyle} aria-label="주차장 전체 목록">
+    <Stack as="section" className={sheetContentStyle} aria-label="주차장 전체 목록">
       <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
         {filterOptions.map(({ type, label }) => (
           <button
@@ -143,15 +144,12 @@ export const ParkingRecommendContent = ({
           destination={{ name: directionsParkingLot.name, location: directionsParkingLot.location }}
         />
       )}
-    </section>
+    </Stack>
   );
 };
 
 const sheetContentStyle = css`
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  min-height: 0;
 `;
 
 const filterStyle = css`

@@ -1,3 +1,4 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
 import type { Destination } from '../../../api/contracts';
@@ -119,11 +120,10 @@ export const SearchContent = ({
   };
 
   return (
-    <div
+    <Stack
       className={css`
-        display: flex;
         flex: 1;
-        flex-direction: column;
+
         min-height: 0;
       `}
     >
@@ -158,6 +158,6 @@ export const SearchContent = ({
           onClear={() => updateRecentSearches([])}
         />
       )}
-    </div>
+    </Stack>
   );
 };

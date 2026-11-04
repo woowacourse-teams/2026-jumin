@@ -1,3 +1,4 @@
+import { Row } from '../../ui/Row';
 import { css } from '@emotion/css';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { SearchIcon } from '../../ui/icons';
@@ -21,12 +22,10 @@ export const SearchBar = ({
   autoFocus,
   showShadow = true,
 }: Props) => (
-  <div
+  <Row
+    align="center"
+    gap={10}
     className={css`
-      display: flex;
-      align-items: center;
-      gap: 10px;
-
       width: min(358px, calc(100% - 32px));
       height: 54px;
       margin: calc(env(safe-area-inset-top, 0px) + clamp(24px, 4dvh, 40px)) auto 0;
@@ -74,5 +73,5 @@ export const SearchBar = ({
       onChange={onChange}
       onKeyDown={onKeyDown}
     />
-  </div>
+  </Row>
 );

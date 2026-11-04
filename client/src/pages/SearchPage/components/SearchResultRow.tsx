@@ -1,3 +1,4 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import type { Destination } from '../../../api/contracts';
 import { color } from '../../../theme/color';
@@ -55,12 +56,11 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
         >
           <LocationIcon size={18} />
         </span>
-        <span
+        <Stack
+          as="span"
+          gap={3}
           className={css`
-            display: flex;
             min-width: 0;
-            flex-direction: column;
-            gap: 3px;
           `}
         >
           <strong
@@ -98,7 +98,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           >
             {destination.roadAddress ?? destination.address}
           </span>
-        </span>
+        </Stack>
       </button>
     </li>
   );

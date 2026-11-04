@@ -1,3 +1,4 @@
+import { Row } from '../ui/Row';
 import { css } from '@emotion/css';
 import { BackIcon } from '../ui/icons';
 import type { ReactNode, RefObject } from 'react';
@@ -30,10 +31,10 @@ export const ConditionBar = ({ title, description, onBack, action, elementRef }:
         <h1 className={destinationStyle}>{title}</h1>
 
         {(description || action) && (
-          <div className={descriptionRowStyle}>
+          <Row align="center" justify="between" gap={12} className={descriptionRowStyle}>
             {description && <p className={descriptionStyle}>{description}</p>}
             {action && <div className={actionStyle}>{action}</div>}
-          </div>
+          </Row>
         )}
       </div>
     </header>
@@ -118,11 +119,6 @@ const descriptionStyle = css`
 `;
 
 const descriptionRowStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
   margin-top: 2px;
 `;
 
