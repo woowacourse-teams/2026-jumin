@@ -1,14 +1,14 @@
 import { memo } from 'react';
 
-import { NaverMapMarker } from '../../../../shared/maps/NaverMapMarker';
+import { NaverMapMarker } from '../../../shared/maps/NaverMapMarker';
 import type { MapViewport } from '../hooks/useMapViewport';
 import { useViewportParkingLots } from '../hooks/useViewportParkingLots';
 import { getRepresentativeParkingLotIds } from '../utils/parkingMarkerPolicy';
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
-import type { ParkingLotViewport } from '../../../../api/contracts';
-import type { ParkingViewportFilters } from '../../../../api/parkingLots';
+import type { ParkingLotViewport } from '../../../api/contracts';
+import type { ParkingViewportFilters } from '../../../api/parkingLots';
 
 const homeParkingMarkerIcon = {
   url: homeParkingMarkerUrl,

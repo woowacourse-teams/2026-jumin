@@ -1,15 +1,16 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { css } from '@emotion/css';
-import type { ParkingLotSummary } from '../../../../api/contracts';
-import { trackEvent } from '../../../../shared/analytics';
-import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
-import { eventName } from '../../../../shared/monitoring/constants';
-import type { BottomSheetSnap } from '../../../../shared/types/ui';
-import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
+import type { ParkingLotSummary } from '../../../api/contracts';
+import { trackEvent } from '../../../shared/analytics';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { eventName } from '../../../shared/monitoring/constants';
+import type { BottomSheetSnap } from '../../../shared/components/ui/BottomSheet';
+import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 import type { RecommendationType } from '../types/recommendation';
-import { getRecommendationMessage } from '../utils/sorting';
+import { getRecommendationMessage } from '../utils/recommendationPolicy';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 
@@ -48,7 +49,7 @@ export const ParkingRecommendContent = ({
   const [directionsParkingLot, setDirectionsParkingLot] = useState<ParkingLotSummary | null>(null);
 
   useLayoutEffect(() => {
-    if (!isActive || sheetSnap !== 'expanded' || !selectedParkingLot) return;
+    if (!isActive || sheetSnap === 'collapsed' || !selectedParkingLot) return;
 
     const list = parkingListRef.current;
     const index = parkingLots.findIndex(({ id }) => id === selectedParkingLot.id);
@@ -78,7 +79,7 @@ export const ParkingRecommendContent = ({
   };
 
   return (
-    <section className={sheetContentStyle} aria-label="주차장 전체 목록">
+    <Stack as="section" className={sheetContentStyle} aria-label="주차장 전체 목록">
       <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
         {filterOptions.map(({ type, label }) => (
           <button
@@ -143,15 +144,12 @@ export const ParkingRecommendContent = ({
           destination={{ name: directionsParkingLot.name, location: directionsParkingLot.location }}
         />
       )}
-    </section>
+    </Stack>
   );
 };
 
 const sheetContentStyle = css`
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  min-height: 0;
 `;
 
 const filterStyle = css`
@@ -159,7 +157,7 @@ const filterStyle = css`
   grid-template-columns: repeat(3, 1fr);
   flex-shrink: 0;
   gap: 8px;
-  margin: 10px 24px 16px;
+  margin: 10px 0 16px;
 `;
 
 const filterButtonStyle = (isSelected: boolean) => css`
@@ -186,15 +184,16 @@ const filterButtonStyle = (isSelected: boolean) => css`
 const parkingListStyle = css`
   flex: 1;
   min-height: 0;
-  margin: 0;
-  padding: 0 0 max(28px, env(safe-area-inset-bottom));
+  /* 배경은 시트 양끝까지 채우고, 항목의 내용에는 시트와 같은 여백을 한 번만 적용한다. */
+  margin: 0 calc(-1 * var(--bottom-sheet-content-padding-x));
+  padding: 0;
   overflow-y: auto;
   list-style: none;
   overscroll-behavior: contain;
 `;
 
 const parkingItemStyle = (isRecommended: boolean) => css`
-  padding: ${isRecommended ? '0 24px 12px' : '0 24px'};
+  padding: 0 var(--bottom-sheet-content-padding-x) ${isRecommended ? '12px' : '0'};
   background: ${isRecommended ? color.background.brandSubtle : color.background.default};
 `;
 
@@ -206,8 +205,8 @@ const sectionTitleStyle = css`
 `;
 
 const emptyMessageStyle = css`
-  margin: 12px 24px;
-  padding: 24px;
+  margin: 12px 0;
+  padding: 24px 0;
   ${typography.body};
   color: ${color.text.secondary};
   text-align: center;

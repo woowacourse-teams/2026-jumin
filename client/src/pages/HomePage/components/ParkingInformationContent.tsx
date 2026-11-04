@@ -1,18 +1,19 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 
 import type {
   DailyOperationsDay,
   ParkingLotViewport,
   ViewportParkingLotDetailResponse,
-} from '../../../../api/contracts';
-import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
-import { useModal } from '../../../../shared/hooks/useModal';
-import { ParkingDetailActions } from '../../../../shared/components/service/parking/ParkingDetailActions';
-import { ParkingReportAction } from '../../../../shared/components/service/parking/ParkingReportAction';
-import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
-import { trackEvent } from '../../../../shared/analytics';
-import { eventName } from '../../../../shared/monitoring/constants';
-import { RoadViewOverlay } from '../../../../shared/components/service/parking/RoadViewOverlay';
+} from '../../../api/contracts';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
+import { useModal } from '../../../shared/hooks/useModal';
+import { ParkingDetailActions } from '../../../shared/components/service/parking/ParkingDetailActions';
+import { ParkingReportAction } from '../../../shared/components/service/parking/ParkingReportAction';
+import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
+import { trackEvent } from '../../../shared/analytics';
+import { eventName } from '../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../shared/components/service/parking/RoadViewOverlay';
 import { useState } from 'react';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
@@ -112,7 +113,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   };
 
   return (
-    <section className={sheetContentStyle}>
+    <Stack as="section" className={sheetContentStyle}>
       <ParkingDetailActions
         parkingLotId={data.id}
         likeCount={data.likeCount}
@@ -120,7 +121,7 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
         onDirections={handleDirectionButtonClick}
         onRoadView={handleRoadViewButtonClick}
       />
-      <div className={scrollContentStyle}>
+      <Stack className={scrollContentStyle}>
         <section aria-label="요금 정보">
           <h3 className={sectionTitleStyle}>요금 정보</h3>
 
@@ -191,26 +192,19 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
             onRequestClose={() => setIsRoadViewOpen(false)}
           />
         )}
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 };
 const sheetContentStyle = css`
-  display: flex;
-  flex-direction: column;
-
   height: 100%;
-  min-height: 0;
 `;
 
 const scrollContentStyle = css`
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
 
   overflow-y: auto;
-  padding-inline-end: 15px;
   overscroll-behavior: contain;
 
   > section {

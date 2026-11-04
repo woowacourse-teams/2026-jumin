@@ -1,22 +1,22 @@
-import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import type {
   ParkingOperationPeriod,
   ParkingLotDetailResponse,
   ParkingLikeState,
-} from '../../../../api/contracts';
+} from '../../../api/contracts';
 import { css } from '@emotion/css';
-import { DeepLinkModal } from '../../../../shared/components/service/directions/DeepLinkModal';
+import { DeepLinkModal } from '../../../shared/components/service/directions/DeepLinkModal';
 import { useState } from 'react';
-import { saveRecentParkingUse } from '../../../../shared/utils/recentParkingUses';
+import { saveRecentParkingUse } from '../../../shared/utils/recentParkingUses';
 
-import { useModal } from '../../../../shared/hooks/useModal';
-import { ParkingDetailActions } from '../../../../shared/components/service/parking/ParkingDetailActions';
-import { ParkingReportAction } from '../../../../shared/components/service/parking/ParkingReportAction';
-import { trackEvent } from '../../../../shared/analytics';
-import { eventName } from '../../../../shared/monitoring/constants';
-import { RoadViewOverlay } from '../../../../shared/components/service/parking/RoadViewOverlay';
-import { Row } from '../../../../shared/components/ui/Row';
-import { Stack } from '../../../../shared/components/ui/Stack';
+import { useModal } from '../../../shared/hooks/useModal';
+import { ParkingDetailActions } from '../../../shared/components/service/parking/ParkingDetailActions';
+import { ParkingReportAction } from '../../../shared/components/service/parking/ParkingReportAction';
+import { trackEvent } from '../../../shared/analytics';
+import { eventName } from '../../../shared/monitoring/constants';
+import { RoadViewOverlay } from '../../../shared/components/service/parking/RoadViewOverlay';
+import { Row } from '../../../shared/components/ui/Row';
+import { Stack } from '../../../shared/components/ui/Stack';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
@@ -146,9 +146,25 @@ export const ParkingRecommendDetailContent = ({
             </Row>
 
             <Row align="center" justify="between">
+              <dt>총 주차면 수</dt>
+
+              <dd>
+                {parkingLotDetail.capacity === null
+                  ? '미제공'
+                  : `${parkingLotDetail.capacity.toLocaleString('ko-KR')}면`}
+              </dd>
+            </Row>
+
+            <Row align="center" justify="between">
               <dt>잔여석</dt>
 
-              <dd>미제공</dd>
+              <dd>
+                {parkingLotDetail.availableSpaces === null
+                  ? '미제공'
+                  : parkingLotDetail.availableSpaces === 0
+                    ? '0대 (만차)'
+                    : `${parkingLotDetail.availableSpaces.toLocaleString('ko-KR')}대`}
+              </dd>
             </Row>
           </Stack>
           <ParkingReportAction parkingLotId={parkingLotDetail.id} />
@@ -180,7 +196,6 @@ export const ParkingRecommendDetailContent = ({
 
 const sheetContentStyle = css`
   height: 100%;
-  min-height: 0;
 `;
 
 const scrollContentStyle = css`

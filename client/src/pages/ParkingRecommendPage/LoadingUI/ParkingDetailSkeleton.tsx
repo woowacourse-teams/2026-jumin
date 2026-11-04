@@ -1,3 +1,5 @@
+import { Row } from '../../../shared/components/ui/Row';
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css, cx, keyframes } from '@emotion/css';
 
 import { color } from '../../../theme/color';
@@ -6,35 +8,36 @@ const FEE_RULE_COUNT = 3;
 const DETAIL_ROW_COUNT = 3;
 
 export const ParkingDetailSkeleton = () => (
-  <section
+  <Stack
+    as="section"
     className={sheetStyle}
     aria-label="주차장 상세정보를 불러오는 중"
     aria-busy="true"
     role="status"
   >
-    <div className={contentStyle} aria-hidden="true">
+    <Stack className={contentStyle} aria-hidden="true">
       <div className={feeCardStyle}>
-        <div className={totalFeeStyle}>
+        <Row align="center" justify="between" className={totalFeeStyle}>
           <div className={cx(skeletonBlockStyle, totalFeeLabelStyle)} />
           <div className={cx(skeletonBlockStyle, totalFeeValueStyle)} />
-        </div>
+        </Row>
 
         <div className={feeRuleListStyle}>
           {Array.from({ length: FEE_RULE_COUNT }, (_, index) => (
-            <div className={feeRuleStyle} key={index}>
+            <Row align="center" justify="between" key={index}>
               <div className={cx(skeletonBlockStyle, feeRuleLabelStyle)} />
               <div className={cx(skeletonBlockStyle, feeRuleValueStyle)} />
-            </div>
+            </Row>
           ))}
         </div>
       </div>
 
       <div className={detailsStyle}>
         {Array.from({ length: DETAIL_ROW_COUNT }, (_, index) => (
-          <div className={detailRowStyle} key={index}>
+          <Row align="center" justify="between" key={index}>
             <div className={cx(skeletonBlockStyle, detailLabelStyle)} />
             <div className={cx(skeletonBlockStyle, detailValueStyle)} />
-          </div>
+          </Row>
         ))}
       </div>
 
@@ -42,8 +45,8 @@ export const ParkingDetailSkeleton = () => (
         <div className={cx(skeletonBlockStyle, sourceStyle)} />
         <div className={cx(skeletonBlockStyle, navigationButtonStyle)} />
       </div>
-    </div>
-  </section>
+    </Stack>
+  </Stack>
 );
 
 const shimmer = keyframes`
@@ -72,19 +75,16 @@ const skeletonBlockStyle = css`
 `;
 
 const sheetStyle = css`
-  display: flex;
   height: 100%;
-  flex-direction: column;
+
   pointer-events: none;
 
   background: ${color.background.default};
 `;
 
 const contentStyle = css`
-  display: flex;
   min-height: 0;
   flex: 1;
-  flex-direction: column;
 `;
 
 const feeCardStyle = css`
@@ -95,10 +95,8 @@ const feeCardStyle = css`
 `;
 
 const totalFeeStyle = css`
-  display: flex;
   min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
+
   padding: 0 18px;
 
   background: ${color.background.brandSubtle};
@@ -122,12 +120,6 @@ const feeRuleListStyle = css`
   padding: 20px 18px;
 `;
 
-const feeRuleStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
 const feeRuleLabelStyle = css`
   width: 96px;
   height: 16px;
@@ -144,12 +136,6 @@ const detailsStyle = css`
   display: grid;
   gap: 12px;
   margin-top: 44px;
-`;
-
-const detailRowStyle = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 `;
 
 const detailLabelStyle = css`

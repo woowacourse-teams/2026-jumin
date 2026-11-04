@@ -2,8 +2,8 @@ import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Outlet, Route, Routes } from 'react-router';
 
-import { ErrorCard } from './shared/components/service/ErrorCard';
-import { MapLayout } from './shared/maps/MapLayout';
+import { ErrorCard } from './src/shared/components/service/ErrorCard';
+import { MapLayout } from './src/shared/maps/MapLayout';
 import { HomePage } from './src/pages/HomePage/HomePage';
 
 const AdminPage = lazy(() =>

@@ -1,3 +1,4 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css, cx, keyframes } from '@emotion/css';
 import { color } from '../../../theme/color';
 
@@ -6,7 +7,7 @@ const SKELETON_CARD_COUNT = 3;
 export const ParkingRecommendSkeleton = () => (
   <div aria-label="추천 주차장을 불러오는 중" aria-busy="true" role="status">
     <section aria-hidden="true">
-      <ul className={cardListStyle}>
+      <Stack as="ul" gap={12} className={cardListStyle}>
         {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
           <li key={index}>
             <article className={cardStyle}>
@@ -18,7 +19,7 @@ export const ParkingRecommendSkeleton = () => (
             </article>
           </li>
         ))}
-      </ul>
+      </Stack>
     </section>
   </div>
 );
@@ -49,10 +50,6 @@ const skeletonBlockStyle = css`
 `;
 
 const cardListStyle = css`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
   margin: 0;
   padding: 0;
 

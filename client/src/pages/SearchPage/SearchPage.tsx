@@ -1,33 +1,35 @@
+import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
-import type { Destination } from '../../../api/contracts';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
+import type { Destination } from '../../api/contracts';
+import { BottomNav } from '../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
-import { useStepNavigation } from '../../../shared/hooks/useStepNavigation';
-import { useRestoreLocation } from '../ParkingSetupPage/hooks/useRestoreLocation';
+import { STEP_PATH, useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { Navigate } from 'react-router';
+import { useCenterLocationQuery } from './hooks/useCenterLocationQuery';
+import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 export const SearchPage = () => {
   const { move } = useStepNavigation('search');
-  const viewportCenterLocation = useRestoreLocation();
+  const centerLocation = useCenterLocationQuery();
 
   const handleDestinationSelect = (destination: Destination) => {
-    const params = new URLSearchParams({
+    const queryString = buildQueryString({
       lat: String(destination.latitude),
       lng: String(destination.longitude),
       name: destination.name,
     });
 
-    move('SELECT_DESTINATION', undefined, { search: `?${params.toString()}` });
+    move('SELECT_DESTINATION', queryString);
   };
 
-  if (!viewportCenterLocation) return <Navigate to="/" replace />;
+  if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;
 
   return (
-    <main className={pageStyle}>
+    <Stack as="main" className={pageStyle}>
       <SearchContent
-        viewportLatitude={viewportCenterLocation.latitude}
-        viewportLongitude={viewportCenterLocation.longitude}
+        viewportLatitude={centerLocation.latitude}
+        viewportLongitude={centerLocation.longitude}
         onDestinationSelect={handleDestinationSelect}
       />
       <footer
@@ -40,14 +42,11 @@ export const SearchPage = () => {
       >
         <BottomNav />
       </footer>
-    </main>
+    </Stack>
   );
 };
 
 const pageStyle = css`
-  display: flex;
-  flex-direction: column;
-
   width: 100%;
   height: 100%;
   overflow: hidden;

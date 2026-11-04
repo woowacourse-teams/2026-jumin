@@ -1,13 +1,10 @@
+import { Row } from '../../../shared/components/ui/Row';
 import { css, cx } from '@emotion/css';
 
-import type { ParkingLotSummary } from '../../../../api/contracts';
+import type { ParkingLotSummary } from '../../../api/contracts';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
-import {
-  DirectionsIcon,
-  InformationIcon,
-  LocationIcon,
-} from '../../../../shared/components/ui/icons';
+import { DirectionsIcon, InformationIcon, LocationIcon } from '../../../shared/components/ui/icons';
 
 interface Props {
   parkingLot: ParkingLotSummary;
@@ -52,15 +49,15 @@ export const InfoRow = ({
       <div className={informationStyle}>
         <h3 className={nameStyle}>{name}</h3>
 
-        <p className={metadataStyle}>
+        <Row as="p" align="baseline" gap="4px 10px" className={metadataStyle}>
           <strong>
             {estimatedFee === null ? '요금 정보 없음' : `${estimatedFee.toLocaleString('ko-KR')}원`}
           </strong>
           <span>{walkingInformation}</span>
-        </p>
+        </Row>
       </div>
 
-      <div className={actionsStyle}>
+      <Row gap={8} className={actionsStyle}>
         <button
           className={cx(actionButtonStyle, detailButtonStyle)}
           type="button"
@@ -77,7 +74,7 @@ export const InfoRow = ({
         >
           <DirectionsIcon size={18} aria-hidden="true" />
         </button>
-      </div>
+      </Row>
     </article>
   );
 };
@@ -172,10 +169,7 @@ const nameStyle = css`
 `;
 
 const metadataStyle = css`
-  display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
 
   margin: 5px 0 0;
 
@@ -192,8 +186,6 @@ const metadataStyle = css`
 const actionsStyle = css`
   position: relative;
   z-index: 2;
-  display: flex;
-  gap: 8px;
 `;
 
 const actionButtonStyle = css`

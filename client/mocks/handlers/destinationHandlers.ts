@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw';
-import type { DestinationNameResponse, DestinationSearchResponse } from '../../api/contracts';
+import type { DestinationNameResponse, DestinationSearchResponse } from '../../src/api/contracts';
 import { destinationFixtures } from '../fixtures/destinations';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
