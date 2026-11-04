@@ -1,3 +1,5 @@
+import { Button } from '../../../shared/components/ui/Button';
+import { Notice } from '../../../shared/components/ui/Notice';
 import { css } from '@emotion/css';
 import { CloseIcon } from '../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
@@ -26,9 +28,7 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
       `}
       aria-label="선택한 목적지"
     >
-      <p className={mapGuideStyle} role="status" aria-live="polite">
-        지도를 움직여 목적지를 확정해주세요
-      </p>
+      <Notice className={mapGuideStyle}>지도를 움직여 목적지를 확정해주세요</Notice>
       <button
         className={css`
           position: absolute;
@@ -61,44 +61,15 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
         {name}
       </h1>
 
-      <button
-        className={css`
-          width: 100%;
-          height: 52px;
-          margin-top: 20px;
-          border: 0;
-          border-radius: 12px;
-          background: ${color.background.brand};
-          color: ${color.text.inverse};
-          ${typography.label};
-          cursor: pointer;
-
-          &:hover:not(:disabled),
-          &:focus-visible:not(:disabled) {
-            background: ${color.background.brandHovered};
-          }
-
-          &:active:not(:disabled) {
-            background: ${color.background.brandPressed};
-          }
-
-          &:focus-visible {
-            outline: 3px solid ${color.focus.ring};
-            outline-offset: 3px;
-          }
-
-          &:disabled {
-            color: ${color.text.disabled};
-            background: ${color.background.disabled};
-            cursor: not-allowed;
-          }
-        `}
-        type="button"
+      <Button
+        isFullWidth
+        size="lg"
+        className={nextButtonStyle}
         disabled={nextDisabled}
         onClick={onNext}
       >
         다음
-      </button>
+      </Button>
     </section>
   );
 };
@@ -111,16 +82,8 @@ const mapGuideStyle = css`
   max-width: calc(100% - 32px);
   transform: translateX(-50%);
   z-index: 1;
+`;
 
-  margin: 0;
-  padding: 10px 16px;
-
-  ${typography.label};
-  color: ${color.text.primary};
-  text-align: center;
-  word-break: keep-all;
-
-  background: rgb(255 255 255 / 94%);
-  border-radius: 999px;
-  box-shadow: 0 4px 12px rgb(16 27 55 / 16%);
+const nextButtonStyle = css`
+  margin-top: 20px;
 `;

@@ -1,19 +1,15 @@
+import { Button } from '../../ui/Button';
 import { useEffect, useState } from 'react';
 
 import { css, cx } from '@emotion/css';
-import Modal from 'react-modal';
-import { ChevronRightIcon, CloseIcon } from '../../ui/icons';
+import { Modal } from '../../ui/Modal';
+import { ChevronRightIcon } from '../../ui/icons';
 
 import { trackEvent } from '../../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
 import { eventName } from '../../../monitoring/constants';
 import { color } from '../../../../theme/color';
 import { typography } from '../../../../theme/typography';
-
-if (typeof document !== 'undefined') {
-  const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
-  if (appElement) Modal.setAppElement(appElement);
-}
 
 interface Props {
   onRequestClose: () => void;
@@ -130,25 +126,10 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
 
   return (
     <Modal
-      isOpen
-      onRequestClose={onRequestClose}
-      overlayClassName={overlayStyle}
-      className={modalStyle}
-      contentLabel="길찾기 앱 선택"
-      shouldCloseOnOverlayClick
+      onClose={onRequestClose}
+      label="어떤 앱으로 갈까요?"
+      description={`${destination.name}까지 안내합니다.`}
     >
-      <button
-        className={closeButtonStyle}
-        type="button"
-        aria-label="길찾기 앱 선택 닫기"
-        onClick={onRequestClose}
-      >
-        <CloseIcon size={24} aria-hidden="true" />
-      </button>
-
-      <h2 className={titleStyle}>어떤 앱으로 갈까요?</h2>
-      <p className={descriptionStyle}>{destination.name}까지 안내합니다.</p>
-
       <div aria-busy={locationState.status === 'LOADING'}>
         {providers.map(({ provider, label, mark }) => (
           <button
@@ -175,86 +156,14 @@ export const DeepLinkModal = ({ onRequestClose, onDirectionsStart, destination }
       {locationState.status === 'ERROR' && (
         <div className={errorStyle} role="alert">
           <p>{locationState.message}</p>
-          <button type="button" onClick={() => setRequestToken((token) => token + 1)}>
+          <Button variant="subtle" size="sm" onClick={() => setRequestToken((token) => token + 1)}>
             다시 시도
-          </button>
+          </Button>
         </div>
       )}
     </Modal>
   );
 };
-
-const overlayStyle = css`
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-
-  display: grid;
-  place-items: center;
-
-  padding: 20px;
-  box-sizing: border-box;
-
-  background: ${color.overlay.scrim};
-`;
-
-const modalStyle = css`
-  position: relative;
-
-  width: min(100%, 340px);
-  padding: 26px 20px 18px;
-  box-sizing: border-box;
-
-  color: ${color.text.primary};
-  background: ${color.background.default};
-  border: 0;
-  border-radius: 24px;
-  box-shadow: 0 24px 64px rgb(16 27 55 / 24%);
-  outline: none;
-`;
-
-const closeButtonStyle = css`
-  position: absolute;
-  top: 14px;
-  right: 14px;
-
-  display: grid;
-  place-items: center;
-
-  width: 36px;
-  height: 36px;
-  padding: 0;
-
-  color: ${color.icon.default};
-  ${typography.titleSection}
-  line-height: 1;
-
-  background: transparent;
-  border: 0;
-  border-radius: 10px;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-  }
-`;
-
-const titleStyle = css`
-  margin: 0 40px 6px 0;
-
-  ${typography.titleSection};
-  letter-spacing: -0.5px;
-`;
-
-const descriptionStyle = css`
-  margin: 0 0 14px;
-  overflow: hidden;
-
-  ${typography.caption};
-  color: ${color.text.secondary};
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
 const providerButtonStyle = css`
   display: grid;
@@ -349,18 +258,5 @@ const errorStyle = css`
 
   p {
     margin: 0 0 8px;
-  }
-
-  button {
-    padding: 8px 12px;
-
-    color: ${color.text.brand};
-    font: inherit;
-    ${typography.bodySmallStrong}
-
-    background: ${color.background.brandSubtle};
-    border: 0;
-    border-radius: 9px;
-    cursor: pointer;
   }
 `;
