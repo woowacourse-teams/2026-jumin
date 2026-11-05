@@ -24,7 +24,9 @@ class ReverseGeocodingServiceTest {
         given(client.reverseGeocode(37.5665, 126.9780))
                 .willReturn(new ReverseGeocodingResult(
                         "서울특별시청",
-                        "서울특별시 중구 세종로 세종대로 110"
+                        "서울특별시 중구 세종로 세종대로 110",
+                        "",
+                        ""
                 ));
 
         // when
@@ -43,7 +45,9 @@ class ReverseGeocodingServiceTest {
         given(client.reverseGeocode(37.5665, 126.9780))
                 .willReturn(new ReverseGeocodingResult(
                         "",
-                        "서울특별시 중구 세종로 세종대로 110"
+                        "서울특별시 중구 세종로 세종대로 110",
+                        "",
+                        ""
                 ));
 
         // when
