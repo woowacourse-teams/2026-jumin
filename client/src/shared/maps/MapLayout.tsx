@@ -3,6 +3,7 @@ import { Suspense, useLayoutEffect, useState } from 'react';
 import { Outlet, useLocation, useMatch } from 'react-router';
 
 import { RouteLoadingFallback } from '../components/service/RouteLoadingFallback';
+import { PmfSurveyModal } from '../components/service/pmfSurvey/PmfSurveyModal';
 import { STEP_PATH } from '../hooks/useStepNavigation';
 import { NaverMap } from './NaverMap';
 import { parseCoordinates } from '../utils/parseCoordinates';
@@ -47,6 +48,7 @@ export const MapLayout = () => {
       <Suspense key={pathname} fallback={<RouteLoadingFallback />}>
         <Outlet context={{ map }} />
       </Suspense>
+      <PmfSurveyModal />
     </div>
   );
 };
