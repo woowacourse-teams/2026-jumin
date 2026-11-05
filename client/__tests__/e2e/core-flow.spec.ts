@@ -68,6 +68,68 @@ const getIntentSearchParams = (intentUrl: string) => {
   return new URL(routeUrl).searchParams;
 };
 
+test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+
+  let releaseChunk!: () => void;
+  let notifyChunkRequested!: () => void;
+  const chunkGate = new Promise<void>((resolve) => {
+    releaseChunk = resolve;
+  });
+  const chunkRequested = new Promise<void>((resolve) => {
+    notifyChunkRequested = resolve;
+  });
+  // 최초 페이지 로드 이후 요청되는 lazy 페이지 코드를 보류한다.
+  // MSW의 Service Worker가 전달하는 네트워크 요청도 가로챈다.
+  await page.context().route('**/assets/*.js', async (route) => {
+    notifyChunkRequested();
+    await chunkGate;
+    await route.continue();
+  });
+
+  try {
+    await Promise.all([chunkRequested, page.getByRole('textbox', { name: '목적지 검색' }).click()]);
+    await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: '지도', exact: true })).toBeVisible();
+    await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toBeVisible();
+  } finally {
+    releaseChunk();
+  }
+
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+  await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toHaveCount(0);
+});
+
+test('서비스 페이지를 왕복해도 지도를 유지하고 지도 없는 화면에서는 숨긴다', async ({ page }) => {
+  await page.goto('/');
+  const map = page.getByRole('region', { name: '지도', exact: true });
+  await expect(map).toBeVisible();
+  const mapElement = await map.elementHandle();
+  if (!mapElement) throw new Error('지도 컨테이너가 없습니다.');
+
+  await page.getByRole('link', { name: '설정', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '설정', level: 1 })).toBeVisible();
+  await expect(map).toHaveCount(0);
+  expect(await mapElement.isVisible()).toBe(false);
+  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
+
+  await page.getByRole('link', { name: '최근 이용', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '최근 이용', level: 1 })).toBeVisible();
+  await expect(map).toHaveCount(0);
+  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
+
+  await page.getByRole('link', { name: '홈', exact: true }).click();
+  await expect(map).toBeVisible();
+  await searchDestination(page);
+  await expect(map).toBeVisible();
+  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
+
+  await requestRecommendation(page);
+  await expect(map).toBeVisible();
+  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
+});
+
 test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => {
   await goToRecommendedParkingDetail(page);
 
