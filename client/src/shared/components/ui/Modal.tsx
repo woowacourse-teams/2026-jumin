@@ -37,6 +37,7 @@ export const Modal = ({ onClose, label, description, children }: Props) => {
       contentLabel={label}
       overlayClassName={overlayStyle}
       className={modalStyle}
+      shouldCloseOnOverlayClick
     >
       <h2 className={cx(labelStyle, description && labelWithDescriptionStyle)}>{label}</h2>
       {description && <p className={descriptionStyle}>{description}</p>}

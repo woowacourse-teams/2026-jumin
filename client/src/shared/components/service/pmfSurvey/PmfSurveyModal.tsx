@@ -33,7 +33,7 @@ export const PmfSurveyModal = () => {
 
 const formViewportStyle = css`
   width: 100%;
-  height: min(60dvh, 640px);
+  height: min(50dvh, 400px);
   overflow: hidden;
 `;
 
