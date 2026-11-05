@@ -260,9 +260,9 @@ it('검색 후 셋업 진입에서는 새 목적지로 이동하고 드래그 �
   expect(map.destroy).not.toHaveBeenCalled();
 });
 
-it('드래그 직후 줌으로 중심이 달라져도 늦게 반영된 URL이 지도를 덮어쓰지 않는다', async () => {
+it('드래그한 목적지를 저장하고 추천에서 돌아오면 같은 지도에서 해당 위치를 복원한다', async () => {
   const draggedCenter = new MockLatLng(37.57, 126.99);
-  const zoomingCenter = new MockLatLng(37.571, 126.991);
+  const recommendCenter = new MockLatLng(37.571, 126.991);
   renderWithProviders(
     <>
       <Link replace to="/parkingsetup?lat=37.57&lng=126.99">
@@ -281,28 +281,30 @@ it('드래그 직후 줌으로 중심이 달라져도 늦게 반영된 URL이 �
   await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
   const map = createMap.mock.results[0]!.value as MockMap;
 
-  // SDK가 먼저 드래그하고, URL 렌더가 끝나기 전에 휠 줌으로 중심이 달라진 상황이다.
-  // 줌 애니메이션 자체는 재현하지 않으며 URL 반영 시 불필요한 카메라 명령만 검증한다.
+  // 드래그한 좌표를 URL에 저장할 때 이미 일치한 중심을 다시 이동하지 않아야 한다.
+  // 휠 입력의 기준점 갱신은 실제 셋업 훅을 사용하는 별도 테스트에서 확인한다.
   map.setCenter(draggedCenter);
+  map.setCenter.mockClear();
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: '드래그 좌표 저장' }));
-    map.setCenter(zoomingCenter);
-    map.setCenter.mockClear();
   });
 
-  expect(map.getCenter()).toEqual(zoomingCenter);
+  expect(map.getCenter()).toEqual(draggedCenter);
   expect(map.setCenter).not.toHaveBeenCalled();
 
-  // 추천 화면에서 돌아오는 진입은 다시 URL의 선택 좌표로 정렬해야 한다.
+  // 추천 화면에서 주차장에 맞춰 카메라가 이동한 뒤 셋업으로 복귀하는 상황을 재현한다.
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: '추천 이동' }));
   });
+  map.setCenter(recommendCenter);
+  map.setCenter.mockClear();
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: '셋업 복원' }));
   });
   expect(map.getCenter()).toEqual(draggedCenter);
   expect(map.setCenter).toHaveBeenCalledTimes(1);
   expect(createMap).toHaveBeenCalledTimes(1);
+  expect(map.destroy).not.toHaveBeenCalled();
 });
 
 it('지도 준비 전에 셋업으로 이동해도 준비가 끝나면 선택한 목적지로 정렬한다', async () => {
