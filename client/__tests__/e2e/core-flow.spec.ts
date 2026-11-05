@@ -18,6 +18,10 @@ const PARKING_LOT = {
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
 
+const closeSurvey = async (page: Page) => {
+  await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
+};
+
 const requestRecommendation = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
   await expect(page.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
@@ -40,6 +44,7 @@ const searchDestination = async (page: Page) => {
 
 const goToRecommendedParkingDetail = async (page: Page) => {
   await page.goto('/');
+  await closeSurvey(page);
   await searchDestination(page);
   await requestRecommendation(page);
 
@@ -70,6 +75,7 @@ const getIntentSearchParams = (intentUrl: string) => {
 
 test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다', async ({ page }) => {
   await page.goto('/');
+  await closeSurvey(page);
   await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
 
   let releaseChunk!: () => void;
@@ -103,6 +109,7 @@ test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피�
 
 test('서비스 페이지를 왕복해도 지도를 유지하고 지도 없는 화면에서는 숨긴다', async ({ page }) => {
   await page.goto('/');
+  await closeSurvey(page);
   const map = page.getByRole('region', { name: '지도', exact: true });
   await expect(map).toBeVisible();
   const mapElement = await map.elementHandle();
@@ -141,6 +148,7 @@ test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => 
 
 test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조회 조건을 유지한다', async ({ page }) => {
   await page.goto('/');
+  await closeSurvey(page);
   await searchDestination(page);
   await requestRecommendation(page);
   const recommendationUrl = page.url();
@@ -151,11 +159,13 @@ test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조�
 
   const sharedPage = await page.context().newPage();
   await sharedPage.goto(recommendationUrl);
+  await closeSurvey(sharedPage);
   await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
   await expect(
     sharedPage.getByRole('heading', { level: 1, name: params.get('name')! }),
   ).toBeVisible();
   await sharedPage.reload();
+  await closeSurvey(sharedPage);
   await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
   await expect(sharedPage).toHaveURL(recommendationUrl);
   await sharedPage.close();
@@ -163,6 +173,7 @@ test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조�
 
 test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과 정렬을 유지한다', async ({ page }) => {
   await page.goto('/');
+  await closeSurvey(page);
   await searchDestination(page);
   await requestRecommendation(page);
   const region = page.getByRole('region', { name: '주차장 전체 목록' });
@@ -197,6 +208,7 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
 
 test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다', async ({ page }) => {
   await page.goto('/');
+  await closeSurvey(page);
   await expect(page.getByRole('button', { name: '주변', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: '설정', exact: true }).click();
   await expect(page).toHaveURL(/\/setting$/);
@@ -216,6 +228,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await expect(page.getByRole('heading', { level: 1, name: /어디에 주차할지/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/setting$/);
+  await closeSurvey(page);
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
   await page
@@ -225,6 +238,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await expect(page.getByRole('heading', { name: /보이지 않는 기술/ })).toBeInViewport();
   await page.getByRole('link', { name: '주차장 찾아보기', exact: true }).last().click();
   await expect(page).toHaveURL('/');
+  await closeSurvey(page);
   await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
 });
 
@@ -243,6 +257,7 @@ test.describe('길찾기', () => {
     );
 
     await page.goto('/recent');
+    await closeSurvey(page);
     await page.getByRole('button', { name: new RegExp(PARKING_LOT.name) }).click();
 
     const dialog = page.getByRole('dialog', { name: '어떤 앱으로 갈까요?' });
