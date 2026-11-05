@@ -3,6 +3,7 @@ import { Suspense, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
 import { RouteLoadingFallback } from '../components/service/RouteLoadingFallback';
+import { PmfSurveyModal } from '../components/service/pmfSurvey/PmfSurveyModal';
 import { NaverMap } from './NaverMap';
 
 const DEFAULT_MAP_CENTER = {
@@ -25,6 +26,7 @@ export const MapLayout = () => {
       <Suspense key={pathname} fallback={<RouteLoadingFallback />}>
         <Outlet context={{ map }} />
       </Suspense>
+      <PmfSurveyModal />
     </div>
   );
 };
