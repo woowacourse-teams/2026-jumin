@@ -70,6 +70,8 @@ const map = {
   panBy: jest.fn(),
   fitBounds: jest.fn(),
   setCenter: jest.fn(),
+  // 셋업이 기존 지도 옵션을 저장·복구할 때 사용하는 SDK 인터페이스를 제공한다.
+  getOptions: jest.fn(),
   setOptions: jest.fn(),
   destroy: jest.fn(),
 };
