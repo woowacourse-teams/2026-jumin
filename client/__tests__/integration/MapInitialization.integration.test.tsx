@@ -10,12 +10,12 @@ import { renderWithProviders } from '../renderWithProviders';
 // 실제 타일 대신 SDK 생성 옵션과 객체 정리 여부만 확인할 수 있는 대역을 사용한다.
 class MockLatLng {
   constructor(
-    public latitude: number,
+    public initialLatitude: number,
     public longitude: number,
   ) {}
 
   lat() {
-    return this.latitude;
+    return this.initialLatitude;
   }
 
   lng() {
@@ -47,8 +47,8 @@ const mockSdk = {
   },
 };
 // 강남역과 다른 서울역 좌표를 사용해야 기본 좌표로 잘못 생성하는 회귀를 잡을 수 있다.
-const destination = { latitude: 37.5547, longitude: 126.9707 };
-const defaultCenter = { latitude: 37.4981, longitude: 127.0279 };
+const destination = { initialLatitude: 37.5547, longitude: 126.9707 };
+const defaultCenter = { initialLatitude: 37.4981, longitude: 127.0279 };
 
 let originalNaver: PropertyDescriptor | undefined;
 let originalClientId: PropertyDescriptor | undefined;
@@ -82,13 +82,13 @@ afterEach(() => {
 it.each([
   {
     label: '설정 화면의 목적지 좌표',
-    url: `/parkingsetup?lat=${destination.latitude}&lng=${destination.longitude}`,
+    url: `/parkingsetup?lat=${destination.initialLatitude}&lng=${destination.longitude}`,
     center: destination,
   },
   { label: '홈의 기본 좌표', url: '/', center: defaultCenter },
   {
     label: '경도가 누락된 URL의 기본 좌표',
-    url: `/parkingsetup?lat=${destination.latitude}`,
+    url: `/parkingsetup?lat=${destination.initialLatitude}`,
     center: defaultCenter,
   },
   {
@@ -110,7 +110,7 @@ it.each([
   await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
   expect(createMap).toHaveBeenCalledWith(
     expect.any(HTMLElement),
-    expect.objectContaining({ center: new MockLatLng(center.latitude, center.longitude) }),
+    expect.objectContaining({ center: new MockLatLng(center.initialLatitude, center.longitude) }),
   );
 });
 
@@ -134,7 +134,9 @@ it.each(['/parkingsetup', '/parkingsetup/', '/ParkingSetup'])(
           <Route
             path="/search"
             element={
-              <Link to={`${setupPath}?lat=${destination.latitude}&lng=${destination.longitude}`}>
+              <Link
+                to={`${setupPath}?lat=${destination.initialLatitude}&lng=${destination.longitude}`}
+              >
                 서울역 선택
               </Link>
             }
@@ -147,7 +149,7 @@ it.each(['/parkingsetup', '/parkingsetup/', '/ParkingSetup'])(
     await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
     const map = createMap.mock.results[0]!.value as MockMap;
     expect(map.getCenter()).toEqual(
-      new MockLatLng(defaultCenter.latitude, defaultCenter.longitude),
+      new MockLatLng(defaultCenter.initialLatitude, defaultCenter.longitude),
     );
 
     await act(async () => {
@@ -159,21 +161,25 @@ it.each(['/parkingsetup', '/parkingsetup/', '/ParkingSetup'])(
 
     // 코드 로딩 완료 전에 중심을 검증해 페이지가 뜬 뒤의 보정만으로 테스트가 통과하지 않게 한다.
     expect(screen.queryByRole('heading', { name: '목적지 설정' })).not.toBeInTheDocument();
-    expect(map.getCenter()).toEqual(new MockLatLng(destination.latitude, destination.longitude));
+    expect(map.getCenter()).toEqual(
+      new MockLatLng(destination.initialLatitude, destination.longitude),
+    );
     expect(createMap).toHaveBeenCalledTimes(1);
     expect(map.destroy).not.toHaveBeenCalled();
 
     await act(async () => {
       completeSetup({ default: () => <h1>목적지 설정</h1> });
     });
-    expect(map.getCenter()).toEqual(new MockLatLng(destination.latitude, destination.longitude));
+    expect(map.getCenter()).toEqual(
+      new MockLatLng(destination.initialLatitude, destination.longitude),
+    );
     expect(createMap).toHaveBeenCalledTimes(1);
   },
 );
 
 it.each([
-  `/search?lat=${destination.latitude}&lng=${destination.longitude}`,
-  `/parkingRecommend?lat=${destination.latitude}&lng=${destination.longitude}`,
+  `/search?lat=${destination.initialLatitude}&lng=${destination.longitude}`,
+  `/parkingRecommend?lat=${destination.initialLatitude}&lng=${destination.longitude}`,
   '/parkingsetup?lat=Infinity&lng=127',
 ])(
   '설정 화면이 아니거나 좌표가 잘못된 %s에서는 기존 카메라 위치를 변경하지 않는다',
@@ -219,7 +225,9 @@ it('설정 URL의 좌표를 기존 지도에 반영하고 드래그로 이미 �
       </Routes>
     </>,
     {
-      initialEntries: [`/parkingsetup?lat=${destination.latitude}&lng=${destination.longitude}`],
+      initialEntries: [
+        `/parkingsetup?lat=${destination.initialLatitude}&lng=${destination.longitude}`,
+      ],
     },
   );
   await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
@@ -248,7 +256,12 @@ it('좌표와 줌 props가 바뀌어도 같은 지도를 유지하고 제거할 
   // 콜백 참조는 유지해서 좌표와 줌 변경이 지도 생명주기에 미치는 영향만 확인한다.
   const onMapReady = jest.fn<(map: naver.maps.Map | null) => void>();
   const { rerender, unmount } = render(
-    <NaverMap {...destination} zoom={16} onMapReady={onMapReady} />,
+    <NaverMap
+      initialLatitude={destination.initialLatitude}
+      initialLongitude={destination.longitude}
+      initialZoom={16}
+      onMapReady={onMapReady}
+    />,
   );
 
   await waitFor(() => expect(onMapReady).toHaveBeenCalledTimes(1));
@@ -257,7 +270,14 @@ it('좌표와 줌 props가 바뀌어도 같은 지도를 유지하고 제거할 
 
   // 잘못된 재생성이 있으면 비동기 지도 생성까지 끝난 뒤 횟수에 드러나도록 기다린다.
   await act(async () => {
-    rerender(<NaverMap latitude={37.56} longitude={126.98} zoom={17} onMapReady={onMapReady} />);
+    rerender(
+      <NaverMap
+        initialLatitude={37.56}
+        initialLongitude={126.98}
+        initialZoom={17}
+        onMapReady={onMapReady}
+      />,
+    );
   });
 
   expect(createMap).toHaveBeenCalledTimes(1);
@@ -275,7 +295,13 @@ it('SDK 로딩 중 제거된 지도는 SDK가 준비돼도 뒤늦게 생성하�
   // SDK가 없는 상태에서 시작해 스크립트 로딩을 기다리는 비동기 경로로 진입한다.
   Reflect.deleteProperty(globalThis, 'naver');
   const onMapReady = jest.fn<(map: naver.maps.Map | null) => void>();
-  const { unmount } = render(<NaverMap {...destination} onMapReady={onMapReady} />);
+  const { unmount } = render(
+    <NaverMap
+      initialLatitude={destination.initialLatitude}
+      initialLongitude={destination.longitude}
+      onMapReady={onMapReady}
+    />,
+  );
   // UI 구조가 아닌 외부 SDK 스크립트의 로딩 완료를 직접 제어한다.
   const script = Array.from(document.scripts).find(
     ({ src }) => new URL(src).hostname === 'oapi.map.naver.com',

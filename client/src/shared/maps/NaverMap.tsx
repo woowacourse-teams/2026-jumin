@@ -5,13 +5,18 @@ import { loadNaverMaps } from './loadNaverMaps';
 import * as Sentry from '@sentry/react';
 
 interface Props {
-  latitude?: number;
-  longitude?: number;
-  zoom?: number;
+  initialLatitude?: number;
+  initialLongitude?: number;
+  initialZoom?: number;
   onMapReady?: (map: naver.maps.Map | null) => void;
 }
 
-export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) => {
+export const NaverMap = ({
+  initialLatitude,
+  initialLongitude,
+  initialZoom = 15,
+  onMapReady,
+}: Props) => {
   // 네이버 지도 SDK가 지도를 삽입할 DOM 요소
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -19,7 +24,7 @@ export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) 
   const mapRef = useRef<naver.maps.Map | null>(null);
 
   // 지도 생성에 사용할 최초 좌표 저장
-  const initialMapOptionsRef = useRef({ latitude, longitude, zoom });
+  const initialMapOptionsRef = useRef({ initialLatitude, initialLongitude, initialZoom });
 
   useEffect(() => {
     // SDK 로딩 중 컴포넌트가 제거됐는지 확인한다.
@@ -35,7 +40,7 @@ export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) 
 
         // 지도를 생성할 때 사용할 기본 옵션(대한민국 기준)
         const mapOptions: naver.maps.MapOptions = {
-          zoom: initialMapOptionsRef.current.zoom,
+          zoom: initialMapOptionsRef.current.initialZoom,
           minZoom: 8,
           maxBounds: new naver.maps.LatLngBounds(
             new naver.maps.LatLng(32.0, 124.0),
@@ -45,12 +50,12 @@ export const NaverMap = ({ latitude, longitude, zoom = 15, onMapReady }: Props) 
 
         // 위도와 경도가 모두 전달된 경우에만 중심 좌표를 지정한다.
         if (
-          initialMapOptionsRef.current.latitude !== undefined &&
-          initialMapOptionsRef.current.longitude !== undefined
+          initialMapOptionsRef.current.initialLatitude !== undefined &&
+          initialMapOptionsRef.current.initialLongitude !== undefined
         ) {
           mapOptions.center = new naver.maps.LatLng(
-            initialMapOptionsRef.current.latitude,
-            initialMapOptionsRef.current.longitude,
+            initialMapOptionsRef.current.initialLatitude,
+            initialMapOptionsRef.current.initialLongitude,
           );
         }
 

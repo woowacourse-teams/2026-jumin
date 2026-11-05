@@ -39,8 +39,8 @@ export const MapLayout = () => {
   return (
     <div className={layoutStyle}>
       <NaverMap
-        latitude={initialCenter.latitude}
-        longitude={initialCenter.longitude}
+        initialLatitude={initialCenter.latitude}
+        initialLongitude={initialCenter.longitude}
         onMapReady={setMap}
       />
       {/* 경로 전환에서는 이전 페이지를 대체하되, 같은 페이지의 검색 조건 변경은 유지한다. */}
