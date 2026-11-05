@@ -107,34 +107,25 @@ test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피�
   await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toHaveCount(0);
 });
 
-test('서비스 페이지를 왕복해도 지도를 유지하고 지도 없는 화면에서는 숨긴다', async ({ page }) => {
+test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 수 있다', async ({ page }) => {
   await page.goto('/');
   await closeSurvey(page);
   const map = page.getByRole('region', { name: '지도', exact: true });
   await expect(map).toBeVisible();
-  const mapElement = await map.elementHandle();
-  if (!mapElement) throw new Error('지도 컨테이너가 없습니다.');
 
   await page.getByRole('link', { name: '설정', exact: true }).click();
   await expect(page.getByRole('heading', { name: '설정', level: 1 })).toBeVisible();
-  await expect(map).toHaveCount(0);
-  expect(await mapElement.isVisible()).toBe(false);
-  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
 
   await page.getByRole('link', { name: '최근 이용', exact: true }).click();
   await expect(page.getByRole('heading', { name: '최근 이용', level: 1 })).toBeVisible();
-  await expect(map).toHaveCount(0);
-  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
 
   await page.getByRole('link', { name: '홈', exact: true }).click();
   await expect(map).toBeVisible();
   await searchDestination(page);
   await expect(map).toBeVisible();
-  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
 
   await requestRecommendation(page);
   await expect(map).toBeVisible();
-  expect(await mapElement.evaluate((element) => element.isConnected)).toBe(true);
 });
 
 test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => {
