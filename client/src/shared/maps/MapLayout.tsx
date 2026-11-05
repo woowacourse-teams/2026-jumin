@@ -1,7 +1,8 @@
 import { css } from '@emotion/css';
 import { Suspense, useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 
+import { RouteLoadingFallback } from '../components/service/RouteLoadingFallback';
 import { NaverMap } from './NaverMap';
 
 const DEFAULT_MAP_CENTER = {
@@ -11,6 +12,7 @@ const DEFAULT_MAP_CENTER = {
 
 export const MapLayout = () => {
   const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const { pathname } = useLocation();
 
   return (
     <div className={layoutStyle}>
@@ -19,7 +21,8 @@ export const MapLayout = () => {
         longitude={DEFAULT_MAP_CENTER.longitude}
         onMapReady={setMap}
       />
-      <Suspense fallback={<div role="status">페이지를 불러오는중...</div>}>
+      {/* 경로 전환에서는 이전 페이지를 대체하되, 같은 페이지의 검색 조건 변경은 유지한다. */}
+      <Suspense key={pathname} fallback={<RouteLoadingFallback />}>
         <Outlet context={{ map }} />
       </Suspense>
     </div>
