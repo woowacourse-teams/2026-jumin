@@ -34,7 +34,6 @@ export const ParkingSetupContent = ({
 
   useParkingSetupMap({
     map,
-    selectedLocation: location,
     onDragEnd: onSelectedLocationChange,
   });
 
