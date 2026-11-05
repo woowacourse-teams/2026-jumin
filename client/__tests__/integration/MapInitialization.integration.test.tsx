@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
-import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { Route, Routes } from 'react-router';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { lazy, type ComponentType } from 'react';
+import { Link, Route, Routes } from 'react-router';
 
 import { MapLayout } from '../../src/shared/maps/MapLayout';
 import { NaverMap } from '../../src/shared/maps/NaverMap';
@@ -12,12 +13,27 @@ class MockLatLng {
     public latitude: number,
     public longitude: number,
   ) {}
+
+  lat() {
+    return this.latitude;
+  }
+
+  lng() {
+    return this.longitude;
+  }
 }
 
 class MockMap {
+  private center: MockLatLng;
   destroy = jest.fn();
+  getCenter = () => this.center;
+  setCenter = jest.fn((center: MockLatLng) => {
+    this.center = center;
+  });
 
-  constructor(public options: naver.maps.MapOptions) {}
+  constructor(public options: naver.maps.MapOptions) {
+    this.center = options.center as unknown as MockLatLng;
+  }
 }
 
 const createMap = jest.fn(
@@ -96,6 +112,136 @@ it.each([
     expect.any(HTMLElement),
     expect.objectContaining({ center: new MockLatLng(center.latitude, center.longitude) }),
   );
+});
+
+it.each(['/parkingsetup', '/parkingsetup/', '/ParkingSetup'])(
+  '검색에서 %s 코드의 로딩을 기다리는 동안에도 기존 지도를 새 목적지로 이동한다',
+  async (setupPath) => {
+    // 설정 페이지의 코드를 직접 대기시켜 그 안의 effect가 좌표를 보정할 수 없는 상황을 만든다.
+    let completeSetup!: (module: { default: ComponentType }) => void;
+    const setupModule = new Promise<{ default: ComponentType }>((resolve) => {
+      completeSetup = resolve;
+    });
+    const SetupPage = lazy(() => setupModule);
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<MapLayout />}>
+          <Route
+            path="/"
+            element={<Link to="/search?lat=37.4981&lng=127.0279">목적지 검색</Link>}
+          />
+          <Route
+            path="/search"
+            element={
+              <Link to={`${setupPath}?lat=${destination.latitude}&lng=${destination.longitude}`}>
+                서울역 선택
+              </Link>
+            }
+          />
+          <Route path="/parkingsetup" element={<SetupPage />} />
+        </Route>
+      </Routes>,
+    );
+
+    await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
+    const map = createMap.mock.results[0]!.value as MockMap;
+    expect(map.getCenter()).toEqual(
+      new MockLatLng(defaultCenter.latitude, defaultCenter.longitude),
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: '목적지 검색' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: '서울역 선택' }));
+    });
+
+    // 코드 로딩 완료 전에 중심을 검증해 페이지가 뜬 뒤의 보정만으로 테스트가 통과하지 않게 한다.
+    expect(screen.queryByRole('heading', { name: '목적지 설정' })).not.toBeInTheDocument();
+    expect(map.getCenter()).toEqual(new MockLatLng(destination.latitude, destination.longitude));
+    expect(createMap).toHaveBeenCalledTimes(1);
+    expect(map.destroy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      completeSetup({ default: () => <h1>목적지 설정</h1> });
+    });
+    expect(map.getCenter()).toEqual(new MockLatLng(destination.latitude, destination.longitude));
+    expect(createMap).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([
+  `/search?lat=${destination.latitude}&lng=${destination.longitude}`,
+  `/parkingRecommend?lat=${destination.latitude}&lng=${destination.longitude}`,
+  '/parkingsetup?lat=Infinity&lng=127',
+])(
+  '설정 화면이 아니거나 좌표가 잘못된 %s에서는 기존 카메라 위치를 변경하지 않는다',
+  async (url) => {
+    // 추천 화면 등에서 보정한 중심은 URL의 목적지와 달라도 공통 레이아웃이 덮어쓰면 안 된다.
+    renderWithProviders(
+      <>
+        <Link to={url}>다음 화면으로 이동</Link>
+        <Routes>
+          <Route element={<MapLayout />}>
+            <Route path="*" element={null} />
+          </Route>
+        </Routes>
+      </>,
+    );
+    await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
+    const map = createMap.mock.results[0]!.value as MockMap;
+    const adjustedCenter = new MockLatLng(37.52, 127.04);
+    map.setCenter(adjustedCenter);
+    map.setCenter.mockClear();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: '다음 화면으로 이동' }));
+    });
+
+    expect(map.getCenter()).toEqual(adjustedCenter);
+    expect(map.setCenter).not.toHaveBeenCalled();
+    expect(createMap).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('설정 URL의 좌표를 기존 지도에 반영하고 드래그로 이미 일치한 중심은 다시 이동하지 않는다', async () => {
+  const changedCenter = new MockLatLng(37.56, 126.98);
+  const draggedCenter = new MockLatLng(37.57, 126.99);
+  renderWithProviders(
+    <>
+      <Link to="/parkingsetup?lat=37.56&lng=126.98">목적지 변경</Link>
+      <Link to="/parkingsetup?lat=37.57&lng=126.99">드래그 좌표 반영</Link>
+      <Routes>
+        <Route element={<MapLayout />}>
+          <Route path="/parkingsetup" element={null} />
+        </Route>
+      </Routes>
+    </>,
+    {
+      initialEntries: [`/parkingsetup?lat=${destination.latitude}&lng=${destination.longitude}`],
+    },
+  );
+  await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
+  const map = createMap.mock.results[0]!.value as MockMap;
+  expect(map.setCenter).not.toHaveBeenCalled();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '목적지 변경' }));
+  });
+  expect(map.getCenter()).toEqual(changedCenter);
+  expect(map.setCenter).toHaveBeenCalledTimes(1);
+
+  // SDK에서 먼저 드래그한 뒤 URL이 갱신되는 순서를 재현해 중복 이동을 막는지 확인한다.
+  map.setCenter(draggedCenter);
+  map.setCenter.mockClear();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '드래그 좌표 반영' }));
+  });
+  expect(map.getCenter()).toEqual(draggedCenter);
+  expect(map.setCenter).not.toHaveBeenCalled();
+  expect(createMap).toHaveBeenCalledTimes(1);
+  expect(map.destroy).not.toHaveBeenCalled();
 });
 
 it('좌표와 줌 props가 바뀌어도 같은 지도를 유지하고 제거할 때 정리한다', async () => {
