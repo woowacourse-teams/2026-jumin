@@ -32,7 +32,7 @@ export const ParkingSetupContent = ({
     selectedLocation: location,
   });
 
-  useParkingSetupMap({
+  const { isDragging } = useParkingSetupMap({
     map,
     onDragEnd: onSelectedLocationChange,
   });
@@ -59,8 +59,8 @@ export const ParkingSetupContent = ({
       </div>
 
       <DestinationConfirmSheet
-        name={destinationName}
-        nextDisabled={isFetching || isError}
+        name={isDragging || isFetching ? '위치 확인 중...' : destinationName}
+        nextDisabled={isDragging || isFetching || isError}
         onCancel={onCancel}
         onNext={handleRecommend}
       />
