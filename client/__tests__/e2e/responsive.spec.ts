@@ -11,6 +11,7 @@ test.describe('모바일 화면', () => {
     test(`${width}×${height} 화면에서 검색창·버튼·메뉴가 겹치지 않는다`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await page.goto('/');
+      await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
 
       const root = await page.locator('#root').boundingBox();
       const search = await page
@@ -37,6 +38,7 @@ test.describe('모바일 화면', () => {
     }) => {
       await page.setViewportSize({ width, height });
       await page.goto('/setting');
+      await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
       await expect(page.getByRole('heading', { level: 1, name: '설정' })).toBeVisible();
 
       const nav = page.getByRole('navigation', { name: '하단 메뉴' });
