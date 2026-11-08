@@ -107,6 +107,24 @@ class ViewportRepositoryExecutionTest {
     }
 
     @Test
+    @DisplayName("조회 실패와 기한 만료가 겹쳐도 원래 조회 실패를 기한 오류로 바꾸지 않는다")
+    void preserves_query_failure_when_deadline_expires() throws Exception {
+        // given
+        try (Harness harness = new Harness()) {
+            ViewportDeadline deadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
+            BusinessException queryFailure = ViewportFailureReason.UNCLASSIFIED.failure();
+            harness.beforeQuery.set(() -> {
+                doReturn(0L).when(deadline).remainingNanos();
+                throw queryFailure;
+            });
+
+            // when & then
+            assertThatThrownBy(() -> harness.load(deadline)).isSameAs(queryFailure);
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        }
+    }
+
+    @Test
     @DisplayName("중단된 DB 작업의 다른 비즈니스 오류는 viewport 기한 오류로 바꾸지 않는다")
     void preserves_other_business_errors_when_db_worker_is_interrupted() throws Exception {
         // given
@@ -192,7 +210,7 @@ class ViewportRepositoryExecutionTest {
             // when & then
             assertThatThrownBy(() -> service.search(request()))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
-                            assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
+                            assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name()));
             assertThat(queries).hasValue(1);
             assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
             release.countDown();
@@ -231,7 +249,7 @@ class ViewportRepositoryExecutionTest {
                 assertThatThrownBy(() -> expiring.get(5, TimeUnit.SECONDS))
                         .hasCauseInstanceOf(BusinessException.class)
                         .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
-                                .isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
+                                .isEqualTo(ViewportFailureReason.DEADLINE.name()));
                 assertThat(next.get(2, TimeUnit.SECONDS)).isEqualTo(1);
                 assertThat(queries).hasValue(2);
                 assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
@@ -319,7 +337,8 @@ class ViewportRepositoryExecutionTest {
 
             // then
             assertThat(waiter.isAlive()).isFalse();
-            assertThat(failure.get()).isInstanceOf(BusinessException.class);
+            assertThat(failure.get()).isInstanceOfSatisfying(BusinessException.class, rejected ->
+                    assertThat(rejected.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name()));
             assertThat(interrupted).isTrue();
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
             assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
@@ -382,12 +401,12 @@ class ViewportRepositoryExecutionTest {
             assertThatThrownBy(query::run)
                     .isInstanceOfSatisfying(BusinessException.class, failure -> {
                         assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
-                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name());
+                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name());
                     });
             assertThatThrownBy(query::run)
                     .isInstanceOfSatisfying(BusinessException.class, failure -> {
                         assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE);
-                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_DEADLINE.name());
+                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name());
                     });
             assertThat(fetches).hasValue(1);
             assertThat(deadline.remainingNanos()).isZero();

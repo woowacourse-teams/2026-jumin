@@ -38,8 +38,6 @@ import jumin.domain.parking.model.ViewportMappingState;
 import jumin.domain.parking.monitoring.ViewportMetrics;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
 import jumin.domain.parking.service.ViewportSquareGrid;
-import jumin.global.exception.BusinessException;
-import jumin.global.exception.ErrorCode;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -390,13 +388,8 @@ public class ViewportRepository {
         long started = System.nanoTime();
         try {
             T completed = executeRead(deadline, query);
-            requireDbRemaining(deadline);
+            deadline.requireRemaining();
             return completed;
-        } catch (RuntimeException | Error failure) {
-            if (isUnclassifiedDeadlineFailure(failure, deadline)) {
-                throw ViewportFailureReason.DB_DEADLINE.failure(failure);
-            }
-            throw failure;
         } finally {
             metrics.time(stage, started);
             stageActive(stage).decrementAndGet();
@@ -409,12 +402,12 @@ public class ViewportRepository {
         boolean acquired = false;
         try {
             requireOpen();
-            requireDbRemaining(deadline);
+            deadline.requireRemaining();
             if (active.get() >= maximum) {
                 awaitCapacity(deadline);
             }
             requireOpen();
-            requireDbRemaining(deadline);
+            deadline.requireRemaining();
             active.incrementAndGet();
             acquired = true;
         } finally {
@@ -434,12 +427,12 @@ public class ViewportRepository {
         try {
             while (active.get() >= maximum) {
                 requireOpen();
-                requireDbRemaining(deadline);
+                deadline.requireRemaining();
                 capacity.awaitNanos(deadline.remainingNanos());
             }
         } catch (InterruptedException failure) {
             Thread.currentThread().interrupt();
-            throw ViewportFailureReason.DB_DEADLINE.failure(failure);
+            throw ViewportFailureReason.DEADLINE.failure(failure);
         } finally {
             queued.decrementAndGet();
         }
@@ -463,7 +456,7 @@ public class ViewportRepository {
 
     private <T> T executeRead(ViewportDeadline deadline, Supplier<T> query) {
         long remainingNanos = Math.min(deadline.remainingNanos(), dbTimeoutNanos);
-        requireDbRemaining(deadline);
+        deadline.requireRemaining();
         TransactionTemplate transaction = new TransactionTemplate(transactions);
         transaction.setReadOnly(true);
         transaction.setTimeout(secondsCeiling(Duration.ofNanos(remainingNanos)));
@@ -471,44 +464,19 @@ public class ViewportRepository {
     }
 
     private <T> T queryInTransaction(ViewportDeadline deadline, Supplier<T> query) {
-        requireDbRemaining(deadline);
+        deadline.requireRemaining();
         long statementTimeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(
                 Math.min(deadline.remainingNanos(), dbTimeoutNanos)));
         jdbc.execute(SET_STATEMENT_TIMEOUT_SQL_PREFIX + statementTimeoutMillis);
-        requireDbRemaining(deadline);
+        deadline.requireRemaining();
         T value = query.get();
-        requireDbRemaining(deadline);
+        deadline.requireRemaining();
         return value;
-    }
-
-    private static boolean isUnclassifiedDeadlineFailure(Throwable failure, ViewportDeadline deadline) {
-        if (!(failure instanceof BusinessException exception)) {
-            return false;
-        }
-        if (exception.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE) {
-            return false;
-        }
-        String reason = exception.getReason();
-        if (reason != null && !reason.equals(ViewportFailureReason.UNCLASSIFIED.name())) {
-            return false;
-        }
-        return deadline.remainingNanos() == 0 || Thread.currentThread().isInterrupted();
     }
 
     private static int secondsCeiling(Duration duration) {
         long nanos = duration.toNanos();
         return (int) Math.max(1, 1 + (nanos - 1) / TimeUnit.SECONDS.toNanos(1));
-    }
-
-    private static void requireDbRemaining(ViewportDeadline deadline) {
-        try {
-            deadline.requireRemaining();
-        } catch (BusinessException failure) {
-            if (failure.getErrorCode() != ErrorCode.VIEWPORT_UNAVAILABLE) {
-                throw failure;
-            }
-            throw ViewportFailureReason.DB_DEADLINE.failure(failure);
-        }
     }
 
     private AtomicInteger stageActive(String stage) {

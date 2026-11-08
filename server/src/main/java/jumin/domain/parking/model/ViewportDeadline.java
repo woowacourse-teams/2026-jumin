@@ -15,7 +15,7 @@ public record ViewportDeadline(long expiresAtNanos) {
 
     public void requireRemaining() {
         if (remainingNanos() == 0 || Thread.currentThread().isInterrupted()) {
-            throw ViewportFailureReason.UNCLASSIFIED.failure();
+            throw ViewportFailureReason.DEADLINE.failure();
         }
     }
 }

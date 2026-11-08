@@ -261,7 +261,7 @@ public class RedisViewportCellStore implements ViewportCellStore {
         boolean callerExpired = caller.remainingNanos() == 0;
         metrics.count("store_error", failureOutcome(failure, callerExpired), 1);
         if (callerExpired) {
-            return ViewportFailureReason.UNCLASSIFIED.failure(failure);
+            return ViewportFailureReason.DEADLINE.failure(failure);
         }
         return new ViewportStoreException("원격 cache 명령에 실패했습니다.", failure);
     }

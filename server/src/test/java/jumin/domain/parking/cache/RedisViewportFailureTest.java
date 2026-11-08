@@ -8,9 +8,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import jumin.config.ViewportCacheProperties;
+import jumin.domain.parking.exception.ViewportFailureReason;
 import jumin.domain.parking.exception.ViewportStoreBudgetException;
 import jumin.domain.parking.exception.ViewportStoreException;
 import jumin.domain.parking.model.ViewportCell;
@@ -80,6 +83,29 @@ class RedisViewportFailureTest {
         return Stream.of(
                 Arguments.of("연결 오류", new RedisConnectionException("closed"), "connection_error"),
                 Arguments.of("명령 timeout", new RedisCommandTimeoutException("timeout"), "operation_timeout"));
+    }
+
+    @Test
+    @DisplayName("Redis 명령 실패 시 요청 기한이 만료되었으면 DEADLINE 사유와 원인을 보존한다")
+    void expired_command_failure_has_deadline_reason() {
+        // given
+        ViewportDeadline deadline = spy(deadline());
+        RedisCommandTimeoutException commandFailure = new RedisCommandTimeoutException("timeout");
+        try (Fixture fixture = new Fixture(properties())) {
+            when(fixture.commands.<List<?>>eval(anyString(), eq(ScriptOutputType.MULTI), any(byte[][].class), any(byte[][].class)))
+                    .thenAnswer(invocation -> {
+                        doReturn(0L).when(deadline).remainingNanos();
+                        throw commandFailure;
+                    });
+
+            // when & then
+            assertThatThrownBy(() -> fixture.store.getMany(List.of(key(1)), deadline))
+                    .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                        assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name());
+                        assertThat(failure.getCause()).isSameAs(commandFailure);
+                    });
+            assertThat(fixture.count("caller_timeout")).isEqualTo(1);
+        }
     }
 
     @Test

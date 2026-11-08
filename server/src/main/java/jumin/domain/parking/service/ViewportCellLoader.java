@@ -167,7 +167,7 @@ public class ViewportCellLoader implements AutoCloseable {
             }
         } catch (InterruptedException failure) {
             Thread.currentThread().interrupt();
-            throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
+            throw ViewportFailureReason.DEADLINE.failure(failure);
         }
     }
 

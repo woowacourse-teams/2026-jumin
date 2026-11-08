@@ -146,7 +146,10 @@ class ViewportCellLoaderFailureReasonTest {
             var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             // when & then
-            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(), ViewportDeadline.after(Duration.ofMillis(30)), false)).isInstanceOf(BusinessException.class);
+            assertThatThrownBy(() -> loader.resolve(List.of(key(1)), Map.of(),
+                    ViewportDeadline.after(Duration.ofMillis(30)), false))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name()));
             assertThat(owner).isNotCompleted();
             release.countDown();
             assertThat(owner.get(5, TimeUnit.SECONDS)).hasSize(1);

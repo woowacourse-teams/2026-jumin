@@ -5,8 +5,8 @@ import jumin.global.exception.ErrorCode;
 
 public enum ViewportFailureReason {
     UNCLASSIFIED,
+    DEADLINE,
     DB_QUEUE_FULL,
-    DB_DEADLINE,
     DB_SHUTTING_DOWN,
     CELL_FLIGHT_LIMIT,
     CELL_LOADER_CLOSED,

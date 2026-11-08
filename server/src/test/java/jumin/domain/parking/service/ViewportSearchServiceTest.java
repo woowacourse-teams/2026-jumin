@@ -130,6 +130,7 @@ class ViewportSearchServiceTest {
                         .param("northLatitude", "37.51"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("message").value(ErrorCode.VIEWPORT_UNAVAILABLE.getMessage()))
+                .andExpect(jsonPath("reason").doesNotExist())
                 .andReturn().getResponse();
         assertThat(response.getContentAsString()).doesNotContain("private-database-detail");
         verifyNoInteractions(cover, store, loader);
@@ -151,7 +152,7 @@ class ViewportSearchServiceTest {
     private static Stream<RuntimeException> databaseFailures() {
         return Stream.of(new DataAccessResourceFailureException("private-database-detail"),
                 new CannotCreateTransactionException("private-database-detail"),
-                ViewportFailureReason.DB_QUEUE_FULL.failure(), ViewportFailureReason.DB_DEADLINE.failure(),
+                ViewportFailureReason.DB_QUEUE_FULL.failure(), ViewportFailureReason.DEADLINE.failure(),
                 ViewportFailureReason.DB_SHUTTING_DOWN.failure());
     }
 
