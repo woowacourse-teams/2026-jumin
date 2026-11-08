@@ -204,6 +204,46 @@ class ViewportRepositoryExecutionTest {
     }
 
     @Test
+    @DisplayName("신호를 받은 대기 요청이 만료되어도 다음 요청은 빈 DB 슬롯에서 실행된다")
+    void expired_signalled_waiter_allows_next_request_to_run() throws Exception {
+        // given: 실행 슬롯 하나를 점유한 뒤 만료시킬 요청과 유효한 요청을 순서대로 대기시킨다.
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger queries = new AtomicInteger();
+        try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            try {
+                harness.beforeQuery.set(() -> { queries.incrementAndGet(); started.countDown(); await(release); });
+                var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
+                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                ViewportDeadline expiringDeadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
+                var expiring = CompletableFuture.supplyAsync(() -> harness.load(expiringDeadline), threads);
+                awaitQueued(harness, 1);
+                var next = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
+                awaitQueued(harness, 2);
+
+                // when: 실제 대기 타이머가 깨우기 전에 기한을 만료시켜 첫 신호를 받은 요청이 슬롯 획득을 포기하게 한다.
+                doReturn(0L).when(expiringDeadline).remainingNanos();
+                release.countDown();
+
+                // then: 만료된 요청은 SQL을 실행하지 않고, 다음 요청은 자신의 기한 전에 슬롯을 얻는다.
+                assertThat(running.get(5, TimeUnit.SECONDS)).isEqualTo(1);
+                assertThatThrownBy(() -> expiring.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(BusinessException.class)
+                        .satisfies(failure -> assertThat(((BusinessException) failure.getCause()).getReason())
+                                .isEqualTo(ViewportFailureReason.DB_DEADLINE.name()));
+                assertThat(next.get(2, TimeUnit.SECONDS)).isEqualTo(1);
+                assertThat(queries).hasValue(2);
+                assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+                assertThat(harness.registry.get("parking.viewport.db.queued").gauge().value()).isZero();
+            } finally {
+                // 검증 실패 시에도 실행 중인 조회와 대기 요청을 정리해 테스트 종료를 보장한다.
+                release.countDown();
+                harness.db.close();
+            }
+        }
+    }
+
+    @Test
     @DisplayName("종료는 대기 요청을 깨우고 실행 중인 동기 조회는 실제 종료까지 유지한다")
     void closes_waiters_without_finishing_running_query() throws Exception {
         // given

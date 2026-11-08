@@ -407,6 +407,7 @@ public class ViewportRepository {
 
     private void acquire(ViewportDeadline deadline) {
         admission.lock();
+        boolean acquired = false;
         try {
             requireOpen();
             requireDbRemaining(deadline);
@@ -416,7 +417,11 @@ public class ViewportRepository {
             requireOpen();
             requireDbRemaining(deadline);
             active.incrementAndGet();
+            acquired = true;
         } finally {
+            if (!acquired && active.get() < maximum) {
+                capacity.signal();
+            }
             admission.unlock();
         }
     }
