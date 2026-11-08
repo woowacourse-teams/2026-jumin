@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import jumin.domain.parking.cache.EmptyViewportCellStore;
 import jumin.domain.parking.cache.ViewportCellStore;
@@ -115,6 +118,61 @@ class ViewportCellLoaderTest {
         } finally {
             sourceRelease.countDown();
             writeRelease.countDown();
+        }
+    }
+
+    @Test
+    @DisplayName("다른 셀의 잠금을 기다리다 만료되어도 아직 조회하지 않은 셀의 대기 요청은 성공한다")
+    void expired_lock_waiter_does_not_fail_unloaded_cell_followers() throws Exception {
+        // given: A가 셀 2를 조회하는 동안 B는 셀 1을 잠근 채 셀 2를 기다리게 한다.
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicReference<Thread> waitingThread = new AtomicReference<>();
+        ViewportDeadline expiringDeadline = spy(ViewportDeadline.after(Duration.ofSeconds(30)));
+        ViewportRepository repository = mock(ViewportRepository.class);
+        when(repository.load(anyList(), any())).thenAnswer(invocation -> {
+            List<ViewportCellKey> keys = invocation.getArgument(0);
+            if (keys.contains(key(2))) {
+                started.countDown();
+                await(release);
+            }
+            return keys.stream().collect(Collectors.toMap(key -> key, key -> new ViewportCell(key, List.of())));
+        });
+        try (var threads = Executors.newVirtualThreadPerTaskExecutor();
+             var loader = new ViewportCellLoader(new EmptyViewportCellStore(), repository, metrics())) {
+            try {
+                var owner = CompletableFuture.supplyAsync(() -> resolve(loader, key(2)), threads);
+                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                var expiring = CompletableFuture.supplyAsync(() -> {
+                    waitingThread.set(Thread.currentThread());
+                    return loader.resolve(List.of(key(1), key(2)), Map.of(), expiringDeadline, false);
+                }, threads);
+                waitForFollowers(registry, 1);
+                // B가 셀 2의 잠금에서 실제로 대기한 뒤 C를 시작해 셀 1을 먼저 얻는 경합을 피한다.
+                long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                while (waitingThread.get().getState() != Thread.State.TIMED_WAITING) {
+                    assertThat(System.nanoTime()).isLessThan(until);
+                    Thread.sleep(1);
+                }
+                var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
+                waitForFollowers(registry, 2);
+
+                // when: C가 셀 1에 등록된 뒤 B의 기한만 만료시킨다.
+                doReturn(0L).when(expiringDeadline).remainingNanos();
+
+                // then: B만 실패하고 C는 A의 셀 2 조회가 끝나기 전에 셀 1을 직접 조회한다.
+                assertThatThrownBy(() -> expiring.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
+                assertThat(follower.get(2, TimeUnit.SECONDS)).containsExactly(new ViewportCell(key(1), List.of()));
+                assertThat(owner).isNotCompleted();
+                release.countDown();
+                assertThat(owner.get(5, TimeUnit.SECONDS)).containsExactly(new ViewportCell(key(2), List.of()));
+                verify(repository).load(eq(List.of(key(1))), any());
+                verify(repository).load(eq(List.of(key(2))), any());
+                verify(repository, times(2)).load(anyList(), any());
+                assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isZero();
+            } finally {
+                release.countDown();
+            }
         }
     }
 

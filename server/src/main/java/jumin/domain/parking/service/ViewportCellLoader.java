@@ -57,12 +57,14 @@ public class ViewportCellLoader implements AutoCloseable {
             registerMissingCells(keys, hits, registered);
             acquireCellLocks(registered, locked, deadline);
             requireOpen();
-            loadMissing(registered, deadline, bypassStore);
+            try {
+                loadMissing(registered, deadline, bypassStore);
+            } catch (RuntimeException | Error failure) {
+                throw recordLoadFailure(locked, failure);
+            }
             List<ViewportCell> result = resolvedCells(keys, hits, registered);
             deadline.requireRemaining();
             return List.copyOf(result);
-        } catch (RuntimeException | Error failure) {
-            throw recordLoadFailure(locked, failure);
         } finally {
             for (int index = locked.size() - 1; index >= 0; index--) {
                 locked.get(index).lock.unlock();
