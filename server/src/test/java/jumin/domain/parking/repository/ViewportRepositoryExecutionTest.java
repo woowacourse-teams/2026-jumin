@@ -206,7 +206,7 @@ class ViewportRepositoryExecutionTest {
     @Test
     @DisplayName("신호를 받은 대기 요청이 만료되어도 다음 요청은 빈 DB 슬롯에서 실행된다")
     void expired_signalled_waiter_allows_next_request_to_run() throws Exception {
-        // given: 실행 슬롯 하나를 점유한 뒤 만료시킬 요청과 유효한 요청을 순서대로 대기시킨다.
+        // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicInteger queries = new AtomicInteger();
@@ -221,11 +221,12 @@ class ViewportRepositoryExecutionTest {
                 var next = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
                 awaitQueued(harness, 2);
 
-                // when: 실제 대기 타이머가 깨우기 전에 기한을 만료시켜 첫 신호를 받은 요청이 슬롯 획득을 포기하게 한다.
+                // when
+                // 실제 대기 타이머가 깨우기 전에 기한을 만료시켜 신호를 받은 요청이 슬롯 획득을 포기하게 한다.
                 doReturn(0L).when(expiringDeadline).remainingNanos();
                 release.countDown();
 
-                // then: 만료된 요청은 SQL을 실행하지 않고, 다음 요청은 자신의 기한 전에 슬롯을 얻는다.
+                // then
                 assertThat(running.get(5, TimeUnit.SECONDS)).isEqualTo(1);
                 assertThatThrownBy(() -> expiring.get(5, TimeUnit.SECONDS))
                         .hasCauseInstanceOf(BusinessException.class)

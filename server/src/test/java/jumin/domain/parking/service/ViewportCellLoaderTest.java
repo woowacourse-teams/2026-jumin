@@ -124,7 +124,7 @@ class ViewportCellLoaderTest {
     @Test
     @DisplayName("다른 셀의 잠금을 기다리다 만료되어도 아직 조회하지 않은 셀의 대기 요청은 성공한다")
     void expired_lock_waiter_does_not_fail_unloaded_cell_followers() throws Exception {
-        // given: A가 셀 2를 조회하는 동안 B는 셀 1을 잠근 채 셀 2를 기다리게 한다.
+        // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicReference<Thread> waitingThread = new AtomicReference<>();
@@ -157,10 +157,10 @@ class ViewportCellLoaderTest {
                 var follower = CompletableFuture.supplyAsync(() -> resolve(loader, key(1)), threads);
                 waitForFollowers(registry, 2);
 
-                // when: C가 셀 1에 등록된 뒤 B의 기한만 만료시킨다.
+                // when
                 doReturn(0L).when(expiringDeadline).remainingNanos();
 
-                // then: B만 실패하고 C는 A의 셀 2 조회가 끝나기 전에 셀 1을 직접 조회한다.
+                // then
                 assertThatThrownBy(() -> expiring.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(BusinessException.class);
                 assertThat(follower.get(2, TimeUnit.SECONDS)).containsExactly(new ViewportCell(key(1), List.of()));
                 assertThat(owner).isNotCompleted();

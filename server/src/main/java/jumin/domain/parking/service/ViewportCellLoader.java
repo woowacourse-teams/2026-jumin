@@ -89,10 +89,11 @@ public class ViewportCellLoader implements AutoCloseable {
     }
 
     private static RuntimeException recordLoadFailure(List<CellLoad> locked, Throwable failure) {
-        RuntimeException reported;
+        RuntimeException reported = null;
         if (failure instanceof RuntimeException runtime) {
             reported = runtime;
-        } else {
+        }
+        if (reported == null) {
             reported = ViewportFailureReason.UNCLASSIFIED.failure(failure);
         }
         for (CellLoad load : locked) {

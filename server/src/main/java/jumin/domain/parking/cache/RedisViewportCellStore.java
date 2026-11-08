@@ -345,11 +345,9 @@ public class RedisViewportCellStore implements ViewportCellStore {
     }
 
     private long ttlMillis(ViewportCell cell) {
-        Duration ttl;
+        Duration ttl = properties.getTtl();
         if (cell.items().isEmpty()) {
             ttl = properties.getEmptyTtl();
-        } else {
-            ttl = properties.getTtl();
         }
         long baseTtlMillis = ttl.toMillis();
         double ttlMultiplier = 1 + ThreadLocalRandom.current().nextDouble(-1, 1) * TTL_JITTER_RATIO;

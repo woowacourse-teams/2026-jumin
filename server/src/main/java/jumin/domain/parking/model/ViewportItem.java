@@ -35,10 +35,12 @@ public record ViewportItem(long id, double latitude, double longitude, Integer c
     }
 
     private Boolean paidOn(DayOfWeek day) {
-        return switch (day) {
-            case SATURDAY -> saturdayPaid;
-            case SUNDAY -> holidayPaid;
-            default -> weekdayPaid;
-        };
+        if (day.equals(DayOfWeek.SATURDAY)) {
+            return saturdayPaid;
+        }
+        if (day.equals(DayOfWeek.SUNDAY)) {
+            return holidayPaid;
+        }
+        return weekdayPaid;
     }
 }
