@@ -34,7 +34,7 @@ export const ParkingSetupContent = ({
 
   const { isDragging } = useParkingSetupMap({
     map,
-    onDragEnd: onSelectedLocationChange,
+    onLocationSettled: onSelectedLocationChange,
   });
 
   const handleRecommend = () => {

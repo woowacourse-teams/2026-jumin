@@ -3,11 +3,12 @@ import type { Coordinates } from '../../../shared/types/coordinates';
 
 interface Props {
   map: naver.maps.Map | null;
-  onDragEnd: (location: Coordinates) => void;
+  /** 드래그와 관성 이동이 끝난 뒤 최종 중심 좌표를 전달한다. */
+  onLocationSettled: (location: Coordinates) => void;
 }
 
 /** 드래그 이벤트와 지도 옵션 설정 */
-export const useParkingSetupMap = ({ map, onDragEnd }: Props) => {
+export const useParkingSetupMap = ({ map, onLocationSettled }: Props) => {
   // 직접 드래그하는 동안과 손을 뗀 뒤 관성으로 이동하는 동안을 함께 나타낸다.
   const [isDragging, setIsDragging] = useState(false);
 
@@ -19,7 +20,7 @@ export const useParkingSetupMap = ({ map, onDragEnd }: Props) => {
 
     // URL 갱신과 드래그 상태 해제를 함께 반영한다.
     startTransition(() => {
-      onDragEnd({ latitude: center.lat(), longitude: center.lng() });
+      onLocationSettled({ latitude: center.lat(), longitude: center.lng() });
       setIsDragging(false);
     });
   });
