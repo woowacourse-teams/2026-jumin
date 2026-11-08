@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import jumin.config.ViewportCacheProperties;
@@ -63,6 +64,7 @@ class RedisViewportCellStoreTest {
         ViewportCell cell = full(properties, 1);
         CountDownLatch encoding = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
+        AtomicReference<ViewportDeadline> deadlineRef = new AtomicReference<>();
         ViewportCellCodec delayed = new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS) {
             @Override
             public byte[] encode(ViewportCell value) {
@@ -79,11 +81,15 @@ class RedisViewportCellStoreTest {
         try (ViewportCellStore store = new RedisViewportCellStore(properties, delayed,
                 new ViewportCellCover(new ViewportSquareGrid()), new ViewportMetrics(new SimpleMeterRegistry()));
              var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            ViewportDeadline sourceDeadline = ViewportDeadline.after(Duration.ofMillis(100));
-
             // when & then
-            var write = CompletableFuture.runAsync(() -> store.putMany(List.of(cell), sourceDeadline), executor);
+            // 작업 시작 지연과 직렬화 도중의 기한 만료를 구분한다.
+            var write = CompletableFuture.runAsync(() -> {
+                ViewportDeadline sourceDeadline = ViewportDeadline.after(Duration.ofMillis(500));
+                deadlineRef.set(sourceDeadline);
+                store.putMany(List.of(cell), sourceDeadline);
+            }, executor);
             assertThat(encoding.await(5, TimeUnit.SECONDS)).isTrue();
+            ViewportDeadline sourceDeadline = deadlineRef.get();
             while (sourceDeadline.remainingNanos() > 0) {
                 Thread.sleep(1);
             }

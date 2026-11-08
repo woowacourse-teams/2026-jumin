@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import jumin.config.ViewportCacheProperties;
@@ -156,16 +157,22 @@ class RedisViewportFailureTest {
         // given
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
+        AtomicReference<ViewportDeadline> deadlineRef = new AtomicReference<>();
         try (Fixture fixture = new Fixture(properties()); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
             when(fixture.client.connect(any(RedisCodec.class), any(RedisURI.class))).thenAnswer(invocation -> {
                 started.countDown();
                 assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
                 return fixture.connection;
             });
-            ViewportDeadline deadline = ViewportDeadline.after(Duration.ofMillis(50));
             // when
-            var request = CompletableFuture.supplyAsync(() -> fixture.store.getMany(List.of(key(1)), deadline), threads);
+            // 작업 시작이 늦어져도 연결에 진입하기 전 기한이 소진되지 않도록 한다.
+            var request = CompletableFuture.supplyAsync(() -> {
+                ViewportDeadline deadline = ViewportDeadline.after(Duration.ofMillis(500));
+                deadlineRef.set(deadline);
+                return fixture.store.getMany(List.of(key(1)), deadline);
+            }, threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            ViewportDeadline deadline = deadlineRef.get();
             while (deadline.remainingNanos() > 0) {
                 Thread.sleep(1);
             }
