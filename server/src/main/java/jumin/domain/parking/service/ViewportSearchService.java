@@ -194,8 +194,7 @@ public class ViewportSearchService {
             if (!item.matches(bounds, request, day)) {
                 continue;
             }
-            rows.add(new ParkingLotViewportResponse(item.id(), item.latitude(), item.longitude(),
-                    scores.calculate(item.capacity())));
+            rows.add(ParkingLotViewportResponse.from(item, scores.calculate(item.capacity())));
         }
     }
 

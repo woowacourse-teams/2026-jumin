@@ -227,8 +227,7 @@ public class ViewportRepository {
                 throw ViewportFailureReason.UNCLASSIFIED.failure();
             }
             ViewportItem item = itemOf(rows);
-            response.add(new ParkingLotViewportResponse(item.id(), item.latitude(), item.longitude(),
-                    scores.calculate(item.capacity())));
+            response.add(ParkingLotViewportResponse.from(item, scores.calculate(item.capacity())));
         }
         deadline.requireRemaining();
         return ParkingLotViewportResponses.from(response);
