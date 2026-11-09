@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import type { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../api/contracts';
 import { SearchResultRow } from './SearchResultRow';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';

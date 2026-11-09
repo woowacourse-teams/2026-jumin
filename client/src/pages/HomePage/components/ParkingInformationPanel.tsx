@@ -1,22 +1,26 @@
+import { css } from '@emotion/css';
 import { useLayoutEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import type { ParkingLotViewport } from '../../../../api/contracts';
-import { viewportParkingLotDetailQueryOptions } from '../../../../api/queries/viewportParkingLotDetailQuery';
-import BottomSheet, { BOTTOM_SHEET_HEIGHT } from '../../../../shared/components/ui/BottomSheet';
-import { ErrorCard } from '../../../../shared/components/service/ErrorCard';
+import type { ParkingLotViewport } from '../../../api/contracts';
+import { viewportParkingLotDetailQueryOptions } from '../../../api/queries/viewportParkingLotDetailQueryOptions';
+import BottomSheet, {
+  getBottomSheetSnapHeight,
+  type BottomSheetSnap,
+} from '../../../shared/components/ui/BottomSheet';
+import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import { ParkingDetailSkeleton } from '../../ParkingRecommendPage/LoadingUI/ParkingDetailSkeleton';
 import { ParkingInformationContent } from './ParkingInformationContent';
-import { ConditionBar } from '../../../../shared/components/service/ConditionBar';
-import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
-import { getMapCenterForMarkerY } from '../../../../shared/maps/getMapCenterForMarkerY';
-import type { BottomSheetSnap } from '../../../../shared/types/ui';
+import { ConditionBar } from '../../../shared/components/service/ConditionBar';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { getMapCenterForMarkerY } from '../../../shared/maps/getMapCenterForMarkerY';
 
 const MARKER_GAP = 64;
 
 interface Props {
   map: naver.maps.Map | null;
   parkingLot: ParkingLotViewport;
+  open?: boolean;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
   onClose: () => void;
@@ -25,6 +29,7 @@ interface Props {
 export const ParkingInformationPanel = ({
   map,
   parkingLot,
+  open = true,
   snap,
   onSnapChange,
   onClose,
@@ -34,18 +39,20 @@ export const ParkingInformationPanel = ({
   // 바텀시트가 펼쳐질 때 마커가 가려지지 않도록 화면이 그려지기 전에 지도 이동을 요청한다.
   // panTo의 애니메이션이 이 effect 안에서 끝나는 것은 아니다.
   useLayoutEffect(() => {
-    if (!map || snap !== 'expanded') return;
+    if (!open || !map || snap === 'collapsed' || snap === 'full') return;
 
     const parkingLotPosition = new naver.maps.LatLng(parkingLot.latitude, parkingLot.longitude);
-    // BottomSheet의 실제 CSS 높이에 쓰는 상수를 공유해 DOM에서 높이를 다시 측정하지 않는다.
+    // 시트와 같은 단계별 높이 계산을 사용한다.
     // 바텀시트 상단보다 64px 위를 홈 화면에서 마커가 보일 위치로 정한다.
-    const targetMarkerY = map.getSize().height - BOTTOM_SHEET_HEIGHT - MARKER_GAP;
+    const mapHeight = map.getSize().height;
+    const sheetHeight = getBottomSheetSnapHeight(snap, mapHeight);
+    const targetMarkerY = Math.max(32, mapHeight - sheetHeight - MARKER_GAP);
     // 화면은 목표 높이를 정하고, 공통 함수는 그 높이에 마커를 놓을 지도 중심을 계산한다.
     const center = getMapCenterForMarkerY(map, parkingLotPosition, targetMarkerY);
 
     // 주차장 위치는 바꾸지 않고 지도 중심만 300ms 동안 이동한다.
     map.panTo(center, { duration: 300 });
-  }, [map, parkingLot.latitude, parkingLot.longitude, snap]);
+  }, [open, map, parkingLot.latitude, parkingLot.longitude, snap]);
 
   const renderContent = () => {
     if (detailQuery.isPending) {
@@ -66,16 +73,34 @@ export const ParkingInformationPanel = ({
     return <ParkingInformationContent parkingLot={parkingLot} data={detailQuery.data} />;
   };
 
+  const conditionBar = (
+    <ConditionBar
+      title={detailQuery.data?.name ?? '주차장 이름'}
+      description={detailQuery.data?.address ?? '주차장 주소'}
+      onBack={onClose}
+    />
+  );
+
   return (
     <>
-      <ConditionBar
-        title={detailQuery.data?.name ?? '주차장 이름'}
-        description={detailQuery.data?.address ?? '주차장 주소'}
-        onBack={onClose}
-      />
-      <BottomSheet snap={snap} onSnapChange={onSnapChange}>
+      {open && snap !== 'full' && conditionBar}
+      <BottomSheet
+        open={open}
+        snap={snap}
+        onSnapChange={onSnapChange}
+        header={snap === 'full' ? <div className={fullHeaderStyle}>{conditionBar}</div> : undefined}
+      >
         {renderContent()}
       </BottomSheet>
     </>
   );
 };
+
+// 전체 화면에서는 지도 위의 검색 조건 바를 시트 안에 배치한다.
+const fullHeaderStyle = css`
+  > header {
+    position: static;
+    margin: 0 16px 16px;
+    box-shadow: none;
+  }
+`;

@@ -1,0 +1,32 @@
+import { queryOptions } from '@tanstack/react-query';
+import { destinationKeys } from './destinationKeys';
+import { getDestinationName } from '../destination';
+
+interface DestinationNameQueryParams {
+  latitude: number;
+  longitude: number;
+  enabled: boolean;
+}
+
+export const destinationNameQueryOptions = (params: DestinationNameQueryParams) => {
+  return queryOptions({
+    //좌표가 다르면 서로 다른 요청으로 구분되어야함
+    queryKey: destinationKeys.name(params.latitude, params.longitude),
+
+    //Tanstack Query의 signal과 좌표를 API 함수에 전달
+    queryFn: ({ signal }) => {
+      return getDestinationName(params.latitude, params.longitude, signal);
+    },
+
+    meta: {
+      feature: 'parking-setup',
+      operation: 'get-destination-name',
+    },
+
+    // 현재 요청을 보낼지
+
+    enabled: params.enabled,
+
+    retry: 1,
+  });
+};

@@ -1,7 +1,8 @@
 import { css, cx } from '@emotion/css';
 import { Link } from 'react-router';
 
-import { ArrowDownIcon, ChevronRightIcon } from '../../../../shared/components/ui/icons';
+import { ArrowDownIcon, ChevronRightIcon } from '../../../shared/components/ui/icons';
+import { Row } from '../../../shared/components/ui/Row';
 import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 import { HeroMapAnimation } from '../components/HeroMapAnimation';
@@ -21,14 +22,14 @@ export const HeroSection = () => (
           주차의민족이 목적지에서 가깝고 <br />
           요금이 합리적인 주차장을 찾아드려요.
         </p>
-        <div className={styles.actions}>
+        <Row align="center" gap={24} className={styles.actions}>
           <Link className={cx(landing.button, landing.primaryButton)} to="/">
             주차장 찾아보기 <ChevronRightIcon size={18} aria-hidden="true" />
           </Link>
           <a className={styles.textLink} href="#landing-guide">
             이용 방법 보기 <ArrowDownIcon size={16} aria-hidden="true" />
           </a>
-        </div>
+        </Row>
         <p className={styles.note}>설치 없이 웹에서 바로 쓸 수 있어요.</p>
       </div>
       <div className={styles.demo}>
@@ -109,10 +110,7 @@ const styles = {
     }
   `,
   actions: css`
-    display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 24px;
     margin-top: 36px;
   `,
   textLink: css`

@@ -1,13 +1,14 @@
+import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
-import type { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../api/contracts';
 import { useEffect, useState } from 'react';
-import { destinationSearchQueryOptions } from '../../../../api/queries/destinationSearchQuery';
-import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
+import { destinationSearchQueryOptions } from '../../../api/queries/destinationSearchQueryOptions';
+import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
 import { SearchResultList } from './SearchResultList';
 import { RecentSearchList } from './RecentSearchList';
-import { recentSearchesSchema } from '../../../../api/parkingLotsSchema';
-import { API_ERROR_MESSAGES } from '../../../../api/apiErrorMessages';
+import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { recentSearchesSchema } from '../../../api/destinationSchema';
 
 const RECENT_SEARCHES_KEY = 'recentSearches';
 const SEARCH_DEBOUNCE_DELAY = 300;
@@ -119,11 +120,10 @@ export const SearchContent = ({
   };
 
   return (
-    <div
+    <Stack
       className={css`
-        display: flex;
         flex: 1;
-        flex-direction: column;
+
         min-height: 0;
       `}
     >
@@ -158,6 +158,6 @@ export const SearchContent = ({
           onClear={() => updateRecentSearches([])}
         />
       )}
-    </div>
+    </Stack>
   );
 };

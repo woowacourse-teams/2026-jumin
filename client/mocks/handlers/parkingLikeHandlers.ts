@@ -1,7 +1,7 @@
 import { delay, http, HttpResponse } from 'msw';
 import { parkingDetailFixtures } from '../fixtures/parkingDetails';
 import { viewportParkingLotDetailFixtures } from '../fixtures/viewportParkingLotDetails';
-import { UUID_V4_PATTERN } from '../../shared/utils/guestId';
+import { UUID_V4_PATTERN } from '../../src/shared/utils/guestId';
 
 const likedUsers = new Map<number, Set<string>>();
 

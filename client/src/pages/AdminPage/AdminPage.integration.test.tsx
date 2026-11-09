@@ -3,7 +3,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
-import { API_ERROR_MESSAGES } from '../../../api/apiErrorMessages';
+import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
 import { ADMIN_MESSAGES } from './adminMessages';
 import { renderWithProviders } from '../../../__tests__/renderWithProviders';
 import { server } from '../../../__tests__/msw/server';

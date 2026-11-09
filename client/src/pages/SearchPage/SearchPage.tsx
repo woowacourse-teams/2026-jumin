@@ -1,12 +1,13 @@
+import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
-import type { Destination } from '../../../api/contracts';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
+import type { Destination } from '../../api/contracts';
+import { BottomNav } from '../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
-import { STEP_PATH, useStepNavigation } from '../../../shared/hooks/useStepNavigation';
+import { STEP_PATH, useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { Navigate } from 'react-router';
 import { useCenterLocationQuery } from './hooks/useCenterLocationQuery';
-import { buildQueryString } from '../../../shared/hooks/useQueryParams';
+import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 export const SearchPage = () => {
   const { move } = useStepNavigation('search');
@@ -25,7 +26,7 @@ export const SearchPage = () => {
   if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;
 
   return (
-    <main className={pageStyle}>
+    <Stack as="main" className={pageStyle}>
       <SearchContent
         viewportLatitude={centerLocation.latitude}
         viewportLongitude={centerLocation.longitude}
@@ -41,13 +42,13 @@ export const SearchPage = () => {
       >
         <BottomNav />
       </footer>
-    </main>
+    </Stack>
   );
 };
 
 const pageStyle = css`
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  z-index: 1;
 
   width: 100%;
   height: 100%;

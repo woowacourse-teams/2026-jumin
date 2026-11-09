@@ -1,5 +1,6 @@
+import { Row } from '../../../shared/components/ui/Row';
 import { css } from '@emotion/css';
-import type { Destination } from '../../../../api/contracts';
+import type { Destination } from '../../../api/contracts';
 import { RecentSearchRow } from './RecentSearchRow';
 import { color } from '../../../theme/color';
 import { fontWeight } from '../../../theme/font';
@@ -20,11 +21,10 @@ export const RecentSearchList = ({ recentSearches, onSelect, onRemove, onClear }
       overflow-y: auto;
     `}
   >
-    <div
+    <Row
+      align="center"
+      justify="between"
       className={css`
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
         padding: 16px 24px 8px;
       `}
     >
@@ -52,7 +52,7 @@ export const RecentSearchList = ({ recentSearches, onSelect, onRemove, onClear }
       >
         전체 삭제
       </button>
-    </div>
+    </Row>
     <ul
       className={css`
         margin: 0;
