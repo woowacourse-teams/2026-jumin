@@ -6,6 +6,12 @@ current_release="/opt/jumin-prod/proxy/current"
 compose_file="${JUMIN_PROD_PROXY_COMPOSE_FILE:-${current_release}/docker-compose.proxy.prod.yml}"
 current_config="/opt/jumin-prod/proxy/current/jumin.prod.conf"
 
+routing_dir="/opt/jumin-prod/proxy/backend-routing"
+if [[ -d "${routing_dir}" ]]; then
+  exec 9<"${routing_dir}"
+  flock -w 300 9
+fi
+
 test -f "${compose_file}"
 test -f "${current_config}"
 

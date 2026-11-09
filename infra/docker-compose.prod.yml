@@ -1,10 +1,11 @@
 name: jumin-prod
 
 services:
-  backend:
+  backend: &backend
     image: jumin-backend:${IMAGE_TAG:-prod}
     container_name: jumin-backend-prod
     restart: unless-stopped
+    stop_grace_period: 40s
     logging:
       driver: journald
       options:
@@ -46,3 +47,27 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+
+  backend-blue:
+    <<: *backend
+    container_name: jumin-backend-prod-blue
+    profiles: [blue-green]
+    ports: []
+    healthcheck: &slot-healthcheck
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  backend-green:
+    <<: *backend
+    container_name: jumin-backend-prod-green
+    profiles: [blue-green]
+    ports: []
+    healthcheck: *slot-healthcheck
+
+networks:
+  default:
+    name: jumin-prod_default
+    external: ${BACKEND_NETWORK_EXTERNAL:-false}

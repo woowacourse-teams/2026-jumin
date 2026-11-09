@@ -7,8 +7,9 @@ on:
     paths:
       - 'server/**'
       - 'infra/docker-compose.prod.yml'
-      - 'infra/docker-compose.viewport.yml'
+      - 'infra/docker-compose.viewport.prod.yml'
       - 'infra/scripts/deploy-backend.sh'
+      - 'infra/scripts/drain-backend.sh'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'
       - 'infra/observability/alloy/**'
@@ -106,12 +107,29 @@ jobs:
           name: backend-production-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/jumin-prod-deploy/backend
 
+      - name: Prepare Alloy collector for first slot switch
+        id: prepare_alloy
+        env:
+          OBSERVABILITY_INGEST_PASSWORD: ${{ secrets.OBSERVABILITY_INGEST_PASSWORD }}
+        run: |
+          if [[ -f /opt/jumin-prod/proxy/backend-routing/active.conf ]] ||
+            [[ "$(docker inspect --format '{{.State.Running}}' jumin-backend-prod 2>/dev/null || true)" != true ]]; then
+            exit 0
+          fi
+          if ! docker port jumin-nginx-prod 18080/tcp | grep -Fxq '127.0.0.1:18080'; then
+            echo 'Run the slot-aware proxy deployment before switching the legacy backend.' >&2
+            exit 1
+          fi
+          curl --noproxy '*' --fail --silent --show-error --max-time 5 http://127.0.0.1:18080/route >/dev/null
+          bash infra/observability/scripts/install-credentials.sh collector /opt/jumin-alloy
+          bash infra/observability/scripts/deploy-alloy.sh prod
+          echo 'prepared=true' >> "$GITHUB_OUTPUT"
+
       - name: Deploy backend with Docker Compose
         shell: bash
         env:
           BACKEND_ARTIFACT_DIR: ${{ runner.temp }}/jumin-prod-deploy/backend
           BACKEND_RELEASE_ROOT: /opt/jumin-prod/backend
-          BACKEND_PORT: '8080'
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -135,9 +153,10 @@ jobs:
           PARKING_AVAILABILITY_ENABLED: ${{ vars.PARKING_AVAILABILITY_ENABLED || 'false' }}
           SEOUL_PARKING_API_KEY: ${{ secrets.SEOUL_PARKING_API_KEY || secrets.SEOUL_OPEN_DATA_API_KEY }}
           BUSAN_PARKING_API_KEY: ${{ secrets.BUSAN_PARKING_API_KEY }}
-        run: bash infra/scripts/deploy-backend.sh prod
+        run: exec bash infra/scripts/deploy-backend.sh prod
 
-      - name: Deploy Alloy collector
+      - name: Update Alloy collector
+        if: steps.prepare_alloy.outputs.prepared != 'true'
         env:
           OBSERVABILITY_INGEST_PASSWORD: ${{ secrets.OBSERVABILITY_INGEST_PASSWORD }}
         run: |

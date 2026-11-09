@@ -1,5 +1,5 @@
 loki.source.journal "backend" {
-  matches    = "CONTAINER_NAME=jumin-backend-__ENV__"
+  matches    = "__BACKEND_JOURNAL_MATCHES__"
   labels     = { environment = "__ENV__", service = "backend" }
   forward_to = [loki.write.central.receiver]
 }
@@ -21,7 +21,7 @@ loki.write "central" {
 }
 
 prometheus.scrape "backend" {
-  targets         = [{ __address__ = "127.0.0.1:8080", __metrics_path__ = "/actuator/prometheus", job = "backend" }]
+  targets         = [{ __address__ = "127.0.0.1:__BACKEND_PORT__", __metrics_path__ = "/actuator/prometheus", job = "backend" }]
   scrape_interval = "30s"
   forward_to      = [prometheus.remote_write.central.receiver]
 }

@@ -5,7 +5,6 @@ on:
     branches:
       - main
     paths:
-      - 'infra/docker-compose.prod.yml'
       - 'infra/docker-compose.proxy.prod.yml'
       - 'infra/nginx/bootstrap.prod.conf'
       - 'infra/nginx/jumin.prod.conf'
@@ -44,6 +43,10 @@ jobs:
           release_root="/opt/jumin-prod/proxy/releases"
           release_dir="${release_root}/${release_id}"
           current_link="/opt/jumin-prod/proxy/current"
+          routing_dir="/opt/jumin-prod/proxy/backend-routing"
+          mkdir -p "${routing_dir}"
+          exec 9<"${routing_dir}"
+          flock -w 120 9
           repository_compose_file="${repository_root}/infra/docker-compose.proxy.prod.yml"
           compose_file="${repository_compose_file}"
           compose_project="jumin-proxy-prod"
@@ -56,6 +59,15 @@ jobs:
             trap - ERR
 
             echo "Production proxy deployment failed; restoring the previous release." >&2
+            if [[ "${deployment_attempted}" == false ]]; then
+              if [[ -n "${previous_release}" ]]; then
+                ln -sfn "${previous_release}" "${current_link}"
+              elif [[ -L "${current_link}" ]]; then
+                unlink "${current_link}"
+              fi
+              exit "${exit_code}"
+            fi
+
             if [[ -n "${previous_release}" && -d "${previous_release}" ]]; then
               ln -sfn "${previous_release}" "${current_link}"
               rollback_compose_file="${current_link}/docker-compose.proxy.prod.yml"
@@ -67,7 +79,7 @@ jobs:
                   --project-name "${compose_project}" \
                   --file "${rollback_compose_file}" \
                   up --detach --force-recreate nginx || true
-            elif [[ "${deployment_attempted}" == true ]]; then
+            else
               docker compose \
                 --project-name "${compose_project}" \
                 --file "${compose_file}" \
@@ -135,6 +147,7 @@ jobs:
                 --resolve 'origin.jucha.info:443:127.0.0.1' \
                 https://origin.jucha.info/health |
                 grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              touch "${routing_dir}/.initialized"
               trap - ERR
               echo "Production proxy deployment succeeded: ${release_id}"
               exit 0

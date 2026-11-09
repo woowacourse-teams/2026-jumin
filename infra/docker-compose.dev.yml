@@ -5,6 +5,7 @@ services:
     image: jumin-backend:${IMAGE_TAG:-dev}
     container_name: jumin-backend-dev
     restart: unless-stopped
+    stop_grace_period: 40s
     logging:
       driver: journald
       options:

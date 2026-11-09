@@ -287,7 +287,7 @@ WHERE name IN ('postgis', 'pgrouting');
 
 `pgrouting`이 조회되면 V7에서 활성화할 수 있습니다. 애플리케이션 DB 사용자가 해당
 확장 함수를 호출할 수 있는지도 확인합니다. dev·prod 데이터 적재는
-[수동 적재 workflow 운영 절차](../infra/README.md#보행망-수동-적재)를 따릅니다.
+[운영 환경 수동 적재 절차](../infra/deployment.md#보행망-수동-적재)를 따릅니다.
 
 ## 종료
 
