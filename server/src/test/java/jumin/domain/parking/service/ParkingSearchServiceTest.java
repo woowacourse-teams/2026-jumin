@@ -2,7 +2,6 @@ package jumin.domain.parking.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -12,8 +11,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -25,9 +22,6 @@ import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
-import jumin.domain.parking.dto.ParkingLotViewportRequest;
-import jumin.domain.parking.dto.ParkingLotViewportResponse;
-import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.entity.ParkingOperationStatus;
@@ -43,10 +37,6 @@ import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.NullSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ParkingSearchServiceTest {
@@ -57,7 +47,6 @@ class ParkingSearchServiceTest {
     private final ParkingLotLikeRepository parkingLotLikeRepository = mock(ParkingLotLikeRepository.class);
     private final ParkingOperationRepository parkingOperationRepository = mock(ParkingOperationRepository.class);
     private final WalkingDistanceService walkingDistanceService = mock(WalkingDistanceService.class);
-    private final Clock clock = mock(Clock.class);
     private ParkingSearchService service;
 
     @BeforeEach
@@ -69,12 +58,9 @@ class ParkingSearchServiceTest {
                 new ParkingSearchQueryValidator(),
                 new ParkingOperationEvaluator(),
                 new ParkingBalancedScoreCalculator(),
-                new ParkingLodScoreCalculator(),
-                clock,
                 walkingDistanceService,
                 new WalkingDurationCalculator()
         );
-        when(clock.instant()).thenReturn(Instant.parse("2026-10-13T03:00:00Z"));
         when(walkingDistanceService.findDistances(anyDouble(), anyDouble(), anyList()))
                 .thenAnswer(invocation -> {
                     List<ParkingLot> parkingLots = invocation.getArgument(2);
@@ -317,180 +303,6 @@ class ParkingSearchServiceTest {
     }
 
     @Test
-    @DisplayName("viewport 주차장별 LOD 점수를 반환하고 조회 순서를 유지한다")
-    void maps_parking_lots_to_viewport_response() {
-        // given
-        ParkingLot first = parkingLotWithCapacity(1L, 50);
-        ParkingLot second = parkingLotWithCapacity(2L, 200);
-        when(parkingLotRepository.findActiveWithinViewport(
-                126.9700,
-                37.5600,
-                126.9900,
-                37.5750,
-                false,
-                false,
-                false,
-                2
-        )).thenReturn(List.of(first, second));
-
-        // when
-        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700,
-                37.5600,
-                126.9900,
-                37.5750,
-                false,
-                false,
-                false
-        ));
-
-        // then
-        assertThat(result.totalCount()).isEqualTo(2);
-        assertThat(result.parkingLots()).extracting(ParkingLotViewportResponse::id).containsExactly(1L, 2L);
-        assertThat(result.parkingLots()).extracting(ParkingLotViewportResponse::score).containsExactly(0.5, 0.8);
-        assertThat(result.parkingLots().getFirst().latitude()).isEqualTo(37.5665);
-        assertThat(result.parkingLots().getFirst().longitude()).isEqualTo(126.9780);
-        verifyNoInteractions(parkingOperationRepository, walkingDistanceService);
-    }
-
-    @ParameterizedTest
-    @NullSource
-    @ValueSource(ints = {0, -1})
-    @DisplayName("구획 수가 없거나 0 이하인 주차장도 0점으로 응답에 유지한다")
-    void retains_parking_lot_with_zero_score(Integer capacity) {
-        // given
-        ParkingLot parkingLot = parkingLotWithCapacity(1L, capacity);
-        when(parkingLotRepository.findActiveWithinViewport(
-                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyBoolean(), anyInt()
-        ))
-                .thenReturn(List.of(parkingLot));
-
-        // when
-        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
-        ));
-
-        // then
-        assertThat(result.totalCount()).isEqualTo(1);
-        assertThat(result.parkingLots()).hasSize(1);
-        assertThat(result.parkingLots().getFirst().id()).isEqualTo(1L);
-        assertThat(result.parkingLots().getFirst().score()).isZero();
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "false, false, false", "true, false, false", "false, true, false", "true, true, false",
-            "false, false, true", "true, false, true", "false, true, true", "true, true, true"
-    })
-    @DisplayName("필터를 조회에 전달하고 조회 결과의 개수와 LOD 점수를 반환한다")
-    void returns_scored_results_for_viewport_filters(
-            boolean freeOnly, boolean excludeMechanical, boolean isPublic
-    ) {
-        // given
-        ParkingLot parkingLot = parkingLotWithCapacity(1L, 50);
-        when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic, 2
-        )).thenReturn(List.of(parkingLot));
-
-        // when
-        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic
-        ));
-
-        // then
-        verify(parkingLotRepository).findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic, 2
-        );
-        assertThat(result.totalCount()).isEqualTo(1);
-        assertThat(result.parkingLots().getFirst().score()).isEqualTo(0.5);
-        verifyNoInteractions(parkingOperationRepository, walkingDistanceService);
-    }
-
-    @Test
-    @DisplayName("viewport에 주차장이 없으면 개수 0과 빈 목록을 반환한다")
-    void returns_empty_viewport_response() {
-        // given
-        when(parkingLotRepository.findActiveWithinViewport(
-                anyDouble(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), anyBoolean(), anyBoolean(), anyInt()
-        ))
-                .thenReturn(List.of());
-
-        // when
-        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
-        ));
-
-        // then
-        assertThat(result.totalCount()).isZero();
-        assertThat(result.parkingLots()).isEmpty();
-        verifyNoInteractions(parkingOperationRepository, walkingDistanceService);
-    }
-
-    @Test
-    @DisplayName("viewport와 후보 목록이 달라져도 같은 주차장은 같은 점수를 반환한다")
-    void keeps_score_stable_across_viewports() {
-        // given
-        ParkingLot parkingLot = parkingLotWithCapacity(1L, 100);
-        ParkingLot larger = parkingLotWithCapacity(2L, 1_000);
-        when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false, false, 2
-        ))
-                .thenReturn(List.of(parkingLot));
-        when(parkingLotRepository.findActiveWithinViewport(
-                126.9600, 37.5500, 127.0100, 37.5800, false, false, false, 2
-        ))
-                .thenReturn(List.of(larger, parkingLot));
-
-        // when
-        ParkingLotViewportResponses narrow = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, false, false, false
-        ));
-        ParkingLotViewportResponses wide = service.searchViewport(new ParkingLotViewportRequest(
-                126.9600, 37.5500, 127.0100, 37.5800, false, false, false
-        ));
-
-        // then
-        assertThat(narrow.parkingLots().getFirst().score()).isEqualTo(0.6666666666666666);
-        assertThat(wide.parkingLots().getLast()).isEqualTo(narrow.parkingLots().getFirst());
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "2026-10-12T03:00:00Z, 1",
-            "2026-10-13T03:00:00Z, 2",
-            "2026-10-14T03:00:00Z, 3",
-            "2026-10-15T03:00:00Z, 4",
-            "2026-10-16T03:00:00Z, 5",
-            "2026-10-17T03:00:00Z, 6",
-            "2026-10-18T03:00:00Z, 7",
-            "2026-10-16T14:59:59Z, 5",
-            "2026-10-16T15:00:00Z, 6",
-            "2026-10-17T15:00:00Z, 7",
-            "2026-10-18T15:00:00Z, 1"
-    })
-    @DisplayName("한국 날짜의 오늘 요일을 무료 조회에 전달하고 한국 자정에 요일을 변경한다")
-    void passes_today_to_free_filter(String instant, int dayOfWeek) {
-        // given
-        when(clock.instant()).thenReturn(Instant.parse(instant));
-        when(parkingLotRepository.findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false, false, dayOfWeek
-        )).thenReturn(List.of(parkingLotWithCapacity(1L, 50)));
-
-        // when
-        ParkingLotViewportResponses result = service.searchViewport(new ParkingLotViewportRequest(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false, false
-        ));
-
-        // then
-        verify(clock).instant();
-        verify(parkingLotRepository).findActiveWithinViewport(
-                126.9700, 37.5600, 126.9900, 37.5750, true, false, false, dayOfWeek
-        );
-        assertThat(result.totalCount()).isEqualTo(1);
-        assertThat(result.parkingLots().getFirst().score()).isEqualTo(0.5);
-    }
-
-    @Test
     @DisplayName("지도에서 선택한 주차장의 공통 요금과 일별 운영 정보를 반환한다")
     void returns_detail_for_viewport_parking_lot() {
         // given
@@ -560,50 +372,6 @@ class ParkingSearchServiceTest {
                 .hasMessage(ErrorCode.PARKING_LOT_NOT_FOUND.getMessage());
     }
 
-    @Test
-    @DisplayName("서쪽 경도가 동쪽 경도보다 크면 DB를 호출하지 않고 400 오류를 반환한다")
-    void rejects_reversed_longitude_bounds() {
-        // given
-        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
-                126.9900,
-                37.5600,
-                126.9700,
-                37.5750,
-                false,
-                false,
-                false
-        );
-
-        // when & then
-        assertThatThrownBy(() -> service.searchViewport(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_INPUT);
-        verifyNoInteractions(parkingLotRepository);
-    }
-
-    @Test
-    @DisplayName("북쪽 위도가 남쪽 위도보다 작으면 DB를 호출하지 않고 400 오류를 반환한다")
-    void rejects_reversed_latitude_bounds() {
-        // given
-        ParkingLotViewportRequest request = new ParkingLotViewportRequest(
-                126.9700,
-                37.5750,
-                126.9900,
-                37.5600,
-                false,
-                false,
-                false
-        );
-
-        // when & then
-        assertThatThrownBy(() -> service.searchViewport(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_INPUT);
-        verifyNoInteractions(parkingLotRepository);
-    }
-
     private ParkingSearchRequest validQuery() {
         return query(
                 "2026-08-14T10:00:00+09:00",
@@ -618,12 +386,6 @@ class ParkingSearchServiceTest {
                 OffsetDateTime.parse(entryAt),
                 OffsetDateTime.parse(exitAt)
         );
-    }
-
-    private ParkingLot parkingLotWithCapacity(long id, Integer capacity) {
-        ParkingLot lot = parkingLot(id, 37.5665, 126.9780);
-        ReflectionTestUtils.setField(lot, "capacity", capacity);
-        return lot;
     }
 
     private ParkingLot parkingLot(long id, double latitude, double longitude) {

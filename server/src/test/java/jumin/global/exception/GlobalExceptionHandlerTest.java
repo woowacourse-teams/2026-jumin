@@ -1,6 +1,7 @@
 package jumin.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,9 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 import jumin.domain.admin.parking.exception.ParkingCsvException;
-import jumin.domain.parking.viewport.ViewportFailureReason;
+import jumin.domain.parking.exception.ViewportFailureReason;
+import jumin.global.response.ApiErrorResponse;
 import jumin.global.response.ValidationErrorField;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +31,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -54,6 +58,7 @@ class GlobalExceptionHandlerTest {
     @ExtendWith(OutputCaptureExtension.class)
     @DisplayName("viewport 과부하는 원인을 노출하지 않고 기존 503 응답을 유지한다")
     void viewportOverloadPreserves503WithoutExposingCause(CapturedOutput output) throws Exception {
+        // given & when & then
         RuntimeException cause = new RuntimeException("private query parameters");
         BusinessException coded = ViewportFailureReason.DB_QUEUE_FULL.failure(cause);
         BusinessException exception = ViewportFailureReason.UNCLASSIFIED.failure(coded);
@@ -68,7 +73,72 @@ class GlobalExceptionHandlerTest {
                 .doesNotContain("private query parameters", "DB_QUEUE_FULL");
         assertThat(exception.getCause()).isSameAs(coded);
         assertThat(coded.getCause()).isSameAs(cause);
-        assertThat(output).contains("DB_QUEUE_FULL").doesNotContain("private query parameters");
+        assertThat(output).contains("VIEWPORT_UNAVAILABLE", "BusinessException")
+                .doesNotContain("private query parameters", "DB_QUEUE_FULL", "UNCLASSIFIED");
+        assertThat(output.getAll()).containsOnlyOnce("viewport 자원 보호로 요청을 완료하지 못했습니다");
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("viewport 실패는 SQL 및 suppressed 메시지를 노출하지 않고 기본 정보만 기록한다")
+    void viewportFailureLogsOnlyCodeAndExceptionType(CapturedOutput output) throws Exception {
+        // given
+        SQLException sql = new SQLException("private SQL password=secret", "08006");
+        BusinessException exception = ViewportFailureReason.UNCLASSIFIED.failure(sql);
+        sql.addSuppressed(new RuntimeException("private suppressed token=secret"));
+        given(exceptionTestService.business()).willThrow(exception);
+
+        // when
+        ResultActions result = mockMvc.perform(get("/test/business"));
+
+        // then
+        result.andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value(ErrorCode.VIEWPORT_UNAVAILABLE.getMessage()))
+                .andExpect(jsonPath("$.cause").doesNotExist())
+                .andExpect(jsonPath("$.reason").doesNotExist());
+        assertThat(result.andReturn().getResponse().getContentAsString())
+                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", ViewportFailureReason.UNCLASSIFIED.name());
+        assertThat(output).contains("VIEWPORT_UNAVAILABLE", "BusinessException")
+                .doesNotContain("private SQL", "password=secret", "token=secret", "08006", ViewportFailureReason.UNCLASSIFIED.name(),
+                        "sqlState", "causeType");
+        assertThat(output.getAll()).containsOnlyOnce("viewport 자원 보호로 요청을 완료하지 못했습니다");
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("기본 실패 기록은 순환 원인을 탐색하지 않는다")
+    void viewportFailureLoggingDoesNotTraverseCyclicCauses(CapturedOutput output) {
+        // given
+        RuntimeException first = new RuntimeException("private first cause");
+        RuntimeException second = new RuntimeException("private second cause", first);
+        first.initCause(second);
+        BusinessException exception = ViewportFailureReason.DB_QUEUE_FULL.failure(first);
+
+        // when
+        ResponseEntity<Object> response = new GlobalExceptionHandler().handleBusinessException(exception);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).isInstanceOfSatisfying(ApiErrorResponse.class, body -> {
+            assertThat(body.getMessage()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE.getMessage());
+            assertThat(body.getErrors()).isEmpty();
+        });
+        assertThat(output).contains("VIEWPORT_UNAVAILABLE", "BusinessException")
+                .doesNotContain("private first cause", "private second cause", "DB_QUEUE_FULL", "causeType");
+        assertThat(output.getAll()).containsOnlyOnce("viewport 자원 보호로 요청을 완료하지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("reason의 길이와 형식을 제한한다")
+    void rejects_unbounded_or_unsafe_reason_values() {
+        // given
+        // when & then
+        assertThatThrownBy(() -> new BusinessException(ErrorCode.VIEWPORT_UNAVAILABLE, "private detail", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid exception reason");
+        assertThatThrownBy(() -> new BusinessException(ErrorCode.VIEWPORT_UNAVAILABLE, "A".repeat(65), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid exception reason");
     }
 
     @Test
@@ -108,7 +178,7 @@ class GlobalExceptionHandlerTest {
         ResultActions result = mockMvc.perform(get("/test/business"));
 
         // then
-        result.andExpect(status().isUnprocessableEntity())
+        result.andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.message").value("CSV 파일의 형식이 올바르지 않습니다."))
                 .andExpect(jsonPath("$.errors[0].field").value("rows[2].name"))
                 .andExpect(jsonPath("$.errors[0].message").value("주차장명은 필수입니다."));
@@ -119,7 +189,7 @@ class GlobalExceptionHandlerTest {
     void businessExceptionReturnsDefinedStatusAndMessage() throws Exception {
         // given
         IOException cause = new IOException("private detail");
-        BusinessException exception = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, cause);
+        BusinessException exception = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, null, cause);
         given(exceptionTestService.business()).willThrow(exception);
 
         // when & then
@@ -188,7 +258,7 @@ class GlobalExceptionHandlerTest {
 
         // when & then
         mockMvc.perform(get("/test/business"))
-                .andExpect(status().isPayloadTooLarge())
+                .andExpect(status().isContentTooLarge())
                 .andExpect(jsonPath("$.code").doesNotExist())
                 .andExpect(jsonPath("$.message").value("업로드 파일 또는 요청 크기가 허용 한도를 초과했습니다."))
                 .andExpect(jsonPath("$.errors").isEmpty());

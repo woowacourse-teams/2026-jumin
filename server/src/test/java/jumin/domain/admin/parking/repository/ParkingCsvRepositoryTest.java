@@ -5,6 +5,7 @@ import static jumin.domain.admin.parking.repository.ParkingCsvDatabaseTestSuppor
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -41,10 +42,11 @@ import jumin.domain.admin.parking.service.ParkingCsvDiffer;
 import jumin.domain.admin.parking.service.ParkingCsvSyncService;
 import jumin.domain.parking.entity.ParkingDataSource;
 import jumin.domain.parking.entity.ParkingOperationStatus;
-import jumin.domain.parking.viewport.ViewportSquareGrid;
-import jumin.domain.parking.viewport.ViewportMappingMaintainer;
-import jumin.domain.parking.viewport.ViewportMappingStateRepository;
-import jumin.domain.parking.viewport.ViewportWriteCoordinator;
+import jumin.domain.parking.service.ViewportSquareGrid;
+import jumin.domain.parking.repository.ViewportRepository;
+import jumin.domain.parking.monitoring.ViewportMetrics;
+import jumin.domain.parking.service.ParkingLodScoreCalculator;
+import jumin.domain.parking.service.ViewportWriteCoordinator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -1015,9 +1017,10 @@ class ParkingCsvRepositoryTest {
         }
         repository.stageRows(batch);
         repository.prepareStaging();
-        ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(jdbcTemplate,
-                new ViewportMappingStateRepository(jdbcTemplate),
-                new ViewportMappingMaintainer(jdbcTemplate, new ViewportSquareGrid()), new ViewportCacheProperties());
+        ViewportWriteCoordinator viewportWriter = new ViewportWriteCoordinator(
+                new ViewportRepository(jdbcTemplate, new ViewportCacheProperties(),
+                        new ViewportMetrics(new SimpleMeterRegistry()), new ParkingLodScoreCalculator(),
+                        new ViewportSquareGrid()));
         ParkingCsvSyncService syncService = new ParkingCsvSyncService(
                 repository, Clock.fixed(now, ZoneOffset.UTC), viewportWriter);
         ParkingSyncSummary actual = syncService.syncStaged();
