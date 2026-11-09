@@ -149,10 +149,12 @@ const useFitToViewportHeight = () => {
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;
-    const mobile = window.matchMedia('(max-width: 700px)');
+    // matchMedia가 없는 환경(테스트용 jsdom, 일부 구형 브라우저)에서는 데스크톱으로 보고 계산한다.
+    const mobile =
+      typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 700px)') : null;
 
     const update = () => {
-      if (mobile.matches) {
+      if (mobile?.matches) {
         stage.style.removeProperty('--height-scale');
         return;
       }
