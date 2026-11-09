@@ -20,8 +20,8 @@ const DRAG_THRESHOLD = 8;
 export const getBottomSheetSnapHeight = (snap: BottomSheetSnap, containerHeight: number) => {
   const heights: Record<BottomSheetSnap, number> = {
     collapsed: 110,
-    medium: containerHeight * 0.45,
-    expanded: containerHeight * 0.75,
+    medium: containerHeight * 0.35,
+    expanded: containerHeight * 0.65,
     full: containerHeight,
   };
   return Math.min(heights[snap], containerHeight);
