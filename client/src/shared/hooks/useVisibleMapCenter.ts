@@ -5,8 +5,8 @@ import { getMapCenterForMarkerY } from '../maps/getMapCenterForMarkerY';
 export const useVisibleMapCenter = () => {
   const conditionBarRef = useRef<HTMLElement>(null);
 
-  const getCenter = useCallback(
-    (map: naver.maps.Map, sheetSnap: BottomSheetSnap, position: naver.maps.LatLng) => {
+  const getTargetMapCenter = useCallback(
+    (map: naver.maps.Map, sheetSnap: BottomSheetSnap, markerLatLng: naver.maps.LatLng) => {
       const mapHeight = map.getSize().height;
       const sheetHeight = getBottomSheetSnapHeight(sheetSnap, mapHeight);
       const header = conditionBarRef.current;
@@ -18,11 +18,11 @@ export const useVisibleMapCenter = () => {
       const sheetTop = mapHeight - sheetHeight;
       if (sheetTop <= headerBottom) return;
       const targetY = (headerBottom + sheetTop) / 2;
-      const center = getMapCenterForMarkerY(map, position, targetY);
+      const center = getMapCenterForMarkerY(map, markerLatLng, targetY);
 
       return center;
     },
     [],
   );
-  return { conditionBarRef, getCenter };
+  return { conditionBarRef, getTargetMapCenter };
 };

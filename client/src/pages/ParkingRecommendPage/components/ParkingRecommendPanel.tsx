@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
 
@@ -10,7 +10,6 @@ import { ErrorCard } from '../../../shared/components/service/ErrorCard';
 import BottomSheet, { getBottomSheetSnapHeight } from '../../../shared/components/ui/BottomSheet';
 import { useBottomSheet } from '../../../shared/hooks/useBottomSheet';
 import { useMapClick } from '../../../shared/hooks/useMapClick';
-import { getMapCenterForMarkerY } from '../../../shared/maps/getMapCenterForMarkerY';
 import type { ParkingSearchCondition } from '../../../shared/types/navigation';
 import { formatIsoDateTime } from '../../../shared/utils/formatTime';
 import { ParkingRecommendSkeleton } from '../LoadingUI/ParkingRecommendSkeleton';
@@ -19,6 +18,7 @@ import { getSortValue, sortParkingLots } from '../utils/recommendationPolicy';
 import { ParkingMarkers } from './ParkingMarkers';
 import { ParkingRecommendContent } from './ParkingRecommendContent';
 import { ParkingRecommendDetailPanel } from './ParkingRecommendDetailPanel';
+import { useVisibleMapCenter } from '../../../shared/hooks/useVisibleMapCenter';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -34,7 +34,8 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
   const [detailParkingLot, setDetailParkingLot] = useState<ParkingLotSummary | null>(null);
   const recommendationSheet = useBottomSheet({ initialIsOpen: true });
   const detailSheet = useBottomSheet();
-  const conditionBarRef = useRef<HTMLElement>(null);
+
+  const { conditionBarRef, getTargetMapCenter } = useVisibleMapCenter();
 
   // 상세 대상의 유무로 모드를 구분해 별도의 mode와 대상이 어긋나지 않게 한다.
   const isDetail = detailParkingLot !== null;
@@ -63,7 +64,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
     const mapHeight = map.getSize().height;
     const sheetHeight = getBottomSheetSnapHeight(sheetSnap, mapHeight);
 
-    const position = new naver.maps.LatLng(
+    const markerLatLng = new naver.maps.LatLng(
       activeParkingLot.location.latitude,
       activeParkingLot.location.longitude,
     );
@@ -77,7 +78,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
             searchCondition.destinationLatitude,
             searchCondition.destinationLongitude,
           ),
-          position,
+          markerLatLng,
         ],
         {
           top: 112,
@@ -91,22 +92,18 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
       return;
     }
 
-    if (sheetSnap === 'collapsed') {
-      map.panTo(position);
-      return;
-    }
-
-    const header = conditionBarRef.current;
-    if (!header) return;
-
-    const headerBottom =
-      header.getBoundingClientRect().bottom - map.getElement().getBoundingClientRect().top;
-    const sheetTop = mapHeight - sheetHeight;
-    if (sheetTop <= headerBottom) return;
-    const targetY = (headerBottom + sheetTop) / 2;
-    const center = getMapCenterForMarkerY(map, position, targetY);
-    map.panTo(center, { duration: 300 });
-  }, [sheet.isOpen, map, activeParkingLot, isDetail, sheetSnap, searchCondition]);
+    const targetMapCenter = getTargetMapCenter(map, sheetSnap, markerLatLng);
+    if (!targetMapCenter) return;
+    map.panTo(targetMapCenter, { duration: 300 });
+  }, [
+    sheet.isOpen,
+    map,
+    activeParkingLot,
+    isDetail,
+    sheetSnap,
+    searchCondition,
+    getTargetMapCenter,
+  ]);
 
   const selectParkingLot = (parkingLot: ParkingLotSummary) => {
     // 같은 주차장을 다시 눌러도 사용자가 옮긴 지도를 해당 위치로 이동한다.
