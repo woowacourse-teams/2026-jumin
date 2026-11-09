@@ -1,0 +1,8 @@
+import { expect, test } from '@playwright/test';
+
+test('애플리케이션에 접속할 수 있다', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
+
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+});

@@ -1,3 +1,4 @@
+import { Row } from '../../../shared/components/ui/Row';
 import { css } from '@emotion/css';
 
 import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.svg';
@@ -42,10 +43,10 @@ export const LandingTechnology = () => (
           <p className={styles.result}>목적지까지의 예상 도보거리로 주차장을 비교할 수 있어요.</p>
         </div>
         <figure className={styles.visual}>
-          <div className={styles.visualHeading}>
+          <Row align="center" justify="between" gap={8} className={styles.visualHeading}>
             <span>주차장에서 목적지까지</span>
             <span className={styles.visualTag}>보행망 기반</span>
-          </div>
+          </Row>
           <svg className={styles.route} viewBox="0 0 440 220" fill="none" aria-hidden="true">
             <path
               d="M22 58H418M22 110H418M22 162H418M76 20V200M180 20V200M284 20V200M388 20V200"
@@ -88,7 +89,7 @@ export const LandingTechnology = () => (
               목적지
             </text>
           </svg>
-          <figcaption className={styles.legend}>
+          <Row as="figcaption" gap="8px 18px" className={styles.legend}>
             <span>
               <i className={styles.dashedLine} />
               직선거리
@@ -97,7 +98,7 @@ export const LandingTechnology = () => (
               <i className={styles.blueLine} />
               보행망을 따라 계산한 예상 경로
             </span>
-          </figcaption>
+          </Row>
         </figure>
       </article>
 
@@ -118,18 +119,18 @@ export const LandingTechnology = () => (
           </p>
         </div>
         <figure className={styles.visual}>
-          <div className={styles.visualHeading}>
+          <Row align="center" justify="between" gap={8} className={styles.visualHeading}>
             <span>내 이용시간에 맞춘 계산</span>
             <span className={styles.visualTag}>요금 규칙 반영</span>
-          </div>
+          </Row>
           <div className={styles.feeCalculation}>
-            <div className={styles.duration}>
+            <Row align="center" gap={12} className={styles.duration}>
               <span>입차</span>
               <div className={styles.durationLine}>
                 <span>이용시간</span>
               </div>
               <span>출차</span>
-            </div>
+            </Row>
             <div className={styles.feeParts}>
               <div>
                 <span>무료시간</span>
@@ -144,10 +145,10 @@ export const LandingTechnology = () => (
                 <strong>단위 계산</strong>
               </div>
             </div>
-            <div className={styles.feeTotal}>
+            <Row align="center" justify="between" gap={8} className={styles.feeTotal}>
               <span>일 최대요금까지 반영한</span>
               <strong>예상 요금</strong>
-            </div>
+            </Row>
           </div>
           <figcaption className={styles.caption}>
             주차장별 요금 규칙을 같은 이용시간으로 비교해요.
@@ -172,10 +173,10 @@ export const LandingTechnology = () => (
           </p>
         </div>
         <figure className={styles.visual}>
-          <div className={styles.visualHeading}>
+          <Row align="center" justify="between" gap={8} className={styles.visualHeading}>
             <span>새로운 범위를 불러오는 동안에도</span>
             <span className={styles.visualTag}>이전 결과 유지</span>
-          </div>
+          </Row>
           <div className={styles.map} aria-hidden="true">
             <span className={styles.mapArea}>지도로 주변 탐색</span>
             <img
@@ -260,10 +261,10 @@ export const LandingTechnology = () => (
           >
             <image href={cachedGridMap} width="268" height="260" />
           </svg>
-          <figcaption className={styles.legend}>
+          <Row as="figcaption" gap="8px 18px" className={styles.legend}>
             <span>🟢 : 캐시 조회</span>
             <span>🟠 : DB 조회</span>
-          </figcaption>
+          </Row>
         </figure>
       </article>
     </div>
@@ -369,11 +370,8 @@ const styles = {
     }
   `,
   visualHeading: css`
-    display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+
     ${typography.caption};
     color: ${color.text.inverseSecondary};
   `,
@@ -400,9 +398,7 @@ const styles = {
     border-radius: 8px;
   `,
   legend: css`
-    display: flex;
     flex-wrap: wrap;
-    gap: 8px 18px;
     ${typography.caption};
     color: ${color.text.inverseSecondary};
 
@@ -424,9 +420,6 @@ const styles = {
     padding: 28px 0 22px;
   `,
   duration: css`
-    display: flex;
-    align-items: center;
-    gap: 12px;
     ${typography.caption};
     color: ${color.text.inverseSecondary};
   `,
@@ -467,11 +460,8 @@ const styles = {
     }
   `,
   feeTotal: css`
-    display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+
     padding: 17px 16px;
     border-radius: 8px;
     background: ${color.background.brand};

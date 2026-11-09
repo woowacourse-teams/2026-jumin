@@ -1,4 +1,4 @@
-import type { ViewportParkingLotDetailResponse } from '../../api/contracts';
+import type { ViewportParkingLotDetailResponse } from '../../src/api/contracts';
 
 type SourceParkingLot = Omit<ViewportParkingLotDetailResponse, 'likeCount' | 'likedByMe'> & {
   sourceExternalId: string;

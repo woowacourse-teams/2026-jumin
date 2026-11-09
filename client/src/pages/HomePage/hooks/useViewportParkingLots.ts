@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import type { ParkingViewportFilters } from '../../../../api/parkingLots';
-import { parkingViewportQueryOptions } from '../../../../api/queries/parkingViewportQuery';
+import type { ParkingViewportFilters } from '../../../api/parkingLots';
+import { parkingViewportQueryOptions } from '../../../api/queries/parkingViewportQueryOptions';
 import type { MapViewport } from './useMapViewport';
 import { getParkingRequestViewport } from '../utils/getParkingRequestViewport';
 

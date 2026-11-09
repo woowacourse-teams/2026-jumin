@@ -22,8 +22,7 @@ import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
-import jumin.domain.parking.viewport.ViewportSearchService;
-import jumin.domain.parking.viewport.ViewportBody;
+import jumin.domain.parking.service.ViewportSearchService;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -245,7 +244,7 @@ class ParkingSearchControllerTest {
                         score
                 ))
         );
-        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(new ViewportBody(result));
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(result);
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -286,7 +285,7 @@ class ParkingSearchControllerTest {
     ) throws Exception {
         // given
         when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
-                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
+                .thenAnswer(invocation -> ParkingLotViewportResponses.from(List.of()));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -311,7 +310,7 @@ class ParkingSearchControllerTest {
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
         when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
-                .thenAnswer(invocation -> new ViewportBody(ParkingLotViewportResponses.from(List.of())));
+                .thenAnswer(invocation -> ParkingLotViewportResponses.from(List.of()));
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -434,6 +433,7 @@ class ParkingSearchControllerTest {
     })
     @DisplayName("viewport 상세 조회의 게스트 ID가 UUID v4가 아니면 400을 반환한다")
     void rejects_invalid_viewport_detail_guest_id(String guestId) throws Exception {
+        // given & when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
                         .header("X-Guest-Id", guestId))
                 .andExpect(status().isBadRequest())
@@ -443,6 +443,7 @@ class ParkingSearchControllerTest {
     @Test
     @DisplayName("viewport 상세 조회의 게스트 ID가 없으면 400을 반환한다")
     void rejects_missing_viewport_detail_guest_id() throws Exception {
+        // given & when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
                 .andExpect(status().isBadRequest());
     }

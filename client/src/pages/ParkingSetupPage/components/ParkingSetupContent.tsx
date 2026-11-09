@@ -1,15 +1,15 @@
 import { css } from '@emotion/css';
 
 import destinationMarkerUrl from '../../../../assets/icons/markers/destinationMarker.svg';
-import { SearchBar } from '../../../../shared/components/service/destination/SearchBar';
-import type { ParkingSearchCondition } from '../../../../shared/types/navigation';
-import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../../shared/utils/time';
+import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
+import type { ParkingSearchCondition } from '../../../shared/types/navigation';
+import { createRoundedCurrentDate, formatOffsetDateTime } from '../../../shared/utils/time';
 import { DestinationConfirmSheet } from './DestinationConfirmSheet';
 import { useParkingSetupDestination } from '../hooks/useParkingSetupDestination';
 import { addHours } from 'date-fns';
 import { useParkingSetupMap } from '../hooks/useParkingSetupMap';
 import type { SetupDestination } from '../types/destination';
-import type { Coordinates } from '../../../../shared/types/coordinates';
+import type { Coordinates } from '../../../shared/types/coordinates';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -32,10 +32,9 @@ export const ParkingSetupContent = ({
     selectedLocation: location,
   });
 
-  useParkingSetupMap({
+  const { isDragging } = useParkingSetupMap({
     map,
-    selectedLocation: location,
-    onDragEnd: onSelectedLocationChange,
+    onLocationSettled: onSelectedLocationChange,
   });
 
   const handleRecommend = () => {
@@ -60,8 +59,8 @@ export const ParkingSetupContent = ({
       </div>
 
       <DestinationConfirmSheet
-        name={destinationName}
-        nextDisabled={isFetching || isError}
+        name={isDragging || isFetching ? '위치 확인 중...' : destinationName}
+        nextDisabled={isDragging || isFetching || isError}
         onCancel={onCancel}
         onNext={handleRecommend}
       />

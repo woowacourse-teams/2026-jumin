@@ -2,8 +2,8 @@ import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Outlet, Route, Routes } from 'react-router';
 
-import { ErrorCard } from './shared/components/service/ErrorCard';
-import { MapLayout } from './shared/maps/MapLayout';
+import { ErrorCard } from './src/shared/components/service/ErrorCard';
+import { MapLayout } from './src/shared/maps/MapLayout';
 import { HomePage } from './src/pages/HomePage/HomePage';
 
 const AdminPage = lazy(() =>
@@ -59,6 +59,9 @@ const App = () => (
         <Route path="/" element={<HomePage />} />
         <Route path="/parkingsetup" element={<ParkingSetupPage />} />
         <Route path="/parkingRecommend" element={<ParkingRecommendPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/recent" element={<RecentUsePage />} />
+        <Route path="/setting" element={<SettingPage />} />
       </Route>
 
       <Route
@@ -68,9 +71,6 @@ const App = () => (
           </Suspense>
         }
       >
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/recent" element={<RecentUsePage />} />
-        <Route path="/setting" element={<SettingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/landing" element={<LandingPage />} />
       </Route>

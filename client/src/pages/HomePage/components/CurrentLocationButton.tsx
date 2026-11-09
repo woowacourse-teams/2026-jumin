@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import { MyLocation } from '../../../../shared/components/ui/icons';
+import { MyLocation } from '../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
 
 interface Props {

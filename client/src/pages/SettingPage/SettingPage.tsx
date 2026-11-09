@@ -1,3 +1,4 @@
+import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import { Link } from 'react-router';
 
@@ -8,12 +9,12 @@ import {
   FeedbackIcon,
   GuideIcon,
   InstallIcon,
-} from '../../../shared/components/ui/icons';
-import { BottomNav } from '../../../shared/components/service/BottomNav';
-import { GuideModal } from '../../../shared/components/service/guide/GuideModal';
-import { FEEDBACK_URL } from '../../../shared/constants/help';
-import { useModal } from '../../../shared/hooks/useModal';
-import { usePwaInstall } from '../../../shared/hooks/usePwaInstall';
+} from '../../shared/components/ui/icons';
+import { BottomNav } from '../../shared/components/service/BottomNav';
+import { GuideModal } from '../../shared/components/service/guide/GuideModal';
+import { FEEDBACK_URL } from '../../shared/constants/help';
+import { useModal } from '../../shared/hooks/useModal';
+import { usePwaInstall } from '../../shared/hooks/usePwaInstall';
 import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 
@@ -33,13 +34,13 @@ export const SettingPage = () => {
           <span className={styles.brandIcon}>
             <img src={brandMark} alt="" draggable={false} />
           </span>
-          <span className={styles.copy}>
+          <Stack as="span" gap={6} className={styles.copy}>
             <span className={styles.introLabel}>주차장을 찾는 가장 간단한 방법</span>
             <strong className={styles.introTitle}>주차의민족 소개</strong>
             <span className={styles.introLink}>
               서비스 알아보기 <ChevronRightIcon size={16} aria-hidden="true" />
             </span>
-          </span>
+          </Stack>
         </Link>
 
         <section className={styles.section} aria-labelledby="setting-guide-title">
@@ -51,12 +52,12 @@ export const SettingPage = () => {
               <span className={styles.iconFrame}>
                 <GuideIcon size={21} aria-hidden="true" />
               </span>
-              <span className={styles.copy}>
+              <Stack as="span" gap={6} className={styles.copy}>
                 <strong className={styles.itemTitle}>가이드 보기</strong>
                 <span className={styles.itemDescription}>
                   검색부터 길찾기까지, 한눈에 알아봐요.
                 </span>
-              </span>
+              </Stack>
               <span className={styles.chevron} aria-hidden="true">
                 <ChevronRightIcon size={16} />
               </span>
@@ -70,7 +71,7 @@ export const SettingPage = () => {
               <span className={styles.iconFrame}>
                 <InstallIcon size={21} aria-hidden="true" />
               </span>
-              <span className={styles.copy}>
+              <Stack as="span" gap={6} className={styles.copy}>
                 <strong className={styles.itemTitle}>
                   {isInstalled ? '설치 완료' : isInstalling ? '설치창 여는 중' : '앱 설치'}
                 </strong>
@@ -79,7 +80,7 @@ export const SettingPage = () => {
                     ? '이미 앱으로 이용하고 있어요.'
                     : '홈 화면에서 더 빠르게 시작해 보세요.'}
                 </span>
-              </span>
+              </Stack>
               <span className={styles.chevron} aria-hidden="true">
                 {isInstalled ? <CheckIcon size={16} /> : <ChevronRightIcon size={16} />}
               </span>
@@ -103,12 +104,12 @@ export const SettingPage = () => {
               <span className={styles.iconFrame}>
                 <FeedbackIcon size={21} aria-hidden="true" />
               </span>
-              <span className={styles.copy}>
+              <Stack as="span" gap={6} className={styles.copy}>
                 <strong className={styles.itemTitle}>피드백 보내기</strong>
                 <span className={styles.itemDescription}>
                   불편한 점이나 좋은 아이디어를 들려주세요.
                 </span>
-              </span>
+              </Stack>
               <span className={styles.chevron} aria-hidden="true">
                 <ChevronRightIcon size={16} />
               </span>
@@ -187,10 +188,7 @@ const styles = {
     }
   `,
   copy: css`
-    display: flex;
     min-width: 0;
-    flex-direction: column;
-    gap: 6px;
   `,
   introLabel: css`
     ${typography.caption};

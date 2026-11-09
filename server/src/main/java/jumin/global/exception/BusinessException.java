@@ -18,10 +18,6 @@ public class BusinessException extends RuntimeException {
         this.reason = null;
     }
 
-    public BusinessException(ErrorCode errorCode, Throwable cause) {
-        this(errorCode, null, cause);
-    }
-
     public BusinessException(ErrorCode errorCode, String reason, Throwable cause) {
         super(Objects.requireNonNull(errorCode).getMessage(), cause);
         if (reason != null && !REASON_PATTERN.matcher(reason).matches()) {

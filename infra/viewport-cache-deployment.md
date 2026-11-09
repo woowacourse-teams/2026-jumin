@@ -13,19 +13,29 @@
 | VIEWPORT_REDIS_PASSWORD | 서버 ACL과 일치하는 비밀번호 |
 | VIEWPORT_REDIS_TLS_CA_PEM | 신뢰할 공개 PEM 인증서. 접속 주소가 인증서 SAN과 일치해야 한다. |
 
-Variables: VIEWPORT_CACHE_ENABLED(기본 false), VIEWPORT_CACHE_TTL(10m), VIEWPORT_CACHE_EMPTY_TTL(1m), VIEWPORT_CACHE_TTL_JITTER(0.2), VIEWPORT_CACHE_PREPARE_ON_STARTUP(true).
+Variables: VIEWPORT_CACHE_ENABLED(기본 false), VIEWPORT_CACHE_TTL(10m), VIEWPORT_CACHE_EMPTY_TTL(1m), VIEWPORT_CACHE_PREPARE_ON_STARTUP(true).
 
 활성화 시 백엔드를 교체하기 전에 TLS/AUTH/PING을 확인한다. 인증서만 릴리스 디렉터리에 저장하여 읽기 전용 마운트한다. 비밀번호는 GitHub Secrets에서 컨테이너 환경변수로 주입한다. Docker 접근 권한이 있는 사용자는 컨테이너 환경변수를 볼 수 있다. 배포 로그나 Compose config 전체를 출력하지 않는다.
 
+셀 캐시의 내부 정책은 코드에 고정한다. 격자 크기는 투영 좌표 기준 1000m, 캐시 적용 범위는 가로·세로 각각 0.05도, 요청당 최대 셀 수는 64개다. 셀당 행 수는 4096개, 저장값은 256 KiB로 제한한다. 범위나 셀 예산을 넘으면 기존 DB 조회로 우회하며 크기·손상·메모리 검사는 유지한다.
+
+이전 `grid-size-meters`·`max-span-degrees`·`max-cells`·`max-cell-rows`·`max-value-bytes`와 `max-width-degrees`·`max-height-degrees` 외부 설정은 삭제한다. 운영에서 기본값과 다른 값을 썼다면 이제 코드의 고정값을 사용하므로 배포 전에 확인한다. 캐시 일괄 처리 예산은 4 MiB, 진행 중인 서로 다른 셀 상한은 2048개, DB 대기열은 256개, fallback 결과는 100만 행으로 고정한다. 이전 `max-request-bytes`·`max-inflight-cells`·`db-queue`·`max-fallback-rows` 외부 설정도 삭제한다. 각 상한의 초과 거절·DB 우회·슬롯 반환은 유지한다. 일괄 처리 예산은 전체 응답이나 서버 전체 힙의 상한이 아니다. 격자 정책을 바꾸는 코드 배포에는 DB 셀 매핑 재준비가 필요하다.
+
+이전 `schema`·`policy`·`ttl-jitter` 설정도 삭제한다. 기존 `JUMIN_VIEWPORT_CACHE_TTLJITTER`와 `VIEWPORT_CACHE_TTL_JITTER` 값은 더 이상 전달하거나 사용하지 않는다. 캐시 키는 `jumin:환경:viewport:square:ttl:cell:m격자크기:셀ID`이며 저장값에는 환경·격자 크기·셀 ID·행 수·데이터·CRC가 들어간다.
+
+기존 키와 새 키는 겹치지 않아 이전 데이터는 조회되지 않고 TTL로 자연 만료된다. Redis ACL을 키 prefix로 제한했다면 새 prefix를 허용하는지 배포 전에 확인한다. 앞으로 저장 형식을 바꿀 때는 관련 캐시를 안전하게 비우고 재적재하는 절차가 필요하며, 서로 다른 저장 형식의 서버가 같은 키를 쓰는 배포는 피한다. 형식·길이·CRC 검사는 유지하지만 저장 형식의 호환성을 자동 판정하지는 않는다.
+
 ## 만료와 데이터 정합성
 
-캐시 만료는 저장 시점부터 TTL±Jitter이다. 기본값에서 결과 있는 셀은 8~12분, 빈 셀은 48~72초다. 조회는 만료 시간을 연장하지 않는다. DB 변경 후 자동 삭제나 데이터 버전 전환은 없다.
+캐시 만료는 저장 시점부터 설정된 TTL의 ±20% 범위로 무작위 분산한다. 분산 비율은 코드의 내부 상수이며 외부 설정으로 조절하지 않는다. TTL 기본값에서 결과 있는 셀은 8~12분, 빈 셀은 48~72초다. 조회는 만료 시간을 연장하지 않는다. DB 변경 후 자동 삭제는 없다.
 
 진행 중인 이전 조회가 DB 변경 후 저장되면 그 저장 시점부터 TTL이 적용된다. 따라서 DB 수정 시점부터 정확히 12분 이내에 최신 결과를 보장한다고 말할 수 없다. 여러 셀의 데이터 시점도 다를 수 있다.
 
 셀 번호와 인덱스, 준비 상태/격자 크기는 유지한다. 초기 준비와 CSV 변경의 셀 매핑 갱신은 쓰기 트랜잭션에서 수행한다. 준비와 CSV 변경은 상태 행 및 원본 테이블 잠금으로 직렬화하며 SELECT는 허용한다. 다른 프로그램이 좌표를 직접 수정하면 그 프로그램도 매핑을 갱신해야 한다. TTL은 잘못된 셀 매핑을 복구하지 않는다.
 
 전용 읽기/관측 계정, 별도 연결 풀, 세션 관측 함수, DB 인증 제한시간 전제, DB 쓰기 보호 트리거와 epoch/revision은 사용하지 않는다. 기존 DB 풀을 공유하므로 다른 API와 연결을 경쟁한다. 요청/쿼리 시간 제한과 DB 실행 수 제한은 유지하지만 네트워크 장애 때 실제 서버 세션 수까지 엄격하게 보장하지 않는다.
+
+viewport 전용 요청 동시 제한과 응답 완료 callback은 사용하지 않는다. `max-concurrent-requests`와 `JUMIN_VIEWPORT_CACHE_MAXCONCURRENTREQUESTS` 설정은 제거한다. 응답은 기존 JSON 구조의 DTO를 직접 반환한다. DB·Redis 자체 동시 제한, 시간 제한과 캐시 예산은 유지한다. 요청 활성 수·제한·입장 거절 및 응답 완료 기준 성공/실패 지표는 제거하고, 캐시 hit/miss·fallback·실패·단계 시간과 DB·Redis·셀 병합 지표는 유지한다.
 
 대용량 fallback 응답은 메모리에 구성한다. 행 상한 초과 시 부분 결과를 반환하지 않는다. 캐시 batch 예산은 전체 응답이나 모든 동시 요청의 힙 상한이 아니다.
 

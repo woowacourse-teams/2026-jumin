@@ -3,7 +3,7 @@ import type {
   ParkingInformationSource,
   ParkingLotDetailResponse,
   ParkingOperation,
-} from '../../api/contracts';
+} from '../../src/api/contracts';
 import { parkingSearchSuccess } from './parkingSearch';
 
 const source: ParkingInformationSource = {

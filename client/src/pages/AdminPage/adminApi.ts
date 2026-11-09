@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { parseApiResponse } from '../../../api/parseApiResponse';
-import { request } from '../../../api/request';
+import { parseApiResponse } from '../../api/parseApiResponse';
+import { request } from '../../api/request';
 
 export const adminLoginResponseSchema = z.object({
   accessToken: z.string().min(1),

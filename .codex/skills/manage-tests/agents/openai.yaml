@@ -1,0 +1,3 @@
+interface:
+  display_name: "테스트 관리"
+  short_description: "동작과 계약이 같으면 기존 검증을 유지하고 영향 테스트를 끝까지 실행합니다"

@@ -1,4 +1,4 @@
-import type { Destination } from '../../api/contracts';
+import type { Destination } from '../../src/api/contracts';
 
 export const destinationFixtures: Destination[] = [
   {

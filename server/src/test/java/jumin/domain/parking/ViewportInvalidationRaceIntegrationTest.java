@@ -1,0 +1,298 @@
+package jumin.domain.parking;
+
+import static jumin.config.ViewportCacheProperties.GRID_SIZE_METERS;
+import static jumin.config.ViewportCacheProperties.MAX_CELL_ROWS;
+import static jumin.config.ViewportCacheProperties.MAX_VALUE_BYTES;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.pubsub.RedisPubSubAdapter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import jumin.TestcontainersConfiguration;
+import jumin.config.ViewportCacheProperties;
+import jumin.domain.parking.cache.RedisViewportCellStore;
+import jumin.domain.parking.cache.ViewportCellCodec;
+import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponses;
+import jumin.domain.parking.model.ViewportBounds;
+import jumin.domain.parking.model.ViewportCellKey;
+import jumin.domain.parking.model.ViewportDeadline;
+import jumin.domain.parking.model.ViewportMappingState;
+import jumin.domain.parking.monitoring.ViewportMetrics;
+import jumin.domain.parking.repository.ViewportRepository;
+import jumin.domain.parking.service.ParkingLodScoreCalculator;
+import jumin.domain.parking.repository.ViewportReferenceRepository;
+import jumin.domain.parking.service.ViewportCellCover;
+import jumin.domain.parking.service.ViewportCellLoader;
+import jumin.domain.parking.service.ViewportSearchService;
+import jumin.domain.parking.service.ViewportSquareGrid;
+import jumin.domain.parking.service.ViewportWriteCoordinator;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
+
+@SpringBootTest(properties = {
+        "jumin.viewport.cache.enabled=true",
+        "jumin.viewport.cache.environment=feedback-integration",
+        "jumin.viewport.cache.request-timeout=20s",
+        "jumin.viewport.cache.db-timeout=5s"
+})
+@ActiveProfiles("test")
+@Import(TestcontainersConfiguration.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+class ViewportInvalidationRaceIntegrationTest {
+
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-26T00:00:00Z"), ZoneOffset.UTC);
+
+    private static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine"))
+            .withExposedPorts(6379);
+    private static final ParkingLotViewportRequest REQUEST = new ParkingLotViewportRequest(
+            126.99999, 37.49999, 127.00001, 37.50001, false, false, false);
+    private static final ParkingLotViewportRequest MOVED_REQUEST = new ParkingLotViewportRequest(
+            127.01999, 37.51999, 127.02001, 37.52001, false, false, false);
+    private static final int OLD_CAPACITY = 50;
+    private static final int NEW_CAPACITY = 200;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private PlatformTransactionManager transactions;
+    @Autowired
+    private ViewportWriteCoordinator writer;
+    @Autowired
+    private ViewportReferenceRepository reference;
+
+    @DynamicPropertySource
+    static void redisProperties(DynamicPropertyRegistry registry) {
+        REDIS.start();
+        registry.add("jumin.viewport.cache.redis-uri", ViewportInvalidationRaceIntegrationTest::redisUri);
+    }
+
+    @AfterAll
+    static void stopRedis() {
+        REDIS.stop();
+    }
+
+    @BeforeEach
+    void prepareFixture() {
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            jdbc.update("""
+                    UPDATE parking_viewport_cache_state SET projection_ready = FALSE, grid_size_meters = 1000 WHERE id = 1
+                    """);
+            jdbc.execute("TRUNCATE parking_lots RESTART IDENTITY CASCADE");
+            jdbc.update("""
+                    INSERT INTO parking_lots (id, source, source_external_id, name, address, latitude, longitude,
+                    capacity, mechanical, is_public, active, source_checked_at, created_at, updated_at)
+                    VALUES (1, 'DATA_GO_KR', '1', 'test', 'test', 37.5, 127, ?, FALSE, TRUE, TRUE,
+                            NOW(), NOW(), NOW())
+                    """, OLD_CAPACITY);
+        });
+        assertThat(writer.prepare().ready()).isTrue();
+    }
+
+    @Test
+    @DisplayName("TTL 전용 warm 셀은 commit 뒤에도 이전 값을 제공하고 Redis 만료 뒤 원본을 다시 읽는다")
+    void ttl_only_serves_old_value_after_commit_until_expiry_and_reloads() throws Exception {
+        // given
+        String environment = environment();
+        RedisClient client = RedisClient.create(redisUri());
+        try (var raw = client.connect(); var events = client.connectPubSub();
+             Harness reader = new Harness(environment, Duration.ofSeconds(6))) {
+            ViewportCellKey key = reader.ttlKey();
+            CountDownLatch expired = new CountDownLatch(1);
+            events.addListener(new RedisPubSubAdapter<>() {
+                @Override
+                public void message(String channel, String value) {
+                    if (key.redisKey().equals(value)) {
+                        expired.countDown();
+                    }
+                }
+            });
+            raw.sync().configSet("notify-keyspace-events", "Ex");
+            events.sync().subscribe("__keyevent@0__:expired");
+
+            // when & then
+            assertCapacity(reader.search(), OLD_CAPACITY);
+            assertThat(raw.sync().pttl(key.redisKey())).isPositive().isLessThanOrEqualTo(7200);
+            double sourceReads = reader.sourceReads();
+
+            commitCapacityChange();
+            assertThat(jdbc.queryForObject("SELECT capacity FROM parking_lots WHERE id=1", Integer.class))
+                    .isEqualTo(NEW_CAPACITY);
+            assertCapacity(reader.search(), OLD_CAPACITY);
+            assertThat(reader.sourceReads()).isEqualTo(sourceReads);
+            assertThat(reader.redis.getMany(List.of(key), deadline())).containsOnlyKeys(key);
+
+            assertThat(expired.await(15, TimeUnit.SECONDS)).as("actual Redis key expiration event").isTrue();
+            assertThat(reader.redis.getMany(List.of(key), deadline())).isEmpty();
+            assertCapacity(reader.search(), NEW_CAPACITY);
+            assertThat(reader.sourceReads()).isGreaterThan(sourceReads);
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("이동 전 셀과 빈 이동 후 셀은 각 TTL까지 유지되고 만료 뒤 원본을 다시 읽는다")
+    void ttl_mode_keeps_stale_old_and_empty_new_cells_until_expiry_after_move() throws Exception {
+        // given
+        RedisClient client = RedisClient.create(redisUri());
+        try (var raw = client.connect();
+             Harness reader = new Harness(environment(), Duration.ofMinutes(1), Duration.ofSeconds(30))) {
+            ViewportCellKey oldKey = reader.ttlKey(REQUEST);
+            ViewportCellKey newKey = reader.ttlKey(MOVED_REQUEST);
+            assertThat(oldKey).isNotEqualTo(newKey);
+
+            // when & then
+            assertCapacity(reader.search(REQUEST), OLD_CAPACITY);
+            assertThat(reader.search(MOVED_REQUEST).parkingLots()).isEmpty();
+            long untilStored = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (raw.sync().exists(oldKey.redisKey(), newKey.redisKey()) != 2 && System.nanoTime() < untilStored) {
+                Thread.sleep(10);
+            }
+            assertThat(raw.sync().exists(oldKey.redisKey(), newKey.redisKey())).isEqualTo(2);
+            long oldTtl = raw.sync().pttl(oldKey.redisKey());
+            long emptyTtl = raw.sync().pttl(newKey.redisKey());
+            assertThat(oldTtl).isPositive().isLessThanOrEqualTo(72_000);
+            assertThat(emptyTtl).isPositive().isLessThanOrEqualTo(36_000);
+            assertThat(oldTtl).isGreaterThan(emptyTtl);
+
+            new TransactionTemplate(transactions).executeWithoutResult(status -> {
+                ViewportMappingState ticket = writer.beforeSourceWrite();
+                jdbc.update("UPDATE parking_lots SET latitude=37.52, longitude=127.02 WHERE id=1");
+                writer.afterSourceWrite(ticket);
+            });
+
+            assertThat(reference.searchViewport(REQUEST, CLOCK).parkingLots()).isEmpty();
+            assertCapacity(reference.searchViewport(MOVED_REQUEST, CLOCK), OLD_CAPACITY);
+            assertCapacity(reader.search(REQUEST), OLD_CAPACITY);
+            assertThat(reader.search(MOVED_REQUEST).parkingLots()).isEmpty();
+            assertThat(raw.sync().pttl(oldKey.redisKey())).isPositive().isLessThanOrEqualTo(oldTtl);
+            assertThat(raw.sync().pttl(newKey.redisKey())).isPositive().isLessThanOrEqualTo(emptyTtl);
+
+            assertThat(raw.sync().pexpire(oldKey.redisKey(), 1)).isTrue();
+            assertThat(raw.sync().pexpire(newKey.redisKey(), 1)).isTrue();
+            long untilExpired = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (raw.sync().exists(oldKey.redisKey(), newKey.redisKey()) != 0 && System.nanoTime() < untilExpired) {
+                Thread.sleep(10);
+            }
+            assertThat(raw.sync().exists(oldKey.redisKey(), newKey.redisKey())).isZero();
+            assertThat(reader.search(REQUEST)).isEqualTo(reference.searchViewport(REQUEST, CLOCK));
+            assertThat(reader.search(MOVED_REQUEST)).isEqualTo(reference.searchViewport(MOVED_REQUEST, CLOCK));
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    private void commitCapacityChange() {
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            ViewportMappingState ticket = writer.beforeSourceWrite();
+            jdbc.update("UPDATE parking_lots SET capacity = ? WHERE id = 1", NEW_CAPACITY);
+            writer.afterSourceWrite(ticket);
+        });
+
+    }
+
+    private static void assertCapacity(ParkingLotViewportResponses response, int capacity) {
+        assertThat(response.parkingLots()).hasSize(1);
+        assertThat(response.parkingLots().getFirst().id()).isEqualTo(1L);
+        assertThat(response.parkingLots().getFirst().score())
+                .isEqualTo(new ParkingLodScoreCalculator().calculate(capacity));
+    }
+
+    private static String environment() {
+        return "feedback_" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private static String redisUri() {
+        return "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379);
+    }
+
+    private static ViewportDeadline deadline() {
+        return ViewportDeadline.after(Duration.ofSeconds(5));
+    }
+
+    private final class Harness implements AutoCloseable {
+        private final ViewportCacheProperties properties = new ViewportCacheProperties();
+        private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        private final ViewportMetrics metrics = new ViewportMetrics(registry);
+        private final RedisViewportCellStore redis;
+        private final ViewportCellLoader loader;
+        private final ViewportRepository repository;
+        private final ViewportSearchService service;
+        private final ViewportCellCover cover;
+
+        private Harness(String environment, Duration ttl) {
+            this(environment, ttl, ttl);
+        }
+
+        private Harness(String environment, Duration ttl, Duration emptyTtl) {
+            properties.setEnabled(true);
+            properties.setEnvironment(environment);
+            properties.setRedisUri(redisUri());
+            properties.setTtl(ttl);
+            properties.setEmptyTtl(emptyTtl);
+            properties.setRequestTimeout(Duration.ofSeconds(20));
+            properties.setCacheTimeout(Duration.ofSeconds(2));
+            cover = new ViewportCellCover(new ViewportSquareGrid());
+            assertThat(cover.cover(ViewportBounds.from(REQUEST))).hasSize(1);
+            redis = new RedisViewportCellStore(properties,
+                    new ViewportCellCodec(MAX_VALUE_BYTES, MAX_CELL_ROWS), cover, metrics);
+            repository = new ViewportRepository(jdbc, properties, metrics,
+                    new ParkingLodScoreCalculator(), new ViewportSquareGrid());
+            loader = new ViewportCellLoader(redis, repository, metrics);
+            service = new ViewportSearchService(properties, cover, repository, redis, loader, metrics,
+                    new ParkingLodScoreCalculator(), CLOCK);
+        }
+
+        private ViewportCellKey ttlKey() {
+            return ttlKey(REQUEST);
+        }
+
+        private ViewportCellKey ttlKey(ParkingLotViewportRequest request) {
+            return new ViewportCellKey(properties.getEnvironment(), GRID_SIZE_METERS,
+                    cover.cover(ViewportBounds.from(request)).getFirst());
+        }
+
+        private ParkingLotViewportResponses search() {
+            return search(REQUEST);
+        }
+
+        private ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
+            return service.search(request);
+        }
+
+        private double sourceReads() {
+            return registry.counter("parking.viewport.sql", "outcome", "cell_batch").count();
+        }
+
+        @Override
+        public void close() {
+            loader.close();
+            repository.close();
+            redis.close();
+        }
+    }
+
+}
