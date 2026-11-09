@@ -70,6 +70,8 @@ const map = {
   panBy: jest.fn(),
   fitBounds: jest.fn(),
   setCenter: jest.fn(),
+  // 셋업이 기존 지도 옵션을 저장·복구할 때 사용하는 SDK 인터페이스를 제공한다.
+  getOptions: jest.fn(),
   setOptions: jest.fn(),
   destroy: jest.fn(),
 };
@@ -189,6 +191,74 @@ const openDetail = async (id: number) => {
 };
 const closeDetail = () =>
   userEvent.setup().click(screen.getByRole('button', { name: '이전 화면으로 이동' }));
+
+it('드래그·관성·목적지 이름 조회 중 추천을 막고 최종 좌표로 추천한다', async () => {
+  let releaseGeocode!: () => void;
+  const geocodeGate = new Promise<void>((resolve) => {
+    releaseGeocode = resolve;
+  });
+  const geocodeRequests: URL[] = [];
+  server.use(
+    http.get('/api/destinations/reverse-geocode', async ({ request }) => {
+      geocodeRequests.push(new URL(request.url));
+      await geocodeGate;
+      return HttpResponse.json({ displayName: '관성 이동 후 목적지' });
+    }),
+  );
+  const center = jest.spyOn(map, 'getCenter');
+  const emitMapEvent = (eventName: string) => {
+    act(() => {
+      [...listeners]
+        .filter(({ target, name }) => target === map && name === eventName)
+        .forEach(({ callback }) => callback());
+    });
+  };
+
+  renderRecommendation('/parkingsetup?lat=37.4981&lng=127.0279&name=강남역');
+  const nextButton = await screen.findByRole('button', { name: '다음' });
+  // 시트는 SDK 준비 전에도 표시되므로 지도 생성과 이벤트 등록까지 기다린다.
+  await waitFor(() =>
+    expect(
+      [...listeners].filter(({ target, name }) => target === map && name === 'dragstart'),
+    ).toHaveLength(1),
+  );
+  expect(nextButton).toBeEnabled();
+
+  try {
+    // 손을 떼어도 관성 이동이 남아 있으면 URL과 조회를 갱신하지 않는다.
+    emitMapEvent('dragstart');
+    expect(nextButton).toBeDisabled();
+    expect(screen.getByRole('region', { name: '선택한 목적지' })).toHaveTextContent(
+      '위치 확인 중...',
+    );
+    center.mockReturnValue(new LatLng(37.58, 127.01));
+    emitMapEvent('dragend');
+    expect(nextButton).toBeDisabled();
+    expect(screen.getByLabelText('현재 경로')).toHaveTextContent('lat=37.4981');
+    expect(geocodeRequests).toHaveLength(0);
+
+    // SDK 애니메이션 대신 중심 변경과 idle을 발생시켜 최종 좌표 확정을 재현한다.
+    center.mockReturnValue(new LatLng(37.59, 127.02));
+    emitMapEvent('idle');
+    await waitFor(() => expect(geocodeRequests).toHaveLength(1));
+    expect(geocodeRequests[0]!.searchParams.get('latitude')).toBe('37.59');
+    expect(geocodeRequests[0]!.searchParams.get('longitude')).toBe('127.02');
+    expect(screen.getByLabelText('현재 경로')).toHaveTextContent('lat=37.59&lng=127.02');
+    expect(nextButton).toBeDisabled();
+
+    // 좌표와 그 좌표의 이름이 함께 준비된 뒤에만 추천할 수 있어야 한다.
+    releaseGeocode();
+    await screen.findByRole('heading', { name: '관성 이동 후 목적지' });
+    await waitFor(() => expect(nextButton).toBeEnabled());
+    await userEvent.setup().click(nextButton);
+    await screen.findByRole('region', { name: '주차장 전체 목록' });
+    expect(searchRequests.at(-1)!.searchParams.get('destinationLatitude')).toBe('37.59');
+    expect(searchRequests.at(-1)!.searchParams.get('destinationLongitude')).toBe('127.02');
+  } finally {
+    // 중간 검증 실패 시에도 MSW 요청이 대기한 채 다음 테스트로 넘어가지 않게 한다.
+    releaseGeocode();
+  }
+});
 
 it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의 상세를 구분한다', async () => {
   renderRecommendation();

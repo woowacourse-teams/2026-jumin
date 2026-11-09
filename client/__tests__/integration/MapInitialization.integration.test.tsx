@@ -211,15 +211,19 @@ it.each([
   },
 );
 
-it('설정 URL의 좌표를 기존 지도에 반영하고 드래그로 이미 일치한 중심은 다시 이동하지 않는다', async () => {
+it('검색 후 셋업 진입에서는 새 목적지로 이동하고 드래그 좌표 저장은 지도를 다시 움직이지 않는다', async () => {
   const changedCenter = new MockLatLng(37.56, 126.98);
   const draggedCenter = new MockLatLng(37.57, 126.99);
   renderWithProviders(
     <>
-      <Link to="/parkingsetup?lat=37.56&lng=126.98">목적지 변경</Link>
+      <Link to="/search">새 목적지 검색</Link>
       <Link to="/parkingsetup?lat=37.57&lng=126.99">드래그 좌표 반영</Link>
       <Routes>
         <Route element={<MapLayout />}>
+          <Route
+            path="/search"
+            element={<Link to="/parkingsetup?lat=37.56&lng=126.98">목적지 변경</Link>}
+          />
           <Route path="/parkingsetup" element={null} />
         </Route>
       </Routes>
@@ -234,6 +238,10 @@ it('설정 URL의 좌표를 기존 지도에 반영하고 드래그로 이미 �
   const map = createMap.mock.results[0]!.value as MockMap;
   expect(map.setCenter).not.toHaveBeenCalled();
 
+  // 새 목적지 선택은 검색 페이지를 거쳐 셋업에 다시 진입하는 실제 흐름으로 확인한다.
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '새 목적지 검색' }));
+  });
   await act(async () => {
     fireEvent.click(screen.getByRole('link', { name: '목적지 변경' }));
   });
@@ -249,6 +257,77 @@ it('설정 URL의 좌표를 기존 지도에 반영하고 드래그로 이미 �
   expect(map.getCenter()).toEqual(draggedCenter);
   expect(map.setCenter).not.toHaveBeenCalled();
   expect(createMap).toHaveBeenCalledTimes(1);
+  expect(map.destroy).not.toHaveBeenCalled();
+});
+
+it('드래그한 목적지를 저장하고 추천에서 돌아오면 같은 지도에서 해당 위치를 복원한다', async () => {
+  const draggedCenter = new MockLatLng(37.57, 126.99);
+  const recommendCenter = new MockLatLng(37.571, 126.991);
+  renderWithProviders(
+    <>
+      <Link replace to="/parkingsetup?lat=37.57&lng=126.99">
+        드래그 좌표 저장
+      </Link>
+      <Link to="/parkingRecommend?lat=37.57&lng=126.99">추천 이동</Link>
+      <Link to="/parkingsetup?lat=37.57&lng=126.99">셋업 복원</Link>
+      <Routes>
+        <Route element={<MapLayout />}>
+          <Route path="*" element={null} />
+        </Route>
+      </Routes>
+    </>,
+    { initialEntries: ['/parkingsetup?lat=37.5547&lng=126.9707'] },
+  );
+  await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
+  const map = createMap.mock.results[0]!.value as MockMap;
+
+  // 드래그한 좌표를 URL에 저장할 때 이미 일치한 중심을 다시 이동하지 않아야 한다.
+  // 휠 입력의 기준점 갱신은 실제 셋업 훅을 사용하는 별도 테스트에서 확인한다.
+  map.setCenter(draggedCenter);
+  map.setCenter.mockClear();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '드래그 좌표 저장' }));
+  });
+
+  expect(map.getCenter()).toEqual(draggedCenter);
+  expect(map.setCenter).not.toHaveBeenCalled();
+
+  // 추천 화면에서 주차장에 맞춰 카메라가 이동한 뒤 셋업으로 복귀하는 상황을 재현한다.
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '추천 이동' }));
+  });
+  map.setCenter(recommendCenter);
+  map.setCenter.mockClear();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '셋업 복원' }));
+  });
+  expect(map.getCenter()).toEqual(draggedCenter);
+  expect(map.setCenter).toHaveBeenCalledTimes(1);
+  expect(createMap).toHaveBeenCalledTimes(1);
+  expect(map.destroy).not.toHaveBeenCalled();
+});
+
+it('지도 준비 전에 셋업으로 이동해도 준비가 끝나면 선택한 목적지로 정렬한다', async () => {
+  renderWithProviders(
+    <>
+      <Link to="/parkingsetup?lat=37.57&lng=126.99">목적지 선택</Link>
+      <Routes>
+        <Route element={<MapLayout />}>
+          <Route path="*" element={null} />
+        </Route>
+      </Routes>
+    </>,
+  );
+
+  // 지도 생성 effect의 SDK 준비 await가 끝나기 전에 경로를 바꾼다.
+  expect(createMap).not.toHaveBeenCalled();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('link', { name: '목적지 선택' }));
+  });
+
+  await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
+  const map = createMap.mock.results[0]!.value as MockMap;
+  expect(map.getCenter()).toEqual(new MockLatLng(37.57, 126.99));
   expect(map.destroy).not.toHaveBeenCalled();
 });
 
