@@ -4,7 +4,7 @@ import type { BottomSheetSnap } from '../components/ui/BottomSheet';
 interface Options {
   /** 처음부터 열어 둘지 여부. 기본값은 false다. */
   initialIsOpen?: boolean;
-  /** open()을 인자 없이 호출할 때 사용할 단계. 기본값은 expanded다. */
+  /** open()을 인자 없이 호출할 때 사용할 단계. 기본값은 medium이다. */
   initialSnap?: BottomSheetSnap;
 }
 
@@ -13,10 +13,7 @@ interface Options {
  * open()은 기본 단계로, open('full')은 지정한 단계로 연다.
  * close()는 닫는 전환을 위해 현재 단계를 유지한다. setSnap()은 열림 여부를 바꾸지 않는다.
  */
-export const useBottomSheet = ({
-  initialIsOpen = false,
-  initialSnap = 'expanded',
-}: Options = {}) => {
+export const useBottomSheet = ({ initialIsOpen = false, initialSnap = 'medium' }: Options = {}) => {
   const [isOpen, setIsOpen] = useState(initialIsOpen);
   const [snap, setSnap] = useState<BottomSheetSnap>(initialSnap);
 

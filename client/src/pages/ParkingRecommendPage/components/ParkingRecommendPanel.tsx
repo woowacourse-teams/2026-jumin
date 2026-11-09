@@ -112,12 +112,12 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
     // 같은 주차장을 다시 눌러도 사용자가 옮긴 지도를 해당 위치로 이동한다.
     setSelectedParkingLot({ ...parkingLot });
     // 이미 펼친 목록에서는 사용자가 정한 높이를 유지한다.
-    sheet.setSnap((snap) => (snap === 'collapsed' ? 'expanded' : snap));
+    sheet.setSnap((snap) => (snap === 'collapsed' ? 'medium' : snap));
   };
 
   const openDetail = (parkingLot: ParkingLotSummary) => {
     setSelectedParkingLot({ ...parkingLot });
-    detailSheet.open(sheetSnap === 'collapsed' ? 'expanded' : sheetSnap);
+    detailSheet.open(sheetSnap === 'collapsed' ? 'medium' : sheetSnap);
     setDetailParkingLot(parkingLot);
   };
 
