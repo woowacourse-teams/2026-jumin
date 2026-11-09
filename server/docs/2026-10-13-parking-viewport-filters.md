@@ -11,12 +11,12 @@
 | --- | --- |
 | 숫자형 LOD 점수 | [계산기](../src/main/java/jumin/domain/parking/service/ParkingLodScoreCalculator.java)가 구획 수로 계산하고 [응답 DTO](../src/main/java/jumin/domain/parking/dto/ParkingLotViewportResponse.java)가 `score`를 반환 |
 | 필터 입력 | [요청 DTO](../src/main/java/jumin/domain/parking/dto/ParkingLotViewportRequest.java)가 생략한 필터를 `false`로 처리 |
-| 오늘 무료 판정 | [서비스](../src/main/java/jumin/domain/parking/service/ParkingSearchService.java)가 한국 요일을 구하고 [저장소](../src/main/java/jumin/domain/parking/repository/ParkingLotRepository.java)가 두 필터를 기존 공간 쿼리에 적용 |
+| 오늘 무료 판정 | [서비스](../src/main/java/jumin/domain/parking/service/ViewportSearchService.java)가 한국 요일을 구하고 [저장소](../src/main/java/jumin/domain/parking/repository/ViewportRepository.java)가 두 필터를 기존 공간 쿼리에 적용 |
 | 기계식 데이터 | [엔티티](../src/main/java/jumin/domain/parking/entity/ParkingLot.java)와 [CSV 모델](../src/main/java/jumin/domain/admin/parking/model/ParkingLotValues.java)에 `boolean mechanical` 추가 |
 | CSV 입력과 저장 | [열 정의](../src/main/java/jumin/domain/admin/parking/csv/ParkingCsvColumn.java), [파서](../src/main/java/jumin/domain/admin/parking/csv/ParkingCsvRowReader.java), [CSV 저장소](../src/main/java/jumin/domain/admin/parking/repository/ParkingCsvRepository.java)에 기계식 변환, 조회, 추가와 갱신 반영 |
 | DB 전환 | V11에서 `NOT NULL DEFAULT FALSE`인 기계식 컬럼을 추가하고 기존 행에도 false 적용 |
 
-요일 처리는 기존 서비스와 `Clock`을 사용한다. 별도 요일 enum이나 판별 컴포넌트는 추가하지 않는다.
+요일 처리는 `ViewportSearchService`와 `Clock`을 사용한다. 별도 요일 enum이나 판별 컴포넌트는 추가하지 않는다.
 추천 검색의 요금 계산과 운영시간 판정, 프론트엔드 구현은 이번 변경 범위 밖이다.
 
 ## API 계약
@@ -37,6 +37,7 @@ GET /api/parking/viewport
 응답 항목은 `id`, `latitude`, `longitude`, 숫자형 `score`이며 [LOD 정책과 응답 예시](2026-10-13-parking-lod-score.md)를 따른다.
 기존 활성 상태, 위치와 이름과 주소 존재, 지도 경계 포함 조건과 ID 오름차순을 유지한다.
 `totalCount`는 필터 적용 후 목록 크기다. 결과가 없으면 200과 빈 목록을 반환한다.
+캐시 OFF와 캐시를 우회하는 전체 조회는 같은 JDBC 쿼리를 사용한다. 두 경로 모두 DB 실행·대기 한도, SQL/요청 기한과 100만 행 상한을 적용하고 자원 한도·DB 실패는 503으로 응답한다. 캐시 OFF는 Redis를 조회하거나 캐시 fallback 지표를 증가시키지 않는다.
 
 ## 오늘 무료 판정
 

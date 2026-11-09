@@ -1,6 +1,6 @@
 package jumin.domain.parking.dto;
 
-import jumin.domain.parking.entity.ParkingLot;
+import jumin.domain.parking.model.ViewportItem;
 
 public record ParkingLotViewportResponse(
         Long id,
@@ -8,11 +8,12 @@ public record ParkingLotViewportResponse(
         double longitude,
         double score
 ) {
-    public static ParkingLotViewportResponse from(ParkingLot parkingLot, double score) {
+
+    public static ParkingLotViewportResponse from(ViewportItem item, double score) {
         return new ParkingLotViewportResponse(
-                parkingLot.getId(),
-                parkingLot.getLatitude(),
-                parkingLot.getLongitude(),
+                item.id(),
+                item.latitude(),
+                item.longitude(),
                 score
         );
     }

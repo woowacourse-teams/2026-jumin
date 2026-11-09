@@ -7,10 +7,6 @@ public record ReverseGeocodingResult(
         String administrativeAddress
 ) {
 
-    public ReverseGeocodingResult(String buildingName, String roadAddress) {
-        this(buildingName, roadAddress, "", "");
-    }
-
     public ReverseGeocodingResult {
         buildingName = normalize(buildingName);
         roadAddress = normalize(roadAddress);

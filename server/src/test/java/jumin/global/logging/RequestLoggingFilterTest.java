@@ -93,6 +93,7 @@ class RequestLoggingFilterTest {
     }
 
     private void assertLoggedValue(String key, String expectedValue) {
+        assertEquals(1, appender.list.size());
         ILoggingEvent event = appender.list.getFirst();
 
         for (KeyValuePair pair : event.getKeyValuePairs()) {

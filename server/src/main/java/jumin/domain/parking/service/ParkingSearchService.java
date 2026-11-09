@@ -1,9 +1,6 @@
 package jumin.domain.parking.service;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,9 +10,6 @@ import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
 import jumin.domain.parking.dto.ParkingSearchResponse;
-import jumin.domain.parking.dto.ParkingLotViewportResponse;
-import jumin.domain.parking.dto.ParkingLotViewportRequest;
-import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.entity.ParkingLot;
 import jumin.domain.parking.entity.ParkingOperation;
 import jumin.domain.parking.repository.ParkingLotLikeRepository;
@@ -39,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ParkingSearchService {
 
     private static final int SEARCH_RADIUS_METERS = 600;
-    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingLotLikeRepository parkingLotLikeRepository;
@@ -47,8 +40,6 @@ public class ParkingSearchService {
     private final ParkingSearchQueryValidator queryValidator;
     private final ParkingOperationEvaluator operationEvaluator;
     private final ParkingBalancedScoreCalculator balancedScoreCalculator;
-    private final ParkingLodScoreCalculator lodScoreCalculator;
-    private final Clock clock;
     private final WalkingDistanceService walkingDistanceService;
     private final WalkingDurationCalculator walkingDurationCalculator;
 
@@ -93,34 +84,6 @@ public class ParkingSearchService {
                 .log();
 
         return ParkingSearchResponse.from(SEARCH_RADIUS_METERS, parkingLots);
-    }
-
-    public ParkingLotViewportResponses searchViewport(ParkingLotViewportRequest request) {
-        validateCoordinateOrder(request);
-        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL_ZONE);
-
-        List<ParkingLotViewportResponse> parkingLots = parkingLotRepository.findActiveWithinViewport(
-                        request.westLongitude(),
-                        request.southLatitude(),
-                        request.eastLongitude(),
-                        request.northLatitude(),
-                        request.freeOnly(),
-                        request.excludeMechanical(),
-                        request.isPublic(),
-                        today.getDayOfWeek().getValue()
-                ).stream()
-                .map(parkingLot -> ParkingLotViewportResponse.from(
-                        parkingLot,
-                        lodScoreCalculator.calculate(parkingLot.getCapacity())
-                ))
-                .toList();
-
-        log.atInfo()
-                .setMessage("지도 viewport 주차장 조회가 완료되었습니다.")
-                .addKeyValue("resultCount", parkingLots.size())
-                .log();
-
-        return ParkingLotViewportResponses.from(parkingLots);
     }
 
     public ParkingLotViewportDetailResponse getParkingLotDetail(Long parkingLotId, UUID guestId) {
@@ -185,13 +148,6 @@ public class ParkingSearchService {
                 .toList();
     }
 
-    private void validateCoordinateOrder(ParkingLotViewportRequest request) {
-        if (request.northLatitude() <= request.southLatitude()
-                || request.westLongitude() >= request.eastLongitude()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-    }
-
     private ParkingLotResponse calculateParkingLotResponse(
             ParkingLot parkingLot,
             ParkingOperation operation,
@@ -207,20 +163,8 @@ public class ParkingSearchService {
 
         Integer distanceMeters = walkingDistances.distancesByParkingLotId().get(parkingLot.getId());
         Integer walkingDurationMinutes = walkingDurationCalculator.calculateMinutes(distanceMeters);
-        Integer estimatedFee = null;
-        if (operation != null) {
-            estimatedFee = operation.calculateFee(
-                    durationMinutes,
-                    request.entryAt().getDayOfWeek()
-            );
-        }
-
-        Double balancedScore = distanceMeters == null ? null : balancedScoreCalculator.calculate(
-                availabilityStatus,
-                distanceMeters,
-                estimatedFee,
-                durationMinutes
-        );
+        Integer estimatedFee = estimatedFee(operation, request, durationMinutes);
+        Double balancedScore = balancedScore(availabilityStatus, distanceMeters, estimatedFee, durationMinutes);
 
         return ParkingLotResponse.from(
                 parkingLot.getId(),
@@ -236,4 +180,18 @@ public class ParkingSearchService {
         );
     }
 
+    private Integer estimatedFee(ParkingOperation operation, ParkingSearchRequest request, int durationMinutes) {
+        if (operation == null) {
+            return null;
+        }
+        return operation.calculateFee(durationMinutes, request.entryAt().getDayOfWeek());
+    }
+
+    private Double balancedScore(ParkingAvailabilityStatus availabilityStatus, Integer distanceMeters,
+                                 Integer estimatedFee, int durationMinutes) {
+        if (distanceMeters == null) {
+            return null;
+        }
+        return balancedScoreCalculator.calculate(availabilityStatus, distanceMeters, estimatedFee, durationMinutes);
+    }
 }

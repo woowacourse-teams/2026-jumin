@@ -1,6 +1,6 @@
 package jumin.config;
 
-import jumin.domain.parking.viewport.ViewportWriteCoordinator;
+import jumin.domain.parking.service.ViewportWriteCoordinator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
