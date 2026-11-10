@@ -1,0 +1,16 @@
+diff --git a/dist/utils/getFilenameFromUrl.js b/dist/utils/getFilenameFromUrl.js
+index 7305739c9ef6d7f9f7b2565bbf2a3b46dd42ee5e..01725829d6f24c1038aa8d555f7f5e7151d330be 100644
+--- a/dist/utils/getFilenameFromUrl.js
++++ b/dist/utils/getFilenameFromUrl.js
+@@ -136,6 +136,11 @@ function getFilenameFromUrl(context, url, extra = {}) {
+       // and add outputPath
+       // `foo.js` => `/home/user/my-project/dist/foo.js`
+       filename = path.join(outputPath, pathname.slice(publicPathPathname.length));
++      const relative = path.relative(outputPath, filename);
++      if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
++        extra.errorCode = 403;
++        return;
++      }
+       try {
+         // eslint-disable-next-line no-param-reassign
+         extra.stats = /** @type {import("fs").statSync} */

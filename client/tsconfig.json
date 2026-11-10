@@ -19,5 +19,5 @@
     "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "storybook-static", "node_modules"]
 }
