@@ -87,6 +87,10 @@ const inputStyle = css`
   ${typography.body};
   color: ${color.text.primary};
 
+  &:focus-visible {
+    outline: 0;
+  }
+
   &::placeholder {
     color: ${color.text.placeholder};
     opacity: 1;
