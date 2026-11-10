@@ -72,3 +72,43 @@ jobs:
           test -s dist/index.html
           test -d dist/assets
           test -n "$(find dist/assets -type f -print -quit)"
+
+  storybook:
+    name: Storybook build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.11.0"
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install client dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storybook
+        run: pnpm build-storybook
+
+      - name: Validate Storybook output
+        run: |
+          test -s storybook-static/index.html
+          test -s storybook-static/iframe.html
+          test -s storybook-static/index.json
