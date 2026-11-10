@@ -9,6 +9,7 @@ __pycache__/
 dist/
 build/
 coverage/
+storybook-static/
 playwright-report/
 test-results/
 bin/
