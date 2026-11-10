@@ -46,6 +46,7 @@ export const GuideModal = ({ onClose }: Props) => {
       isOpen
       onRequestClose={onClose}
       contentLabel="주차의민족 이용 가이드"
+      aria={{ modal: true }}
       overlayClassName={overlayStyle}
       className={modalStyle}
       shouldCloseOnOverlayClick
@@ -74,7 +75,7 @@ export const GuideModal = ({ onClose }: Props) => {
         aria-live="polite"
       >
         <span className={screenReaderOnlyStyle}>
-          총 {slides.length}단계 중 {step + 1}단계
+          총 {slides.length}단계 중 {step + 1}단계. {slide.title}. {slide.description}
         </span>
         {slides.map((_, index) => (
           <span

@@ -1,5 +1,6 @@
 import { css, cx } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { useId } from 'react';
 import { Stack } from './Stack';
 import { CloseIcon } from './icons';
 import { color } from '../../../theme/color';
@@ -30,17 +31,31 @@ interface Props {
 }
 
 export const Modal = ({ onClose, label, description, children }: Props) => {
+  const titleId = useId();
+  const descriptionId = useId();
+
   return (
     <ReactModal
       isOpen
       onRequestClose={onClose}
       contentLabel={label}
+      aria={{
+        modal: true,
+        labelledby: titleId,
+        describedby: description ? descriptionId : undefined,
+      }}
       overlayClassName={overlayStyle}
       className={modalStyle}
       shouldCloseOnOverlayClick
     >
-      <h2 className={cx(labelStyle, description && labelWithDescriptionStyle)}>{label}</h2>
-      {description && <p className={descriptionStyle}>{description}</p>}
+      <h2 id={titleId} className={cx(labelStyle, description && labelWithDescriptionStyle)}>
+        {label}
+      </h2>
+      {description && (
+        <p id={descriptionId} className={descriptionStyle}>
+          {description}
+        </p>
+      )}
 
       <button
         type="button"

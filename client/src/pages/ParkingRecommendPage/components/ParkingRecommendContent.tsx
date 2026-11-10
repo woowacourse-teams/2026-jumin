@@ -1,5 +1,5 @@
 import { Stack } from '../../../shared/components/ui/Stack';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { css } from '@emotion/css';
 import type { ParkingLotSummary } from '../../../api/contracts';
 import { trackEvent } from '../../../shared/analytics';
@@ -45,6 +45,7 @@ export const ParkingRecommendContent = ({
   onDetail,
 }: Props) => {
   const parkingListRef = useRef<HTMLUListElement>(null);
+  const sortGroupName = useId();
   const hasTrackedRecommendations = useRef(false);
   const [directionsParkingLot, setDirectionsParkingLot] = useState<ParkingLotSummary | null>(null);
 
@@ -80,21 +81,22 @@ export const ParkingRecommendContent = ({
 
   return (
     <Stack as="section" className={sheetContentStyle} aria-label="주차장 전체 목록">
-      <div className={filterStyle} role="tablist" aria-label="주차장 정렬 기준">
+      <div className={filterStyle} role="radiogroup" aria-label="주차장 정렬 기준">
         {filterOptions.map(({ type, label }) => (
-          <button
-            key={type}
-            className={filterButtonStyle(recommendationType === type)}
-            type="button"
-            role="tab"
-            aria-selected={recommendationType === type}
-            onClick={() => {
-              parkingListRef.current?.scrollTo({ top: 0 });
-              onTypeChange(type);
-            }}
-          >
+          <label key={type} className={filterButtonStyle(recommendationType === type)}>
+            <input
+              className={filterInputStyle}
+              type="radio"
+              name={sortGroupName}
+              value={type}
+              checked={recommendationType === type}
+              onChange={() => {
+                parkingListRef.current?.scrollTo({ top: 0 });
+                onTypeChange(type);
+              }}
+            />
             {label}
-          </button>
+          </label>
         ))}
       </div>
       {recommendedCount === 0 && parkingLots.length > 0 && (
@@ -161,6 +163,10 @@ const filterStyle = css`
 `;
 
 const filterButtonStyle = (isSelected: boolean) => css`
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 42px;
   padding: 0 12px;
   ${typography.label};
@@ -175,10 +181,20 @@ const filterButtonStyle = (isSelected: boolean) => css`
   &:active {
     background: ${isSelected ? color.background.brandPressed : color.background.brandSubtlePressed};
   }
-  &:focus-visible {
+  &:has(input:focus-visible) {
     outline: 3px solid ${color.focus.ring};
     outline-offset: 2px;
   }
+`;
+
+const filterInputStyle = css`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 `;
 
 const parkingListStyle = css`

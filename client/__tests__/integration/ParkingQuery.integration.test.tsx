@@ -85,7 +85,8 @@ const currentUrl = () =>
 it('직접 진입한 셋업의 검색바는 현재 좌표로 검색 화면을 push하고 취소는 뒤로 이동한다', async () => {
   const user = userEvent.setup();
   renderSetup();
-  await user.click(screen.getByRole('textbox', { name: '목적지 검색' }));
+  // 검색 진입은 입력창이 아닌 버튼이며, 이동 이후 좌표 전달 계약은 유지한다.
+  await user.click(screen.getByRole('button', { name: '목적지 검색' }));
   await screen.findByRole('heading', { name: '검색 화면' });
   expect(currentUrl().searchParams.get('lat')).toBe('37.51');
   expect(currentUrl().searchParams.get('lng')).toBe('127.04');

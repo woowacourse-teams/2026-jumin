@@ -18,6 +18,11 @@ export const applyGlobalStyles = () => injectGlobal`
     background: ${color.background.subtle};
   }
 
+  :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 3px solid ${color.focus.ring};
+    outline-offset: 2px;
+  }
+
   #root {
     --bottom-nav-height: 86px;
 

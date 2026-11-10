@@ -136,6 +136,7 @@ export const RoadViewOverlay = ({
       isOpen
       onRequestClose={onRequestClose}
       contentLabel={`${parkingLotName} 로드뷰`}
+      aria={{ modal: true }}
       overlayClassName={overlayStyle}
       className={contentStyle}
       shouldCloseOnOverlayClick={false}
