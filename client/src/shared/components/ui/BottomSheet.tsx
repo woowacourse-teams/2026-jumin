@@ -14,7 +14,7 @@ import { color } from '../../../theme/color';
 export type BottomSheetSnap = 'collapsed' | 'medium' | 'full';
 
 /** 클릭과 작은 손떨림을 제외하고 단계 변경을 판단할 최소 이동 거리(px). */
-const DRAG_THRESHOLD = 8;
+const DRAG_THRESHOLD = 10;
 
 /** 기본 세 단계의 전체 높이. 지도 배치도 같은 계산을 사용한다. */
 export const getBottomSheetSnapHeight = (snap: BottomSheetSnap, containerHeight: number) => {
@@ -170,13 +170,20 @@ const useBottomSheetInteraction = ({ open, snap, onSnapChange }: InteractionOpti
 
     if (Math.abs(delta) >= DRAG_THRESHOLD) {
       // 단계 간 간격이 커져도 짧은 드래그만으로 full까지 이동하지 않도록 놓은 높이와 비교한다.
-      destination = points.reduce(
-        (closest, point) =>
-          Math.abs(point.height - releasedHeight) < Math.abs(closest.height - releasedHeight)
-            ? point
-            : closest,
-        activePoint,
+      const candidates = points.filter((point) =>
+        delta > 0 ? point.height > height : point.height < height,
       );
+      const first = candidates[0];
+
+      if (first) {
+        destination = candidates.reduce(
+          (closest, point) =>
+            Math.abs(point.height - releasedHeight) < Math.abs(closest.height - releasedHeight)
+              ? point
+              : closest,
+          first,
+        );
+      }
     }
 
     gestureRef.current = null;
