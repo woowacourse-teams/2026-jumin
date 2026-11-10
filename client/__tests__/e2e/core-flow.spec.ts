@@ -216,7 +216,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
   await expect(page).toHaveURL(/\/landing$/);
-  await expect(page.getByRole('heading', { level: 1, name: /어디에 주차할지/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /목적지는 정했는데/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/setting$/);
   await closeSurvey(page);

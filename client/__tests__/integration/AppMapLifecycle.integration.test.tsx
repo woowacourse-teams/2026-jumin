@@ -70,7 +70,7 @@ it('랜딩으로 나가면 지도를 해제하고 서비스에 돌아올 때 새
   await waitFor(() => expect(createMap).toHaveBeenCalledTimes(1));
 
   await user.click(screen.getByRole('link', { name: /주차의민족 소개/ }));
-  await screen.findByRole('heading', { name: /어디에 주차할지/, level: 1 });
+  await screen.findByRole('heading', { name: /목적지는 정했는데/, level: 1 });
   expect(destroyMap).toHaveBeenCalledTimes(1);
 
   await user.click(screen.getByRole('link', { name: '설정으로 이동' }));
@@ -83,7 +83,7 @@ it('랜딩으로 나가면 지도를 해제하고 서비스에 돌아올 때 새
 });
 
 it.each([
-  { path: '/landing', heading: /어디에 주차할지/ },
+  { path: '/landing', heading: /목적지는 정했는데/ },
   { path: '/admin', heading: /관리자 페이지/ },
 ])('$path 직접 진입 시 지도를 생성하지 않는다', async ({ path, heading }) => {
   renderApp(path);
