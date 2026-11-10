@@ -350,6 +350,8 @@ const sheetStyle = css`
 `;
 
 const handleAreaStyle = css`
+  /* 시트의 overflow에 잘리지 않도록 핸들 테두리만 안쪽에 표시한다. */
+  --focus-ring-offset: calc(-1 * var(--focus-ring-width));
   display: flex;
   flex-shrink: 0;
   justify-content: center;
@@ -360,11 +362,6 @@ const handleAreaStyle = css`
 
   &:active {
     cursor: grabbing;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: -2px;
   }
 `;
 

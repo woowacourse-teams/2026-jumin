@@ -38,8 +38,8 @@ export const SearchBar = ({
     text-align: left;
 
     &:focus-within {
-      outline: 3px solid ${color.focus.ring};
-      outline-offset: 2px;
+      outline: var(--focus-ring-width) solid var(--focus-ring-color);
+      outline-offset: var(--focus-ring-offset);
     }
   `;
   const searchIcon = <SearchIcon size={20} className={searchIconStyle} aria-hidden="true" />;

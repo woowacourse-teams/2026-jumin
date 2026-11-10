@@ -182,8 +182,8 @@ const filterButtonStyle = (isSelected: boolean) => css`
     background: ${isSelected ? color.background.brandPressed : color.background.brandSubtlePressed};
   }
   &:has(input:focus-visible) {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 2px;
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 `;
 

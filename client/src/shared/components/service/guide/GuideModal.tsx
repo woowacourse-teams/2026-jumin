@@ -149,11 +149,6 @@ const skipButtonStyle = css`
   background: none;
   border: 0;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
 `;
 
 const imageFrameStyle = css`
@@ -244,11 +239,6 @@ const previousButtonStyle = css`
     border-color: ${color.border.default};
     cursor: default;
   }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
 `;
 
 const nextButtonStyle = css`
@@ -269,10 +259,5 @@ const nextButtonStyle = css`
 
   &:active {
     background: ${color.background.brandPressed};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
   }
 `;

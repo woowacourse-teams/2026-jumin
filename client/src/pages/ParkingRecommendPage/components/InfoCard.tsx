@@ -194,11 +194,6 @@ const navigateButtonStyle = css`
     background: ${color.background.brandPressed};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
-
   user-select: none;
   -webkit-user-drag: none;
 `;
@@ -228,11 +223,6 @@ const detailButtonStyle = css`
     color: ${color.icon.brand};
     background: ${color.background.brandSubtlePressed};
   }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
 `;
 
 const selectButtonStyle = css`
@@ -243,10 +233,6 @@ const selectButtonStyle = css`
   border: 0;
   border-radius: inherit;
   cursor: pointer;
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: -3px;
-  }
 `;
 
 const rankStyle = css`

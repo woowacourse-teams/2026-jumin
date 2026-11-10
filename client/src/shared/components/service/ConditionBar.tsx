@@ -89,11 +89,6 @@ const backButtonStyle = css`
   &:hover {
     background: ${color.background.subtle};
   }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
 `;
 
 const backIconStyle = css`

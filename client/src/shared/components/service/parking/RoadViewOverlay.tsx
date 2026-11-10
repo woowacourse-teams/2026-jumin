@@ -230,10 +230,7 @@ const closeButtonStyle = css`
   cursor: pointer;
   pointer-events: auto;
 
-  &:focus-visible {
-    outline: 3px solid rgb(255 255 255 / 80%);
-    outline-offset: 3px;
-  }
+  --focus-ring-color: ${color.text.inverse};
 `;
 
 const headerTextStyle = css`

@@ -132,10 +132,6 @@ const closeButtonStyle = css`
   &:active {
     background: ${color.background.subtle};
   }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-  }
 `;
 
 const labelStyle = css`

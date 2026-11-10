@@ -202,11 +202,6 @@ const providerButtonStyle = css`
     cursor: wait;
     opacity: 0.62;
   }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: -3px;
-  }
 `;
 
 const providerLogoBaseStyle = css`
