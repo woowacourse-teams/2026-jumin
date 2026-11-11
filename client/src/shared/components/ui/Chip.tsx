@@ -66,11 +66,6 @@ const appearance = (isSelected: boolean) => css`
   &:active {
     background: ${isSelected ? color.background.brandSubtleHovered : color.background.subtle};
   }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 2px;
-  }
 `;
 
 const iconStyle = css`

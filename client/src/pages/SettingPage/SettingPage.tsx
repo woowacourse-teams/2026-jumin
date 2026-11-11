@@ -169,11 +169,6 @@ const styles = {
     &:hover {
       background: ${color.background.brandSubtleHovered};
     }
-
-    &:focus-visible {
-      outline: 2px solid ${color.focus.ring};
-      outline-offset: 3px;
-    }
   `,
   brandIcon: css`
     display: grid;
@@ -248,11 +243,6 @@ const styles = {
 
     &:active:not(:disabled) {
       background: ${color.background.brandSubtlePressed};
-    }
-
-    &:focus-visible {
-      outline: 2px solid ${color.focus.ring};
-      outline-offset: -3px;
     }
 
     &:disabled {

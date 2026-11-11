@@ -177,11 +177,6 @@ const root = (size: ButtonSize, status: ButtonStatus, isFullWidth: boolean) => {
     font-family: inherit;
     ${typography.label};
     cursor: ${status === 'active' ? 'pointer' : 'default'};
-
-    &:focus-visible {
-      outline: 0.1875rem solid ${color.focus.ring};
-      outline-offset: 0.0625rem;
-    }
   `;
 };
 
