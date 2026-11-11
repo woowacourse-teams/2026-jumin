@@ -1,0 +1,6 @@
+{
+  "id": "nearby-parking",
+  "description": "가상 목적지 근처 주차장 목록 열기",
+  "goal": "가상역 근처의 주차장 목록을 여세요. 화면에 보이는 정보를 이용해 과제를 수행하세요.",
+  "verification": "parking-list"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "local-one-hour-parking",
+  "description": "현재 기본 1시간 조건에서 서울역 주차장 선택 연결 점검",
+  "goal": "서울역을 검색해 서울 한강대로 405에 있는 서울역을 목적지로 정하고, 현재 기본 주차 조건에서 주차장 하나를 선택하여 길찾기 앱 선택 화면을 여세요.",
+  "verification": "local-one-hour-parking"
+}

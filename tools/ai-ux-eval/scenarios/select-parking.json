@@ -1,0 +1,10 @@
+{
+  "id": "select-parking",
+  "description": "가상 목적지 검색 후 주차장 선택",
+  "goal": "가상역 주변의 주차장을 검색한 뒤 요금과 도보거리를 참고해 주차장 하나를 선택하세요.",
+  "verification": "parking-selection",
+  "preferences": {
+    "price": "가람 주차장",
+    "walking": "다온 주차장"
+  }
+}

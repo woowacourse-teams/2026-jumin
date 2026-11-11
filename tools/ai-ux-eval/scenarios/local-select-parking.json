@@ -1,0 +1,6 @@
+{
+  "id": "local-select-parking",
+  "description": "로컬 주민 화면에서 목적지 검색과 2시간 주차 후 길찾기 앱 선택 화면 도달",
+  "goal": "목적지를 검색하고 2시간 주차 조건을 설정한 뒤, 주차장 하나를 선택하여 길찾기 앱 선택 화면을 여세요.",
+  "verification": "local-parking-selection"
+}
