@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { dismissSurveyIfPresent } from './dismissSurveyIfPresent';
 
-test('애플리케이션에 접속할 수 있다', async ({ page }) => {
+test('애플리케이션에 접속할 수 있다 @smoke', async ({ page }) => {
   await page.goto('/');
   await dismissSurveyIfPresent(page);
 

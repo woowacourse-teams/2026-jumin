@@ -14,7 +14,9 @@ test.describe('모바일 화면', () => {
     { width: 402, height: 874 },
     { width: 432, height: 932 },
   ]) {
-    test(`${width}×${height} 화면에서 검색창·버튼·메뉴가 겹치지 않는다`, async ({ page }) => {
+    test(`${width}×${height} 화면에서 검색창·버튼·메뉴가 겹치지 않는다 @home-layout @navigation`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height });
       await page.goto('/');
       await dismissSurveyIfPresent(page);
@@ -40,7 +42,7 @@ test.describe('모바일 화면', () => {
       await expect(page).toHaveURL(/\/recent$/);
     });
 
-    test(`${width}×${height} 설정 화면을 스크롤해도 피드백 버튼과 하단 메뉴가 겹치지 않는다`, async ({
+    test(`${width}×${height} 설정 화면을 스크롤해도 피드백 버튼과 하단 메뉴가 겹치지 않는다 @setting-layout @setting @navigation`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height });

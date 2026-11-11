@@ -36,6 +36,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -49,26 +50,75 @@ jobs:
           cache: pnpm
           cache-dependency-path: client/pnpm-lock.yaml
 
+      - name: Select affected client tests
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: node client/scripts/select-affected-tests.mjs
+
       - name: Install client dependencies
         working-directory: client
         run: pnpm install --frozen-lockfile
 
-      - name: Check client
+      - name: Check client types and style
         working-directory: client
-        run: pnpm check
+        run: |
+          pnpm typecheck
+          pnpm exec eslint .
+          pnpm exec prettier --check .
+
+      - name: Run client unit tests
+        working-directory: client
+        run: pnpm test:unit
+
+      - name: Run affected integration tests
+        if: ${{ steps.select.outputs.jest_mode != 'skip' }}
+        shell: bash
+        working-directory: client
+        env:
+          JEST_MODE: ${{ steps.select.outputs.jest_mode }}
+        run: |
+          set -Eeuo pipefail
+
+          if [[ "$JEST_MODE" == "all" ]]; then
+            pnpm test:integration
+          elif [[ "$JEST_MODE" == "files" ]]; then
+            mapfile -t selected_tests < "$RUNNER_TEMP/jest-files.txt"
+            test "${#selected_tests[@]}" -gt 0
+            pnpm test:integration --runTestsByPath "${selected_tests[@]}"
+          else
+            echo "Unknown Jest selection mode: $JEST_MODE" >&2
+            exit 1
+          fi
 
       - name: Install Playwright Chromium
+        if: ${{ steps.select.outputs.e2e_mode != 'skip' }}
         working-directory: client
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run client E2E
+        if: ${{ steps.select.outputs.e2e_mode != 'skip' }}
         id: e2e
         working-directory: client
         env:
           NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
+          E2E_MODE: ${{ steps.select.outputs.e2e_mode }}
+          E2E_PATTERN: ${{ steps.select.outputs.e2e_pattern }}
         run: |
+          set -Eeuo pipefail
+
           test -n "$NAVER_MAP_CLIENT_ID"
-          pnpm test:e2e
+          if [[ "$E2E_MODE" == "all" ]]; then
+            pnpm test:e2e
+          elif [[ "$E2E_MODE" == "tags" && -n "$E2E_PATTERN" ]]; then
+            pnpm test:e2e --grep "$E2E_PATTERN"
+          else
+            echo "Invalid E2E selection: $E2E_MODE / $E2E_PATTERN" >&2
+            exit 1
+          fi
 
       - name: Upload E2E failure artifacts
         if: ${{ failure() && steps.e2e.outcome == 'failure' }}
