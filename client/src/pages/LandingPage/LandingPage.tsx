@@ -3,9 +3,7 @@ import { css, cx, injectGlobal } from '@emotion/css';
 import { Link } from 'react-router';
 
 import brandMark from '../../../assets/icons/brandMark.svg';
-import recommend from '../../../assets/landing/recommend.webp';
 import {
-  ArrowDownIcon,
   ChevronRightIcon,
   DirectionsIcon,
   FreeParkingIcon,
@@ -17,6 +15,7 @@ import { color } from '../../theme/color';
 import { typography } from '../../theme/typography';
 import { LandingGuide } from './components/LandingGuide';
 import { LandingTechnology } from './components/LandingTechnology';
+import { HeroSection } from './sections/HeroSection';
 
 export const LandingPage = () => {
   const { isInstalled, isInstalling, installMessage, handleInstall } = usePwaInstall();
@@ -41,55 +40,7 @@ export const LandingPage = () => {
         </Link>
       </Row>
 
-      <section className={styles.hero} aria-labelledby="landing-title">
-        <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>목적지 주변 주차장, 한눈에.</p>
-          <h1 id="landing-title">
-            어디에 주차할지,
-            <br />
-            <span>출발 전에 정하세요.</span>
-          </h1>
-          <p className={styles.heroDescription}>
-            가까운 곳, 저렴한 곳, 둘 다 적당한 곳.
-            <br />
-            거리와 예상 요금을 비교하고 길찾기까지 이어가세요.
-          </p>
-          <Row align="center" gap={20} className={styles.actions}>
-            <Link className={cx(styles.button, styles.primaryButton)} to="/">
-              주차장 찾아보기 <ChevronRightIcon size={19} aria-hidden="true" />
-            </Link>
-            <a className={styles.textLink} href="#landing-guide">
-              이용 방법 알아보기 <ArrowDownIcon size={17} aria-hidden="true" />
-            </a>
-          </Row>
-          <p className={styles.heroNote}>설치 없이 웹에서 바로 시작할 수 있어요.</p>
-        </div>
-        <figure className={styles.heroVisual}>
-          <Row align="center" justify="center" className={styles.visualStage}>
-            <span className={styles.stageLabel}>목적지에서 주차장까지</span>
-            <span className={styles.parkingSymbol} aria-hidden="true">
-              P
-            </span>
-            <div className={styles.heroPhone}>
-              <img
-                src={recommend}
-                alt="지도와 함께 예상 요금, 도보거리, 거리순·가격순·균형순 비교를 보여주는 현재 추천 화면"
-                width="430"
-                height="844"
-                fetchPriority="high"
-              />
-            </div>
-            <Row align="center" gap={14} className={styles.visualCaption}>
-              <LocationIcon size={27} aria-hidden="true" />
-              <div>
-                <span>주차장을 고르는 나만의 기준</span>
-                <strong>거리도, 요금도 비교해서.</strong>
-              </div>
-            </Row>
-          </Row>
-          <figcaption>현재 서비스 화면 · 주차장 정보와 요금은 예시</figcaption>
-        </figure>
-      </section>
+      <HeroSection />
 
       <section id="landing-intro" className={styles.intro} aria-labelledby="landing-intro-title">
         <Row align="end" justify="between" gap={32} className={styles.sectionHeading}>
@@ -215,11 +166,6 @@ const styles = {
     button {
       font-family: inherit;
     }
-    a:focus-visible,
-    button:focus-visible {
-      outline: 3px solid ${color.focus.ring};
-      outline-offset: 5px;
-    }
     section[id] {
       scroll-margin-top: 24px;
     }
@@ -311,74 +257,10 @@ const styles = {
       font-size: 0.75rem;
     }
   `,
-  hero: css`
-    display: grid;
-    grid-template-columns: 1.25fr 1fr;
-    align-items: center;
-    gap: 48px;
-    width: min(100% - 96px, 1200px);
-    margin: 24px auto 80px;
-    @media (max-width: 1000px) {
-      gap: 24px;
-    }
-    @media (max-width: 700px) {
-      grid-template-columns: 1fr;
-      gap: 40px;
-      width: calc(100% - 40px);
-      margin: 40px auto 56px;
-    }
-  `,
-  heroCopy: css`
-    padding: 36px 0;
-    animation: landing-appear 650ms ease both;
-    h1 {
-      margin: 22px 0 28px;
-      font-size: clamp(2.375rem, 4.2vw, 3.625rem);
-      line-height: 1.3;
-      font-weight: 800;
-      letter-spacing: -2.6px;
-      span {
-        color: ${color.text.brand};
-      }
-    }
-    @keyframes landing-appear {
-      from {
-        opacity: 0;
-        transform: translateY(14px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    @media (max-width: 1000px) and (min-width: 701px) {
-      h1 {
-        font-size: clamp(1.875rem, 3.9vw, 2.75rem);
-        letter-spacing: -1.8px;
-      }
-    }
-    @media (max-width: 700px) {
-      padding: 0;
-      h1 {
-        margin: 18px 0 22px;
-        font-size: clamp(1.875rem, 7.9vw, 3rem);
-        letter-spacing: -1.5px;
-      }
-    }
-  `,
   eyebrow: css`
     ${typography.label};
     color: ${color.text.brand};
     letter-spacing: 0.1px;
-  `,
-  heroDescription: css`
-    ${typography.body};
-    color: ${color.text.secondary};
-    line-height: 1.8;
-    letter-spacing: -0.35px;
-    @media (max-width: 1000px) {
-      font-size: 0.875rem;
-    }
   `,
   actions: css`
     flex-wrap: wrap;
@@ -411,119 +293,6 @@ const styles = {
     background: ${color.background.brand};
     &:hover {
       background: ${color.background.brandHovered};
-    }
-  `,
-  textLink: css`
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
-    gap: 8px;
-    ${typography.label};
-    &:hover {
-      color: ${color.text.brand};
-    }
-  `,
-  heroNote: css`
-    margin-top: 18px !important;
-    ${typography.caption};
-    color: ${color.text.secondary};
-  `,
-  heroVisual: css`
-    min-width: 0;
-    figcaption {
-      margin-top: 14px;
-      ${typography.caption};
-      color: ${color.text.secondary};
-      text-align: right;
-    }
-  `,
-  visualStage: css`
-    position: relative;
-
-    min-height: 580px;
-
-    overflow: hidden;
-    padding: 54px 24px 64px;
-    border-radius: 28px;
-    background-color: ${color.background.brandSubtle};
-    background-image:
-      linear-gradient(${color.border.brandSubtle} 1px, transparent 1px),
-      linear-gradient(90deg, ${color.border.brandSubtle} 1px, transparent 1px);
-    background-size: 56px 56px;
-    &::before {
-      position: absolute;
-      width: 400px;
-      height: 400px;
-      border: 1px dashed ${color.border.brand};
-      border-radius: 50%;
-      opacity: 0.35;
-      content: '';
-    }
-    @media (max-width: 1000px) and (min-width: 701px) {
-      min-height: 510px;
-    }
-    @media (max-width: 700px) {
-      min-height: 520px;
-      padding: 48px 24px 66px;
-    }
-  `,
-  stageLabel: css`
-    position: absolute;
-    top: 22px;
-    left: 24px;
-    ${typography.caption};
-    color: ${color.text.brand};
-    letter-spacing: 1px;
-  `,
-  parkingSymbol: css`
-    position: absolute;
-    right: 20px;
-    bottom: 2px;
-    color: ${color.border.brandSubtle};
-    font-size: 13rem;
-    font-weight: 800;
-    line-height: 1;
-  `,
-  heroPhone: css`
-    position: relative;
-    width: min(75%, 242px);
-    padding: 6px;
-    border: 1px solid ${color.border.default};
-    border-radius: 28px;
-    background: ${color.background.default};
-    box-shadow: 12px 20px 40px rgb(16 27 55 / 18%);
-    transform: rotate(-6deg);
-    img {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 21px;
-    }
-    @media (max-width: 700px) {
-      width: 216px;
-    }
-  `,
-  visualCaption: css`
-    position: absolute;
-    right: 24px;
-    bottom: 32px;
-    left: 24px;
-
-    padding: 18px 20px;
-    border: 1px solid ${color.border.default};
-    border-radius: 14px;
-    background: ${color.background.default};
-    color: ${color.text.brand};
-    box-shadow: 0 8px 24px rgb(16 27 55 / 7%);
-    span {
-      display: block;
-      margin-bottom: 4px;
-      ${typography.caption};
-      color: ${color.text.secondary};
-    }
-    strong {
-      ${typography.bodySmallStrong};
-      color: ${color.text.primary};
     }
   `,
   intro: css`

@@ -1,6 +1,7 @@
 dist/
 node_modules/
 coverage/
+storybook-static/
 playwright-report/
 test-results/
 pnpm-lock.yaml

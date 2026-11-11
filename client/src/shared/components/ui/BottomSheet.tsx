@@ -11,17 +11,16 @@ import {
 } from 'react';
 import { color } from '../../../theme/color';
 
-export type BottomSheetSnap = 'collapsed' | 'medium' | 'expanded' | 'full';
+export type BottomSheetSnap = 'collapsed' | 'medium' | 'full';
 
-/** 클릭과 작은 손떨림을 제외하고 방향을 판단할 최소 이동 거리(px). */
-const DRAG_THRESHOLD = 8;
+/** 클릭과 작은 손떨림을 제외하고 단계 변경을 판단할 최소 이동 거리(px). */
+const DRAG_THRESHOLD = 10;
 
-/** 기본 네 단계의 전체 높이. 지도 배치도 같은 계산을 사용한다. */
+/** 기본 세 단계의 전체 높이. 지도 배치도 같은 계산을 사용한다. */
 export const getBottomSheetSnapHeight = (snap: BottomSheetSnap, containerHeight: number) => {
   const heights: Record<BottomSheetSnap, number> = {
     collapsed: 110,
-    medium: containerHeight * 0.45,
-    expanded: containerHeight * 0.75,
+    medium: Math.round(containerHeight * 0.55),
     full: containerHeight,
   };
   return Math.min(heights[snap], containerHeight);
@@ -53,7 +52,7 @@ const bottomSheetTokens = {
 interface Props {
   /** 생략하면 열린 시트로 표시한다. 닫는 전환 동안에는 마운트를 유지한다. */
   open?: boolean;
-  /** collapsed(110px)·medium(45%)·expanded(75%)·full(100%) 중 현재 단계. */
+  /** collapsed(110px)·medium(55%)·full(100%) 중 현재 단계. */
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
   /** 본문과 분리해서 표시할 상단 영역. */
@@ -106,7 +105,7 @@ const useBottomSheetInteraction = ({ open, snap, onSnapChange }: InteractionOpti
   }, []);
 
   const points = useMemo(() => {
-    const snaps: BottomSheetSnap[] = ['collapsed', 'medium', 'expanded', 'full'];
+    const snaps: BottomSheetSnap[] = ['collapsed', 'medium', 'full'];
     return snaps
       .map((id) => ({ id, height: getBottomSheetSnapHeight(id, containerHeight) }))
       .sort((a, b) => a.height - b.height);
@@ -170,7 +169,7 @@ const useBottomSheetInteraction = ({ open, snap, onSnapChange }: InteractionOpti
     let destination = activePoint;
 
     if (Math.abs(delta) >= DRAG_THRESHOLD) {
-      // 현재 단계를 제외하고 움직인 방향의 단계 중 가까운 곳으로 이동한다.
+      // 단계 간 간격이 커져도 짧은 드래그만으로 full까지 이동하지 않도록 놓은 높이와 비교한다.
       const candidates = points.filter((point) =>
         delta > 0 ? point.height > height : point.height < height,
       );
@@ -287,7 +286,7 @@ export default function BottomSheet({ open = true, snap, onSnapChange, header, c
         aria-valuemin={Math.round(minHeight)}
         aria-valuemax={Math.round(maxHeight)}
         aria-valuenow={Math.round(height)}
-        aria-valuetext={snap}
+        aria-valuetext={{ collapsed: '접힘', medium: '중간 높이', full: '전체 높이' }[snap]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishDrag}
@@ -351,6 +350,8 @@ const sheetStyle = css`
 `;
 
 const handleAreaStyle = css`
+  /* 시트의 overflow에 잘리지 않도록 핸들 테두리만 안쪽에 표시한다. */
+  --focus-ring-offset: calc(-1 * var(--focus-ring-width));
   display: flex;
   flex-shrink: 0;
   justify-content: center;
@@ -361,11 +362,6 @@ const handleAreaStyle = css`
 
   &:active {
     cursor: grabbing;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: -2px;
   }
 `;
 

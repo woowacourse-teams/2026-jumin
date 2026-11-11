@@ -76,29 +76,15 @@ export const ParkingInformationContent = ({ parkingLot, data }: Props) => {
   };
 
   const feeRows = [
+    { label: '기본 무료시간', value: formatMinutes(data.feeRule?.baseFreeMinutes) },
+    { label: '일일 최대 요금', value: formatFee(data.feeRule?.dailyMaxFee) },
     {
-      label: '기본 무료시간',
-      value: formatMinutes(data.feeRule?.baseFreeMinutes),
+      label: '기본 요금',
+      value: `${formatMinutes(data.feeRule?.baseMinutes)} / ${formatFee(data.feeRule?.baseFee)}`,
     },
     {
-      label: '기본요금 시간',
-      value: formatMinutes(data.feeRule?.baseMinutes),
-    },
-    {
-      label: '기본요금 가격',
-      value: formatFee(data.feeRule?.baseFee),
-    },
-    {
-      label: '추가요금 시간',
-      value: formatMinutes(data.feeRule?.additionalMinutes),
-    },
-    {
-      label: '추가요금 가격',
-      value: formatFee(data.feeRule?.additionalFee),
-    },
-    {
-      label: '일일 최대 요금',
-      value: formatFee(data.feeRule?.dailyMaxFee),
+      label: '추가 요금',
+      value: `${formatMinutes(data.feeRule?.additionalMinutes)} / ${formatFee(data.feeRule?.additionalFee)}`,
     },
   ];
 

@@ -6,6 +6,12 @@ export const applyGlobalStyles = () => injectGlobal`
     box-sizing: border-box;
   }
 
+  :root {
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 0px;
+    --focus-ring-color: ${color.focus.ring};
+  }
+
   html,
   body {
     width: 100%;
@@ -16,6 +22,11 @@ export const applyGlobalStyles = () => injectGlobal`
   body {
     overflow: hidden;
     background: ${color.background.subtle};
+  }
+
+  :where(button, a[href], input, textarea, select, summary, [tabindex], [contenteditable='true']):focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   #root {

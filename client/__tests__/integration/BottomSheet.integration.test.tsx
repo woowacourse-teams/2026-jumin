@@ -30,7 +30,7 @@ const renderSheet = async (acceptSnapChange = true) => {
 
   const handle = screen.getByRole('slider', { name: '패널 높이 조절' });
   const sheet = handle.parentElement!;
-  await waitFor(() => expect(handle).toHaveAttribute('aria-valuenow', '360'));
+  await waitFor(() => expect(handle).toHaveAttribute('aria-valuenow', '440'));
 
   // 드래그 시작 시 브라우저에서 읽는 높이를 현재 DOM 높이로 대체한다.
   jest
@@ -47,7 +47,9 @@ const renderSheet = async (acceptSnapChange = true) => {
 
   const expectSnap = (snap: BottomSheetSnap, height: number) => {
     expect(screen.getByLabelText('사용처의 현재 단계')).toHaveTextContent(snap);
-    expect(handle).toHaveAttribute('aria-valuetext', snap);
+    // 내부 단계 값은 유지하고 스크린리더에는 한국어 높이 안내를 제공한다.
+    const announcement = { collapsed: '접힘', medium: '중간 높이', full: '전체 높이' }[snap];
+    expect(handle).toHaveAttribute('aria-valuetext', announcement);
     expect(handle).toHaveAttribute('aria-valuenow', String(height));
     // height는 드래그와 부모 snap의 정합성 계약에 포함되므로 DOM 값도 검증한다.
     expect(sheet.style.height).toBe(`${height}px`);
@@ -73,10 +75,12 @@ const firePointer = (
 
 describe('바텀시트 사용처와 상호작용의 상태 연결', () => {
   it.each([
-    { delta: 7, snap: 'medium', height: 360 },
-    { delta: -7, snap: 'medium', height: 360 },
-    { delta: 8, snap: 'expanded', height: 600 },
-    { delta: -8, snap: 'collapsed', height: 110 },
+    { delta: 7, snap: 'medium', height: 440 },
+    { delta: -7, snap: 'medium', height: 440 },
+    { delta: 8, snap: 'medium', height: 440 },
+    { delta: -8, snap: 'medium', height: 440 },
+    { delta: 200, snap: 'full', height: 800 },
+    { delta: -200, snap: 'collapsed', height: 110 },
   ] as const)(
     '$delta px 이동 후 사용처와 시트가 $snap 단계로 일치한다',
     async ({ delta, snap, height }) => {
@@ -84,7 +88,7 @@ describe('바텀시트 사용처와 상호작용의 상태 연결', () => {
 
       firePointer(handle, 'pointerdown', 400);
       firePointer(handle, 'pointermove', 400 - delta);
-      expect(sheet.style.height).toBe(`${360 + delta}px`);
+      expect(sheet.style.height).toBe(`${440 + delta}px`);
       expect(screen.getByLabelText('사용처의 현재 단계')).toHaveTextContent('medium');
 
       firePointer(handle, 'pointerup', 400 - delta);
@@ -92,7 +96,7 @@ describe('바텀시트 사용처와 상호작용의 상태 연결', () => {
     },
   );
 
-  it('길게 드래그하면 이동 방향에서 놓은 높이와 가까운 단계로 이동한다', async () => {
+  it('길게 드래그하면 놓은 높이와 가까운 단계로 이동한다', async () => {
     const { handle, expectSnap } = await renderSheet();
 
     firePointer(handle, 'pointerdown', 600);
@@ -107,32 +111,30 @@ describe('바텀시트 사용처와 상호작용의 상태 연결', () => {
 
     firePointer(handle, 'pointerdown', 400);
     firePointer(handle, 'pointermove', 200);
-    expect(sheet.style.height).toBe('560px');
+    expect(sheet.style.height).toBe('640px');
     firePointer(handle, 'pointercancel', 200);
-    expectSnap('medium', 360);
+    expectSnap('medium', 440);
 
     // 취소된 포인터의 늦은 종료 이벤트가 단계를 바꾸지 않아야 한다.
     firePointer(handle, 'pointerup', 200);
-    expectSnap('medium', 360);
+    expectSnap('medium', 440);
 
     firePointer(handle, 'pointerdown', 400);
-    firePointer(handle, 'pointermove', 392);
-    firePointer(handle, 'pointerup', 392);
-    expectSnap('expanded', 600);
+    firePointer(handle, 'pointermove', 200);
+    firePointer(handle, 'pointerup', 200);
+    expectSnap('full', 800);
   });
 
-  it('방향키로 네 단계를 이동하고 Home·End로 양 끝 단계를 선택한다', async () => {
+  it('방향키로 세 단계를 이동하고 Home·End로 양 끝 단계를 선택한다', async () => {
     const user = userEvent.setup();
     const { handle, expectSnap } = await renderSheet();
     await user.tab();
     expect(handle).toHaveFocus();
 
     for (const [key, snap, height] of [
-      ['{ArrowUp}', 'expanded', 600],
       ['{ArrowUp}', 'full', 800],
       ['{ArrowUp}', 'full', 800],
-      ['{ArrowDown}', 'expanded', 600],
-      ['{ArrowDown}', 'medium', 360],
+      ['{ArrowDown}', 'medium', 440],
       ['{ArrowDown}', 'collapsed', 110],
       ['{ArrowDown}', 'collapsed', 110],
       ['{End}', 'full', 800],
@@ -147,10 +149,10 @@ describe('바텀시트 사용처와 상호작용의 상태 연결', () => {
     const { handle, sheet, expectSnap } = await renderSheet(false);
 
     firePointer(handle, 'pointerdown', 400);
-    firePointer(handle, 'pointermove', 392);
-    expect(sheet.style.height).toBe('368px');
-    firePointer(handle, 'pointerup', 392);
+    firePointer(handle, 'pointermove', 200);
+    expect(sheet.style.height).toBe('640px');
+    firePointer(handle, 'pointerup', 200);
 
-    expectSnap('medium', 360);
+    expectSnap('medium', 440);
   });
 });

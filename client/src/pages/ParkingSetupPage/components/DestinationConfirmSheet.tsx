@@ -52,6 +52,8 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
       </button>
 
       <h1
+        aria-live="polite"
+        aria-atomic="true"
         className={css`
           margin: 0 40px 4px 0;
           ${typography.titleCard};
