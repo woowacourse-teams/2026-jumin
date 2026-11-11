@@ -28,7 +28,8 @@ const requestRecommendation = async (page: Page) => {
 };
 
 const searchDestination = async (page: Page) => {
-  await page.getByRole('textbox', { name: '목적지 검색' }).click();
+  // 홈의 검색 진입 버튼과 검색 화면의 실제 입력을 구분한다.
+  await page.getByRole('button', { name: '목적지 검색' }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/search');
   await expect(page.getByRole('heading', { name: '최근 검색' })).toBeVisible();
   await page.getByRole('textbox', { name: '목적지 검색' }).fill('강남역');
@@ -76,7 +77,7 @@ const getIntentSearchParams = (intentUrl: string) => {
 test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다', async ({ page }) => {
   await page.goto('/');
   await closeSurvey(page);
-  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
 
   let releaseChunk!: () => void;
   let notifyChunkRequested!: () => void;
@@ -95,8 +96,8 @@ test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피�
   });
 
   try {
-    await Promise.all([chunkRequested, page.getByRole('textbox', { name: '목적지 검색' }).click()]);
-    await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveCount(0);
+    await Promise.all([chunkRequested, page.getByRole('button', { name: '목적지 검색' }).click()]);
+    await expect(page.getByRole('button', { name: '목적지 검색' })).toHaveCount(0);
     await expect(page.getByRole('region', { name: '지도', exact: true })).toBeVisible();
     await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toBeVisible();
   } finally {
@@ -168,7 +169,10 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
   await searchDestination(page);
   await requestRecommendation(page);
   const region = page.getByRole('region', { name: '주차장 전체 목록' });
-  await expect(region.getByRole('tab')).toHaveText(['추천순', '거리순', '가격순']);
+  // 동일 목록의 정렬 기준은 네이티브 라디오 입력으로 제공한다.
+  for (const name of ['추천순', '거리순', '가격순']) {
+    await expect(region.getByRole('radio', { name })).toBeVisible();
+  }
 
   for (const name of ['강남대로 공영주차장', '목록 확인 주차장 3']) {
     const select = region.getByRole('button', { name: `${name} 선택` });
@@ -182,19 +186,13 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
     await expect(select).toBeVisible();
     await expect(select).toHaveAttribute('aria-pressed', 'true');
-    await expect(region.getByRole('tab', { name: '추천순' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+    await expect(region.getByRole('radio', { name: '추천순' })).toBeChecked();
   }
-  await region.getByRole('tab', { name: '가격순' }).click();
+  await region.getByRole('radio', { name: '가격순' }).click();
   await region.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
   await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
   await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
-  await expect(region.getByRole('tab', { name: '가격순' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await expect(region.getByRole('radio', { name: '가격순' })).toBeChecked();
 });
 
 test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다', async ({ page }) => {
@@ -211,7 +209,14 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await expect(page.getByRole('button', { name: /피드백 보내기/ })).toBeVisible();
 
   await page.getByRole('button', { name: /가이드 보기/ }).click();
-  await expect(page.getByRole('dialog', { name: '주차의민족 이용 가이드' })).toBeVisible();
+  const guide = page.getByRole('dialog', { name: '주차의민족 이용 가이드' });
+  await expect(guide).toBeVisible();
+  // 다음 단계로 이동하면 번호뿐 아니라 새 설명도 같은 안내 영역에 반영한다.
+  await guide.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(guide.getByRole('status')).toContainText('총 3단계 중 2단계.');
+  await expect(guide.getByRole('status')).toContainText(
+    await guide.getByRole('heading', { level: 2 }).innerText(),
+  );
   await page.getByRole('button', { name: '건너뛰기' }).click();
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
@@ -230,7 +235,61 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await page.getByRole('link', { name: '주차장 찾아보기', exact: true }).last().click();
   await expect(page).toHaveURL('/');
   await closeSurvey(page);
-  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+});
+
+test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다', async ({ page }) => {
+  await page.goto('/');
+  await closeSurvey(page);
+
+  // 진입 버튼의 Enter 동작과 검색 화면의 자동 포커스를 실제 브라우저에서 확인한다.
+  await page.getByRole('button', { name: '목적지 검색' }).focus();
+  await page.keyboard.press('Enter');
+  const input = page.getByRole('textbox', { name: '목적지 검색' });
+  await expect(input).toBeFocused();
+  await input.fill('강남역');
+  await expect(
+    page.getByRole('region', { name: '목적지 검색 결과' }).getByRole('status'),
+  ).toHaveText(/검색 결과 \d+곳/);
+  await input.press('Enter');
+  await requestRecommendation(page);
+
+  const region = page.getByRole('region', { name: '주차장 전체 목록' });
+  await region.getByRole('radio', { name: '추천순' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(region.getByRole('radio', { name: '가격순' })).toBeChecked();
+
+  // 상세 목록을 숨겼을 때 포커스가 함께 사라지지 않아야 한다.
+  const detailButton = region.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` });
+  await detailButton.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeFocused();
+
+  const directions = page.getByRole('button', { name: '길찾기 시작' });
+  await directions.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: '어떤 앱으로 갈까요?' });
+  await expect(dialog).toHaveAccessibleDescription(`${PARKING_LOT.name}까지 안내합니다.`);
+
+  // 모달의 처음과 마지막에서 Tab/Shift+Tab이 배경 화면으로 빠지지 않게 한다.
+  const close = dialog.getByRole('button', { name: '어떤 앱으로 갈까요? 닫기' });
+  const lastProvider = dialog.getByRole('button', { name: /티맵/ });
+  // 현재 위치 조회가 끝나야 지도 앱 버튼이 활성화되어 탭 순서에 포함된다.
+  await expect(lastProvider).toBeEnabled();
+  await close.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(lastProvider).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(directions).toBeFocused();
+
+  await page.getByRole('button', { name: '이전 화면으로 이동' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(detailButton).toBeFocused();
+  await expect(region.getByRole('radio', { name: '가격순' })).toBeChecked();
 });
 
 test.describe('길찾기', () => {

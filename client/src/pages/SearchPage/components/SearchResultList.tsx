@@ -37,20 +37,25 @@ export const SearchResultList = ({
         flex: 1;
         overflow-y: auto;
       `}
-      aria-live="polite"
+      aria-label="목적지 검색 결과"
     >
-      {message ? (
-        <p
-          className={css`
-            margin: 32px 20px;
-            ${typography.bodySmall};
-            color: ${isErrorMessage ? color.text.error : color.text.secondary};
-            text-align: center;
-          `}
-        >
-          {message}
-        </p>
-      ) : (
+      <p
+        role="status"
+        aria-atomic="true"
+        className={
+          message
+            ? css`
+                margin: 32px 20px;
+                ${typography.bodySmall};
+                color: ${isErrorMessage ? color.text.error : color.text.secondary};
+                text-align: center;
+              `
+            : visuallyHiddenStyle
+        }
+      >
+        {message || `검색 결과 ${searchResults.length}곳`}
+      </p>
+      {!message && (
         <ul
           className={css`
             margin: 16px 0 0;
@@ -71,3 +76,14 @@ export const SearchResultList = ({
     </section>
   );
 };
+
+const visuallyHiddenStyle = css`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+`;

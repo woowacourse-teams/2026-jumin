@@ -14,10 +14,8 @@ test.describe('모바일 화면', () => {
       await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
 
       const root = await page.locator('#root').boundingBox();
-      const search = await page
-        .getByRole('textbox', { name: '목적지 검색' })
-        .locator('..')
-        .boundingBox();
+      // 검색 진입 버튼 자체의 경계를 측정해 모바일 배치 계약을 유지한다.
+      const search = await page.getByRole('button', { name: '목적지 검색' }).boundingBox();
       const location = await page.getByRole('button', { name: '현재 위치로 이동' }).boundingBox();
       const nav = await page.getByRole('navigation', { name: '하단 메뉴' }).boundingBox();
 

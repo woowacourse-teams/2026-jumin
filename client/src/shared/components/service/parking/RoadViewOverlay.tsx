@@ -136,6 +136,7 @@ export const RoadViewOverlay = ({
       isOpen
       onRequestClose={onRequestClose}
       contentLabel={`${parkingLotName} 로드뷰`}
+      aria={{ modal: true }}
       overlayClassName={overlayStyle}
       className={contentStyle}
       shouldCloseOnOverlayClick={false}
@@ -229,10 +230,7 @@ const closeButtonStyle = css`
   cursor: pointer;
   pointer-events: auto;
 
-  &:focus-visible {
-    outline: 3px solid rgb(255 255 255 / 80%);
-    outline-offset: 3px;
-  }
+  --focus-ring-color: ${color.text.inverse};
 `;
 
 const headerTextStyle = css`

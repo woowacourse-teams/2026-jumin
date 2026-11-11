@@ -39,7 +39,7 @@ export const RecentHistoryRow = ({
       <button
         className={removeButtonStyle}
         type="button"
-        aria-label={removeLabel}
+        aria-label={removeLabel ?? `${title} 삭제`}
         onClick={onRemove}
       >
         <CloseIcon size={20} aria-hidden="true" />
