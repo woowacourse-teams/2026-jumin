@@ -94,11 +94,6 @@ jobs:
             exit 1
           fi
 
-      - name: Install Playwright Chromium
-        if: ${{ steps.select.outputs.e2e_mode != 'skip' }}
-        working-directory: client
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Run client E2E
         if: ${{ steps.select.outputs.e2e_mode != 'skip' }}
         id: e2e
