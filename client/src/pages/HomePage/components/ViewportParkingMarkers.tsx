@@ -7,6 +7,9 @@ import { getRepresentativeParkingLotIds } from '../utils/parkingMarkerPolicy';
 import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMarker.svg';
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
+import likedParkingMarkerUrl from '../../../../assets/icons/markers/likedHomeParkingMarker.svg';
+import likedDotParkingMarkerUrl from '../../../../assets/icons/markers/likedDotParkingMarker.svg';
+import selectedLikedParkingMarkerUrl from '../../../../assets/icons/markers/selectedLikedHomeParkingMarker.svg';
 import type { ParkingLotViewport } from '../../../api/contracts';
 import type { ParkingViewportFilters } from '../../../api/parkingLots';
 
@@ -34,6 +37,14 @@ const selectedParkingMarkerIcon = {
   anchorY: 33,
 };
 
+// 기존 마커의 크기·기준점은 유지하고 좋아요 색만 적용한다.
+const likedParkingMarkerIcon = { ...homeParkingMarkerIcon, url: likedParkingMarkerUrl };
+const likedDotParkingMarkerIcon = { ...dotParkingMarkerIcon, url: likedDotParkingMarkerUrl };
+const selectedLikedParkingMarkerIcon = {
+  ...selectedParkingMarkerIcon,
+  url: selectedLikedParkingMarkerUrl,
+};
+
 interface Props {
   map: naver.maps.Map;
   viewport: MapViewport;
@@ -58,7 +69,7 @@ const ViewportParkingMarker = memo(({ map, parkingLot, icon, zIndex, onSelect }:
       latitude={parkingLot.latitude}
       longitude={parkingLot.longitude}
       icon={icon}
-      title="주차장"
+      title={parkingLot.likedByMe ? '좋아요한 주차장' : '주차장'}
       zIndex={zIndex}
       onClick={() => onSelect(parkingLot)}
     />
@@ -86,10 +97,16 @@ export const ViewportParkingMarkers = ({
         const isRepresentative = representativeIds === null || representativeIds.has(parkingLot.id);
         // 선택 상태를 먼저 적용해 점 마커도 클릭하면 선택 마커로 바뀐다.
         const icon = isSelected
-          ? selectedParkingMarkerIcon
+          ? parkingLot.likedByMe
+            ? selectedLikedParkingMarkerIcon
+            : selectedParkingMarkerIcon
           : isRepresentative
-            ? homeParkingMarkerIcon
-            : dotParkingMarkerIcon;
+            ? parkingLot.likedByMe
+              ? likedParkingMarkerIcon
+              : homeParkingMarkerIcon
+            : parkingLot.likedByMe
+              ? likedDotParkingMarkerIcon
+              : dotParkingMarkerIcon;
 
         return (
           <ViewportParkingMarker

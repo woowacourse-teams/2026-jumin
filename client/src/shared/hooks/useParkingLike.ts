@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ParkingLikeState } from '../../api/contracts';
+import type { ParkingLikeState, ParkingLotViewportResponse } from '../../api/contracts';
 import { updateParkingLike } from '../../api/parkingLikes';
 import { parkingKeys } from '../../api/queries/parkingKeys';
 import { API_ERROR_MESSAGES } from '../../api/apiErrorMessages';
@@ -23,6 +23,19 @@ export const useParkingLike = (parkingLotId: number, confirmed: ParkingLikeState
       await queryClient.cancelQueries(detailFilter);
       queryClient.setQueriesData<ParkingLikeState>(detailFilter, (detail) =>
         detail ? { ...detail, likeCount, likedByMe } : detail,
+      );
+      // 이미 조회한 지도 영역도 갱신해 상세를 닫으면 같은 좋아요 상태를 보여준다.
+      queryClient.setQueriesData<ParkingLotViewportResponse>(
+        { queryKey: ['parking-lots', 'viewport'] },
+        (viewport) =>
+          viewport
+            ? {
+                ...viewport,
+                parkingLots: viewport.parkingLots.map((parkingLot) =>
+                  parkingLot.id === parkingLotId ? { ...parkingLot, likedByMe } : parkingLot,
+                ),
+              }
+            : viewport,
       );
     },
     onError: () => {
