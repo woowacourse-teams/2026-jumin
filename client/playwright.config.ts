@@ -14,7 +14,7 @@ export default defineConfig({
       longitude: 127.0279,
     },
     serviceWorkers: 'allow',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },

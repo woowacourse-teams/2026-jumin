@@ -57,6 +57,29 @@ jobs:
         working-directory: client
         run: pnpm check
 
+      - name: Install Playwright Chromium
+        working-directory: client
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run client E2E
+        id: e2e
+        working-directory: client
+        env:
+          NAVER_MAP_CLIENT_ID: ${{ vars.NAVER_MAP_CLIENT_ID }}
+        run: |
+          test -n "$NAVER_MAP_CLIENT_ID"
+          pnpm test:e2e
+
+      - name: Upload E2E failure artifacts
+        if: ${{ failure() && steps.e2e.outcome == 'failure' }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: client-e2e-failure
+          path: |
+            client/test-results/
+            client/playwright-report/
+          if-no-files-found: ignore
+
       - name: Build client
         working-directory: client
         env:
