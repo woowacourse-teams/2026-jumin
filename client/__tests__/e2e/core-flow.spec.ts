@@ -21,6 +21,66 @@ const PARKING_LOT = {
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
 
+// CI 위치 조회 지연 원인 확인용. 결과를 확인한 뒤 제거한다.
+const traceGeolocation = async (page: Page) => {
+  page.on('console', (message) => {
+    if (message.text().startsWith('[geo-probe]')) console.log(message.text());
+  });
+
+  await page.addInitScript(() => {
+    if (!navigator.geolocation) {
+      console.info('[geo-probe] geolocation unavailable');
+      return;
+    }
+
+    const geolocation = navigator.geolocation;
+    const original = geolocation.getCurrentPosition.bind(geolocation);
+    Object.defineProperty(geolocation, 'getCurrentPosition', {
+      configurable: true,
+      value: (
+        success: PositionCallback,
+        error?: PositionErrorCallback | null,
+        options?: PositionOptions,
+      ) => {
+        const startedAt = performance.now();
+        console.info(
+          '[geo-probe] called',
+          JSON.stringify({
+            path: location.pathname,
+            visibility: document.visibilityState,
+            secure: isSecureContext,
+            options,
+          }),
+        );
+        original(
+          (position) => {
+            console.info('[geo-probe] success', Math.round(performance.now() - startedAt));
+            success(position);
+          },
+          (positionError) => {
+            console.info(
+              '[geo-probe] error',
+              JSON.stringify({
+                elapsedMs: Math.round(performance.now() - startedAt),
+                code: positionError.code,
+                message: positionError.message,
+              }),
+            );
+            error?.(positionError);
+          },
+          options,
+        );
+      },
+    });
+    void navigator.permissions
+      .query({ name: 'geolocation' })
+      .then(({ state }) => console.info('[geo-probe] permission', state))
+      .catch((permissionError) =>
+        console.info('[geo-probe] permission query error', String(permissionError)),
+      );
+  });
+};
+
 const requestRecommendation = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
   await expect(page.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
@@ -225,6 +285,8 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
 test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다 @search @recommend @parking-detail @directions @a11y', async ({
   page,
 }) => {
+  test.setTimeout(45_000);
+  await traceGeolocation(page);
   await page.goto('/');
   await dismissSurveyIfPresent(page);
 
@@ -262,7 +324,7 @@ test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포�
   const close = dialog.getByRole('button', { name: '어떤 앱으로 갈까요? 닫기' });
   const lastProvider = dialog.getByRole('button', { name: /티맵/ });
   // 현재 위치 조회가 끝나야 지도 앱 버튼이 활성화되어 탭 순서에 포함된다.
-  await expect(lastProvider).toBeEnabled();
+  await expect(lastProvider).toBeEnabled({ timeout: 12_000 });
   await close.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(lastProvider).toBeFocused();
@@ -282,6 +344,8 @@ test.describe('길찾기 @directions', () => {
   test.use({ userAgent: ANDROID_USER_AGENT });
 
   test('3. 최근 이용한 주차장의 길찾기를 요청한다 @recent', async ({ page }) => {
+    test.setTimeout(45_000);
+    await traceGeolocation(page);
     await page.addInitScript(
       (recentParkingUse) => {
         localStorage.setItem('recentParkingUses', JSON.stringify([recentParkingUse]));
@@ -300,7 +364,7 @@ test.describe('길찾기 @directions', () => {
     await expect(dialog).toBeVisible();
 
     const naverMapButton = dialog.getByRole('button', { name: /네이버 지도/ });
-    await expect(naverMapButton).toBeEnabled();
+    await expect(naverMapButton).toBeEnabled({ timeout: 12_000 });
 
     const { requested: deepLinkRequested } = await watchAndroidDeepLink(page);
     await naverMapButton.click();
@@ -314,6 +378,8 @@ test.describe('길찾기 @directions', () => {
   test('4. 상세정보를 확인한 주차장의 길찾기를 요청한다 @recommend @parking-detail @recent', async ({
     page,
   }) => {
+    test.setTimeout(45_000);
+    await traceGeolocation(page);
     await goToRecommendedParkingDetail(page);
     expect(await page.evaluate(() => localStorage.getItem('recentParkingUses'))).toBeNull();
 
@@ -322,7 +388,7 @@ test.describe('길찾기 @directions', () => {
     await expect(dialog).toBeVisible();
 
     const naverMapButton = dialog.getByRole('button', { name: /네이버 지도/ });
-    await expect(naverMapButton).toBeEnabled();
+    await expect(naverMapButton).toBeEnabled({ timeout: 12_000 });
 
     const { requested: deepLinkRequested } = await watchAndroidDeepLink(page);
     await naverMapButton.click();
