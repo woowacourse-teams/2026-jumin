@@ -1,9 +1,14 @@
 package jumin.domain.parking.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.stream.IntStream;
+import javax.sql.DataSource;
 import jumin.TestcontainersConfiguration;
 import jumin.domain.parking.entity.ParkingLot;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +21,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -31,6 +37,9 @@ class ParkingLotRepositoryTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private DataSource dataSource;
 
     @Test
     @DisplayName("반경 600m 이내의 활성 주차장만 조회한다")
@@ -232,6 +241,27 @@ class ParkingLotRepositoryTest {
 
         // when & then
         assertThat(parkingLotRepository.findActiveByNameContaining("강남")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("주차장 이름 검색이 테이블 잠금으로 지연되면 쿼리를 취소한다")
+    void cancels_name_search_when_table_is_locked() throws SQLException {
+        // given
+        // 쿼리 타임아웃이 사라져도 테스트가 잠금 해제를 무기한 기다리지 않게 한다.
+        jdbcTemplate.execute("set local statement_timeout = '5s'");
+        try (Connection blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try (Statement statement = blocker.createStatement()) {
+                statement.execute("set local lock_timeout = '2s'");
+                statement.execute("lock table parking_lots in access exclusive mode");
+            }
+
+            // when & then
+            assertThatThrownBy(() -> parkingLotRepository.findActiveByNameContaining("강남"))
+                    .isInstanceOf(QueryTimeoutException.class)
+                    .rootCause()
+                    .hasMessageContaining("canceling statement due to user request");
+        }
     }
 
     private void insertParkingLot(

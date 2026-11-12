@@ -1,10 +1,12 @@
 package jumin.domain.parking.repository;
 
+import jakarta.persistence.QueryHint;
 import java.util.List;
 import java.util.Optional;
 import jumin.domain.parking.entity.ParkingLot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
@@ -22,6 +24,7 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
                      parking_lot.name, parking_lot.id
             limit 15
             """, nativeQuery = true)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.query.timeout", value = "1000"))
     List<ParkingLot> findActiveByNameContaining(@Param("query") String query);
 
     @Query(value = """

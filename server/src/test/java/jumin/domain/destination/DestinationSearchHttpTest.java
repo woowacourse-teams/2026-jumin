@@ -14,6 +14,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import jumin.config.LocalSearchProperties;
 import jumin.domain.destination.client.LocalSearchClient;
 import jumin.domain.destination.controller.DestinationController;
@@ -28,7 +29,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestClient;
@@ -134,19 +139,28 @@ class DestinationSearchHttpTest {
         }
     }
 
-    @Test
-    @DisplayName("DB 조회에 실패해도 카카오 결과를 HTTP 200으로 유지한다")
-    void keeps_kakao_results_when_database_search_fails() throws Exception {
+    @ParameterizedTest
+    @MethodSource("databaseSearchFailures")
+    @DisplayName("DB 조회 장애나 타임아웃에도 카카오 결과를 HTTP 200으로 반환한다")
+    void keeps_kakao_results_when_database_search_fails(DataAccessException failure) throws Exception {
         // given
         given(parkingLotRepository.findActiveByNameContaining("에버랜드"))
-                .willThrow(new DataAccessResourceFailureException("test database unavailable"));
+                .willThrow(failure);
 
         // when & then
         mockMvc.perform(get("/api/destinations/search").param("query", "에버랜드"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.destinations[0].destinationId").value("kakao_1"))
                 .andExpect(jsonPath("$.destinations[0].name").value("에버랜드"))
+                .andExpect(jsonPath("$.parkingLots").isArray())
                 .andExpect(jsonPath("$.parkingLots").isEmpty());
+    }
+
+    private static Stream<DataAccessException> databaseSearchFailures() {
+        return Stream.of(
+                new DataAccessResourceFailureException("test database unavailable"),
+                new QueryTimeoutException("test database query timed out")
+        );
     }
 
     @Test
