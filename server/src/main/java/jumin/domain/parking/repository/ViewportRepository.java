@@ -152,7 +152,7 @@ public class ViewportRepository {
         named = new NamedParameterJdbcTemplate(jdbc);
         transactions = new DataSourceTransactionManager(source);
         maximum = properties.getMaxConcurrentDb();
-        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("viewport"));
+        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("viewport"), stageActive("likes"));
     }
 
     public Map<ViewportCellKey, ViewportCell> load(
