@@ -41,7 +41,7 @@ public class DestinationService {
                 throw exception;
             }
             localSearchFailed = true;
-            logSourceSearchFailure("KAKAO", exception.getClass().getSimpleName());
+            logSourceSearchFailure("KAKAO", exception.getClass().getSimpleName(), null);
         }
 
         List<ParkingLot> parkingLots = List.of();
@@ -50,7 +50,7 @@ public class DestinationService {
             parkingLots = parkingLotRepository.findActiveByNameContaining(searchQuery.text());
         } catch (DataAccessException | CannotCreateTransactionException exception) {
             parkingSearchFailed = true;
-            logSourceSearchFailure("PARKING_DB", exception.getClass().getSimpleName());
+            logSourceSearchFailure("PARKING_DB", exception.getClass().getSimpleName(), exception);
         }
 
         if (localSearchFailed && parkingSearchFailed) {
@@ -64,10 +64,11 @@ public class DestinationService {
                 || errorCode == ErrorCode.DESTINATION_SEARCH_RATE_LIMITED;
     }
 
-    private void logSourceSearchFailure(String source, String exceptionType) {
+    private void logSourceSearchFailure(String source, String exceptionType, Throwable cause) {
         log.atWarn().setMessage("목적지 검색 원천 조회에 실패했습니다.")
                 .addKeyValue("source", source)
                 .addKeyValue("exceptionType", exceptionType)
+                .setCause(cause)
                 .log();
     }
 }
