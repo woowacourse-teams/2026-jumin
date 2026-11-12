@@ -42,7 +42,7 @@ public class ParkingSearchController {
         if (guestId != null) {
             parsedGuestId = GuestIdParser.parse(guestId);
         }
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).varyBy("X-Guest-Id")
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(viewportSearchService.search(request, parsedGuestId));
     }

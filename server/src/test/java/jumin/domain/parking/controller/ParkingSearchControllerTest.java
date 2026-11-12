@@ -71,7 +71,6 @@ class ParkingSearchControllerTest {
         mockMvc.perform(viewportRequest().header("X-Guest-Id", GUEST_ID))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(header().string("Vary", "X-Guest-Id"))
                 .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.parkingLots[0].likedByMe").value(true))
                 .andExpect(jsonPath("$.parkingLots[1].likedByMe").value(false));
