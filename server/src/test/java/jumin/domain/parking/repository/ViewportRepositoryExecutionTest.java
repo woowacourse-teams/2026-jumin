@@ -1,5 +1,9 @@
 package jumin.domain.parking.repository;
 
+import static org.mockito.Mockito.clearInvocations;
+import java.util.UUID;
+import java.util.Set;
+import java.sql.Array;
 import static jumin.config.ViewportCacheProperties.DB_QUEUE;
 import static jumin.config.ViewportCacheProperties.MAX_VIEWPORT_ROWS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,6 +64,64 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class ViewportRepositoryExecutionTest {
+
+    @Test
+    @DisplayName("좋아요 조회는 공간 조회와 DB 슬롯을 공유하고 대기 중 기한이 끝나면 SQL을 실행하지 않는다")
+    void likes_share_source_db_limit_and_skip_expired_queued_sql() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            var repository = harness.db;
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
+            var source = CompletableFuture.supplyAsync(() -> harness.findWithinBounds(deadline()), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+            clearInvocations(harness.connection);
+
+            // 유일한 DB 작업자가 공간 조회 중이므로 좋아요 SQL은 실행되지 않고 만료된다.
+            assertThatThrownBy(() -> repository.findLikedParkingLotIds(List.of(1L), UUID.randomUUID(),
+                    ViewportDeadline.after(Duration.ofMillis(100))))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+            verify(harness.connection, never()).prepareStatement(anyString());
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
+
+            // 원래 작업 종료 후 같은 슬롯에서 좋아요 조회가 성공하고 JDBC 배열도 해제된다.
+            release.countDown();
+            assertThat(source.get(5, TimeUnit.SECONDS)).isZero();
+            harness.beforeQuery.set(() -> { });
+            PreparedStatement statement = mock(PreparedStatement.class);
+            ResultSet rows = mock(ResultSet.class);
+            Array array = mock(Array.class);
+            when(harness.connection.prepareStatement(anyString())).thenReturn(statement);
+            when(statement.getConnection()).thenReturn(harness.connection);
+            when(harness.connection.createArrayOf(eq("bigint"),
+                    any(Object[].class))).thenReturn(array);
+            when(statement.executeQuery()).thenReturn(rows);
+            when(rows.next()).thenReturn(true, false);
+            when(rows.getLong("parking_lot_id")).thenReturn(1L);
+
+            assertThat(repository.findLikedParkingLotIds(List.of(1L), UUID.randomUUID(),
+                    ViewportDeadline.after(Duration.ofSeconds(5)))).isEqualTo(Set.of(1L));
+            verify(array).free();
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
+    @DisplayName("좋아요 조회 대상이 없으면 DB 연결과 트랜잭션을 시작하지 않는다")
+    void empty_likes_do_not_open_connection() throws Exception {
+        try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            var repository = harness.db;
+            assertThat(repository.findLikedParkingLotIds(List.of(), UUID.randomUUID(),
+                    ViewportDeadline.after(Duration.ofSeconds(5)))).isEmpty();
+            verify(harness.pool, never()).getConnection();
+        }
+    }
+
+
 
     @Test
     @DisplayName("동기 DB 조회는 실제 종료까지 대기하고 슬롯을 유지한다")
