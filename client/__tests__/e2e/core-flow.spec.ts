@@ -7,18 +7,46 @@ const CURRENT_LOCATION = {
   longitude: 127.0279,
 };
 
+// 목 추천 응답은 홈 지도와 같은 실제 주차장 데이터를 쓴다. 강남역 11번 출구에서 가장 가까운 주차장이다.
 const PARKING_LOT = {
-  id: 101,
-  name: '역삼문화공원 제1호 공영주차장',
-  address: '서울 강남구 테헤란로7길 21',
+  id: 201,
+  name: '시계탑빌딩 주차장',
+  address: '강남구 강남대로 402',
   location: {
-    latitude: 37.499,
-    longitude: 127.029,
+    latitude: 37.498784,
+    longitude: 127.027824,
   },
 };
 
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
+
+// 길찾기 E2E는 위치 공급자 대신 모달 조작과 딥링크를 검증한다.
+// CI Chrome에서 위치 조회가 10초 뒤 TIMEOUT을 반환하므로 현재 위치 입력을 고정한다.
+const mockCurrentLocation = async (page: Page) => {
+  await page.addInitScript(({ latitude, longitude }) => {
+    Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+      configurable: true,
+      value: (success: PositionCallback) => {
+        // 앱이 예약한 LOADING 갱신 뒤에 READY가 적용되도록 브라우저처럼 비동기로 응답한다.
+        queueMicrotask(() =>
+          success({
+            coords: {
+              latitude,
+              longitude,
+              accuracy: 1,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          } as GeolocationPosition),
+        );
+      },
+    });
+  }, CURRENT_LOCATION);
+};
 
 const requestRecommendation = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
@@ -48,6 +76,8 @@ const goToRecommendedParkingDetail = async (page: Page) => {
   await requestRecommendation(page);
 
   const recommendation = page.getByRole('region', { name: '주차장 전체 목록' });
+  // 추천순은 조회 시각의 운영 여부에 따라 바뀌므로, 항상 1위인 거리순에서 추천 카드를 연다.
+  await recommendation.getByRole('radio', { name: '거리순' }).click();
   await recommendation.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
@@ -147,11 +177,17 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await expect(region.getByRole('radio', { name })).toBeVisible();
   }
 
-  for (const name of ['강남대로 공영주차장', '목록 확인 주차장 3']) {
-    const select = region.getByRole('button', { name: `${name} 선택` });
+  // 조회 시각에 따라 순위가 달라져도 두 섹션에서 각각 한 곳을 열어 확인한다.
+  for (const sectionName of [/^추천 주차장 \d+곳$/, /^더보기 주차장 \d+곳$/]) {
+    const item = region.getByRole('listitem').filter({
+      has: page.getByRole('heading', { name: sectionName }),
+    });
+    const select = item.getByRole('button', { name: / 선택$/ });
+    const detail = item.getByRole('button', { name: / 상세정보$/ });
+    const name = (await select.getAttribute('aria-label'))!.replace(/ 선택$/, '');
     await select.click();
     await expect(select).toHaveAttribute('aria-pressed', 'true');
-    await region.getByRole('button', { name: `${name} 상세정보` }).click();
+    await detail.click();
     await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
@@ -216,6 +252,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
 test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다 @search @recommend @parking-detail @directions @a11y', async ({
   page,
 }) => {
+  await mockCurrentLocation(page);
   await page.goto('/');
   await dismissSurveyIfPresent(page);
 
@@ -273,6 +310,7 @@ test.describe('길찾기 @directions', () => {
   test.use({ userAgent: ANDROID_USER_AGENT });
 
   test('3. 최근 이용한 주차장의 길찾기를 요청한다 @recent', async ({ page }) => {
+    await mockCurrentLocation(page);
     await page.addInitScript(
       (recentParkingUse) => {
         localStorage.setItem('recentParkingUses', JSON.stringify([recentParkingUse]));
@@ -305,6 +343,7 @@ test.describe('길찾기 @directions', () => {
   test('4. 상세정보를 확인한 주차장의 길찾기를 요청한다 @recommend @parking-detail @recent', async ({
     page,
   }) => {
+    await mockCurrentLocation(page);
     await goToRecommendedParkingDetail(page);
     expect(await page.evaluate(() => localStorage.getItem('recentParkingUses'))).toBeNull();
 

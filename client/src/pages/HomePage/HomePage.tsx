@@ -20,6 +20,8 @@ import type { ParkingFilters } from '../../shared/types/parkingFilters';
 import { ParkingFilterBar } from '../../shared/components/service/parking/ParkingFilterBar';
 import { useStepNavigation } from '../../shared/hooks/useStepNavigation';
 import { useBottomSheet } from '../../shared/hooks/useBottomSheet';
+import { useLingeringValue } from '../../shared/hooks/useLingeringValue';
+import { BOTTOM_SHEET_TRANSITION_MS } from '../../shared/components/ui/BottomSheet';
 import { buildQueryString } from '../../shared/hooks/useQueryParams';
 
 const currentLocationIcon = {
@@ -52,6 +54,8 @@ export const HomePage = () => {
   // 바텀시트
   const sheet = useBottomSheet();
   const { close, setSnap, open } = sheet;
+  // 선택이 풀려도 시트가 닫히는 전환이 끝날 때까지는 패널을 남겨 둔다.
+  const displayedParkingLot = useLingeringValue(selectedParkingLot, BOTTOM_SHEET_TRANSITION_MS);
 
   const clearParkingSelection = useCallback(() => {
     close();
@@ -188,10 +192,10 @@ export const HomePage = () => {
         {selectedParkingLot === null && <BottomNav />}
       </footer>
 
-      {selectedParkingLot !== null && (
+      {displayedParkingLot !== null && (
         <ParkingInformationPanel
           map={map}
-          parkingLot={selectedParkingLot}
+          parkingLot={displayedParkingLot}
           open={sheet.isOpen}
           snap={sheet.snap}
           onSnapChange={sheet.setSnap}

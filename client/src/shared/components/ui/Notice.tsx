@@ -1,12 +1,14 @@
 import { css, cx } from '@emotion/css';
 import { color } from '../../../theme/color';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 import { typography } from '../../../theme/typography';
 
 const NOTICE = {
   padding: '10px 16px',
-  radius: '999px',
-  background: 'rgb(255 255 255 / 94%)',
-  shadow: '0 4px 12px rgb(16 27 55 / 16%)',
+  radius: radius.pill,
+  background: color.background.floating,
+  shadow: shadow.floating,
 } as const;
 
 interface Props {
