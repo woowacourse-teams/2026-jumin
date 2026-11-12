@@ -11,7 +11,7 @@ import { LandingGuide } from './components/LandingGuide';
 import { LandingTechnology } from './components/LandingTechnology';
 import { useLandingScroll } from './hooks/useLandingScroll';
 import { EASE_OUT, HEADER_HEIGHT, landing, MOBILE, REDUCE_MOTION } from './landingStyles';
-import { CompareSection } from './sections/CompareSection';
+import { IntroSection } from './sections/IntroSection';
 import { HeroSection } from './sections/HeroSection';
 
 export const LandingPage = () => {
@@ -42,7 +42,7 @@ export const LandingPage = () => {
       </header>
 
       <HeroSection />
-      <CompareSection />
+      <IntroSection />
       <LandingGuide />
       <LandingTechnology />
 
