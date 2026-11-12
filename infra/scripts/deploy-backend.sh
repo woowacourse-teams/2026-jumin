@@ -28,12 +28,14 @@ proxy="jumin-nginx-$environment"
 if [[ "$environment" == dev ]]; then
   mkdir -p "$BACKEND_RELEASE_ROOT"
   exec 9>>"$BACKEND_RELEASE_ROOT/.backend-deploy.lock"
+  lock_options=(-n)
 else
   mkdir -p "$routing_dir"
   # 운영 프록시 CD와 인증서 갱신도 같은 디렉터리에 잠금을 건다.
   exec 9<"$routing_dir"
+  lock_options=(-w 60)
 fi
-flock -n 9 || { echo 'Another backend or proxy operation is active.' >&2; exit 1; }
+flock "${lock_options[@]}" 9 || { echo 'Another backend or proxy operation is active.' >&2; exit 1; }
 
 fail() {
   echo "$1" >&2
