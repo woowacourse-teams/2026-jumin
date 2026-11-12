@@ -162,7 +162,18 @@ docker run --rm -v "${stack_dir}/prometheus/prometheus.yml:/etc/prometheus/prome
   --entrypoint /bin/promtool prom/prometheus:v3.15.0 check config /etc/prometheus/prometheus.yml
 docker run --rm -v "${stack_dir}/loki/config.yml:/etc/loki/config.yml:ro" \
   grafana/loki:3.7.7 -config.file=/etc/loki/config.yml -verify-config=true
-sed 's/__ENV__/dev/g' "${stack_dir}/alloy/config.alloy.template" > "${temporary}/config.alloy"
-docker run --rm -v "${temporary}/config.alloy:/etc/alloy/config.alloy:ro" \
-  grafana/alloy:v1.20.0 validate /etc/alloy/config.alloy
+for environment in dev prod; do
+  backend_port=8080
+  backend_journal_matches="CONTAINER_NAME=jumin-backend-${environment}"
+  if [[ "${environment}" == prod ]]; then
+    backend_port=18080
+    backend_journal_matches+=' CONTAINER_NAME=jumin-backend-prod-blue CONTAINER_NAME=jumin-backend-prod-green'
+  fi
+  sed -e "s/__ENV__/${environment}/g" \
+    -e "s/__BACKEND_PORT__/${backend_port}/g" \
+    -e "s/__BACKEND_JOURNAL_MATCHES__/${backend_journal_matches}/g" \
+    "${stack_dir}/alloy/config.alloy.template" > "${temporary}/config.alloy"
+  docker run --rm -v "${temporary}/config.alloy:/etc/alloy/config.alloy:ro" \
+    grafana/alloy:v1.20.0 validate /etc/alloy/config.alloy
+done
 echo 'Observability configuration valid.'
