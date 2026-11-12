@@ -94,6 +94,41 @@ class ParkingLotLikeIntegrationTest {
         assertThat(JsonPath.<Boolean>read(unlikedResponse.body(), "$.likedByMe")).isFalse();
     }
 
+    // 실제 좋아요 저장 결과가 지도 목록에 반영되고 취소 후에도 남지 않는지 확인한다.
+    @Test
+    @DisplayName("지도 목록에 요청자별 좋아요와 좋아요 취소 결과를 반영한다")
+    void viewport_list_reflects_likes_and_unlikes_for_each_guest() throws Exception {
+        jdbc.update("update parking_lots set latitude = 37.5665, longitude = 126.978 where id = ?", lotId);
+        Long otherLotId = insertLot(true);
+        jdbc.update("update parking_lots set latitude = 37.5665, longitude = 126.978 where id = ?", otherLotId);
+        String otherGuest = UUID.randomUUID().toString();
+
+        // 두 사용자가 서로 다른 주차장을 좋아요한 상태를 만든다.
+        assertState(send("PUT", lotId, GUEST_ID), lotId, 1, true);
+        assertState(send("PUT", otherLotId, otherGuest), otherLotId, 1, true);
+        assertViewportLike(lotId, GUEST_ID, true);
+        assertViewportLike(otherLotId, GUEST_ID, false);
+        assertViewportLike(lotId, otherGuest, false);
+        assertViewportLike(otherLotId, otherGuest, true);
+
+        // 같은 지도 영역을 다시 조회하면 좋아요 취소 결과를 즉시 확인할 수 있다.
+        assertState(send("DELETE", lotId, GUEST_ID), lotId, 0, false);
+        assertViewportLike(lotId, GUEST_ID, false);
+    }
+
+    private void assertViewportLike(Long parkingLotId, String guestId, boolean liked) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port
+                        + "/api/parking/viewport?westLongitude=126.977&southLatitude=37.566"
+                        + "&eastLongitude=126.979&northLatitude=37.567"))
+                .timeout(Duration.ofSeconds(15))
+                .header("X-Guest-Id", guestId).GET().build();
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        List<Boolean> values = JsonPath.read(response.body(),
+                "$.parkingLots[?(@.id == " + parkingLotId + ")].likedByMe");
+        assertThat(values).containsExactly(liked);
+    }
+
     @Test
     @DisplayName("중복 및 서로 다른 게스트 ID의 동시 요청을 정확히 집계한다")
     void concurrent_duplicate_and_distinct_requests_do_not_overcount() throws Exception {
