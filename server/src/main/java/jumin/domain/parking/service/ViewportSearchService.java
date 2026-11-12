@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import jumin.config.ViewportCacheProperties;
 import jumin.domain.parking.cache.ViewportCellStore;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
@@ -64,9 +65,13 @@ public class ViewportSearchService {
     }
 
     public ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
+        return search(request, null);
+    }
+
+    public ParkingLotViewportResponses search(ParkingLotViewportRequest request, UUID guestId) {
         ViewportBounds bounds = ViewportBounds.from(request);
         try {
-            return searchWithinDeadline(bounds, request);
+            return searchWithinDeadline(bounds, request, guestId);
         } catch (RuntimeException | Error failure) {
             if (failure instanceof DataAccessException || failure instanceof TransactionException) {
                 throw ViewportFailureReason.UNCLASSIFIED.failure(failure);
@@ -75,14 +80,36 @@ public class ViewportSearchService {
         }
     }
 
-    private ParkingLotViewportResponses searchWithinDeadline(ViewportBounds bounds, ParkingLotViewportRequest request) {
+    private ParkingLotViewportResponses searchWithinDeadline(ViewportBounds bounds, ParkingLotViewportRequest request,
+                                                            UUID guestId) {
         ViewportDeadline deadline = ViewportDeadline.after(properties.getRequestTimeout());
         DayOfWeek day = LocalDate.ofInstant(clock.instant(), SEOUL).getDayOfWeek();
         ParkingLotViewportResponses response = execute(bounds, request, day, deadline);
+        response = personalize(response, guestId, deadline);
         if (deadline.remainingNanos() == 0) {
             deadline.requireRemaining();
         }
         return response;
+    }
+
+    private ParkingLotViewportResponses personalize(ParkingLotViewportResponses response, UUID guestId,
+                                                    ViewportDeadline deadline) {
+        if (guestId == null || response.parkingLots().isEmpty()) {
+            return response;
+        }
+        // 공용 캐시는 변경하지 않고 목록 조회와 같은 기한·DB 실행 제한으로 개인 상태를 읽는다.
+        deadline.requireRemaining();
+        Set<Long> likedParkingLotIds = repository.findLikedParkingLotIds(
+                response.parkingLots().stream().map(ParkingLotViewportResponse::id).toList(), guestId, deadline
+        );
+        List<ParkingLotViewportResponse> rows = new ArrayList<>(response.parkingLots().size());
+        for (ParkingLotViewportResponse row : response.parkingLots()) {
+            deadline.requireRemaining();
+            rows.add(new ParkingLotViewportResponse(row.id(), row.latitude(), row.longitude(), row.score(),
+                    likedParkingLotIds.contains(row.id())));
+        }
+        deadline.requireRemaining();
+        return ParkingLotViewportResponses.from(rows);
     }
 
     private ParkingLotViewportResponses execute(ViewportBounds bounds, ParkingLotViewportRequest request, DayOfWeek day,
