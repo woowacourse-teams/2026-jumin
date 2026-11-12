@@ -5,13 +5,14 @@ const CURRENT_LOCATION = {
   longitude: 127.0279,
 };
 
+// 목 추천 응답은 홈 지도와 같은 실제 주차장 데이터를 쓴다. 강남역 11번 출구에서 가장 가까운 주차장이다.
 const PARKING_LOT = {
-  id: 101,
-  name: '역삼문화공원 제1호 공영주차장',
-  address: '서울 강남구 테헤란로7길 21',
+  id: 201,
+  name: '시계탑빌딩 주차장',
+  address: '강남구 강남대로 402',
   location: {
-    latitude: 37.499,
-    longitude: 127.029,
+    latitude: 37.498784,
+    longitude: 127.027824,
   },
 };
 
@@ -50,9 +51,18 @@ const goToRecommendedParkingDetail = async (page: Page) => {
   await requestRecommendation(page);
 
   const recommendation = page.getByRole('region', { name: '주차장 전체 목록' });
+  // 추천순은 조회 시각의 운영 여부에 따라 바뀌므로, 항상 1위인 거리순에서 추천 카드를 연다.
+  await recommendation.getByRole('radio', { name: '거리순' }).click();
+  // 예상 요금은 조회 시각의 요일·운영 시간에 따라 달라지므로 목록 카드의 값을 기준으로 삼는다.
+  const cardFee = await recommendation
+    .locator('article', { has: page.getByRole('heading', { name: PARKING_LOT.name }) })
+    .getByText(/원$|요금 정보 없음/)
+    .textContent();
   await recommendation.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
+
+  return { cardFee };
 };
 
 const watchAndroidDeepLink = async (page: Page) => {
@@ -130,12 +140,12 @@ test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 
 });
 
 test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => {
-  await goToRecommendedParkingDetail(page);
+  const { cardFee } = await goToRecommendedParkingDetail(page);
 
   const detail = page.getByRole('region', { name: '주차장 상세정보', exact: true });
-  await expect(detail.getByText('6,000원')).toBeVisible();
-  await expect(detail.getByText('310m(5분)')).toBeVisible();
-  await expect(detail.getByText('평일 24시간')).toBeVisible();
+  await expect(detail.getByText(cardFee === '요금 정보 없음' ? '미제공' : cardFee!)).toBeVisible();
+  await expect(detail.getByText('94m(2분)')).toBeVisible();
+  await expect(detail.getByText('평일 08:00 – 20:00')).toBeVisible();
 });
 
 test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조회 조건을 유지한다', async ({ page }) => {
@@ -174,7 +184,8 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await expect(region.getByRole('radio', { name })).toBeVisible();
   }
 
-  for (const name of ['강남대로 공영주차장', '목록 확인 주차장 3']) {
+  // 두 주차장 모두 거리로 고른 15곳 안에 있어, 조회 시각에 따라 추천·더보기 중 어디에 있든 확인할 수 있다.
+  for (const name of ['강남역 센트럴푸르지오시티 주차장', '통일빌딩 주차장']) {
     const select = region.getByRole('button', { name: `${name} 선택` });
     await select.click();
     await expect(select).toHaveAttribute('aria-pressed', 'true');

@@ -1,5 +1,5 @@
 import { getParkingLotDetail, searchParkingLots } from '../../src/api/parkingLots';
-import { parkingSearchSuccess } from '../../mocks/fixtures/parkingSearch';
+import { gangnamStationParkingLots } from '../../mocks/fixtures/gangnamStationParkingLots';
 import { searchCondition } from '../testData';
 
 const movedDestination = {
@@ -7,64 +7,73 @@ const movedDestination = {
   destinationLongitude: 127.05,
 };
 
-describe('목적지에 따른 추천 mock 좌표', () => {
-  it.each([
-    { ...movedDestination, expectedLatitude: 37.5209, expectedLongitude: 127.0511 },
-    {
-      destinationLatitude: 35.1796,
-      destinationLongitude: 129.0756,
-      expectedLatitude: 35.1805,
-      expectedLongitude: 129.0767,
-    },
-  ])(
-    '목적지 $destinationLatitude, $destinationLongitude 주변에 주차장을 배치한다',
-    async ({ destinationLatitude, destinationLongitude, expectedLatitude, expectedLongitude }) => {
-      const response = await searchParkingLots({
-        ...searchCondition,
-        destinationLatitude,
-        destinationLongitude,
+const homeLocations = new Map(
+  gangnamStationParkingLots.map(({ id, latitude, longitude }) => [id, { latitude, longitude }]),
+);
+
+describe('홈 지도의 실제 주차장으로 만든 추천 mock', () => {
+  it('강남역 목적지에는 홈 지도와 같은 좌표의 주차장을 가까운 순으로 최대 15곳 추천한다', async () => {
+    const response = await searchParkingLots(searchCondition);
+    const distances = response.parkingLots.map(({ distanceMeters }) => distanceMeters!);
+
+    expect(response.totalCount).toBe(response.parkingLots.length);
+    expect(response.parkingLots).toHaveLength(15);
+    expect(distances).toEqual([...distances].sort((first, second) => first - second));
+    expect(Math.max(...distances)).toBeLessThanOrEqual(response.searchRadiusMeters);
+
+    for (const { id, location } of response.parkingLots) {
+      expect(location).toEqual(homeLocations.get(id));
+    }
+  });
+
+  it('도보 거리는 지도에 그리는 도보 경로의 시작과 끝을 따른다', async () => {
+    const response = await searchParkingLots(searchCondition);
+
+    for (const { location, walkingRoute } of response.parkingLots) {
+      expect(walkingRoute?.[0]).toEqual(location);
+      expect(walkingRoute?.at(-1)).toEqual({
+        latitude: searchCondition.destinationLatitude,
+        longitude: searchCondition.destinationLongitude,
       });
-      const parkingLot = response.parkingLots.find(({ id }) => id === 101);
+    }
+  });
 
-      expect(response.totalCount).toBe(response.parkingLots.length);
-      expect(parkingLot?.location.latitude).toBeCloseTo(expectedLatitude, 6);
-      expect(parkingLot?.location.longitude).toBeCloseTo(expectedLongitude, 6);
-    },
-  );
+  it('주변에 실제 주차장이 없는 목적지에는 같은 주차장을 목적지 주변으로 옮겨 추천한다', async () => {
+    const response = await searchParkingLots({ ...searchCondition, ...movedDestination });
 
-  it('추천과 상세에서 같은 주차장 좌표를 반환한다', async () => {
+    expect(response.parkingLots.length).toBeGreaterThan(0);
+    for (const { distanceMeters } of response.parkingLots) {
+      expect(distanceMeters).toBeLessThanOrEqual(response.searchRadiusMeters);
+    }
+  });
+
+  it('추천과 상세에서 같은 주차장 좌표·거리·요금을 반환한다', async () => {
     const condition = { ...searchCondition, ...movedDestination };
     const recommendation = await searchParkingLots(condition);
     const details = await Promise.all(
       recommendation.parkingLots.map(({ id }) => getParkingLotDetail(id, condition)),
     );
 
-    expect(details.map(({ location }) => location)).toEqual(
-      recommendation.parkingLots.map(({ location }) => location),
-    );
-  });
-
-  it('다른 목적지 조회 후에도 기본 목적지의 주차장 좌표를 유지한다', async () => {
-    await searchParkingLots({ ...searchCondition, ...movedDestination });
-    const response = await searchParkingLots(searchCondition);
-
-    // 도보 경로는 요청한 목적지로 계산해 붙이는 값이라 fixture와 비교할 때는 제외한다.
-    expect({
-      ...response,
-      parkingLots: response.parkingLots.map((parkingLot) => ({
-        ...parkingLot,
-        walkingRoute: undefined,
+    expect(
+      details.map(({ location, distanceMeters, estimatedFee }) => ({
+        location,
+        distanceMeters,
+        estimatedFee,
       })),
-    }).toEqual(parkingSearchSuccess);
-    const detail = await getParkingLotDetail(101, searchCondition);
-    expect(detail.location).toEqual({ latitude: 37.499, longitude: 127.029 });
+    ).toEqual(
+      recommendation.parkingLots.map(({ location, distanceMeters, estimatedFee }) => ({
+        location,
+        distanceMeters,
+        estimatedFee,
+      })),
+    );
   });
 
   it('빈 결과 시나리오를 유지한다', async () => {
     window.history.replaceState({}, '', '/?mock=parking-empty');
 
     await expect(searchParkingLots({ ...searchCondition, ...movedDestination })).resolves.toEqual({
-      ...parkingSearchSuccess,
+      searchRadiusMeters: 600,
       totalCount: 0,
       parkingLots: [],
     });

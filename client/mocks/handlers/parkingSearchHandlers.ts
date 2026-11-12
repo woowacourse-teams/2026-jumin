@@ -1,9 +1,11 @@
 import { delay, http, HttpResponse } from 'msw';
-import { parkingSearchEmpty, parkingSearchSuccess } from '../fixtures/parkingSearch';
+import { parkingSearchEmpty } from '../fixtures/parkingSearch';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
-import { createMockWalkingRoute } from '../utils/createMockWalkingRoute';
-import { relocateParkingLocation } from '../utils/relocateParkingLocation';
+import {
+  SEARCH_RADIUS_METERS,
+  searchGangnamParkingLots,
+} from '../utils/createGangnamParkingSearch';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
@@ -118,26 +120,20 @@ export const parkingSearchHandlers = [
       return HttpResponse.json(parkingSearchEmpty);
     }
 
-    const destination = {
-      latitude: Number(url.searchParams.get('destinationLatitude')),
-      longitude: Number(url.searchParams.get('destinationLongitude')),
-    };
+    // 홈 지도와 같은 실제 주차장 데이터에서 목적지 주변 주차장을 골라 추천한다.
+    const parkingLots = searchGangnamParkingLots({
+      destination: {
+        latitude: Number(url.searchParams.get('destinationLatitude')),
+        longitude: Number(url.searchParams.get('destinationLongitude')),
+      },
+      entryAt: url.searchParams.get('entryAt')!,
+      exitAt: url.searchParams.get('exitAt')!,
+    });
 
     return HttpResponse.json({
-      ...parkingSearchSuccess,
-      parkingLots: parkingSearchSuccess.parkingLots.map((parkingLot) => {
-        const location = relocateParkingLocation(parkingLot.location, destination);
-
-        return {
-          ...parkingLot,
-          location,
-          // 도보 정보가 없는 주차장은 실제 응답처럼 경로도 비워 둔다.
-          walkingRoute:
-            parkingLot.distanceMeters === null
-              ? null
-              : createMockWalkingRoute(parkingLot.id, location, destination),
-        };
-      }),
+      searchRadiusMeters: SEARCH_RADIUS_METERS,
+      totalCount: parkingLots.length,
+      parkingLots,
     });
   }),
 ];
