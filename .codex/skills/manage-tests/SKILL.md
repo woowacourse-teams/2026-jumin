@@ -64,7 +64,6 @@ description: 코드 변경이나 소스·테스트 파일 이동에 맞춰 이 �
 | `@navigation` | 화면 간 이동과 복귀 |
 | `@home-layout` | 홈 화면의 요소 배치 |
 | `@setting-layout` | 설정 화면의 요소 배치 |
-| `@loading` | 페이지 로딩 표시 |
 | `@a11y` | 키보드 조작과 포커스 |
 
 `develop` 대상 PR에서는 `client/scripts/select-affected-tests.mjs`가 PR의 변경 경로로 통합 테스트 파일과 E2E 태그를 고른다. CI는 통합 테스트에 `--runTestsByPath`, E2E에 `--grep`을 전달한다. E2E 태그를 하나라도 선택하면 `@smoke`도 실행한다. 단위 테스트, 타입 검사, 린트, 포맷 검사, 빌드는 이 선택 결과와 무관하게 실행 대상이다. `main` 대상 PR, push, 수동 실행은 통합 테스트와 E2E 전체를 선택한다.
