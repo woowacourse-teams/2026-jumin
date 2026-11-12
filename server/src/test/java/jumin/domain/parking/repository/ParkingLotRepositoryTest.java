@@ -1,18 +1,27 @@
 package jumin.domain.parking.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
+import java.util.stream.IntStream;
+import javax.sql.DataSource;
 import jumin.TestcontainersConfiguration;
 import jumin.domain.parking.entity.ParkingLot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -28,6 +37,9 @@ class ParkingLotRepositoryTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private DataSource dataSource;
 
     @Test
     @DisplayName("반경 600m 이내의 활성 주차장만 조회한다")
@@ -143,6 +155,113 @@ class ParkingLotRepositoryTest {
                 "select mechanical from parking_lots where id = ?", Boolean.class, parkingLot.getId()
         )).isFalse();
         assertThat(new ParkingLot().isMechanical()).isFalse();
+    }
+
+    @Test
+    @DisplayName("이름에 검색어가 포함된 활성 주차장을 조회하며 주소는 검색하지 않는다")
+    void searches_name_only_and_preserves_nullable_address() {
+        // given
+        insertParkingLot("name-match", "강남 공영주차장", "서울시 테스트 주소", true, 37.5, 127.0);
+        insertParkingLot("name-middle", "역삼 강남 주차장", null, true, 37.5, 127.0);
+        insertParkingLot("address-only", "역삼 주차장", "서울시 강남구", true, 37.5, 127.0);
+        insertParkingLot("inactive-match", "강남 비활성", "서울시", false, 37.5, 127.0);
+        insertParkingLot("missing-match", "강남 위치없음", "서울시", true, null, null);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveByNameContaining("강남");
+
+        // then
+        assertThat(results).extracting(ParkingLot::getName)
+                .containsExactly("강남 공영주차장", "역삼 강남 주차장");
+        assertThat(results.getLast().getAddress()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"%_", "강남%", "강남_"})
+    @DisplayName("검색어의 퍼센트와 밑줄을 와일드카드가 아닌 문자로 검색한다")
+    void treats_like_wildcards_as_literal_characters(String query) {
+        // given
+        insertParkingLot("literal", "주차장 " + query, null, true, 37.5, 127.0);
+        insertParkingLot("other", "강남 공영주차장", null, true, 37.5, 127.0);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveByNameContaining(query);
+
+        // then
+        assertThat(results).extracting(ParkingLot::getSourceExternalId).containsExactly("literal");
+    }
+
+    @Test
+    @DisplayName("영문 대소문자를 구분하지 않고 최대 15건을 이름과 ID 순으로 조회한다")
+    void searches_case_insensitively_with_stable_result_limit() {
+        // given
+        for (int index = 0; index < 17; index++) {
+            insertParkingLot("limit-" + index, "Parking", "주소 " + index, true, 37.5, 127.0);
+        }
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveByNameContaining("parking");
+
+        // then
+        assertThat(results).hasSize(15);
+        assertThat(results).extracting(ParkingLot::getId).isSorted();
+        assertThat(results).extracting(ParkingLot::getSourceExternalId)
+                .containsExactlyElementsOf(IntStream.range(0, 15)
+                        .mapToObj(index -> "limit-" + index).toList());
+    }
+
+    @Test
+    @DisplayName("완전 일치와 접두사 일치를 먼저 배치하고 부분 일치는 이름순으로 최대 15건을 조회한다")
+    void ranks_exact_then_prefix_then_other_matches_before_limiting_results() {
+        // given
+        // 이름순으로 앞서는 부분 일치가 15건 제한을 채운다.
+        for (int index = 0; index < 15; index++) {
+            insertParkingLot("middle-" + index, "A%02d Parking".formatted(index), null, true, 37.5, 127.0);
+        }
+        insertParkingLot("middle-early-position", "B Parking", null, true, 37.5, 127.0);
+        insertParkingLot("prefix", "Parking Center", null, true, 37.5, 127.0);
+        insertParkingLot("exact", "Parking", null, true, 37.5, 127.0);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveByNameContaining("parking");
+
+        // then
+        assertThat(results).extracting(ParkingLot::getSourceExternalId)
+                .hasSize(15)
+                .startsWith("exact", "prefix", "middle-0", "middle-1")
+                .endsWith("middle-12")
+                .doesNotContain("middle-early-position");
+    }
+
+    @Test
+    @DisplayName("이름이 일치하지 않으면 빈 목록을 반환한다")
+    void returns_no_parking_lots_when_name_does_not_match() {
+        // given
+        insertParkingLot("other", "역삼 주차장", "강남", true, 37.5, 127.0);
+
+        // when & then
+        assertThat(parkingLotRepository.findActiveByNameContaining("강남")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("주차장 이름 검색이 테이블 잠금으로 지연되면 쿼리를 취소한다")
+    void cancels_name_search_when_table_is_locked() throws SQLException {
+        // given
+        // 쿼리 타임아웃이 사라져도 테스트가 잠금 해제를 무기한 기다리지 않게 한다.
+        jdbcTemplate.execute("set local statement_timeout = '5s'");
+        try (Connection blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try (Statement statement = blocker.createStatement()) {
+                statement.execute("set local lock_timeout = '2s'");
+                statement.execute("lock table parking_lots in access exclusive mode");
+            }
+
+            // when & then
+            assertThatThrownBy(() -> parkingLotRepository.findActiveByNameContaining("강남"))
+                    .isInstanceOf(QueryTimeoutException.class)
+                    .rootCause()
+                    .hasMessageContaining("canceling statement due to user request");
+        }
     }
 
     private void insertParkingLot(
