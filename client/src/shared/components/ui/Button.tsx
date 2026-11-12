@@ -1,13 +1,15 @@
 import { css, cx } from '@emotion/css';
 import type { ComponentProps, ReactNode } from 'react';
 import { color } from '../../../theme/color';
+import { duration, easing, pressScale } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
 import { typography } from '../../../theme/typography';
 
 /**
  * 버튼의 외형.
  *
  * - brand: 길찾기·다음·신고처럼 브랜드색으로 강조하는 실행 버튼
- * - subtle: 로드뷰처럼 연한 브랜드 배경과 테두리를 사용하는 버튼
+ * - subtle: 로드뷰처럼 연한 브랜드 배경을 사용하는 버튼
  * - outline: 흰 배경과 중립색 테두리의 보조 버튼
  * - ghost: 배경 없이 글자나 아이콘을 표시하는 버튼
  */
@@ -16,45 +18,68 @@ type ButtonVariant = 'brand' | 'subtle' | 'outline' | 'ghost';
 /** active는 사용 가능, loading은 처리 중, inactive는 비활성 상태 */
 type ButtonStatus = 'active' | 'loading' | 'inactive';
 
-/** 내부 여백·모서리·아이콘 영역 크기를 함께 결정한다. */
+/** 내부 여백·글자 크기·아이콘 영역 크기를 함께 결정한다. */
 type ButtonSize = 'sm' | 'md' | 'lg';
-type ButtonSizeToken = 'paddingX' | 'paddingY' | 'borderRadius' | 'gap' | 'iconSize';
+type ButtonSizeToken = 'paddingX' | 'paddingY' | 'gap' | 'iconSize';
 
 /**
  * 사이즈별 치수.
  *
  * rem 값은 기본 글꼴 16px 기준으로 주석의 px에 대응한다.
  * height가 아니라 paddingY를 사용해서 높이를 지정한다. (글자가 커져도 버튼에 짤리지 않게 하기 위해)
+ * 모서리는 크기와 관계없이 알약형(radius.pill)이다.
  */
 const BUTTON_SIZE = {
   lg: {
     paddingX: '1.25rem' /* 20px */,
     paddingY: '1rem' /* 16px */,
-    borderRadius: '0.875rem' /* 14px */,
     gap: '0.5rem' /* 8px */,
     iconSize: '1.375rem' /* 22px */,
   },
   md: {
     paddingX: '1rem' /* 16px */,
     paddingY: '0.75rem' /* 12px */,
-    borderRadius: '0.75rem' /* 12px */,
-    gap: '0.25rem' /* 4px */,
+    gap: '0.375rem' /* 6px */,
     iconSize: '1.125rem' /* 18px */,
   },
   sm: {
     paddingX: '0.75rem' /* 12px */,
     paddingY: '0.5rem' /* 8px */,
-    borderRadius: '0.625rem' /* 10px */,
     gap: '0.125rem' /* 2px */,
     iconSize: '0.875rem' /* 14px */,
   },
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
+/** 큰 버튼은 화면의 주 실행이므로 본문 크기의 굵은 글자를 쓴다. */
+const BUTTON_TYPOGRAPHY = {
+  lg: typography.bodyStrong,
+  md: typography.label,
+  sm: typography.label,
+} as const satisfies Record<ButtonSize, object>;
+
+/**
+ * 사용 가능한 버튼의 hover와 눌림.
+ *
+ * hover는 포인터가 있는 기기에서만 적용해 터치 후에 색이 남지 않게 한다.
+ * 눌림은 hover보다 한 단계 진한 색과 살짝 줄어드는 크기로 표시한다.
+ */
+const pressable = (hovered: string, pressed: string) => `
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background-color: ${hovered};
+    }
+  }
+
+  &:active:not(:disabled) {
+    background-color: ${pressed};
+    transform: scale(${pressScale});
+  }
+`;
+
 /**
  * 외형과 상태별 색상.
  *
- * hover와 클릭에는 같은 색상을 사용한다.
- * 로딩·비활성 상태에는 hover와 클릭 색상을 적용하지 않는다.
+ * 로딩·비활성 상태에는 hover와 눌림을 적용하지 않는다.
  */
 const buttonAppearance = {
   brand: {
@@ -63,10 +88,7 @@ const buttonAppearance = {
       color: ${color.text.inverse};
       box-shadow: none;
 
-      &:hover:not(:disabled),
-      &:active:not(:disabled) {
-        background-color: ${color.background.brandHovered};
-      }
+      ${pressable(color.background.brandHovered, color.background.brandPressed)}
     `,
     loading: css`
       background-color: ${color.background.brand};
@@ -83,22 +105,19 @@ const buttonAppearance = {
     active: css`
       background-color: ${color.background.brandSubtle};
       color: ${color.text.brand};
-      box-shadow: inset 0 0 0 1px ${color.border.brandSubtle};
+      box-shadow: none;
 
-      &:hover:not(:disabled),
-      &:active:not(:disabled) {
-        background-color: ${color.background.brandSubtleHovered};
-      }
+      ${pressable(color.background.brandSubtleHovered, color.background.brandSubtlePressed)}
     `,
     loading: css`
       background-color: ${color.background.brandSubtle};
       color: ${color.text.brand};
-      box-shadow: inset 0 0 0 1px ${color.border.brandSubtle};
+      box-shadow: none;
     `,
     inactive: css`
       background-color: ${color.background.disabled};
       color: ${color.text.disabled};
-      box-shadow: inset 0 0 0 1px ${color.border.default};
+      box-shadow: none;
     `,
   },
   outline: {
@@ -107,10 +126,7 @@ const buttonAppearance = {
       color: ${color.text.secondary};
       box-shadow: inset 0 0 0 1px ${color.border.default};
 
-      &:hover:not(:disabled),
-      &:active:not(:disabled) {
-        background-color: ${color.background.subtle};
-      }
+      ${pressable(color.background.subtle, color.background.pressed)}
     `,
     loading: css`
       background-color: ${color.background.default};
@@ -129,10 +145,7 @@ const buttonAppearance = {
       color: ${color.text.secondary};
       box-shadow: none;
 
-      &:hover:not(:disabled),
-      &:active:not(:disabled) {
-        background-color: ${color.background.subtle};
-      }
+      ${pressable(color.background.subtle, color.background.pressed)}
     `,
     loading: css`
       background-color: transparent;
@@ -173,10 +186,16 @@ const root = (size: ButtonSize, status: ButtonStatus, isFullWidth: boolean) => {
     gap: ${sizeToken.gap};
     padding: ${sizeToken.paddingY} ${sizeToken.paddingX};
     border: 0;
-    border-radius: ${sizeToken.borderRadius};
+    border-radius: ${radius.pill};
     font-family: inherit;
-    ${typography.label};
+    ${BUTTON_TYPOGRAPHY[size]};
     cursor: ${status === 'active' ? 'pointer' : 'default'};
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color ${duration.fast} ${easing.out},
+      color ${duration.fast} ${easing.out},
+      box-shadow ${duration.fast} ${easing.out},
+      transform ${duration.fast} ${easing.out};
   `;
 };
 

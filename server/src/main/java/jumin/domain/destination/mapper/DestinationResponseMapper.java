@@ -6,6 +6,8 @@ import jumin.domain.destination.client.LocalSearchPlace;
 import jumin.domain.destination.client.LocalSearchResponse;
 import jumin.domain.destination.dto.DestinationResponse;
 import jumin.domain.destination.dto.DestinationsResponse;
+import jumin.domain.destination.dto.ParkingLotSearchResponse;
+import jumin.domain.parking.entity.ParkingLot;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -14,13 +16,17 @@ public class DestinationResponseMapper {
 
     public DestinationsResponse toResponse(
             String normalizedQuery,
-            LocalSearchResponse localSearchResponse
+            LocalSearchResponse localSearchResponse,
+            List<ParkingLot> parkingLots
     ) {
         List<DestinationResponse> destinationResponses = localSearchResponse.places().stream()
                 .map(this::toDestination)
                 .filter(Objects::nonNull)
                 .toList();
-        return DestinationsResponse.from(normalizedQuery, destinationResponses);
+        List<ParkingLotSearchResponse> parkingLotResponses = parkingLots.stream()
+                .map(ParkingLotSearchResponse::from)
+                .toList();
+        return DestinationsResponse.from(normalizedQuery, destinationResponses, parkingLotResponses);
     }
 
     private DestinationResponse toDestination(LocalSearchPlace localSearchPlace) {

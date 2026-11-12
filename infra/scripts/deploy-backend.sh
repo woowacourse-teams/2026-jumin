@@ -56,6 +56,9 @@ prepare_release() {
   for variable in GITHUB_SHA GITHUB_RUN_ID GITHUB_RUN_ATTEMPT BACKEND_ARTIFACT_DIR; do
     [[ -n "${!variable:-}" ]] || fail "Missing deployment setting: $variable"
   done
+  if [[ "${LOCAL_SEARCH_REST_API_KEY:-}" =~ ^[[:space:]]+$ ]]; then
+    fail 'LOCAL_SEARCH_REST_API_KEY contains only whitespace.'
+  fi
   [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] ||
     fail 'Invalid backend release ID.'
   case "${PARKING_AVAILABILITY_ENABLED:-false}" in

@@ -9,6 +9,8 @@ import { trackEvent } from '../../../analytics';
 import { buildDirectionsLinks, type Coordinate, type DirectionsProvider } from './deepLink';
 import { eventName } from '../../../monitoring/constants';
 import { color } from '../../../../theme/color';
+import { duration, easing } from '../../../../theme/motion';
+import { radius } from '../../../../theme/radius';
 import { typography } from '../../../../theme/typography';
 
 interface Props {
@@ -172,16 +174,28 @@ const providerButtonStyle = css`
   gap: 12px;
 
   width: 100%;
-  min-height: 68px;
-  padding: 8px 4px;
+  min-height: 64px;
+  padding: 8px;
 
   color: ${color.text.primary};
   text-align: left;
 
   background: ${color.background.default};
   border: 0;
-  border-top: 1px solid ${color.border.default};
+  border-radius: 16px;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color ${duration.fast} ${easing.out};
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background: ${color.background.subtle};
+    }
+  }
+
+  &:active:not(:disabled) {
+    background: ${color.background.pressed};
+  }
 
   strong,
   small {
@@ -189,7 +203,7 @@ const providerButtonStyle = css`
   }
 
   strong {
-    ${typography.bodySmallStrong};
+    ${typography.bodyStrong};
   }
 
   small {
@@ -213,7 +227,7 @@ const providerLogoBaseStyle = css`
 
   ${typography.bodyStrong};
 
-  border-radius: 11px;
+  border-radius: ${radius.sm};
 `;
 
 const providerLogoStyles: Record<DirectionsProvider, string> = {

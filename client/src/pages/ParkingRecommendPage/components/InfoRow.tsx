@@ -3,6 +3,8 @@ import { css, cx } from '@emotion/css';
 
 import type { ParkingLotSummary } from '../../../api/contracts';
 import { color } from '../../../theme/color';
+import { duration, easing, pressScale } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
 import { typography } from '../../../theme/typography';
 import { DirectionsIcon, InformationIcon, LocationIcon } from '../../../shared/components/ui/icons';
 
@@ -26,7 +28,7 @@ export const InfoRow = ({
   const walkingInformation =
     walkingDurationMinutes === null || distanceMeters === null
       ? '도보 정보 없음'
-      : `${distanceMeters.toLocaleString('ko-KR')}m(${walkingDurationMinutes}분)`;
+      : `도보 ${walkingDurationMinutes}분 ${distanceMeters.toLocaleString('ko-KR')}m`;
 
   return (
     <article
@@ -67,7 +69,7 @@ export const InfoRow = ({
           <InformationIcon size={22} aria-hidden="true" />
         </button>
         <button
-          className={cx(actionButtonStyle, directionsButtonStyle)}
+          className={cx(actionButtonStyle, directionsButtonStyle(isActive))}
           type="button"
           aria-label={`${name} 길찾기`}
           onClick={() => onDirections(parkingLot)}
@@ -83,18 +85,30 @@ const rowStyle = (isActive: boolean) => css`
   position: relative;
 
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 
   width: 100%;
-  min-height: 90px;
-  padding: 12px 8px;
+  min-height: 72px;
+  padding: 10px 12px 10px 10px;
 
-  background: ${isActive ? color.background.selectedSubtle : color.background.default};
-  border: 2px solid ${isActive ? color.border.selected : 'transparent'};
-  border-radius: 14px;
+  /* 추천 카드와 같이 선택은 면으로 표시한다. */
+  background: ${isActive ? color.background.selectedSubtle : 'transparent'};
+  border: 0;
+  border-radius: ${radius.md};
+  transition: background-color ${duration.base} ${easing.out};
   user-select: none;
+
+  ${
+    isActive
+      ? ''
+      : `
+  &:has(> button[aria-pressed]:active) {
+    background: ${color.background.pressed};
+  }`
+  }
+
   -webkit-user-drag: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -116,7 +130,7 @@ const selectButtonStyle = css`
 
   background: transparent;
   border: 0;
-  border-radius: 12px;
+  border-radius: inherit;
   appearance: none;
   cursor: pointer;
   user-select: none;
@@ -139,16 +153,16 @@ const locationIconContainerStyle = css`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   color: ${color.icon.brand};
   background: ${color.background.brandSubtle};
-  border-radius: 14px;
+  border-radius: ${radius.sm};
   pointer-events: none;
 
   svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 `;
 
@@ -166,10 +180,11 @@ const nameStyle = css`
 const metadataStyle = css`
   flex-wrap: wrap;
 
-  margin: 5px 0 0;
+  margin: 2px 0 0;
 
   ${typography.bodySmall};
   color: ${color.text.secondary};
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 
   strong {
@@ -188,18 +203,20 @@ const actionButtonStyle = css`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: ${radius.pill};
   cursor: pointer;
   user-select: none;
+  transition:
+    background-color ${duration.fast} ${easing.out},
+    color ${duration.fast} ${easing.out},
+    transform ${duration.fast} ${easing.out};
 
-  &::after {
-    position: absolute;
-    inset: -4px;
-    content: '';
+  &:active {
+    transform: scale(${pressScale});
   }
 `;
 
@@ -212,9 +229,11 @@ const detailButtonStyle = css`
     height: 22px;
   }
 
-  &:hover {
-    color: ${color.icon.brand};
-    background: ${color.background.brandSubtle};
+  @media (hover: hover) {
+    &:hover {
+      color: ${color.icon.brand};
+      background: ${color.background.brandSubtleHovered};
+    }
   }
 
   &:active {
@@ -223,20 +242,23 @@ const detailButtonStyle = css`
   }
 `;
 
-const directionsButtonStyle = css`
-  color: ${color.icon.inverse};
-  background: ${color.background.brand};
+/* 선택한 행만 채운 버튼으로 표시한다. 선택하지 않은 행도 한 번에 길찾기를 누를 수 있다. */
+const directionsButtonStyle = (isActive: boolean) => css`
+  color: ${isActive ? color.icon.inverse : color.icon.brand};
+  background: ${isActive ? color.background.brand : color.background.brandSubtle};
 
   svg {
     width: 18px;
     height: 18px;
   }
 
-  &:hover {
-    background: ${color.background.brandHovered};
+  @media (hover: hover) {
+    &:hover {
+      background: ${isActive ? color.background.brandHovered : color.background.brandSubtleHovered};
+    }
   }
 
   &:active {
-    background: ${color.background.brandPressed};
+    background: ${isActive ? color.background.brandPressed : color.background.brandSubtlePressed};
   }
 `;

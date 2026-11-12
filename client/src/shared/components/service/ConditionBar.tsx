@@ -3,6 +3,9 @@ import { css } from '@emotion/css';
 import { BackIcon } from '../ui/icons';
 import type { ReactNode, RefObject } from 'react';
 import { color } from '../../../theme/color';
+import { duration, easing } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 import { typography } from '../../../theme/typography';
 
 interface Props {
@@ -60,16 +63,16 @@ const headerStyle = css`
   pointer-events: auto;
 
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  column-gap: 8px;
+  column-gap: 4px;
 
-  min-height: 52px;
-  padding: 16px 22px;
+  min-height: 64px;
+  padding: 10px 20px 10px 8px;
 
   background: ${color.background.default};
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgb(16 27 55 / 10%);
+  border-radius: ${radius.lg};
+  box-shadow: ${shadow.floating};
 `;
 
 const backButtonStyle = css`
@@ -77,17 +80,25 @@ const backButtonStyle = css`
   align-items: center;
   justify-content: center;
 
-  width: 32px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
 
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: ${radius.sm};
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color ${duration.fast} ${easing.out};
 
-  &:hover {
-    background: ${color.background.subtle};
+  @media (hover: hover) {
+    &:hover {
+      background: ${color.background.subtle};
+    }
+  }
+
+  &:active {
+    background: ${color.background.pressed};
   }
 `;
 
@@ -119,8 +130,9 @@ const descriptionStyle = css`
   min-width: 0;
   margin: 0;
 
-  ${typography.body};
+  ${typography.bodySmall};
   color: ${color.text.secondary};
+  font-variant-numeric: tabular-nums;
 `;
 
 const descriptionRowStyle = css`

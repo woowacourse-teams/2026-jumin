@@ -4,6 +4,7 @@ import { parkingDetailFixtures } from '../fixtures/parkingDetails';
 import { getMockScenario } from '../scenario';
 import type { FieldError } from '../types/validationError';
 import { relocateParkingLocation } from '../utils/relocateParkingLocation';
+import { getGangnamParkingLotDetail } from '../utils/createGangnamParkingSearch';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
@@ -102,24 +103,35 @@ export const parkingDetailHandlers = [
     }
 
     const parkingLotId = Number(params.parkingLotId);
+    const destination = {
+      latitude: Number(url.searchParams.get('destinationLatitude')),
+      longitude: Number(url.searchParams.get('destinationLongitude')),
+    };
+    // 추천 목록의 실제 주차장은 추천 응답과 같은 계산으로 상세를 만든다.
+    const gangnamParkingLot = Number.isSafeInteger(parkingLotId)
+      ? getGangnamParkingLotDetail(parkingLotId, {
+          destination,
+          entryAt: url.searchParams.get('entryAt')!,
+          exitAt: url.searchParams.get('exitAt')!,
+        })
+      : null;
     const parkingLot = Number.isSafeInteger(parkingLotId)
       ? parkingDetailFixtures[parkingLotId]
       : undefined;
 
-    if (scenario === 'parking-detail-not-found' || !parkingLot) {
+    if (scenario === 'parking-detail-not-found' || (!gangnamParkingLot && !parkingLot)) {
       return createErrorResponse('주차장 정보를 찾을 수 없습니다.', 404);
     }
 
     await delay(scenario === 'parking-detail-slow' ? 2000 : 400);
 
-    const destination = {
-      latitude: Number(url.searchParams.get('destinationLatitude')),
-      longitude: Number(url.searchParams.get('destinationLongitude')),
-    };
+    if (gangnamParkingLot) {
+      return HttpResponse.json(gangnamParkingLot);
+    }
 
     return HttpResponse.json({
-      ...parkingLot,
-      location: relocateParkingLocation(parkingLot.location, destination),
+      ...parkingLot!,
+      location: relocateParkingLocation(parkingLot!.location, destination),
     });
   }),
 ];

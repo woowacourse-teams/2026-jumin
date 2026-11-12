@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 import { color } from '../../../theme/color';
+import { durationMs, easing } from '../../../theme/motion';
+import { shadow } from '../../../theme/shadow';
 
 export type BottomSheetSnap = 'collapsed' | 'medium' | 'full';
 
@@ -35,10 +37,11 @@ interface DragGesture {
 
 const bottomSheetTokens = {
   background: color.background.default,
-  radiusTop: 16,
-  shadow: '0 -4px 20px rgb(0 0 0 / 10%)',
+  /** radius.lg와 같은 값. 전체 높이에서 0으로 바꾸는 계산에 숫자가 필요해 px 숫자로 둔다. */
+  radiusTop: 28,
+  shadow: shadow.sheet,
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
     radius: 999,
     color: color.background.muted,
@@ -46,8 +49,16 @@ const bottomSheetTokens = {
     paddingBottom: 18,
   },
   content: { paddingX: 24, paddingBottomMin: 28 },
-  motion: { duration: 250, easing: 'ease-out' },
+  motion: {
+    duration: durationMs.slow,
+    easing: easing.sheet,
+    /** 닫힐 때는 천천히 출발해 내려가는 모습이 끝까지 보이게 한다. */
+    exitEasing: easing.inOut,
+  },
 } as const;
+
+/** 닫는 전환이 끝나는 시간(ms). 사용처가 이 시간 동안 시트를 마운트해 두면 닫힘이 끝까지 보인다. */
+export const BOTTOM_SHEET_TRANSITION_MS = bottomSheetTokens.motion.duration;
 
 interface Props {
   /** 생략하면 열린 시트로 표시한다. 닫는 전환 동안에는 마운트를 유지한다. */
@@ -318,16 +329,21 @@ const sheetStyle = css`
   background: ${bottomSheetTokens.background};
   border-radius: ${bottomSheetTokens.radiusTop}px ${bottomSheetTokens.radiusTop}px 0 0;
   box-shadow: ${bottomSheetTokens.shadow};
+  /* 닫힌 상태. 열릴 때는 화면 아래에서 올라오고, 닫힐 때는 화면 아래로 내려간다. */
+  --bottom-sheet-transform-easing: ${bottomSheetTokens.motion.exitEasing};
+
   transform: translate3d(0, calc(100% + 32px), 0);
   transition:
     height ${bottomSheetTokens.motion.duration}ms ${bottomSheetTokens.motion.easing},
-    transform ${bottomSheetTokens.motion.duration}ms ${bottomSheetTokens.motion.easing};
+    transform ${bottomSheetTokens.motion.duration}ms var(--bottom-sheet-transform-easing);
 
   &[data-open='true'] {
     pointer-events: auto;
   }
 
   &[data-open='true'][data-entered='true'] {
+    --bottom-sheet-transform-easing: ${bottomSheetTokens.motion.easing};
+
     transform: translate3d(0, 0, 0);
   }
 
