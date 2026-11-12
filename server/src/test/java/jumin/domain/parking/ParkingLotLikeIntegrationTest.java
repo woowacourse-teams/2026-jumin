@@ -18,6 +18,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import jumin.TestcontainersConfiguration;
+import jumin.domain.parking.repository.ViewportRepository;
+import jumin.domain.parking.model.ViewportDeadline;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -43,6 +47,12 @@ class ParkingLotLikeIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private ViewportRepository viewportRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactions;
 
     private Long lotId;
 
@@ -114,6 +124,30 @@ class ParkingLotLikeIntegrationTest {
         // 같은 지도 영역을 다시 조회하면 좋아요 취소 결과를 즉시 확인할 수 있다.
         assertState(send("DELETE", lotId, GUEST_ID), lotId, 0, false);
         assertViewportLike(lotId, GUEST_ID, false);
+    }
+
+    @Test
+    @DisplayName("게스트별 좋아요를 PostgreSQL에서 조회하고 게스트 선두 인덱스를 사용할 수 있다")
+    void reads_guest_likes_with_guest_leading_index() {
+        // UUID 파라미터와 게스트별 조회를 실제 드라이버·마이그레이션 환경에서 확인한다.
+        UUID guestId = UUID.randomUUID();
+        Long otherLotId = insertLot(true);
+        jdbc.update("insert into parking_likes (parking_lot_id, anonymous_id) values (?, ?), (?, ?)",
+                lotId, guestId, otherLotId, guestId);
+        assertThat(viewportRepository.findLikedParkingLotIds(guestId,
+                ViewportDeadline.after(Duration.ofSeconds(5)))).containsExactlyInAnyOrder(lotId, otherLotId);
+        assertThat(viewportRepository.findLikedParkingLotIds(UUID.randomUUID(),
+                ViewportDeadline.after(Duration.ofSeconds(5)))).isEmpty();
+
+        // 소규모 테스트 데이터의 순차 탐색 선호를 배제하고 인덱스 접근 가능성만 검증한다.
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            status.setRollbackOnly();
+            jdbc.execute("SET LOCAL enable_seqscan = off");
+            List<String> plan = jdbc.queryForList(
+                    "EXPLAIN SELECT parking_lot_id FROM parking_likes WHERE anonymous_id = ?",
+                    String.class, guestId);
+            assertThat(String.join("\n", plan)).contains("idx_parking_likes_anonymous_id_parking_lot_id");
+        });
     }
 
     private void assertViewportLike(Long parkingLotId, String guestId, boolean liked) throws Exception {

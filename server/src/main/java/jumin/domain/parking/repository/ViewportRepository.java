@@ -46,7 +46,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.support.SqlArrayValue;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -58,7 +57,7 @@ public class ViewportRepository {
 
     private static final String SELECT_LIKED_PARKING_LOTS_SQL = """
             SELECT parking_lot_id FROM parking_likes
-            WHERE anonymous_id = ? AND parking_lot_id = ANY (?)
+            WHERE anonymous_id = ?
             """;
 
     private static final String VIEWPORT_FIELDS = """
@@ -179,19 +178,19 @@ public class ViewportRepository {
         });
     }
 
-    public Set<Long> findLikedParkingLotIds(List<Long> parkingLotIds, UUID guestId, ViewportDeadline deadline) {
-        if (parkingLotIds.isEmpty()) {
-            return Set.of();
-        }
+    public Set<Long> findLikedParkingLotIds(UUID guestId, ViewportDeadline deadline) {
         return read("likes", deadline, () -> {
             metrics.count("sql", "likes", 1);
-            return jdbc.query(SELECT_LIKED_PARKING_LOTS_SQL, rows -> {
+            return jdbc.query(SELECT_LIKED_PARKING_LOTS_SQL, statement -> {
+                statement.setObject(1, guestId);
+                deadline.requireRemaining();
+            }, rows -> {
                 Set<Long> ids = new HashSet<>();
                 while (nextRow(rows, deadline)) {
                     ids.add(rows.getLong("parking_lot_id"));
                 }
                 return ids;
-            }, guestId, new SqlArrayValue("bigint", parkingLotIds.toArray()));
+            });
         });
     }
 

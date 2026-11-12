@@ -100,7 +100,7 @@ public class ViewportSearchService {
         // 공용 캐시는 변경하지 않고 목록 조회와 같은 기한·DB 실행 제한으로 개인 상태를 읽는다.
         deadline.requireRemaining();
         Set<Long> likedParkingLotIds = repository.findLikedParkingLotIds(
-                response.parkingLots().stream().map(ParkingLotViewportResponse::id).toList(), guestId, deadline
+                guestId, deadline
         );
         List<ParkingLotViewportResponse> rows = new ArrayList<>(response.parkingLots().size());
         for (ParkingLotViewportResponse row : response.parkingLots()) {

@@ -52,9 +52,9 @@ class ViewportPersonalizationTest {
     void personalizes_each_path_without_mutating_shared_data(String path) {
         try (Fixture fixture = new Fixture(path, false)) {
             UUID otherGuest = UUID.randomUUID();
-            when(fixture.repository.findLikedParkingLotIds(eq(List.of(1L, 2L)), eq(GUEST), any()))
+            when(fixture.repository.findLikedParkingLotIds(eq(GUEST), any()))
                     .thenReturn(Set.of(1L)).thenReturn(Set.of());
-            when(fixture.repository.findLikedParkingLotIds(eq(List.of(1L, 2L)), eq(otherGuest), any()))
+            when(fixture.repository.findLikedParkingLotIds(eq(otherGuest), any()))
                     .thenReturn(Set.of(2L));
 
             // 각 요청에서 저장소의 최신 상태를 읽고 목록 순서·좌표·점수는 유지한다.
@@ -76,7 +76,7 @@ class ViewportPersonalizationTest {
     void skips_likes_for_empty_results(String path) {
         try (Fixture fixture = new Fixture(path, true)) {
             assertThat(fixture.search(GUEST)).isEqualTo(ParkingLotViewportResponses.from(List.of()));
-            verify(fixture.repository, never()).findLikedParkingLotIds(anyList(), any(), any());
+            verify(fixture.repository, never()).findLikedParkingLotIds(any(), any());
         }
     }
 
@@ -89,8 +89,8 @@ class ViewportPersonalizationTest {
                 sourceDeadline.set(call.getArgument(3));
                 return fixture.shared;
             });
-            when(fixture.repository.findLikedParkingLotIds(anyList(), any(), any())).thenAnswer(call -> {
-                assertThat((ViewportDeadline) call.getArgument(2)).isSameAs(sourceDeadline.get());
+            when(fixture.repository.findLikedParkingLotIds(any(), any())).thenAnswer(call -> {
+                assertThat((ViewportDeadline) call.getArgument(1)).isSameAs(sourceDeadline.get());
                 throw ViewportFailureReason.DEADLINE.failure();
             });
 
@@ -99,7 +99,7 @@ class ViewportPersonalizationTest {
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
 
             // 좋아요 조회 실패 후에도 다음 조회는 정상 결과를 반환한다.
-            doReturn(Set.of()).when(fixture.repository).findLikedParkingLotIds(anyList(), any(), any());
+            doReturn(Set.of()).when(fixture.repository).findLikedParkingLotIds(any(), any());
             assertThat(fixture.service.search(REQUEST, GUEST)).isEqualTo(fixture.shared);
         }
     }
@@ -112,7 +112,7 @@ class ViewportPersonalizationTest {
             fixture.properties.setRequestTimeout(Duration.ofNanos(1));
             assertThatThrownBy(() -> fixture.service.search(REQUEST, GUEST))
                     .isInstanceOf(BusinessException.class);
-            verify(fixture.repository, never()).findLikedParkingLotIds(anyList(), any(), any());
+            verify(fixture.repository, never()).findLikedParkingLotIds(any(), any());
         }
     }
 
