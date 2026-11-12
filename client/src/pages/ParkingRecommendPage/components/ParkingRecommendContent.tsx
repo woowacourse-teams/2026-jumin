@@ -11,7 +11,6 @@ import { color } from '../../../theme/color';
 import { duration, durationMs, easing } from '../../../theme/motion';
 import { typography } from '../../../theme/typography';
 import type { RecommendationType } from '../types/recommendation';
-import { getRecommendationMessage } from '../utils/recommendationPolicy';
 import { InfoCard } from './InfoCard';
 import { InfoRow } from './InfoRow';
 
@@ -67,8 +66,6 @@ const useReorderTransition = (
 interface Props {
   parkingLots: ParkingLotSummary[];
   recommendedCount: number;
-  /** 카드의 도보 거리 막대가 기준으로 삼는 검색 반경(m). */
-  searchRadiusMeters: number;
   recommendationType: RecommendationType;
   selectedParkingLot: ParkingLotSummary | null;
   isActive: boolean;
@@ -82,7 +79,6 @@ interface Props {
 export const ParkingRecommendContent = ({
   parkingLots,
   recommendedCount,
-  searchRadiusMeters,
   recommendationType,
   selectedParkingLot,
   isActive,
@@ -180,8 +176,6 @@ export const ParkingRecommendContent = ({
                 <InfoCard
                   parkingLot={parkingLot}
                   rank={index + 1}
-                  searchRadiusMeters={searchRadiusMeters}
-                  description={getRecommendationMessage(recommendationType, index + 1)}
                   isActive={selectedParkingLot?.id === parkingLot.id}
                   onSelect={onSelect}
                   onNavigate={onDetail}

@@ -24,15 +24,3 @@ export const sortParkingLots = (parkingLots: ParkingLotSummary[], type: Recommen
 
     return firstValue - secondValue || firstDistance - secondDistance || first.id - second.id;
   });
-
-export const getRecommendationMessage = (type: RecommendationType, rank: number) => {
-  if (type === 'PRICE') {
-    return rank === 1 ? '설정한 조건에서 제일 저렴해요' : `가격이 ${rank}번째로 저렴해요`;
-  }
-
-  if (type === 'DISTANCE') {
-    return rank === 1 ? '목적지에서 가장 가까워요' : `목적지에서 ${rank}번째로 가까워요`;
-  }
-
-  return `거리와 가격의 균형 ${rank}위예요`;
-};

@@ -28,3 +28,5 @@ export {
 export { TiHome as HomeIcon } from 'react-icons/ti';
 
 export { MdMyLocation as MyLocation } from 'react-icons/md';
+
+export { FaWalking as WalkingIcon } from 'react-icons/fa';

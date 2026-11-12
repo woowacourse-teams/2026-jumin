@@ -35,14 +35,6 @@ export const color = {
     selected: palette.red600,
   },
 
-  /** 카드의 도보 거리 막대. 전체 길이는 검색 반경, 채운 길이는 주차장에서 목적지까지의 거리다. */
-  walkingDistance: {
-    track: palette.gray200,
-    bar: palette.gray600,
-    barSelected: palette.blue500,
-    destination: palette.red400,
-  },
-
   background: {
     default: palette.white,
     subtle: palette.gray50,
