@@ -14,8 +14,21 @@ route_file="$routing_dir/active.conf"
 proxy="jumin-nginx-$environment"
 trap 'rm -f "$snapshot"' EXIT
 
+warned=false
 echo 'Waiting for previous Nginx requests to finish.'
 while [[ "$route_file" -ef "$snapshot" ]]; do
+  if [[ "$warned" == false ]] && (( SECONDS >= 600 )); then
+    warned=true
+    release_dir="${BASH_SOURCE[0]%/*}"
+    warning="Previous Nginx requests have not drained after 10 minutes. release=${release_dir##*/} retained=$*"
+    printf '%s\n' "$warning" >&2
+    logger --journald <<EOF || echo 'Could not write the drain warning to the system journal.' >&2
+SYSLOG_IDENTIFIER=jumin-backend-drain
+PRIORITY=4
+MESSAGE=$warning
+EOF
+  fi
+
   exec 9<"$routing_dir"
   if ! flock -n 9; then
     exec 9<&-
@@ -37,9 +50,10 @@ while [[ "$route_file" -ef "$snapshot" ]]; do
       { [[ "$generation" != "$proxy_generation" ]] ||
         ! grep -Fxq -f <(printf '%s\n' "$old_pids") <(awk '{ print $1 }' <<< "$workers"); }; then
       # 컨테이너 ID를 고정해 같은 슬롯에 새로 생성한 컨테이너를 건드리지 않는다.
-      for container in "$@"; do
-        docker stop "$container" >/dev/null
-        echo "Stopped drained backend $container."
+      for retained in "$@"; do
+        container_id="${retained#*=}"
+        docker stop "$container_id" >/dev/null
+        echo "Stopped drained backend $container_id."
       done
       exit 0
     fi

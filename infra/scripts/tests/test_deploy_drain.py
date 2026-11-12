@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import unittest
 
@@ -19,17 +20,20 @@ class DrainCleanupTest(unittest.TestCase):
         self.route.write_text('~^ http://backend-blue:8080;\n')
         self.snapshot = self.root / 'drain-route.conf'
         os.link(self.route, self.snapshot)
+        self.monitor = self.fixture.old_release / 'drain-backend.sh'
+        shutil.copyfile(backend.REPOSITORY / 'infra/scripts/drain-backend.sh', self.monitor)
         self.fixture.state.update(
             route='backend-blue', worker=15, keep_old_worker=False,
             running=['jumin-nginx-prod', 'jumin-backend-prod', 'jumin-backend-prod-blue'],
         )
 
-    def run_monitor(self, old_pids='10', generation='jumin-nginx-prod generation-1'):
+    def run_monitor(self, old_pids='10', generation='jumin-nginx-prod generation-1',
+                    container='jumin-backend-prod'):
         self.fixture.state_file.write_text(json.dumps(self.fixture.state))
         return subprocess.run(
-            ['bash', str(backend.REPOSITORY / 'infra/scripts/drain-backend.sh'),
+            ['bash', str(self.monitor),
              'prod', str(self.fixture.release_root), str(self.snapshot), old_pids,
-             generation, 'jumin-backend-prod'],
+             generation, container],
             env=self.fixture.environment, capture_output=True, text=True, timeout=5,
         )
 
@@ -52,6 +56,40 @@ path.write_text(json.dumps(state))
         self.assertNotIn('jumin-backend-prod', state['running'])
         self.assertIn('jumin-backend-prod-blue', state['running'])
         self.assertFalse(self.snapshot.exists())
+
+    def test_warns_once_after_ten_minutes_and_stops_backend_only_after_drain(self):
+        # 경고 시점에도 워커가 남아 있고, 이후 두 번의 검사 사이에 요청이 끝난다.
+        self.fixture.state['keep_old_worker'] = True
+        clock = self.root / 'clock.sh'
+        clock.write_text('SECONDS=600\n')
+        self.fixture.environment['BASH_ENV'] = str(clock)
+        self.fixture.write_binary('logger', '#!/bin/sh\ncat >> "$TEST_ROOT/journal"\n')
+        self.fixture.write_binary('sleep', f'''#!{backend.sys.executable}
+import json
+from pathlib import Path
+root = Path({str(self.root)!r})
+state_path = root / 'state.json'
+state = json.loads(state_path.read_text())
+assert 'jumin-backend-prod' in state['running']
+first_poll = root / 'first-poll'
+if first_poll.exists():
+    state['keep_old_worker'] = False
+    state_path.write_text(json.dumps(state))
+first_poll.touch()
+''')
+
+        result = self.run_monitor(container='backend=jumin-backend-prod')
+
+        journal = self.root / 'journal'
+        self.assertTrue(journal.exists(), '드레인 지연 경고가 저널에 기록되어야 한다.')
+        entry = journal.read_text()
+        self.assertEqual(entry.count('SYSLOG_IDENTIFIER=jumin-backend-drain'), 1)
+        self.assertIn('PRIORITY=4\n', entry)
+        self.assertIn(f'release={self.monitor.parent.name}', entry)
+        self.assertIn('backend=jumin-backend-prod', entry)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        state = json.loads(self.fixture.state_file.read_text())
+        self.assertEqual(state['running'], ['jumin-nginx-prod', 'jumin-backend-prod-blue'])
 
     def test_new_route_generation_cancels_stale_cleanup_even_for_same_slot(self):
         # 같은 슬롯으로 다시 전환해도 원자 교체된 파일은 새 배포의 소유다.

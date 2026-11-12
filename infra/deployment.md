@@ -218,6 +218,9 @@ Nginx는 `proxy/backend-routing/active.conf`에 지정한 슬롯으로 요청을
 드레인이 60초를 넘기거나 전환 후 작업이 취소되면 릴리스의 `drain-backend.sh`가 정리를 이어갑니다.
 진행 상황은 해당 릴리스의 `drain.log`에서 확인합니다.
 모니터는 배포 잠금과 라우팅 세대를 확인하며, 다음 전환이 발생하면 종료합니다.
+감시 시작 후 10분이 지나면 릴리스와 정지 대기 중인 슬롯을 `drain.log`와 시스템 저널에 한 번 기록합니다.
+Grafana의 `Backend drain exceeded 10 minutes (prod)` 경고를 받으면 Loki의 `{environment="prod", service="backend-drain"}`에서 상세 정보를 확인합니다.
+감시는 경고 이후에도 요청 종료를 확인한 뒤 이전 슬롯을 정지합니다.
 보존 중인 이전 슬롯은 재부팅 시 자동 기동을 해제하고, 다시 활성화할 때 재시작 정책을 복원합니다.
 
 Alloy는 최초 단일 백엔드 전환 전에 준비하고, 이후에는 백엔드 배포 후 갱신합니다.

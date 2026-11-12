@@ -412,7 +412,7 @@ schedule_drain_cleanup() {
     container="$(container_for "$slot")"
     if [[ "$slot" != "$retained_active" ]] && running "$container"; then
       docker update --restart=no "$container" >/dev/null
-      containers+=("$(docker inspect --format '{{.Id}}' "$container")")
+      containers+=("$slot=$(docker inspect --format '{{.Id}}' "$container")")
     fi
   done
   # Runner의 종료 정리가 모니터를 종료하지 않게 하고 부모의 배포 잠금을 닫는다.

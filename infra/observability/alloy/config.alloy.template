@@ -4,6 +4,12 @@ loki.source.journal "backend" {
   forward_to = [loki.write.central.receiver]
 }
 
+loki.source.journal "backend_drain" {
+  matches    = "SYSLOG_IDENTIFIER=jumin-backend-drain PRIORITY=4"
+  labels     = { environment = "__ENV__", service = "backend-drain" }
+  forward_to = [loki.write.central.receiver]
+}
+
 loki.source.journal "nginx" {
   matches    = "CONTAINER_NAME=jumin-nginx-__ENV__"
   labels     = { environment = "__ENV__", service = "nginx" }
