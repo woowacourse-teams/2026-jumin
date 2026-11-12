@@ -202,6 +202,29 @@ class ParkingLotRepositoryTest {
     }
 
     @Test
+    @DisplayName("완전 일치와 접두사 일치를 먼저 배치하고 부분 일치는 이름순으로 최대 15건을 조회한다")
+    void ranks_exact_then_prefix_then_other_matches_before_limiting_results() {
+        // given
+        // 이름순으로 앞서는 부분 일치가 15건 제한을 채운다.
+        for (int index = 0; index < 15; index++) {
+            insertParkingLot("middle-" + index, "A%02d Parking".formatted(index), null, true, 37.5, 127.0);
+        }
+        insertParkingLot("middle-early-position", "B Parking", null, true, 37.5, 127.0);
+        insertParkingLot("prefix", "Parking Center", null, true, 37.5, 127.0);
+        insertParkingLot("exact", "Parking", null, true, 37.5, 127.0);
+
+        // when
+        List<ParkingLot> results = parkingLotRepository.findActiveByNameContaining("parking");
+
+        // then
+        assertThat(results).extracting(ParkingLot::getSourceExternalId)
+                .hasSize(15)
+                .startsWith("exact", "prefix", "middle-0", "middle-1")
+                .endsWith("middle-12")
+                .doesNotContain("middle-early-position");
+    }
+
+    @Test
     @DisplayName("이름이 일치하지 않으면 빈 목록을 반환한다")
     void returns_no_parking_lots_when_name_does_not_match() {
         // given

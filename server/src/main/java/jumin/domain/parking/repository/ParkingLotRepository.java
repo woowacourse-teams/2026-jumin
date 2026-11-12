@@ -17,7 +17,9 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
               and parking_lot.latitude between -90 and 90
               and parking_lot.longitude between -180 and 180
               and strpos(lower(parking_lot.name), lower(:query)) > 0
-            order by parking_lot.name, parking_lot.id
+            order by (lower(parking_lot.name) = lower(:query)) desc,
+                     (strpos(lower(parking_lot.name), lower(:query)) = 1) desc,
+                     parking_lot.name, parking_lot.id
             limit 15
             """, nativeQuery = true)
     List<ParkingLot> findActiveByNameContaining(@Param("query") String query);
