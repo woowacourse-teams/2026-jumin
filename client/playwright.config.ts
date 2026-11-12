@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './__tests__/e2e',
   fullyParallel: true,
+  workers: 1,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
@@ -14,7 +15,7 @@ export default defineConfig({
       longitude: 127.0279,
     },
     serviceWorkers: 'allow',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -26,8 +27,8 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
-      use: { browserName: 'chromium' },
+      name: 'chrome',
+      use: { browserName: 'chromium', channel: 'chrome' },
     },
   ],
 });

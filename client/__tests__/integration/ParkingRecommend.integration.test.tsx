@@ -261,6 +261,39 @@ it('드래그·관성·목적지 이름 조회 중 추천을 막고 최종 좌�
 });
 
 it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의 상세를 구분한다', async () => {
+  // 주차면 수와 잔여석의 양수, 0, null 표시는 공용 fixture의 숫자에 의존하지 않는다.
+  const detailCases = [
+    {
+      id: 101,
+      capacity: 87,
+      availableSpaces: 12,
+      capacityLabel: '87면',
+      availableSpacesLabel: '12대',
+    },
+    {
+      id: 102,
+      capacity: 56,
+      availableSpaces: 0,
+      capacityLabel: '56면',
+      availableSpacesLabel: '0대 (만차)',
+    },
+    {
+      id: 103,
+      capacity: null,
+      availableSpaces: null,
+      capacityLabel: '미제공',
+      availableSpacesLabel: '미제공',
+    },
+  ];
+  for (const { id, capacity, availableSpaces } of detailCases) {
+    server.use(
+      http.get(`/api/parking/${id}`, ({ request }) => {
+        detailRequests.push(new URL(request.url));
+        return HttpResponse.json({ ...parkingDetailFixtures[id], capacity, availableSpaces });
+      }),
+    );
+  }
+
   renderRecommendation();
   await screen.findByRole('region', { name: '주차장 전체 목록' });
   expect(detailRequests).toHaveLength(0);
@@ -268,18 +301,14 @@ it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의
   for (const [key, value] of Object.entries(condition)) {
     if (key !== 'destinationName') expect(searchParams.get(key)).toBe(String(value));
   }
-  for (const { id, capacityLabel, availableSpacesLabel } of [
-    { id: 101, capacityLabel: '42면', availableSpacesLabel: '8대' },
-    { id: 102, capacityLabel: '28면', availableSpacesLabel: '0대 (만차)' },
-    { id: 103, capacityLabel: '미제공', availableSpacesLabel: '미제공' },
-  ]) {
+  for (const { id, capacityLabel, availableSpacesLabel } of detailCases) {
     await openDetail(id);
-    await screen.findByText('기본 30분');
-    const detail = within(screen.getByRole('region', { name: '주차장 상세정보' }));
-    // 두 값 모두 null인 경우에도 각각의 행에 미제공을 표시한다.
-    const expectedCount = capacityLabel === availableSpacesLabel ? 2 : 1;
-    expect(detail.getAllByText(capacityLabel)).toHaveLength(expectedCount);
-    expect(detail.getAllByText(availableSpacesLabel)).toHaveLength(expectedCount);
+    const detail = within(await screen.findByRole('region', { name: '주차장 상세정보' }));
+    // 같은 '미제공'이 다른 필드에 나타나도 두 항목의 값만 검증한다.
+    const capacityRow = detail.getByText('총 주차면 수').parentElement!;
+    const availableRow = detail.getByText('잔여석').parentElement!;
+    expect(within(capacityRow).getByRole('definition').textContent).toBe(capacityLabel);
+    expect(within(availableRow).getByRole('definition').textContent).toBe(availableSpacesLabel);
     const request = detailRequests.at(-1)!;
     expect(request.pathname).toBe(`/api/parking/${id}`);
     for (const [key, value] of Object.entries(condition)) {
@@ -291,6 +320,31 @@ it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의
   expect(createMap).toHaveBeenCalledTimes(1);
 });
 
+// 검색 결과와 다른 상세 응답을 주어, 선택한 주차장의 상세 값이 화면에 반영되는지 확인한다.
+it('선택한 주차장의 상세 요금과 도보 거리를 응답값대로 표시한다', async () => {
+  // 공용 검색 fixture의 값과 구분되는 응답을 이 테스트에만 사용한다.
+  server.use(
+    http.get('/api/parking/101', () =>
+      HttpResponse.json({
+        ...parkingDetailFixtures[101],
+        estimatedFee: 12_340,
+        distanceMeters: 275,
+        walkingDurationMinutes: 4,
+      }),
+    ),
+  );
+
+  renderRecommendation();
+  await openDetail(101);
+
+  // 기대 문자열은 화면의 포맷 함수나 공용 fixture에서 계산하지 않는다.
+  const detail = within(await screen.findByRole('region', { name: '주차장 상세정보' }));
+  const feeRow = detail.getByText(/예상 요금/).parentElement!;
+  const walkingRow = detail.getByText('도보 거리').parentElement!;
+  expect(within(feeRow).getByText('12,340원', { exact: true })).toBeVisible();
+  expect(within(walkingRow).getByRole('definition')).toHaveTextContent(/^275m\(4분\)$/);
+});
+
 it('상세 왕복에서 목록 DOM·정렬·선택·추천 시트 상태를 유지한다', async () => {
   renderRecommendation();
   const region = await screen.findByRole('region', { name: '주차장 전체 목록' });
@@ -299,7 +353,7 @@ it('상세 왕복에서 목록 DOM·정렬·선택·추천 시트 상태를 유�
   const rows = within(region).getByRole('list');
   rows.scrollTop = 210;
   await openDetail(108);
-  await screen.findByText('기본 30분');
+  await screen.findByRole('region', { name: '주차장 상세정보' });
   expect(rows.isConnected).toBe(true); // 목록 DOM 유지는 이번 병합의 명시적인 계약이다.
   expect(screen.queryByRole('region', { name: '주차장 전체 목록' })).not.toBeInTheDocument();
   expect(markers.filter((marker) => marker.attached).map(({ options }) => options.title)).toEqual(
@@ -386,7 +440,7 @@ it('마커를 누르면 해당 목록 항목을 보이게 스크롤하고 상세
   expect(scroll).toHaveBeenLastCalledWith({ top: 350, behavior: 'auto' });
   expect(button).toHaveAttribute('aria-pressed', 'true');
   await openDetail(108);
-  await screen.findByText('기본 30분');
+  await screen.findByRole('region', { name: '주차장 상세정보' });
   scroll.mockClear();
   await closeDetail();
   expect(scroll).toHaveBeenLastCalledWith({ top: 350, behavior: 'auto' });
@@ -412,7 +466,7 @@ it.each(['/api/parking/101', '/api/parking/viewport/101'])(
       ),
     );
     await userEvent.setup().click(within(alert).getByRole('button', { name: '다시 시도' }));
-    await screen.findByText('기본 30분');
+    await screen.findByRole('region', { name: '주차장 상세정보' });
     await closeDetail();
     expect(await screen.findByRole('region', { name: '주차장 전체 목록' })).toBeInTheDocument();
   },
@@ -430,7 +484,7 @@ it('상세 로딩 중에도 추천으로 돌아와 다른 주차장을 열 수 �
   await screen.findByRole('status', { name: '주차장 상세정보를 불러오는 중' });
   await closeDetail();
   await openDetail(102);
-  await screen.findByText('기본 30분');
+  await screen.findByRole('region', { name: '주차장 상세정보' });
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(lot(102).name);
   await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
 });

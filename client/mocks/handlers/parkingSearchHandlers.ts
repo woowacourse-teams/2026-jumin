@@ -70,10 +70,6 @@ const validateParkingSearchRequest = (url: URL): FieldError[] => {
   const entryTime = Date.parse(entryAt);
   const exitTime = Date.parse(exitAt);
 
-  if (entryTime <= Date.now()) {
-    errors.push({ field: 'entryAt', message: '입차 시각은 현재보다 이후여야 합니다.' });
-  }
-
   if (exitTime <= entryTime) {
     errors.push({ field: 'exitAt', message: '출차 시각은 입차 시각보다 이후여야 합니다.' });
   } else if (exitTime - entryTime > 24 * 60 * 60 * 1000) {

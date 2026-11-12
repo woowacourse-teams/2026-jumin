@@ -15,7 +15,9 @@
     "test:parking-markers": "node --experimental-strip-types --test __tests__/unit/map/parkingMarker.test.mjs __tests__/unit/map/parkingMarkerPolicy.test.mjs",
     "test:webpack-config": "node --test __tests__/unit/config/webpackConfig.test.mjs",
     "test:dependency-security": "node --test __tests__/unit/config/dependencySecurity.test.mjs",
-    "check": "pnpm typecheck && pnpm test:integration && pnpm test:deep-link && pnpm test:parking-markers && pnpm test:webpack-config && pnpm test:dependency-security && eslint . && prettier --check .",
+    "test:affected-selection": "node --test __tests__/unit/config/selectAffectedTests.test.mjs",
+    "test:unit": "node scripts/run-unit-tests.mjs",
+    "check": "pnpm typecheck && pnpm test:integration && pnpm test:unit && eslint . && prettier --check .",
     "storybook": "storybook dev --port 6006 --no-open",
     "build-storybook": "storybook build"
   },

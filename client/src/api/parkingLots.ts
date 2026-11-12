@@ -95,7 +95,10 @@ export const getParkingLotsInViewport = async (
   if (params.excludeMechanical) searchParams.set('excludeMechanical', 'true');
   if (params.isPublic) searchParams.set('isPublic', 'true');
 
-  const response = await request(`/api/parking/viewport?${searchParams}`, { signal });
+  const response = await request(`/api/parking/viewport?${searchParams}`, {
+    signal,
+    headers: { 'X-Guest-Id': getGuestId() },
+  });
 
   return parseApiResponse(response, parkingLotViewportResponseSchema);
 };
