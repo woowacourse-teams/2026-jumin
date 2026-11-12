@@ -39,11 +39,6 @@ export const parkingLotSummarySchema = z.object({
   estimatedFee: z.number().nullable(),
   balancedScore: z.number().nullable(),
   availabilityStatus: availabilityStatusSchema,
-  /**
-   * 주차장에서 목적지까지 걷는 경로의 좌표(주차장 → 목적지 순서).
-   * 서버가 아직 내려주지 않을 수 있어 선택 필드로 둔다. 없으면 지도에 경로를 그리지 않는다.
-   */
-  walkingRoute: z.array(locationSchema).nullable().optional(),
 });
 
 export const parkingSearchSchema = z.object({

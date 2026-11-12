@@ -144,7 +144,7 @@ test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => 
 
   const detail = page.getByRole('region', { name: '주차장 상세정보', exact: true });
   await expect(detail.getByText(cardFee === '요금 정보 없음' ? '미제공' : cardFee!)).toBeVisible();
-  await expect(detail.getByText('94m(2분)')).toBeVisible();
+  await expect(detail.getByText('95m(2분)')).toBeVisible();
   await expect(detail.getByText('평일 08:00 – 20:00')).toBeVisible();
 });
 

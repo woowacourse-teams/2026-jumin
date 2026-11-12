@@ -4,7 +4,6 @@ import type {
   ParkingLotSummary,
 } from '../../src/api/contracts';
 import { gangnamStationParkingLots } from '../fixtures/gangnamStationParkingLots';
-import { createMockWalkingRoute } from './createMockWalkingRoute';
 
 type Coordinates = ParkingLotSummary['location'];
 type SourceParkingLot = (typeof gangnamStationParkingLots)[number];
@@ -44,10 +43,26 @@ const getDistanceMeters = (from: Coordinates, to: Coordinates) => {
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a));
 };
 
-const getRouteLength = (route: Coordinates[]) =>
-  route
-    .slice(1)
-    .reduce((sum, coordinate, index) => sum + getDistanceMeters(route[index]!, coordinate), 0);
+const METERS_PER_LATITUDE_DEGREE = 111_320;
+/**
+ * 강남역 일대의 격자 도로 방향. 테헤란로는 동쪽에서 북쪽으로 약 21도 기울어 있고,
+ * 강남대로는 그와 직각이다.
+ */
+const GRID_ANGLE_RADIANS = toRadians(21);
+
+/**
+ * 격자 도로를 따라 걷는다고 보고 계산한 도보 거리(m).
+ * 실제 보행 네트워크 대신, 두 지점의 차이를 도로 두 방향으로 나눠 더한다.
+ */
+const getGridWalkingDistance = (from: Coordinates, to: Coordinates) => {
+  const east =
+    (to.longitude - from.longitude) * METERS_PER_LATITUDE_DEGREE * Math.cos(toRadians(to.latitude));
+  const north = (to.latitude - from.latitude) * METERS_PER_LATITUDE_DEGREE;
+  const along = east * Math.cos(GRID_ANGLE_RADIANS) + north * Math.sin(GRID_ANGLE_RADIANS);
+  const across = -east * Math.sin(GRID_ANGLE_RADIANS) + north * Math.cos(GRID_ANGLE_RADIANS);
+
+  return Math.abs(along) + Math.abs(across);
+};
 
 /**
  * 목적지 주변에 실제 주차장이 없으면(강남역 일대가 아니면) 주차장 전체를 목적지 쪽으로 옮긴다.
@@ -195,9 +210,7 @@ const evaluateParkingLot = (
     latitude: source.latitude + offset.latitude,
     longitude: source.longitude + offset.longitude,
   };
-  const walkingRoute = createMockWalkingRoute(source.id, location, destination);
-  // 지도에 그리는 경로의 길이를 그대로 도보 거리로 쓴다.
-  const distanceMeters = Math.round(getRouteLength(walkingRoute));
+  const distanceMeters = Math.round(getGridWalkingDistance(location, destination));
   const entryTime = Date.parse(entryAt);
   const exitTime = Date.parse(exitAt);
   const durationMinutes = Math.round((exitTime - entryTime) / 60_000);
@@ -221,7 +234,6 @@ const evaluateParkingLot = (
         durationMinutes,
       ),
       availabilityStatus,
-      walkingRoute,
     },
   };
 };
@@ -238,7 +250,7 @@ const evaluateNearbyParkingLots = (condition: MockSearchCondition) => {
 
 /**
  * 홈 지도의 실제 주차장(강남역 일대 CSV) 중 목적지에서 가까운 최대 15곳을 추천 응답으로 만든다.
- * 도보 거리는 목 도보 경로의 길이이고, 요금·운영 여부·균형 점수는 서버 규칙을 따른다.
+ * 도보 거리는 격자 도로를 따라 걷는 거리로 근사하고, 요금·운영 여부·균형 점수는 서버 규칙을 따른다.
  */
 export const searchGangnamParkingLots = (condition: MockSearchCondition): ParkingLotSummary[] =>
   evaluateNearbyParkingLots(condition).map(({ summary }) => summary);

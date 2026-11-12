@@ -106,10 +106,6 @@ beforeEach(() => {
         Circle: class {
           setMap() {}
         },
-        Polyline: class {
-          setMap() {}
-          setPath() {}
-        },
         Event: {
           addListener: (target: unknown, name: string, callback: () => void) => {
             const listener = { target, name, callback };

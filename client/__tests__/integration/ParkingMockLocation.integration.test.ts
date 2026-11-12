@@ -26,18 +26,6 @@ describe('홈 지도의 실제 주차장으로 만든 추천 mock', () => {
     }
   });
 
-  it('도보 거리는 지도에 그리는 도보 경로의 시작과 끝을 따른다', async () => {
-    const response = await searchParkingLots(searchCondition);
-
-    for (const { location, walkingRoute } of response.parkingLots) {
-      expect(walkingRoute?.[0]).toEqual(location);
-      expect(walkingRoute?.at(-1)).toEqual({
-        latitude: searchCondition.destinationLatitude,
-        longitude: searchCondition.destinationLongitude,
-      });
-    }
-  });
-
   it('주변에 실제 주차장이 없는 목적지에는 같은 주차장을 목적지 주변으로 옮겨 추천한다', async () => {
     const response = await searchParkingLots({ ...searchCondition, ...movedDestination });
 

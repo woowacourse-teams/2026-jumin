@@ -24,7 +24,6 @@ class MockOverlay {
   setMap() {}
   setIcon() {}
   setOptions() {}
-  setPath() {}
 }
 
 const MAP_TOP = 100;
@@ -46,7 +45,6 @@ beforeEach(() => {
         Size: MockPoint,
         Marker: MockOverlay,
         Circle: MockOverlay,
-        Polyline: MockOverlay,
         Event: {
           addListener: (target: unknown, name: string, callback: () => void) => {
             const listener = { target, callback };
