@@ -196,16 +196,17 @@ nginx_workers() {
 }
 
 wait_for_workers() {
-  local old_workers="$1" current_workers attempt
+  local old_workers="$1" max_attempts="${2:-60}" current_workers attempt
   local old_pids
   old_pids="$(awk '{ print $1 }' <<< "$old_workers")"
   # 기존 요청을 기다리되 배포 작업이 무기한 대기하지 않게 한다.
-  for (( attempt=1; attempt<=60; attempt++ )); do
+  for (( attempt=1; attempt<=max_attempts; attempt++ )); do
     current_workers="$(nginx_workers)" || return 1
     if [[ "$current_workers" != *"is shutting down"* ]] &&
       ! grep -Fxq -f <(printf '%s\n' "$old_pids") <(awk '{ print $1 }' <<< "$current_workers"); then
       return 0
     fi
+    (( attempt < max_attempts )) || break
     sleep 1
   done
   return 1
@@ -473,7 +474,7 @@ cleanup() {
   fi
 
   if [[ "$route_changed" == true && "$proxy_running" == true ]]; then
-    if wait_for_workers "$workers"; then
+    if wait_for_workers "$workers" 1; then
       stop_inactive_backends "$active" || echo 'Could not stop an inactive backend.' >&2
     elif [[ -z "$previous_route" ]]; then
       cat >&2 <<EOF

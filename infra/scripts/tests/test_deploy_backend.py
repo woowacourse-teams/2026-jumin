@@ -275,24 +275,16 @@ class BackendDeploymentTest(unittest.TestCase):
         self.assertIn('docker start jumin-backend-prod\n', self.calls.read_text())
         self.assertNotIn('docker compose', self.calls.read_text())
 
-    def assert_cancelled_deployment_keeps_drain_cleanup(self, signal_name, expected_exit):
+    def run_workflow_deployment(self):
         # Runner처럼 workflow 진입 PID에 신호를 보내 배포 셸까지 전달되는지 확인한다.
         workflow = (REPOSITORY / '.github/workflows/server-prod-cd.yml').read_text()
         step = workflow.split('      - name: Deploy backend with Docker Compose\n', 1)[1].split('\n      - name:', 1)[0]
         run = next(line.removeprefix('        run: ') for line in step.splitlines() if line.startswith('        run: '))
         entrypoint = self.root / 'workflow-step.sh'
         entrypoint.write_text(f'export TEST_STEP_PID=$$\n{run}\n')
-        self.state['keep_old_worker'] = True
-        self.environment['TEST_CANCEL_SIGNAL'] = signal_name
-        self.write_binary('sleep', f'''#!{sys.executable}
-import json, os, signal
-from pathlib import Path
-root = Path(os.environ["TEST_ROOT"])
-state = json.loads((root / "state.json").read_text())
-if state["route"] == "backend-blue" and not (root / "cancel-sent").exists():
-    (root / "cancel-sent").touch()
-    os.kill(int(os.environ["TEST_STEP_PID"]), getattr(signal, "SIG" + os.environ["TEST_CANCEL_SIGNAL"]))
-''')
+        return self.run_deployment(command=['bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', str(entrypoint)])
+
+    def record_drain_monitor_arguments(self):
         # 실제 백그라운드 모니터에 넘긴 인수를 기록해 부모 종료 후 재실행한다.
         self.write_binary('nohup', f'''#!{sys.executable}
 import json, os, sys
@@ -303,15 +295,7 @@ temporary.write_text(json.dumps(sys.argv[1:]))
 temporary.replace(root / "drain-args.json")
 ''')
 
-        result = self.run_deployment(command=['bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', str(entrypoint)])
-
-        self.assertEqual(result.returncode, expected_exit, result.stderr)
-        self.assertEqual(self.state['route'], 'backend-blue')
-        self.assertEqual(self.current.resolve().name, RELEASE_ID)
-        self.assertIn('jumin-backend-prod', self.state['running'])
-        self.assertIn('jumin-backend-prod-blue', self.state['running'])
-        self.assertIn('docker update --restart=no jumin-backend-prod\n', self.calls.read_text())
-        self.assertNotIn('docker stop jumin-backend-prod\n', self.calls.read_text())
+    def finish_drain_after_cancellation(self):
         arguments_file = self.root / 'drain-args.json'
         for _ in range(100):
             if arguments_file.exists():
@@ -327,7 +311,32 @@ temporary.replace(root / "drain-args.json")
             capture_output=True, text=True, timeout=5,
         )
         self.assertEqual(monitor.returncode, 0, monitor.stderr)
-        state = json.loads(self.state_file.read_text())
+        return json.loads(self.state_file.read_text())
+
+    def assert_cancelled_deployment_keeps_drain_cleanup(self, signal_name, expected_exit):
+        self.state['keep_old_worker'] = True
+        self.environment['TEST_CANCEL_SIGNAL'] = signal_name
+        self.write_binary('sleep', f'''#!{sys.executable}
+import json, os, signal
+from pathlib import Path
+root = Path(os.environ["TEST_ROOT"])
+state = json.loads((root / "state.json").read_text())
+if state["route"] == "backend-blue" and not (root / "cancel-sent").exists():
+    (root / "cancel-sent").touch()
+    os.kill(int(os.environ["TEST_STEP_PID"]), getattr(signal, "SIG" + os.environ["TEST_CANCEL_SIGNAL"]))
+''')
+        self.record_drain_monitor_arguments()
+
+        result = self.run_workflow_deployment()
+
+        self.assertEqual(result.returncode, expected_exit, result.stderr)
+        self.assertEqual(self.state['route'], 'backend-blue')
+        self.assertEqual(self.current.resolve().name, RELEASE_ID)
+        self.assertIn('jumin-backend-prod', self.state['running'])
+        self.assertIn('jumin-backend-prod-blue', self.state['running'])
+        self.assertIn('docker update --restart=no jumin-backend-prod\n', self.calls.read_text())
+        self.assertNotIn('docker stop jumin-backend-prod\n', self.calls.read_text())
+        state = self.finish_drain_after_cancellation()
         self.assertEqual(state['running'], ['jumin-nginx-prod', 'jumin-backend-prod-blue'])
 
     def test_sigterm_after_commit_preserves_cleanup_and_current_route(self):
@@ -335,6 +344,37 @@ temporary.replace(root / "drain-args.json")
 
     def test_sigint_after_commit_preserves_cleanup_and_current_route(self):
         self.assert_cancelled_deployment_keeps_drain_cleanup('INT', 130)
+
+    def test_cancel_before_commit_restores_route_and_hands_off_drain(self):
+        first_deployment = self.run_deployment()
+        self.assertEqual(first_deployment.returncode, 0, first_deployment.stderr)
+        self.calls.unlink()
+        self.environment['GITHUB_RUN_ATTEMPT'] = '2'
+        self.state.update(keep_old_worker=True, hung_health='backend-green')
+        self.record_drain_monitor_arguments()
+        # 후보 헬스 확인 중 취소하고, 복구 뒤 셸이 드레인 대기에 들어가면 Runner의 강제 종료를 재현한다.
+        self.write_binary('sleep', f'''#!{sys.executable}
+import json, os, signal
+from pathlib import Path
+root = Path(os.environ['TEST_ROOT'])
+route = json.loads((root / 'state.json').read_text())['route']
+cancel_sent = root / 'cancel-sent'
+pid = int(os.environ['TEST_STEP_PID'])
+if route == 'backend-green' and not cancel_sent.exists():
+    cancel_sent.touch()
+    os.kill(pid, signal.SIGINT)
+elif route == 'backend-blue' and cancel_sent.exists():
+    os.kill(pid, signal.SIGKILL)
+''')
+
+        result = self.run_workflow_deployment()
+
+        self.assertEqual(result.returncode, 130, result.stderr)
+        self.assertEqual(self.state['route'], 'backend-blue')
+        self.assertEqual(self.current.resolve().name, RELEASE_ID)
+        self.assertIn('jumin-backend-prod-green', self.state['running'])
+        state = self.finish_drain_after_cancellation()
+        self.assertEqual(state['running'], ['jumin-nginx-prod', 'jumin-backend-prod-blue'])
 
     def test_manual_rollback_reuses_target_with_inflight_requests(self):
         # 이전 요청이 살아 있어도 이미 실행 중인 이전 슬롯을 바로 사용할 수 있다.
