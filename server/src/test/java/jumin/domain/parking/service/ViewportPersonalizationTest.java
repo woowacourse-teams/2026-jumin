@@ -81,6 +81,34 @@ class ViewportPersonalizationTest {
     }
 
     @Test
+    @DisplayName("좋아요가 없거나 화면 밖에만 있으면 목록을 복제하지 않고 원래 응답을 반환한다")
+    void reuses_response_without_visible_likes() {
+        // 새 DTO·목록을 만들 필요가 없는 두 경우를 구분하여 확인한다.
+        try (Fixture fixture = new Fixture("fallback", false)) {
+            when(fixture.repository.findLikedParkingLotIds(eq(GUEST), any()))
+                    .thenReturn(Set.of()).thenReturn(Set.of(99L));
+            assertThat(fixture.search(GUEST)).isSameAs(fixture.shared);
+            assertThat(fixture.search(GUEST)).isSameAs(fixture.shared);
+        }
+    }
+
+    @Test
+    @DisplayName("좋아요한 행만 새로 만들고 나머지 불변 DTO와 공용 응답은 재사용한다")
+    void copies_only_liked_rows() {
+        try (Fixture fixture = new Fixture("fallback", false)) {
+            when(fixture.repository.findLikedParkingLotIds(eq(GUEST), any())).thenReturn(Set.of(1L));
+            var response = fixture.search(GUEST);
+
+            // 목록의 순서와 값은 유지하되 사용자 상태가 바뀐 행만 별도 객체로 만든다.
+            assertThat(response.parkingLots().get(0)).isNotSameAs(fixture.shared.parkingLots().get(0));
+            assertThat(response.parkingLots().get(0).likedByMe()).isTrue();
+            assertThat(response.parkingLots().get(1)).isSameAs(fixture.shared.parkingLots().get(1));
+            assertThat(fixture.shared.parkingLots()).allMatch(row -> !row.likedByMe());
+            assertThat(response.totalCount()).isEqualTo(fixture.shared.totalCount());
+        }
+    }
+
+    @Test
     @DisplayName("지도 조회와 좋아요 조회는 같은 기한을 공유하고 실패 후 재조회할 수 있다")
     void shares_deadline_and_recovers_after_likes_failure() {
         try (Fixture fixture = new Fixture("fallback", false)) {

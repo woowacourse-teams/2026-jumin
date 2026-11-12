@@ -102,13 +102,25 @@ public class ViewportSearchService {
         Set<Long> likedParkingLotIds = repository.findLikedParkingLotIds(
                 guestId, deadline
         );
-        List<ParkingLotViewportResponse> rows = new ArrayList<>(response.parkingLots().size());
-        for (ParkingLotViewportResponse row : response.parkingLots()) {
+        if (likedParkingLotIds.isEmpty()) {
+            return response;
+        }
+        List<ParkingLotViewportResponse> rows = null;
+        for (int index = 0; index < response.parkingLots().size(); index++) {
             deadline.requireRemaining();
-            rows.add(new ParkingLotViewportResponse(row.id(), row.latitude(), row.longitude(), row.score(),
-                    likedParkingLotIds.contains(row.id())));
+            ParkingLotViewportResponse row = response.parkingLots().get(index);
+            if (!likedParkingLotIds.contains(row.id())) {
+                continue;
+            }
+            if (rows == null) {
+                rows = new ArrayList<>(response.parkingLots());
+            }
+            rows.set(index, new ParkingLotViewportResponse(row.id(), row.latitude(), row.longitude(), row.score(), true));
         }
         deadline.requireRemaining();
+        if (rows == null) {
+            return response;
+        }
         return ParkingLotViewportResponses.from(rows);
     }
 
