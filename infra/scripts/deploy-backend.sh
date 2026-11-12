@@ -399,7 +399,8 @@ if [[ "$proxy_running" == true && -z "$rollback_target" ]]; then
 fi
 
 schedule_drain_cleanup() {
-  local retained_active="${1:-$target}" snapshot monitor slot container
+  local retained_active="$1" workers="$2" workers_generation="$3"
+  local snapshot monitor slot container
   local containers=()
   snapshot="$(mktemp "$routing_dir/.drain-route.XXXXXX")"
   # 하드 링크로 이번 전환의 inode를 보존해 이후 같은 슬롯으로 돌아와도 구분한다.
@@ -433,7 +434,7 @@ cleanup() {
     # 전환 후 대기 중 취소돼도 원래 워커 정보를 별도 모니터에 전달한다.
     if [[ "$previous_cleanup_pending" == true ]]; then
       if [[ "$proxy_running" == true ]]; then
-        schedule_drain_cleanup
+        schedule_drain_cleanup "$target" "$workers" "$workers_generation"
       else
         stop_inactive_backends "$target" || echo 'Could not stop an inactive backend.' >&2
       fi
@@ -485,7 +486,7 @@ Confirm there are no Nginx workers marked 'is shutting down'.
 Then run docker stop $candidate before retrying the deployment.
 EOF
     else
-      schedule_drain_cleanup "$active"
+      schedule_drain_cleanup "$active" "$workers" "$workers_generation"
       echo 'Rollback restored. Cleanup is monitoring the retained backends.' >&2
     fi
     return
@@ -545,7 +546,7 @@ if [[ "$proxy_running" == true ]]; then
       echo 'Could not stop an inactive backend.' >&2
     fi
   else
-    schedule_drain_cleanup
+    schedule_drain_cleanup "$target" "$workers" "$workers_generation"
     previous_cleanup_pending=false
     echo 'Previous Nginx workers have not drained. Cleanup is monitoring the retained backends.' >&2
   fi
