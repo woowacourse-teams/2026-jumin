@@ -13,7 +13,6 @@ export default defineConfig({
     geolocation: {
       latitude: 37.4981,
       longitude: 127.0279,
-      accuracy: 1,
     },
     serviceWorkers: 'allow',
     trace: 'retain-on-failure',
