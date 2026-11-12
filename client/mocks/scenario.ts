@@ -3,6 +3,7 @@ export type MockScenario =
   | 'destination-empty'
   | 'destination-rate-limited'
   | 'destination-failed'
+  | 'destination-unavailable'
   | 'parking-empty'
   | 'parking-slow'
   | 'parking-server-error'
@@ -19,6 +20,7 @@ const scenarios = new Set<MockScenario>([
   'destination-empty',
   'destination-rate-limited',
   'destination-failed',
+  'destination-unavailable',
   'parking-empty',
   'parking-slow',
   'parking-server-error',

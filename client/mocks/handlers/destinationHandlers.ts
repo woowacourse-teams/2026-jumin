@@ -1,6 +1,6 @@
 import { delay, http, HttpResponse } from 'msw';
 import type { DestinationNameResponse, DestinationSearchResponse } from '../../src/api/contracts';
-import { destinationFixtures } from '../fixtures/destinations';
+import { destinationFixtures, parkingLotSearchFixtures } from '../fixtures/destinations';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
 
@@ -55,23 +55,13 @@ export const destinationHandlers = [
 
     await delay(300);
 
-    if (scenario === 'destination-rate-limited') {
-      return HttpResponse.json<ValidationErrorResponse>(
-        {
-          message: '목적지 검색 요청이 너무 많습니다.',
-          errors: [],
-        },
-        { status: 429 },
-      );
-    }
-
-    if (scenario === 'destination-failed') {
+    if (scenario === 'destination-unavailable') {
       return HttpResponse.json<ValidationErrorResponse>(
         {
           message: '일시적으로 목적지 검색을 이용할 수 없습니다.',
           errors: [],
         },
-        { status: 502 },
+        { status: 503 },
       );
     }
 
@@ -81,13 +71,27 @@ export const destinationHandlers = [
         value?.toLowerCase().includes(normalizedQuery),
       ),
     );
+    const matchedParkingLots = parkingLotSearchFixtures
+      .filter((parkingLot) => parkingLot.name.toLowerCase().includes(normalizedQuery))
+      .sort((first, second) => {
+        const firstStartsWithQuery = first.name.toLowerCase().startsWith(normalizedQuery);
+        const secondStartsWithQuery = second.name.toLowerCase().startsWith(normalizedQuery);
+        if (firstStartsWithQuery !== secondStartsWithQuery) return firstStartsWithQuery ? -1 : 1;
+        return (
+          first.name.localeCompare(second.name, 'ko') || first.parkingLotId - second.parkingLotId
+        );
+      })
+      .slice(0, 15);
 
     const response: DestinationSearchResponse = {
       query,
       destinations:
-        scenario === 'destination-empty'
+        scenario === 'destination-empty' ||
+        scenario === 'destination-rate-limited' ||
+        scenario === 'destination-failed'
           ? []
           : matchedDestinations.map((destination) => ({ ...destination, provider: 'KAKAO' })),
+      parkingLots: scenario === 'destination-empty' ? [] : matchedParkingLots,
     };
 
     return HttpResponse.json(response);

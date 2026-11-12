@@ -12,12 +12,21 @@ export const destinationSchema = z.object({
   longitude: z.number(),
 });
 
+export const parkingLotSearchResultSchema = z.object({
+  parkingLotId: z.number(),
+  name: z.string(),
+  address: z.string().nullable(),
+  latitude: z.number(),
+  longitude: z.number(),
+});
+
 /**
  * 1. 목적지 검색 후보 응답
  */
 export const destinationSearchSchema = z.object({
   query: z.string(),
   destinations: z.array(destinationSchema),
+  parkingLots: z.array(parkingLotSearchResultSchema),
 });
 
 /**

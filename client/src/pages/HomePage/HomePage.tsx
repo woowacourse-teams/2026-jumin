@@ -1,9 +1,9 @@
 import { Row } from '../../shared/components/ui/Row';
 import { Notice } from '../../shared/components/ui/Notice';
-import { useOutletContext } from 'react-router';
+import { useOutletContext, useSearchParams } from 'react-router';
 import { css } from '@emotion/css';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
@@ -23,6 +23,7 @@ import { useBottomSheet } from '../../shared/hooks/useBottomSheet';
 import { useLingeringValue } from '../../shared/hooks/useLingeringValue';
 import { BOTTOM_SHEET_TRANSITION_MS } from '../../shared/components/ui/BottomSheet';
 import { buildQueryString } from '../../shared/hooks/useQueryParams';
+import { parseCoordinates } from '../../shared/utils/parseCoordinates';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -48,11 +49,28 @@ interface MapLocation {
 export const HomePage = () => {
   const { move } = useStepNavigation('home');
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
-  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchParkingLotId = Number(searchParams.get('parkingLotId'));
+  const searchParkingLotCoordinates = parseCoordinates(
+    searchParams.get('lat'),
+    searchParams.get('lng'),
+  );
+  const parkingLotFromSearch =
+    Number.isSafeInteger(searchParkingLotId) &&
+    searchParkingLotId > 0 &&
+    searchParkingLotCoordinates
+      ? { id: searchParkingLotId, ...searchParkingLotCoordinates }
+      : null;
+  const parkingLatitude = parkingLotFromSearch?.latitude;
+  const parkingLongitude = parkingLotFromSearch?.longitude;
+  const [selectedParkingLot, setSelectedParkingLot] = useState<Pick<
+    ParkingLotViewport,
+    'id' | 'latitude' | 'longitude'
+  > | null>(parkingLotFromSearch);
   const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
-  const sheet = useBottomSheet();
+  const sheet = useBottomSheet({ initialIsOpen: parkingLotFromSearch !== null });
   const { close, setSnap, open } = sheet;
   // 선택이 풀려도 시트가 닫히는 전환이 끝날 때까지는 패널을 남겨 둔다.
   const displayedParkingLot = useLingeringValue(selectedParkingLot, BOTTOM_SHEET_TRANSITION_MS);
@@ -60,7 +78,14 @@ export const HomePage = () => {
   const clearParkingSelection = useCallback(() => {
     close();
     setSelectedParkingLot(null);
-  }, [close]);
+    if (searchParams.has('parkingLotId')) setSearchParams({}, { replace: true });
+  }, [close, searchParams, setSearchParams]);
+
+  useLayoutEffect(() => {
+    if (!map || parkingLatitude === undefined || parkingLongitude === undefined) return;
+    map.setZoom(15);
+    map.setCenter(new naver.maps.LatLng(parkingLatitude, parkingLongitude));
+  }, [map, parkingLatitude, parkingLongitude]);
 
   const collapseBottomSheet = useCallback(() => {
     setSnap('collapsed');
