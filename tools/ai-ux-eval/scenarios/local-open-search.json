@@ -1,0 +1,6 @@
+{
+  "id": "local-open-search",
+  "description": "로컬 주민 홈에서 목적지 검색 화면 열기",
+  "goal": "화면을 이용해 목적지 검색 화면을 여세요.",
+  "verification": "local-search"
+}

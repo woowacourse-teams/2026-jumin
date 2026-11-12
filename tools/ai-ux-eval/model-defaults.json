@@ -1,0 +1,9 @@
+{
+  "model": "qwen2.5:7b",
+  "options": {
+    "temperature": 0,
+    "num_ctx": 4096,
+    "num_predict": 256
+  },
+  "think": false
+}

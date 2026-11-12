@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>가상 주차장 찾기</title>
+  </head>
+  <body>
+    <main>
+      <h1>가상 주차장 찾기</h1>
+      <section id="search-view" hidden>
+        <p id="history"></p>
+        <form id="search-form">
+          <label for="destination">목적지</label>
+          <input id="destination" name="destination" type="text" />
+          <button type="submit">주차장 검색</button>
+        </form>
+      </section>
+      <section id="missing-view" hidden>
+        <p id="missing-message">검색 기록이 없습니다. 먼저 목적지를 검색해 주세요.</p>
+        <a href="/">검색 화면으로 이동</a>
+      </section>
+      <section id="results-view" hidden>
+        <p id="searched-destination"></p>
+        <section aria-labelledby="garam">
+          <h2 id="garam">가람 주차장</h2>
+          <p>도보거리 600m · 약 8분 · 주차 요금 3,000원</p>
+          <button type="button" data-parking="가람 주차장">가람 주차장 선택</button>
+        </section>
+        <section aria-labelledby="daon">
+          <h2 id="daon">다온 주차장</h2>
+          <p>도보거리 200m · 약 3분 · 주차 요금 4,000원</p>
+          <button type="button" data-parking="다온 주차장">다온 주차장 선택</button>
+        </section>
+        <p role="status">아직 선택하지 않았습니다.</p>
+      </section>
+    </main>
+    <script>
+      const destination = sessionStorage.getItem('destination');
+      if (location.pathname === '/results') {
+        if (destination === '가상역') {
+          document.querySelector('#results-view').hidden = false;
+          document.querySelector('#searched-destination').textContent = `목적지: ${destination}`;
+        } else {
+          document.querySelector('#missing-view').hidden = false;
+          if (destination) {
+            document.querySelector('#missing-message').textContent =
+              '입력한 목적지의 검색 결과가 없습니다.';
+          }
+        }
+      } else {
+        document.querySelector('#search-view').hidden = false;
+        const visited = localStorage.getItem('visited') || document.cookie.includes('visited=1');
+        document.querySelector('#history').textContent = visited
+          ? '이전 검색 기록이 있습니다.'
+          : '새로운 검색입니다.';
+      }
+      document.querySelector('#search-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        sessionStorage.setItem('destination', document.querySelector('#destination').value.trim());
+        localStorage.setItem('visited', '1');
+        document.cookie = 'visited=1; SameSite=Strict; path=/';
+        location.assign('/results');
+      });
+      document.querySelectorAll('button[data-parking]').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelector('[role="status"]').textContent =
+            `선택 완료: ${button.dataset.parking}`;
+        });
+      });
+    </script>
+  </body>
+</html>

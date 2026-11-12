@@ -1,0 +1,21 @@
+{
+  "name": "jumin-ai-ux-eval-poc",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "poc": "node poc.mjs",
+    "check:browser": "node poc.mjs --check-browser",
+    "eval": "node runner.mjs",
+    "diagnose:local": "node local-diagnose.mjs",
+    "compare:fixture": "node compare.mjs",
+    "compare:local": "node local-ab.mjs",
+    "report:local": "node local-report.mjs",
+    "test": "node --test --test-concurrency=1 __tests__/unit/*.test.mjs __tests__/integration/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@playwright/mcp": "0.0.84",
+    "playwright": "1.63.0"
+  }
+}
