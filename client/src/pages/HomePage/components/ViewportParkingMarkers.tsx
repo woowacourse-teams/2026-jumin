@@ -8,7 +8,6 @@ import homeParkingMarkerUrl from '../../../../assets/icons/markers/homeParkingMa
 import dotParkingMarkerUrl from '../../../../assets/icons/markers/dotParkingMarker.svg';
 import selectedParkingMarkerUrl from '../../../../assets/icons/markers/selectedHomeParkingMarker.svg';
 import likedParkingMarkerUrl from '../../../../assets/icons/markers/likedHomeParkingMarker.svg';
-import likedDotParkingMarkerUrl from '../../../../assets/icons/markers/likedDotParkingMarker.svg';
 import selectedLikedParkingMarkerUrl from '../../../../assets/icons/markers/selectedLikedHomeParkingMarker.svg';
 import type { ParkingLotViewport } from '../../../api/contracts';
 import type { ParkingViewportFilters } from '../../../api/parkingLots';
@@ -37,9 +36,8 @@ const selectedParkingMarkerIcon = {
   anchorY: 33,
 };
 
-// 기존 마커의 크기·기준점은 유지하고 좋아요 색만 적용한다.
+// 좋아요 마커는 큰 원형 마커와 선택 마커의 크기·기준점을 재사용한다.
 const likedParkingMarkerIcon = { ...homeParkingMarkerIcon, url: likedParkingMarkerUrl };
-const likedDotParkingMarkerIcon = { ...dotParkingMarkerIcon, url: likedDotParkingMarkerUrl };
 const selectedLikedParkingMarkerIcon = {
   ...selectedParkingMarkerIcon,
   url: selectedLikedParkingMarkerUrl,
@@ -104,9 +102,7 @@ export const ViewportParkingMarkers = ({
             ? parkingLot.likedByMe
               ? likedParkingMarkerIcon
               : homeParkingMarkerIcon
-            : parkingLot.likedByMe
-              ? likedDotParkingMarkerIcon
-              : dotParkingMarkerIcon;
+            : dotParkingMarkerIcon;
 
         return (
           <ViewportParkingMarker
@@ -114,7 +110,7 @@ export const ViewportParkingMarkers = ({
             map={map}
             parkingLot={parkingLot}
             icon={icon}
-            zIndex={isSelected ? 20 : isRepresentative ? 10 : 5}
+            zIndex={isSelected ? 20 : parkingLot.likedByMe ? 15 : isRepresentative ? 10 : 5}
             onSelect={onSelect}
           />
         );
