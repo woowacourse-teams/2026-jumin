@@ -206,6 +206,26 @@ class BackendDeploymentTest(unittest.TestCase):
         self.assertEqual(self.state['running'], ['jumin-nginx-prod', 'jumin-backend-prod'])
         self.assertEqual(self.calls.read_text().count('nginx -s reload'), 2)
 
+    def test_failed_first_switch_explains_manual_cleanup_when_workers_remain(self):
+        # 첫 전환 확인이 실패하고 기존 경로로 돌아온 뒤에도 이전 워커가 남아 있다.
+        self.state.update(unhealthy_route='backend-blue', keep_old_worker=True)
+
+        result = self.run_deployment()
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(self.state['route'], 'backend')
+        self.assertEqual(self.current.resolve(), self.old_release)
+        self.assertFalse(self.route_file.exists())
+        self.assertIn('jumin-backend-prod', self.state['running'])
+        self.assertIn('jumin-backend-prod-blue', self.state['running'])
+        self.assertIn('Restored previous backend routing.', result.stderr)
+        self.assertIn('Manual cleanup required', result.stderr)
+        self.assertIn('http://127.0.0.1:18080/route', result.stderr)
+        self.assertIn('X-Jumin-Backend: http://backend:8080', result.stderr)
+        self.assertIn('docker exec jumin-nginx-prod ps -o pid,ppid,args', result.stderr)
+        self.assertIn('docker stop jumin-backend-prod-blue', result.stderr)
+        self.assertNotIn('drain-monitor', self.calls.read_text())
+
     def test_healthy_old_route_does_not_count_as_candidate_switch(self):
         self.state['ignore_reload_for'] = 'backend-blue'
 

@@ -199,7 +199,7 @@ wait_for_workers() {
   local old_workers="$1" current_workers attempt
   local old_pids
   old_pids="$(awk '{ print $1 }' <<< "$old_workers")"
-  # 제한 시간 뒤에도 요청이 남아 있으면 호출자가 별도 정리 감시에 넘긴다.
+  # 기존 요청을 기다리되 배포 작업이 무기한 대기하지 않게 한다.
   for (( attempt=1; attempt<=60; attempt++ )); do
     current_workers="$(nginx_workers)" || return 1
     if [[ "$current_workers" != *"is shutting down"* ]] &&
@@ -474,6 +474,16 @@ cleanup() {
   if [[ "$route_changed" == true && "$proxy_running" == true ]]; then
     if wait_for_workers "$workers"; then
       stop_inactive_backends "$active" || echo 'Could not stop an inactive backend.' >&2
+    elif [[ -z "$previous_route" ]]; then
+      cat >&2 <<EOF
+Manual cleanup required. $candidate is still running.
+Run curl -si http://127.0.0.1:18080/route and confirm HTTP 204 and the following response header.
+  X-Jumin-Backend: http://$active:8080
+Run docker exec $proxy ps -o pid,ppid,args.
+Wait for Nginx worker PIDs $(awk '{ print $1 }' <<< "$workers" | paste -sd ' ' -) to exit.
+Confirm there are no Nginx workers marked 'is shutting down'.
+Then run docker stop $candidate before retrying the deployment.
+EOF
     else
       schedule_drain_cleanup "$active"
       echo 'Rollback restored. Cleanup is monitoring the retained backends.' >&2

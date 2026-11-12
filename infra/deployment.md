@@ -215,8 +215,8 @@ Nginx는 `proxy/backend-routing/active.conf`에 지정한 슬롯으로 요청을
 전환 확인 후 `backend/current`를 새 릴리스에 연결합니다.
 기존 요청이 끝나면 이전 슬롯을 정지해 롤백용으로 보관합니다.
 
-드레인이 60초를 넘기거나 전환 후 작업이 취소되면 릴리스의 `drain-backend.sh`가 정리를 이어갑니다.
-진행 상황은 해당 릴리스의 `drain.log`에서 확인합니다.
+`active.conf`가 있는 상태에서 드레인이 60초를 넘기거나, 전환을 확정한 뒤 드레인 대기 중에 작업이 취소되면 릴리스의 `drain-backend.sh`가 정리를 이어갑니다.
+모니터가 시작되면 해당 릴리스의 `drain.log`에서 진행 상황을 확인합니다.
 모니터는 배포 잠금과 라우팅 세대를 확인하며, 다음 전환이 발생하면 종료합니다.
 감시 시작 후 10분이 지나면 릴리스와 정지 대기 중인 슬롯을 `drain.log`와 시스템 저널에 한 번 기록합니다.
 Grafana의 `Backend drain exceeded 10 minutes (prod)` 경고를 받으면 Loki의 `{environment="prod", service="backend-drain"}`에서 상세 정보를 확인합니다.
@@ -250,6 +250,13 @@ Flyway 변경은 이전 앱과 호환돼야 합니다. V15가 미적용이면 `p
 후보 준비가 실패하면 기존 슬롯이 요청을 계속 처리합니다.
 Nginx 전환이나 전환 확인이 실패하면 이전 라우팅을 복구하고 배포를 실패로 기록합니다.
 복구 상태나 요청 종료를 확인할 수 없으면 두 슬롯을 보존합니다.
+
+최초 전환에 실패해 `active.conf`가 없는 기본 라우팅으로 돌아온 뒤 이전 워커가 종료됐는지 확인할 수 없으면 배포 로그에 `Manual cleanup required`가 표시됩니다.
+운영 EC2에서 다음 순서로 후보 컨테이너를 정리합니다.
+
+1. `curl -si http://127.0.0.1:18080/route`를 실행하고 `204` 응답과 `X-Jumin-Backend: http://backend:8080` 헤더를 확인합니다.
+2. `docker exec jumin-nginx-prod ps -o pid,ppid,args`를 실행합니다. 배포 로그에 표시된 이전 Nginx 워커 PID가 모두 사라지고 `is shutting down` 상태인 워커도 없어질 때까지 기다립니다.
+3. 배포 로그에 표시된 `docker stop jumin-backend-prod-blue`로 후보 컨테이너를 정지한 뒤 배포를 다시 실행합니다.
 
 수동 롤백은 [README의 명령](README.md#상태-확인과-롤백)을 사용합니다.
 보관 슬롯은 다음 배포에서 재사용하기 전까지 선택할 수 있습니다.
