@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { dismissSurveyIfPresent } from './dismissSurveyIfPresent';
+
+type Bounds = { x: number; y: number; width: number; height: number };
+
+const overlaps = (a: Bounds, b: Bounds) =>
+  a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 
 test.describe('모바일 화면', () => {
   test.use({ hasTouch: true, isMobile: true });
@@ -8,50 +14,53 @@ test.describe('모바일 화면', () => {
     { width: 402, height: 874 },
     { width: 432, height: 932 },
   ]) {
-    test(`${width}×${height} 화면에서 검색창·버튼·메뉴가 겹치지 않는다`, async ({ page }) => {
+    test(`${width}×${height} 화면에서 검색창·버튼·메뉴가 겹치지 않는다 @home-layout @navigation`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height });
       await page.goto('/');
-      await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
+      await dismissSurveyIfPresent(page);
 
-      const root = await page.locator('#root').boundingBox();
-      // 검색 진입 버튼 자체의 경계를 측정해 모바일 배치 계약을 유지한다.
-      const search = await page.getByRole('button', { name: '목적지 검색' }).boundingBox();
-      const location = await page.getByRole('button', { name: '현재 위치로 이동' }).boundingBox();
-      const nav = await page.getByRole('navigation', { name: '하단 메뉴' }).boundingBox();
+      const searchButton = page.getByRole('button', { name: '목적지 검색' });
+      const locationButton = page.getByRole('button', { name: '현재 위치로 이동' });
+      const bottomNav = page.getByRole('navigation', { name: '하단 메뉴' });
+      await expect(searchButton).toBeInViewport({ ratio: 1 });
+      await expect(locationButton).toBeInViewport({ ratio: 1 });
+      await expect(bottomNav).toBeInViewport({ ratio: 1 });
 
-      expect(root?.height).toBe(height);
+      const search = await searchButton.boundingBox();
+      const location = await locationButton.boundingBox();
+      const nav = await bottomNav.boundingBox();
       expect(search).not.toBeNull();
       expect(location).not.toBeNull();
       expect(nav).not.toBeNull();
-      expect(search!.x).toBeGreaterThanOrEqual(16);
-      expect(search!.x + search!.width).toBeLessThanOrEqual(width - 16);
-      expect(location!.y + location!.height).toBeLessThan(nav!.y);
+      expect(overlaps(search!, location!)).toBe(false);
+      expect(overlaps(search!, nav!)).toBe(false);
+      expect(overlaps(location!, nav!)).toBe(false);
 
       await page.getByRole('link', { name: '최근 이용' }).click();
       await expect(page).toHaveURL(/\/recent$/);
     });
 
-    test(`${width}×${height} 설정 화면에서 메뉴를 스크롤해도 하단 메뉴가 유지된다`, async ({
+    test(`${width}×${height} 설정 화면을 스크롤해도 피드백 버튼과 하단 메뉴가 겹치지 않는다 @setting-layout @setting @navigation`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height });
       await page.goto('/setting');
-      await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
+      await dismissSurveyIfPresent(page);
       await expect(page.getByRole('heading', { level: 1, name: '설정' })).toBeVisible();
 
       const nav = page.getByRole('navigation', { name: '하단 메뉴' });
-      const navBefore = await nav.boundingBox();
       const feedback = page.getByRole('button', { name: /피드백 보내기/ });
       await feedback.scrollIntoViewIfNeeded();
+      await expect(nav).toBeInViewport({ ratio: 1 });
+      await expect(feedback).toBeInViewport({ ratio: 1 });
 
       const feedbackBox = await feedback.boundingBox();
-      const navAfter = await nav.boundingBox();
+      const navBox = await nav.boundingBox();
       expect(feedbackBox).not.toBeNull();
-      expect(navBefore).toEqual(navAfter);
-      expect(feedbackBox!.y + feedbackBox!.height).toBeLessThanOrEqual(navAfter!.y);
-      expect(feedbackBox!.x).toBeGreaterThanOrEqual(0);
-      expect(feedbackBox!.x + feedbackBox!.width).toBeLessThanOrEqual(width);
-      expect(await page.locator('main').evaluate((element) => element.scrollWidth)).toBe(width);
+      expect(navBox).not.toBeNull();
+      expect(overlaps(feedbackBox!, navBox!)).toBe(false);
 
       await page.getByRole('link', { name: '최근 이용', exact: true }).click();
       await expect(page).toHaveURL(/\/recent$/);

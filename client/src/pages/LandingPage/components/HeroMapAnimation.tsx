@@ -6,7 +6,7 @@ import parkingMarker from '../../../../assets/icons/markers/homeParkingMarker.sv
 import destinationScreen from '../../../../assets/landing/destination.webp';
 import { color } from '../../../theme/color';
 import { palette } from '../../../theme/palette';
-import { MOBILE, TABLET } from '../landingStyles';
+import { EASE_OUT, HEADER_HEIGHT, MOBILE, TABLET } from '../landingStyles';
 
 /**
  * 한 바퀴 길이(초). 키프레임 퍼센트는 at(초)로 이 길이에 맞춰 계산한다.
@@ -29,8 +29,6 @@ const PHONE = {
 };
 /** 폰과 떠 있는 카드가 들어가는 무대 높이(px). 실제 크기는 --scene-scale을 곱한 값이다. */
 const STAGE_HEIGHT = 620;
-/** 랜딩 상단 헤더 높이(px). 첫 화면에서 히어로가 쓸 수 있는 높이를 계산할 때 뺀다. */
-const HEADER_HEIGHT = 100;
 /** 화면 높이에 맞춘 배율의 하한·상한. 너무 작아지거나 큰 화면에서 과하게 커지지 않게 한다. */
 const HEIGHT_SCALE = { min: 0.62, max: 1.12 };
 /** 핸드폰 두께를 만드는 층 수와 층 간격(px). */
@@ -38,16 +36,16 @@ const BODY_LAYERS = 10;
 const LAYER_GAP = 1.2;
 
 /** 반경 원의 중심(화면 %). 목적지 화면 스크린샷의 빨간 핀 끝에 맞춘다. */
-const RADIUS_CENTER = { x: 49.9, y: 49.4 };
+const RADIUS_CENTER = { x: 50, y: 49.6 };
 
 /**
  * 원이 퍼진 뒤에도 남는 핀(화면 %). 처음엔 다른 가격 핀과 섞여 있다가 앱의 추천 P 마커로 바뀐다.
  * 1위 가격은 떠오르는 요금 카드와 맞춘다.
  */
 const recommendations = [
-  { rank: 1, x: 44, y: 44, price: '7,500' },
-  { rank: 2, x: 61, y: 55, price: '6,000' },
-  { rank: 3, x: 56, y: 37, price: '5,400' },
+  { rank: 1, x: 44, y: 44, price: '4,000' },
+  { rank: 2, x: 61, y: 55, price: '4,600' },
+  { rank: 3, x: 56, y: 37, price: '4,000' },
 ] as const;
 
 /** 원 안에 함께 보이는 일반 주차장 점(화면 %). 앱 추천 화면처럼 추천이 아닌 곳은 작은 점으로 남는다. */
@@ -100,7 +98,7 @@ const priceBubbles = (() => {
     for (let column = 0; column < BUBBLE_GRID.columns; column += 1) {
       if (random() < 0.12) continue;
       const x = 8 + ((column + 0.2 + random() * 0.6) / BUBBLE_GRID.columns) * 86;
-      const y = 14 + ((row + 0.2 + random() * 0.6) / BUBBLE_GRID.rows) * 60;
+      const y = 15 + ((row + 0.2 + random() * 0.6) / BUBBLE_GRID.rows) * 61;
       const dx = x - RADIUS_CENTER.x;
       const dy = y - RADIUS_CENTER.y;
       const distance = Math.hypot(dx, dy) || 1;
@@ -193,160 +191,163 @@ export const HeroMapAnimation = () => {
       <div className={styles.floorShadow} aria-hidden="true" />
 
       <div className={styles.float} aria-hidden="true">
-        <div className={styles.phone}>
-          {Array.from({ length: BODY_LAYERS }, (_, index) => (
-            <span
-              key={index}
-              className={styles.bodyLayer}
-              style={{
-                transform: `translateZ(${-(index + 1) * LAYER_GAP}px)`,
-                background: bodyLayerColor(index),
-              }}
-            />
-          ))}
-          {sideButtons.map((button) => (
-            <span
-              key={`${button.side}-${button.top}`}
-              className={cx(styles.sideButton, button.side === 'left' ? styles.left : styles.right)}
-              style={{ top: button.top, height: button.height }}
-            />
-          ))}
+        <div className={styles.tilt}>
+          <div className={styles.phone}>
+            {Array.from({ length: BODY_LAYERS }, (_, index) => (
+              <span
+                key={index}
+                className={styles.bodyLayer}
+                style={{
+                  transform: `translateZ(${-(index + 1) * LAYER_GAP}px)`,
+                  background: bodyLayerColor(index),
+                }}
+              />
+            ))}
+            {sideButtons.map((button) => (
+              <span
+                key={`${button.side}-${button.top}`}
+                className={cx(
+                  styles.sideButton,
+                  button.side === 'left' ? styles.left : styles.right,
+                )}
+                style={{ top: button.top, height: button.height }}
+              />
+            ))}
 
-          <div className={styles.frame}>
-            <div className={styles.screen}>
-              <div className={styles.statusBar}>
-                <span>9:41</span>
-                <span className={styles.statusIcons}>
-                  <svg viewBox="0 0 18 12" aria-hidden="true">
-                    <rect x="0" y="8" width="3" height="4" rx="1" />
-                    <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
-                    <rect x="10" y="3" width="3" height="9" rx="1" />
-                    <rect x="15" y="0" width="3" height="12" rx="1" />
-                  </svg>
-                  <span className={styles.battery} />
-                </span>
-              </div>
-              <div className={styles.content}>
-                <img
-                  className={styles.screenImage}
-                  src={destinationScreen}
-                  alt=""
-                  draggable={false}
-                />
+            <div className={styles.frame}>
+              <div className={styles.screen}>
+                <div className={styles.statusBar}>
+                  <span>9:41</span>
+                  <span className={styles.statusIcons}>
+                    <svg viewBox="0 0 18 12" aria-hidden="true">
+                      <rect x="0" y="8" width="3" height="4" rx="1" />
+                      <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+                      <rect x="10" y="3" width="3" height="9" rx="1" />
+                      <rect x="15" y="0" width="3" height="12" rx="1" />
+                    </svg>
+                    <span className={styles.battery} />
+                  </span>
+                </div>
+                <div className={styles.content}>
+                  <img
+                    className={styles.screenImage}
+                    src={destinationScreen}
+                    alt=""
+                    draggable={false}
+                  />
 
-                <span className={styles.searchText}>강남역 11번 출구</span>
+                  <div className={styles.bubbleLayer}>
+                    {priceBubbles.map((bubble) => (
+                      <span
+                        key={bubble.id}
+                        className={styles.bubbleLeave}
+                        style={
+                          {
+                            left: `${bubble.x}%`,
+                            top: `${bubble.y}%`,
+                            '--push-x': `${bubble.pushX}px`,
+                            '--push-y': `${bubble.pushY}px`,
+                            animationDelay: `${bubble.leaveDelay}s`,
+                          } as CSSProperties
+                        }
+                      >
+                        <span
+                          className={styles.bubble}
+                          style={{ animationDelay: `${bubble.popDelay}s` }}
+                        >
+                          {bubble.price}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
 
-                <div className={styles.bubbleLayer}>
-                  {priceBubbles.map((bubble) => (
+                  <span className={styles.radius} />
+
+                  {candidateDots.map((dot, index) => (
+                    <img
+                      key={`${dot.x}-${dot.y}`}
+                      className={styles.candidateDot}
+                      src={dotMarker}
+                      alt=""
+                      style={{
+                        left: `${dot.x}%`,
+                        top: `${dot.y}%`,
+                        animationDelay: `${(index % 6) * 0.05}s`,
+                      }}
+                    />
+                  ))}
+
+                  {recommendations.map((pin, index) => (
                     <span
-                      key={bubble.id}
-                      className={styles.bubbleLeave}
-                      style={
-                        {
-                          left: `${bubble.x}%`,
-                          top: `${bubble.y}%`,
-                          '--push-x': `${bubble.pushX}px`,
-                          '--push-y': `${bubble.pushY}px`,
-                          animationDelay: `${bubble.leaveDelay}s`,
-                        } as CSSProperties
-                      }
+                      key={pin.rank}
+                      className={styles.recommendPin}
+                      style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                     >
                       <span
-                        className={styles.bubble}
-                        style={{ animationDelay: `${bubble.popDelay}s` }}
+                        className={cx(styles.bubble, styles.survivorPlain)}
+                        style={{ animationDelay: `${0.5 + index * 0.4}s` }}
                       >
-                        {bubble.price}
+                        {pin.price}
                       </span>
+                      <span
+                        className={styles.landingRing}
+                        style={{ animationDelay: `${index * 0.18}s` }}
+                      />
+                      <img
+                        className={styles.survivorPicked}
+                        src={parkingMarker}
+                        alt=""
+                        style={{ animationDelay: `${index * 0.18}s` }}
+                      />
                     </span>
                   ))}
                 </div>
 
-                <span className={styles.radius} />
+                <span className={styles.island} />
+                <span className={styles.glare} />
+              </div>
+            </div>
 
-                {candidateDots.map((dot, index) => (
-                  <img
-                    key={`${dot.x}-${dot.y}`}
-                    className={styles.candidateDot}
-                    src={dotMarker}
-                    alt=""
-                    style={{
-                      left: `${dot.x}%`,
-                      top: `${dot.y}%`,
-                      animationDelay: `${(index % 6) * 0.05}s`,
-                    }}
-                  />
-                ))}
+            <div className={styles.lostCard}>
+              <span className={styles.lostEmoji}>🤔</span>
+              <p>
+                주차장이 너무 많아요.
+                <br />
+                <strong>어디에 세우지?</strong>
+              </p>
+            </div>
 
-                {recommendations.map((pin, index) => (
+            <div className={cx(styles.card, styles.walkCard)}>
+              <img src={parkingMarker} alt="" className={styles.cardMarker} />
+              <div>
+                <p className={styles.cardEyebrow}>거리와 가격의 균형 1위예요</p>
+                <p className={styles.cardTitle}>
+                  도보 <strong>1분</strong> · 42m
+                </p>
+              </div>
+            </div>
+
+            <div className={cx(styles.card, styles.feeCard)}>
+              <p className={styles.cardEyebrow}>1시간 예상 요금</p>
+              <p className={styles.feeValue}>4,000원</p>
+              <p className={styles.cardCaption}>기본 30분 2,000원 · 추가 30분당 2,000원</p>
+            </div>
+
+            <div className={cx(styles.card, styles.appCard)}>
+              <p className={styles.cardEyebrow}>길찾기는 쓰던 앱으로</p>
+              <div className={styles.appRow}>
+                {mapApps.map((app) => (
                   <span
-                    key={pin.rank}
-                    className={styles.recommendPin}
-                    style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                    key={app.name}
+                    className={styles.appChip}
+                    style={
+                      { '--app-bg': app.background, '--app-fg': app.foreground } as CSSProperties
+                    }
                   >
-                    <span
-                      className={cx(styles.bubble, styles.survivorPlain)}
-                      style={{ animationDelay: `${0.5 + index * 0.4}s` }}
-                    >
-                      {pin.price}
-                    </span>
-                    <span
-                      className={styles.landingRing}
-                      style={{ animationDelay: `${index * 0.18}s` }}
-                    />
-                    <img
-                      className={styles.survivorPicked}
-                      src={parkingMarker}
-                      alt=""
-                      style={{ animationDelay: `${index * 0.18}s` }}
-                    />
+                    {app.name}
                   </span>
                 ))}
               </div>
-
-              <span className={styles.island} />
-              <span className={styles.glare} />
-            </div>
-          </div>
-
-          <div className={styles.lostCard}>
-            <span className={styles.lostEmoji}>🤔</span>
-            <p>
-              주차장이 너무 많아요.
-              <br />
-              <strong>어디에 세우지?</strong>
-            </p>
-          </div>
-
-          <div className={cx(styles.card, styles.walkCard)}>
-            <img src={parkingMarker} alt="" className={styles.cardMarker} />
-            <div>
-              <p className={styles.cardEyebrow}>목적지에서 가장 가까워요</p>
-              <p className={styles.cardTitle}>
-                도보 <strong>4분</strong> · 210m
-              </p>
-            </div>
-          </div>
-
-          <div className={cx(styles.card, styles.feeCard)}>
-            <p className={styles.cardEyebrow}>예상 요금</p>
-            <p className={styles.feeValue}>7,500원</p>
-            <p className={styles.cardCaption}>14:50 ~ 15:50 · 1시간 기준</p>
-          </div>
-
-          <div className={cx(styles.card, styles.appCard)}>
-            <p className={styles.cardEyebrow}>길찾기는 쓰던 앱으로</p>
-            <div className={styles.appRow}>
-              {mapApps.map((app) => (
-                <span
-                  key={app.name}
-                  className={styles.appChip}
-                  style={
-                    { '--app-bg': app.background, '--app-fg': app.foreground } as CSSProperties
-                  }
-                >
-                  {app.name}
-                </span>
-              ))}
             </div>
           </div>
         </div>
@@ -513,6 +514,14 @@ const styles = {
     transform: scale(var(--scene-scale));
     transform-style: preserve-3d;
   `,
+  /* 포인터 위치에 따라 폰이 살짝 기운다. --tilt-x/--tilt-y는 HeroSection이 넣는다. */
+  tilt: css`
+    width: 100%;
+    height: 100%;
+    transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+    transform-style: preserve-3d;
+    transition: transform 700ms ${EASE_OUT};
+  `,
   phone: css`
     position: relative;
     width: 100%;
@@ -611,21 +620,6 @@ const styles = {
     height: 100%;
     object-fit: cover;
     user-select: none;
-  `,
-  /* 스크린샷 검색창의 "어디에 방문하세요?" 자리를 덮어 목적지를 보여준다. */
-  searchText: css`
-    position: absolute;
-    top: 5.4%;
-    left: 18.6%;
-    width: 68%;
-    height: 3.9%;
-    display: flex;
-    align-items: center;
-    background: ${palette.white};
-    font-size: 3.95cqw;
-    font-weight: 600;
-    color: ${color.text.primary};
-    white-space: nowrap;
   `,
   bubbleLayer: css`
     position: absolute;

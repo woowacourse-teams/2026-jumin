@@ -96,6 +96,8 @@ export const parkingLotViewportSchema = z.object({
   longitude: z.number(),
   // LOD 점수는 서버가 계산한 JSON 숫자를 그대로 사용한다.
   score: z.number(),
+  // 뷰포트 응답에 개인별 좋아요 상태를 받는다.
+  likedByMe: z.boolean().optional().default(false),
 });
 
 export const parkingLotViewportResponseSchema = z.object({

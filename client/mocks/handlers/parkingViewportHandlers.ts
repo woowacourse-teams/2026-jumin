@@ -3,6 +3,7 @@ import { delay, http, HttpResponse } from 'msw';
 import type { ParkingLotViewportResponse } from '../../src/api/contracts';
 import { parkingViewportFilterMetadata, parkingViewportLots } from '../fixtures/parkingViewport';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
+import { getMockParkingLike } from './parkingLikeHandlers';
 
 type ViewportField = 'southLatitude' | 'westLongitude' | 'northLatitude' | 'eastLongitude';
 
@@ -112,7 +113,10 @@ export const parkingViewportHandlers = [
 
     return HttpResponse.json({
       totalCount: parkingLots.length,
-      parkingLots,
+      parkingLots: parkingLots.map((parkingLot) => ({
+        ...parkingLot,
+        likedByMe: getMockParkingLike(parkingLot.id, request.headers.get('X-Guest-Id')).likedByMe,
+      })),
     } satisfies ParkingLotViewportResponse);
   }),
 ];
