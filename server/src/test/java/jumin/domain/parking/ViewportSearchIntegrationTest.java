@@ -367,7 +367,7 @@ class ViewportSearchIntegrationTest {
         properties.setEnabled(cacheEnabled);
         try {
             // when
-            ParkingLotViewportResponses actual = service.search(request);
+            ParkingLotViewportResponses actual = service.search(request, null);
 
             // then
             assertThat(actual).isEqualTo(expected);
@@ -403,7 +403,7 @@ class ViewportSearchIntegrationTest {
         ParkingLotViewportRequest request = request(0, 126.99, 37.49, 127.01, 37.51);
 
         // when & then
-        assertThatThrownBy(() -> new TransactionTemplate(transactions).execute(status -> service.search(request)))
+        assertThatThrownBy(() -> new TransactionTemplate(transactions).execute(status -> service.search(request, null)))
                 .isInstanceOf(IllegalTransactionStateException.class);
     }
 
@@ -426,7 +426,7 @@ class ViewportSearchIntegrationTest {
     }
 
     private ParkingLotViewportResponses search(ViewportSearchService target, ParkingLotViewportRequest request) {
-        return target.search(request);
+        return target.search(request, null);
     }
 
     private double counter(String name, String outcome) {

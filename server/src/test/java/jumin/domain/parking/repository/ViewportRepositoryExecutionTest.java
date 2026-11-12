@@ -238,12 +238,12 @@ class ViewportRepositoryExecutionTest {
             var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             List<CompletableFuture<Integer>> waiting = IntStream.range(0, DB_QUEUE)
-                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.search(request()).totalCount(), threads))
+                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.search(request(), null).totalCount(), threads))
                     .toList();
             awaitQueued(harness, DB_QUEUE);
 
             // when & then
-            assertThatThrownBy(() -> service.search(request()))
+            assertThatThrownBy(() -> service.search(request(), null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_QUEUE_FULL.name()));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
@@ -273,7 +273,7 @@ class ViewportRepositoryExecutionTest {
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 
             // when & then
-            assertThatThrownBy(() -> service.search(request()))
+            assertThatThrownBy(() -> service.search(request(), null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name()));
             assertThat(queries).hasValue(1);
@@ -543,12 +543,12 @@ class ViewportRepositoryExecutionTest {
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
             // when & then
-            ParkingLotViewportResponses response = service.search(request);
+            ParkingLotViewportResponses response = service.search(request, null);
             assertThat(response.totalCount()).isEqualTo(MAX_VIEWPORT_ROWS);
             assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_VIEWPORT_ROWS);
             cursor.set(0);
             rowCount.set(MAX_VIEWPORT_ROWS + 1);
-            assertThatThrownBy(() -> service.search(request))
+            assertThatThrownBy(() -> service.search(request, null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             verify(statement, times(2)).setObject(anyInt(), eq(MAX_VIEWPORT_ROWS + 1));

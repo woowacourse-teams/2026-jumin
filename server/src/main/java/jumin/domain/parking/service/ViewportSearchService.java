@@ -64,10 +64,6 @@ public class ViewportSearchService {
         this.clock = clock;
     }
 
-    public ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
-        return search(request, null);
-    }
-
     public ParkingLotViewportResponses search(ParkingLotViewportRequest request, UUID guestId) {
         ViewportBounds bounds = ViewportBounds.from(request);
         try {
