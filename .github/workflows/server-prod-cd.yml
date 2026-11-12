@@ -9,6 +9,7 @@ on:
       - 'infra/docker-compose.prod.yml'
       - 'infra/docker-compose.viewport.prod.yml'
       - 'infra/scripts/deploy-backend.sh'
+      - 'infra/scripts/validate-rollback-settings.py'
       - 'infra/scripts/drain-backend.sh'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'server/Dockerfile'

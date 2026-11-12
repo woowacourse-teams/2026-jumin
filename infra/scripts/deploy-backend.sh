@@ -318,54 +318,7 @@ if [[ -n "$rollback_target" ]]; then
   check_legacy_cache_overlap "$(viewport_cache_mode "$candidate")"
   # 보관 컨테이너는 생성 당시 설정을 사용하므로 활성 슬롯과 비교한 뒤 시작한다.
   docker inspect "$(container_for "$active")" "$candidate" |
-    python3 -c '
-import json, sys
-from pathlib import Path
-
-def environment(container):
-    return dict(value.split("=", 1) for value in container["Config"]["Env"])
-
-def runtime_settings(env):
-    keys = (
-        "DB_URL", "DB_USERNAME", "DB_PASSWORD",
-        "LOCAL_SEARCH_BASE_URL", "LOCAL_SEARCH_REST_API_KEY",
-        "REVERSE_GEOCODING_BASE_URL", "REVERSE_GEOCODING_CLIENT_ID", "REVERSE_GEOCODING_CLIENT_SECRET",
-        "SEOUL_PARKING_BASE_URL", "SEOUL_PARKING_API_KEY", "SEOUL_OPEN_DATA_KEY",
-        "BUSAN_PARKING_BASE_URL", "BUSAN_PARKING_API_KEY",
-    )
-    settings = {key: env.get(key, "") for key in keys}
-    settings["PARKING_AVAILABILITY_ENABLED"] = env.get("PARKING_AVAILABILITY_ENABLED") or "false"
-    cache_mode = env.get("JUMIN_VIEWPORT_CACHE_ENABLED") or "false"
-    settings["JUMIN_VIEWPORT_CACHE_ENABLED"] = cache_mode
-    if cache_mode == "true":
-        settings.update((key, value) for key, value in env.items() if key.startswith("JUMIN_VIEWPORT_CACHE_"))
-    return settings
-
-def redis_ca(container, env):
-    destination = env.get("JUMIN_VIEWPORT_CACHE_REDISTLSCAFILE")
-    for mount in container.get("Mounts", []):
-        if (destination and mount.get("Destination") == destination
-                and mount.get("Type") == "bind" and mount.get("RW") is False):
-            contents = Path(mount["Source"]).read_bytes()
-            if contents:
-                return contents
-    raise OSError
-
-current, previous = json.load(sys.stdin)
-current_env, previous_env = map(environment, (current, previous))
-admin_keys = ("ADMIN_LOGIN_ID", "ADMIN_PASSWORD_HASH", "ADMIN_TOKEN_SECRET", "ADMIN_ENV_LABEL")
-if any(not current_env.get(key) or current_env[key] != previous_env.get(key) for key in admin_keys):
-    sys.exit("Rollback blocked because administrator credentials differ. Deploy the previous code with current secrets.")
-if runtime_settings(current_env) != runtime_settings(previous_env):
-    sys.exit("Rollback blocked because backend runtime settings differ. Deploy the previous code with current settings.")
-if current_env.get("JUMIN_VIEWPORT_CACHE_ENABLED") == "true":
-    try:
-        same_ca = redis_ca(current, current_env) == redis_ca(previous, previous_env)
-    except (OSError, KeyError, TypeError):
-        sys.exit("Rollback blocked because it could not verify the Redis CA. Deploy the previous code with current settings.")
-    if not same_ca:
-        sys.exit("Rollback blocked because the Redis CA differs. Deploy the previous code with current settings.")
-'
+    python3 "$repository_root/infra/scripts/validate-rollback-settings.py"
   if running "$candidate"; then
     candidate_already_running=true
   fi

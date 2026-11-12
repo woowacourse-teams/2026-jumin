@@ -80,7 +80,7 @@ def main():
         flock.write_text(f'#!{sys.executable}\nimport fcntl\nfcntl.flock(9, fcntl.LOCK_EX | fcntl.LOCK_NB)\n')
         flock.chmod(0o755)
         environment['PATH'] = str(root / 'bin') + os.pathsep + environment['PATH']
-        for name in ('deploy-backend.sh', 'drain-backend.sh'):
+        for name in ('deploy-backend.sh', 'drain-backend.sh', 'validate-rollback-settings.py'):
             source = (REPOSITORY / 'infra/scripts' / name).read_text()
             (root / 'infra/scripts' / name).write_text(source.replace('jumin-', namespace + '-'))
         # Docker Desktop에는 journald가 없으므로 테스트 사본에서 로컬 로그 드라이버를 쓴다.
