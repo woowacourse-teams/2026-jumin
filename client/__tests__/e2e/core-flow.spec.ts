@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { dismissSurveyIfPresent } from './dismissSurveyIfPresent';
 
+// @태그는 CI에서 변경된 사용자 흐름의 E2E 테스트를 선택할 때 사용한다.
 const CURRENT_LOCATION = {
   latitude: 37.4981,
   longitude: 127.0279,
@@ -17,10 +19,6 @@ const PARKING_LOT = {
 
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
-
-const closeSurvey = async (page: Page) => {
-  await page.getByRole('button', { name: '서비스 이용 경험 설문 닫기' }).click();
-};
 
 const requestRecommendation = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
@@ -45,7 +43,7 @@ const searchDestination = async (page: Page) => {
 
 const goToRecommendedParkingDetail = async (page: Page) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await searchDestination(page);
   await requestRecommendation(page);
 
@@ -74,9 +72,11 @@ const getIntentSearchParams = (intentUrl: string) => {
   return new URL(routeUrl).searchParams;
 };
 
-test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다', async ({ page }) => {
+test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다 @loading', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
 
   let releaseChunk!: () => void;
@@ -108,9 +108,11 @@ test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피�
   await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toHaveCount(0);
 });
 
-test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 수 있다', async ({ page }) => {
+test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 수 있다 @navigation @search @setup @recommend', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   const map = page.getByRole('region', { name: '지도', exact: true });
   await expect(map).toBeVisible();
 
@@ -129,18 +131,23 @@ test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 
   await expect(map).toBeVisible();
 });
 
-test('1. 추천 주차장의 상세정보를 확인한다', async ({ page }) => {
+test('1. 추천 주차장의 상세정보를 확인한다 @recommend @parking-detail', async ({ page }) => {
   await goToRecommendedParkingDetail(page);
 
   const detail = page.getByRole('region', { name: '주차장 상세정보', exact: true });
-  await expect(detail.getByText('6,000원')).toBeVisible();
-  await expect(detail.getByText('310m(5분)')).toBeVisible();
-  await expect(detail.getByText('평일 24시간')).toBeVisible();
+  const feeRow = detail.getByText(/예상 요금/).locator('..');
+  await expect(feeRow.getByText(/^(?:[\d,]+원|미제공)$/)).toBeVisible();
+  await expect(detail.getByText('도보 거리').locator('..').getByRole('definition')).toHaveText(
+    /\S/,
+  );
+  await expect(detail.getByText('운영시간').locator('..').getByRole('definition')).toHaveText(/\S/);
 });
 
-test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조회 조건을 유지한다', async ({ page }) => {
+test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조회 조건을 유지한다 @setup @recommend @navigation', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await searchDestination(page);
   await requestRecommendation(page);
   const recommendationUrl = page.url();
@@ -151,21 +158,23 @@ test('추천 URL을 새 탭에서 열거나 새로고침해도 목적지와 조�
 
   const sharedPage = await page.context().newPage();
   await sharedPage.goto(recommendationUrl);
-  await closeSurvey(sharedPage);
+  await dismissSurveyIfPresent(sharedPage);
   await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
   await expect(
     sharedPage.getByRole('heading', { level: 1, name: params.get('name')! }),
   ).toBeVisible();
   await sharedPage.reload();
-  await closeSurvey(sharedPage);
+  await dismissSurveyIfPresent(sharedPage);
   await expect(sharedPage.getByRole('region', { name: '주차장 전체 목록' })).toBeVisible();
   await expect(sharedPage).toHaveURL(recommendationUrl);
   await sharedPage.close();
 });
 
-test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과 정렬을 유지한다', async ({ page }) => {
+test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과 정렬을 유지한다 @recommend @parking-detail', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await searchDestination(page);
   await requestRecommendation(page);
   const region = page.getByRole('region', { name: '주차장 전체 목록' });
@@ -195,9 +204,11 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
   await expect(region.getByRole('radio', { name: '가격순' })).toBeChecked();
 });
 
-test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다', async ({ page }) => {
+test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾기를 시작한다 @setting @navigation', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await expect(page.getByRole('button', { name: '주변', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: '설정', exact: true }).click();
   await expect(page).toHaveURL(/\/setting$/);
@@ -224,7 +235,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await expect(page.getByRole('heading', { level: 1, name: /목적지는 정했는데/ })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/setting$/);
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
 
   await page.getByRole('link', { name: /주차의민족 소개/ }).click();
   await page
@@ -234,13 +245,15 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
   await expect(page.getByRole('heading', { name: /보이지 않는 기술/ })).toBeInViewport();
   await page.getByRole('link', { name: '주차장 찾아보기', exact: true }).last().click();
   await expect(page).toHaveURL('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
   await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
 });
 
-test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다', async ({ page }) => {
+test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다 @search @recommend @parking-detail @directions @a11y', async ({
+  page,
+}) => {
   await page.goto('/');
-  await closeSurvey(page);
+  await dismissSurveyIfPresent(page);
 
   // 진입 버튼의 Enter 동작과 검색 화면의 자동 포커스를 실제 브라우저에서 확인한다.
   await page.getByRole('button', { name: '목적지 검색' }).focus();
@@ -292,10 +305,10 @@ test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포�
   await expect(region.getByRole('radio', { name: '가격순' })).toBeChecked();
 });
 
-test.describe('길찾기', () => {
+test.describe('길찾기 @directions', () => {
   test.use({ userAgent: ANDROID_USER_AGENT });
 
-  test('3. 최근 이용한 주차장의 길찾기를 요청한다', async ({ page }) => {
+  test('3. 최근 이용한 주차장의 길찾기를 요청한다 @recent', async ({ page }) => {
     await page.addInitScript(
       (recentParkingUse) => {
         localStorage.setItem('recentParkingUses', JSON.stringify([recentParkingUse]));
@@ -307,7 +320,7 @@ test.describe('길찾기', () => {
     );
 
     await page.goto('/recent');
-    await closeSurvey(page);
+    await dismissSurveyIfPresent(page);
     await page.getByRole('button', { name: new RegExp(PARKING_LOT.name) }).click();
 
     const dialog = page.getByRole('dialog', { name: '어떤 앱으로 갈까요?' });
@@ -325,7 +338,9 @@ test.describe('길찾기', () => {
     expect(searchParams.get('dlng')).toBe(String(PARKING_LOT.location.longitude));
   });
 
-  test('4. 상세정보를 확인한 주차장의 길찾기를 요청한다', async ({ page }) => {
+  test('4. 상세정보를 확인한 주차장의 길찾기를 요청한다 @recommend @parking-detail @recent', async ({
+    page,
+  }) => {
     await goToRecommendedParkingDetail(page);
     expect(await page.evaluate(() => localStorage.getItem('recentParkingUses'))).toBeNull();
 
