@@ -48,7 +48,14 @@ describe('목적지에 따른 추천 mock 좌표', () => {
     await searchParkingLots({ ...searchCondition, ...movedDestination });
     const response = await searchParkingLots(searchCondition);
 
-    expect(response).toEqual(parkingSearchSuccess);
+    // 도보 경로는 요청한 목적지로 계산해 붙이는 값이라 fixture와 비교할 때는 제외한다.
+    expect({
+      ...response,
+      parkingLots: response.parkingLots.map((parkingLot) => ({
+        ...parkingLot,
+        walkingRoute: undefined,
+      })),
+    }).toEqual(parkingSearchSuccess);
     const detail = await getParkingLotDetail(101, searchCondition);
     expect(detail.location).toEqual({ latitude: 37.499, longitude: 127.029 });
   });

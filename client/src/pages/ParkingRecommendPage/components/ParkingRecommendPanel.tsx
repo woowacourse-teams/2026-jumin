@@ -19,6 +19,7 @@ import { ParkingMarkers } from './ParkingMarkers';
 import { ParkingRecommendContent } from './ParkingRecommendContent';
 import { ParkingRecommendDetailPanel } from './ParkingRecommendDetailPanel';
 import { useVisibleMapCenter } from '../../../shared/hooks/useVisibleMapCenter';
+import { WalkingRouteLine } from '../../../shared/maps/WalkingRouteLine';
 
 interface Props {
   map: naver.maps.Map | null;
@@ -67,6 +68,11 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
     [parkingLots, recommendationType],
   );
   const activeParkingLot = selectedParkingLot ?? parkingLots[0] ?? null;
+  // 응답의 경로는 주차장 → 목적지 순서다. 목적지에서 주차장 쪽으로 선이 뻗도록 뒤집는다.
+  const activeWalkingRoute = useMemo(
+    () => [...(activeParkingLot?.walkingRoute ?? [])].reverse(),
+    [activeParkingLot],
+  );
 
   useMapClick({
     map,
@@ -173,6 +179,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
         isDetail={isDetail}
         onSelect={selectParkingLot}
       />
+      <WalkingRouteLine map={map} path={activeWalkingRoute} />
       <BottomSheet
         open={sheet.isOpen}
         snap={sheetSnap}

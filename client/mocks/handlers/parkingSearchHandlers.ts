@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { parkingSearchEmpty, parkingSearchSuccess } from '../fixtures/parkingSearch';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
+import { createMockWalkingRoute } from '../utils/createMockWalkingRoute';
 import { relocateParkingLocation } from '../utils/relocateParkingLocation';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
@@ -124,10 +125,19 @@ export const parkingSearchHandlers = [
 
     return HttpResponse.json({
       ...parkingSearchSuccess,
-      parkingLots: parkingSearchSuccess.parkingLots.map((parkingLot) => ({
-        ...parkingLot,
-        location: relocateParkingLocation(parkingLot.location, destination),
-      })),
+      parkingLots: parkingSearchSuccess.parkingLots.map((parkingLot) => {
+        const location = relocateParkingLocation(parkingLot.location, destination);
+
+        return {
+          ...parkingLot,
+          location,
+          // 도보 정보가 없는 주차장은 실제 응답처럼 경로도 비워 둔다.
+          walkingRoute:
+            parkingLot.distanceMeters === null
+              ? null
+              : createMockWalkingRoute(parkingLot.id, location, destination),
+        };
+      }),
     });
   }),
 ];
