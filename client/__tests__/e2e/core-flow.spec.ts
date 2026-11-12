@@ -98,6 +98,15 @@ test('연관 주차장 3개를 먼저 보여주고 선택하면 상세를 연다
   await page.goBack();
   await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
   await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
+  // 검색어를 한 글자로 줄인 직후 Enter를 눌러도 이전 주차장을 선택하지 않는다.
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
+  // 디바운스가 끝난 뒤에도 상세 화면으로 이동하지 않았는지 확인한다.
+  await page.waitForTimeout(400);
+  await expect(page).toHaveURL((url) => url.pathname === '/search');
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveValue('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
+  await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
   await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: '시계탑빌딩 주차장' })).toBeVisible();
 });

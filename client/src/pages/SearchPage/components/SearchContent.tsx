@@ -110,7 +110,7 @@ export const SearchContent = ({
   const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.DESTINATION_SEARCH : '';
 
   const handleEnter = () => {
-    if (isSearching) return;
+    if (normalizedQuery.length < 2 || isSearching) return;
     if (searchResults[0]) {
       handleSelect(searchResults[0]);
     } else if (parkingResults[0]) {
