@@ -1,9 +1,9 @@
 import { Row } from '../../shared/components/ui/Row';
 import { Notice } from '../../shared/components/ui/Notice';
-import { useOutletContext } from 'react-router';
+import { useLocation, useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import currentLocationMarkerUrl from '../../../assets/icons/markers/currentLocation.svg';
 import { type MapViewport, useMapViewport } from './hooks/useMapViewport';
 import { ViewportParkingMarkers } from './components/ViewportParkingMarkers';
@@ -48,11 +48,22 @@ interface MapLocation {
 export const HomePage = () => {
   const { move } = useStepNavigation('home');
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
-  const [selectedParkingLot, setSelectedParkingLot] = useState<ParkingLotViewport | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const parkingLotFromSearch = location.state as Pick<
+    ParkingLotViewport,
+    'id' | 'latitude' | 'longitude'
+  > | null;
+  const parkingLatitude = parkingLotFromSearch?.latitude;
+  const parkingLongitude = parkingLotFromSearch?.longitude;
+  const [selectedParkingLot, setSelectedParkingLot] = useState<Pick<
+    ParkingLotViewport,
+    'id' | 'latitude' | 'longitude'
+  > | null>(parkingLotFromSearch);
   const [parkingFilters, setParkingFilters] = useState<ParkingFilters>(DEFAULT_PARKING_FILTERS);
 
   // 바텀시트
-  const sheet = useBottomSheet();
+  const sheet = useBottomSheet({ initialIsOpen: parkingLotFromSearch !== null });
   const { close, setSnap, open } = sheet;
   // 선택이 풀려도 시트가 닫히는 전환이 끝날 때까지는 패널을 남겨 둔다.
   const displayedParkingLot = useLingeringValue(selectedParkingLot, BOTTOM_SHEET_TRANSITION_MS);
@@ -60,7 +71,19 @@ export const HomePage = () => {
   const clearParkingSelection = useCallback(() => {
     close();
     setSelectedParkingLot(null);
-  }, [close]);
+    if (location.state) {
+      void navigate(
+        { pathname: location.pathname, search: location.search, hash: location.hash },
+        { replace: true, state: null },
+      );
+    }
+  }, [close, location, navigate]);
+
+  useLayoutEffect(() => {
+    if (!map || parkingLatitude === undefined || parkingLongitude === undefined) return;
+    map.setZoom(15);
+    map.setCenter(new naver.maps.LatLng(parkingLatitude, parkingLongitude));
+  }, [map, parkingLatitude, parkingLongitude]);
 
   const collapseBottomSheet = useCallback(() => {
     setSnap('collapsed');

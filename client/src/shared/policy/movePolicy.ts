@@ -4,7 +4,7 @@ export type Step = 'home' | 'search' | 'setup' | 'recommend';
 /** 각 화면에서 사용자가 할 수 있는 행동 */
 export type ActionByStep = {
   home: 'OPEN_SEARCH';
-  search: 'BACK' | 'SELECT_DESTINATION';
+  search: 'BACK' | 'SELECT_DESTINATION' | 'SELECT_PARKING';
   setup: 'BACK' | 'OPEN_SEARCH' | 'CONFIRM_DESTINATION' | 'CHANGE_DESTINATION';
   recommend: 'BACK';
 };
@@ -24,6 +24,7 @@ export const MOVE_POLICY = {
   search: {
     BACK: { method: 'back' },
     SELECT_DESTINATION: { target: 'setup', method: 'push' },
+    SELECT_PARKING: { target: 'home', method: 'push' },
   },
   setup: {
     BACK: { method: 'back' },

@@ -19,7 +19,7 @@ import { color } from '../../../theme/color';
 import { typography } from '../../../theme/typography';
 
 interface Props {
-  parkingLot: ParkingLotViewport;
+  parkingLot: Pick<ParkingLotViewport, 'id' | 'latitude' | 'longitude'>;
   data: ViewportParkingLotDetailResponse;
 }
 

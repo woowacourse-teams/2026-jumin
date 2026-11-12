@@ -69,6 +69,48 @@ const searchDestination = async (page: Page) => {
   );
 };
 
+test('연관 주차장 3개를 먼저 보여주고 선택하면 상세를 연다 @search @parking-detail', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissSurveyIfPresent(page);
+  await page.getByRole('button', { name: '목적지 검색' }).click();
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('강남');
+
+  const results = page.getByRole('region', { name: '목적지 검색 결과' });
+  const parkingLots = results.getByRole('list', { name: '연관 주차장' });
+  await expect(parkingLots.getByRole('button')).toHaveCount(3);
+  await expect(results.getByRole('list').nth(1).getByRole('button').first()).toBeVisible();
+
+  const firstParking = parkingLots.getByRole('button').first();
+  const parkingName = (await firstParking.innerText()).split('\n')[0]!;
+  await firstParking.click();
+
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '');
+  await expect(page.getByRole('heading', { level: 1, name: parkingName })).toBeVisible();
+  await expect(page.getByRole('region', { name: '요금 정보' })).toBeVisible();
+
+  await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+  await page.goBack();
+  await page.goForward();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+  await page.goBack();
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
+  await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
+  // 검색어를 한 글자로 줄인 직후 Enter를 눌러도 이전 주차장을 선택하지 않는다.
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
+  // 디바운스가 끝난 뒤에도 상세 화면으로 이동하지 않았는지 확인한다.
+  await page.waitForTimeout(400);
+  await expect(page).toHaveURL((url) => url.pathname === '/search');
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveValue('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
+  await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
+  await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '시계탑빌딩 주차장' })).toBeVisible();
+});
+
 const goToRecommendedParkingDetail = async (page: Page) => {
   await page.goto('/');
   await dismissSurveyIfPresent(page);
@@ -265,7 +307,19 @@ test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포�
   await expect(
     page.getByRole('region', { name: '목적지 검색 결과' }).getByRole('status'),
   ).toHaveText(/검색 결과 \d+곳/);
+  const firstDestinationName = (
+    await page
+      .getByRole('region', { name: '목적지 검색 결과' })
+      .getByRole('list')
+      .last()
+      .getByRole('button')
+      .first()
+      .innerText()
+  ).split('\n')[0]!;
   await input.press('Enter');
+  await expect(page.getByRole('region', { name: '선택한 목적지' })).toContainText(
+    firstDestinationName,
+  );
   await requestRecommendation(page);
 
   const region = page.getByRole('region', { name: '주차장 전체 목록' });

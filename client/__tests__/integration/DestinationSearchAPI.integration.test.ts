@@ -2,15 +2,16 @@ import { http, HttpResponse } from 'msw';
 
 import { searchDestinations } from '../../src/api/destination';
 import { destinationSearchQueryOptions } from '../../src/api/queries/destinationSearchQueryOptions';
-import { destinationFixtures } from '../../mocks/fixtures/destinations';
+import { destinationFixtures, parkingLotSearchFixtures } from '../../mocks/fixtures/destinations';
 import { server } from '../msw/server';
 import { createTestQueryClient } from '../renderWithProviders';
 
 const searchCenter = { latitude: 37.5, longitude: 127 };
 const destination = { ...destinationFixtures[0]!, roadAddress: null };
+const parkingLot = parkingLotSearchFixtures[0]!;
 
 describe('목적지 검색 API', () => {
-  it('검색어와 지도 중심 좌표를 GET으로 보내고 카카오 응답을 파싱한다', async () => {
+  it('검색어와 지도 중심 좌표를 GET으로 보내고 목적지와 주차장 응답을 파싱한다', async () => {
     server.use(
       http.get('/api/destinations/search', ({ request }) => {
         expect(Object.fromEntries(new URL(request.url).searchParams)).toEqual({
@@ -22,6 +23,7 @@ describe('목적지 검색 API', () => {
         return HttpResponse.json({
           query: '강남역 & 카페',
           destinations: [{ ...destination, provider: 'KAKAO' }],
+          parkingLots: [parkingLot],
         });
       }),
     );
@@ -32,7 +34,11 @@ describe('목적지 검색 API', () => {
         queryClient.fetchQuery(
           destinationSearchQueryOptions({ query: '  강남역 & 카페  ', ...searchCenter }),
         ),
-      ).resolves.toEqual({ query: '강남역 & 카페', destinations: [destination] });
+      ).resolves.toEqual({
+        query: '강남역 & 카페',
+        destinations: [destination],
+        parkingLots: [parkingLot],
+      });
     } finally {
       queryClient.clear();
     }
@@ -55,6 +61,7 @@ describe('목적지 검색 API', () => {
         return HttpResponse.json({
           query: '카페',
           destinations: [{ ...(isFirstCenter ? destination : nextDestination), provider: 'KAKAO' }],
+          parkingLots: [],
         });
       }),
     );
@@ -83,13 +90,29 @@ describe('목적지 검색 API', () => {
     await expect(searchDestinations('강남역', 37.5, 127)).resolves.toEqual({
       query: '강남역',
       destinations: [],
+      parkingLots: [],
     });
   });
 
-  it.each([
-    ['destination-rate-limited', 429, '목적지 검색 요청이 너무 많습니다.'],
-    ['destination-failed', 502, '일시적으로 목적지 검색을 이용할 수 없습니다.'],
-  ] as const)('%s 응답의 HTTP 상태와 서버 메시지를 보존한다', async (scenario, status, message) => {
+  it.each(['destination-rate-limited', 'destination-failed'] as const)(
+    '%s 때 카카오 결과 없이 주차장 결과를 반환한다',
+    async (scenario) => {
+      window.history.replaceState({}, '', `/?mock=${scenario}`);
+
+      await expect(searchDestinations('강남역', 37.5, 127)).resolves.toEqual({
+        query: '강남역',
+        destinations: [],
+        parkingLots: expect.arrayContaining([
+          expect.objectContaining({ name: '강남역 센트럴푸르지오시티 주차장' }),
+        ]),
+      });
+    },
+  );
+
+  it('두 검색 원천이 모두 실패하면 503 오류를 반환한다', async () => {
+    const status = 503;
+    const message = '일시적으로 목적지 검색을 이용할 수 없습니다.';
+    const scenario = 'destination-unavailable';
     window.history.replaceState({}, '', `/?mock=${scenario}`);
 
     await expect(searchDestinations('강남역', 37.5, 127)).rejects.toMatchObject({
@@ -123,6 +146,37 @@ describe('목적지 검색 API', () => {
         HttpResponse.json({
           query: '강남역',
           destinations: [{ ...destination, provider: 'KAKAO', latitude: '37.5' }],
+          parkingLots: [],
+        }),
+      ),
+    );
+
+    await expect(searchDestinations('강남역', 37.5, 127)).rejects.toMatchObject({
+      failure: { errorType: 'response', reason: 'schema' },
+    });
+  });
+
+  it('카카오 결과가 비어도 주차장 결과를 파싱한다', async () => {
+    server.use(
+      http.get('/api/destinations/search', () =>
+        HttpResponse.json({ query: '강남역', destinations: [], parkingLots: [parkingLot] }),
+      ),
+    );
+
+    await expect(searchDestinations('강남역', 37.5, 127)).resolves.toEqual({
+      query: '강남역',
+      destinations: [],
+      parkingLots: [parkingLot],
+    });
+  });
+
+  it('주차장 좌표가 숫자가 아니면 응답을 거부한다', async () => {
+    server.use(
+      http.get('/api/destinations/search', () =>
+        HttpResponse.json({
+          query: '강남역',
+          destinations: [],
+          parkingLots: [{ ...parkingLot, latitude: '37.5' }],
         }),
       ),
     );

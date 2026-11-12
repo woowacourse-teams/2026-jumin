@@ -55,6 +55,7 @@ pnpm dev:mock
 ?mock=destination-empty
 ?mock=destination-rate-limited
 ?mock=destination-failed
+?mock=destination-unavailable
 ?mock=parking-empty
 ?mock=parking-slow
 ?mock=parking-server-error
@@ -63,5 +64,7 @@ pnpm dev:mock
 ?mock=parking-detail-not-found
 ?mock=parking-detail-server-error
 ```
+
+`destination-rate-limited`와 `destination-failed`는 카카오 결과만 비우고 주차장 결과를 반환합니다. `destination-unavailable`은 두 검색 원천이 모두 실패한 503 응답입니다.
 
 일반 `pnpm dev`와 프로덕션 빌드에서는 MSW가 시작되지 않습니다.

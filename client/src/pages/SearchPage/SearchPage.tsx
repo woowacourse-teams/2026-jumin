@@ -1,6 +1,6 @@
 import { Stack } from '../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
-import type { Destination } from '../../api/contracts';
+import type { Destination, ParkingLotSearchResult } from '../../api/contracts';
 import { BottomNav } from '../../shared/components/service/BottomNav';
 import { SearchContent } from './components/SearchContent';
 import { color } from '../../theme/color';
@@ -23,6 +23,14 @@ export const SearchPage = () => {
     move('SELECT_DESTINATION', queryString);
   };
 
+  const handleParkingSelect = (parkingLot: ParkingLotSearchResult) => {
+    move('SELECT_PARKING', undefined, {
+      id: parkingLot.parkingLotId,
+      latitude: parkingLot.latitude,
+      longitude: parkingLot.longitude,
+    });
+  };
+
   if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;
 
   return (
@@ -31,6 +39,7 @@ export const SearchPage = () => {
         viewportLatitude={centerLocation.latitude}
         viewportLongitude={centerLocation.longitude}
         onDestinationSelect={handleDestinationSelect}
+        onParkingSelect={handleParkingSelect}
       />
       <footer
         className={css`
