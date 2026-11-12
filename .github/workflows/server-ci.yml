@@ -11,6 +11,7 @@ on:
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
       - 'infra/docker-compose.viewport.yml'
+      - 'infra/docker-compose.viewport.prod.yml'
       - 'infra/docker-compose.proxy.yml'
       - 'infra/docker-compose.proxy.prod.yml'
       - 'infra/nginx/bootstrap.conf'
@@ -19,6 +20,8 @@ on:
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/deploy-backend.sh'
+      - 'infra/scripts/validate-rollback-settings.py'
+      - 'infra/scripts/drain-backend.sh'
       - 'infra/redis/**'
       - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
@@ -39,6 +42,7 @@ on:
       - 'infra/docker-compose.dev.yml'
       - 'infra/docker-compose.prod.yml'
       - 'infra/docker-compose.viewport.yml'
+      - 'infra/docker-compose.viewport.prod.yml'
       - 'infra/docker-compose.proxy.yml'
       - 'infra/docker-compose.proxy.prod.yml'
       - 'infra/nginx/bootstrap.conf'
@@ -47,6 +51,8 @@ on:
       - 'infra/nginx/jumin.prod.conf'
       - 'infra/scripts/validate-admin-auth-env.sh'
       - 'infra/scripts/deploy-backend.sh'
+      - 'infra/scripts/validate-rollback-settings.py'
+      - 'infra/scripts/drain-backend.sh'
       - 'infra/redis/**'
       - 'infra/scripts/tests/**'
       - 'infra/scripts/renew-certificates.sh'
@@ -116,7 +122,8 @@ jobs:
       - name: Validate viewport deployment contracts
         run: bash infra/scripts/tests/test-viewport-cache.sh
 
-      - name: Validate Docker Compose configuration
+      - name: Validate backend slots and Redis TLS Compose configuration
+        shell: bash
         env:
           DB_URL: jdbc:postgresql://localhost:5432/jumin
           DB_USERNAME: ci
@@ -131,24 +138,40 @@ jobs:
           PARKING_AVAILABILITY_ENABLED: 'false'
           SEOUL_PARKING_API_KEY: ''
           BUSAN_PARKING_API_KEY: ''
-        run: docker compose --file infra/docker-compose.dev.yml config --quiet
-
-      - name: Validate production Docker Compose configuration
-        env:
-          DB_URL: jdbc:postgresql://localhost:5432/jumin
-          DB_USERNAME: ci
-          DB_PASSWORD: ci
-          LOCAL_SEARCH_REST_API_KEY: ci
-          REVERSE_GEOCODING_CLIENT_ID: ci
-          REVERSE_GEOCODING_CLIENT_SECRET: ci
-          ADMIN_LOGIN_ID: ci-admin
-          ADMIN_PASSWORD_HASH: ci-password-hash-placeholder
-          ADMIN_TOKEN_SECRET: ci-token-secret-placeholder-32-bytes
-          ADMIN_ENV_LABEL: ci
-          PARKING_AVAILABILITY_ENABLED: 'false'
-          SEOUL_PARKING_API_KEY: ''
-          BUSAN_PARKING_API_KEY: ''
-        run: docker compose --file infra/docker-compose.prod.yml config --quiet
+        run: |
+          for environment in dev prod; do
+            compose_file="infra/docker-compose.$environment.yml"
+            overlay=infra/docker-compose.viewport.yml
+            if [[ "$environment" == prod ]]; then
+              overlay=infra/docker-compose.viewport.prod.yml
+            fi
+            docker compose --file "$compose_file" config --quiet
+            BACKEND_NETWORK_EXTERNAL=true VIEWPORT_REDIS_TLS_CA_PATH=/tmp/jumin-redis-ca.pem \
+              docker compose --file "$compose_file" --file "$overlay" \
+                --profile blue-green config --format json |
+              python3 -c '
+          import json, sys
+          config = json.load(sys.stdin)
+          if sys.argv[1] == "prod":
+              assert config["networks"]["default"]["external"]
+              backend_environment = config["services"]["backend"]["environment"]
+              slots = {"backend-blue": "blue", "backend-green": "green"}
+              services = ("backend", *slots)
+              for name, slot in slots.items():
+                  service = config["services"][name]
+                  assert not service.get("ports"), name
+                  assert service["environment"].get("BACKEND_SLOT") == slot, name
+                  assert backend_environment.items() <= service["environment"].items(), name
+          else:
+              assert set(config["services"]) == {"backend"}
+              assert config["services"]["backend"]["ports"][0]["host_ip"] == "127.0.0.1"
+              services = ("backend",)
+          for name in services:
+              service = config["services"][name]
+              assert any(volume["target"] == "/app/redis-ca.pem" and volume["read_only"]
+                         for volume in service["volumes"]), name
+          ' "$environment"
+          done
 
       - name: Validate development proxy Compose configuration
         run: docker compose --file infra/docker-compose.proxy.yml config --quiet
