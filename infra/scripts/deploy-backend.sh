@@ -8,6 +8,10 @@ repository_root="${GITHUB_WORKSPACE:-$PWD}"
 for variable in GITHUB_SHA GITHUB_RUN_ID GITHUB_RUN_ATTEMPT BACKEND_ARTIFACT_DIR BACKEND_RELEASE_ROOT BACKEND_PORT; do
   [[ -n "${!variable:-}" ]] || { echo "Missing deployment setting: $variable" >&2; exit 1; }
 done
+if [[ "${LOCAL_SEARCH_REST_API_KEY:-}" =~ ^[[:space:]]+$ ]]; then
+  echo 'LOCAL_SEARCH_REST_API_KEY contains only whitespace.' >&2
+  exit 1
+fi
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] || exit 1
 case "${PARKING_AVAILABILITY_ENABLED:-false}" in
   true) [[ -n "${SEOUL_PARKING_API_KEY:-}" && -n "${BUSAN_PARKING_API_KEY:-}" ]] || exit 1 ;;
