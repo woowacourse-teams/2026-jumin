@@ -73,14 +73,6 @@ export const destinationHandlers = [
     );
     const matchedParkingLots = parkingLotSearchFixtures
       .filter((parkingLot) => parkingLot.name.toLowerCase().includes(normalizedQuery))
-      .sort((first, second) => {
-        const firstStartsWithQuery = first.name.toLowerCase().startsWith(normalizedQuery);
-        const secondStartsWithQuery = second.name.toLowerCase().startsWith(normalizedQuery);
-        if (firstStartsWithQuery !== secondStartsWithQuery) return firstStartsWithQuery ? -1 : 1;
-        return (
-          first.name.localeCompare(second.name, 'ko') || first.parkingLotId - second.parkingLotId
-        );
-      })
       .slice(0, 15);
 
     const response: DestinationSearchResponse = {

@@ -86,12 +86,15 @@ test('연관 주차장 3개를 먼저 보여주고 선택하면 상세를 연다
   const parkingName = (await firstParking.innerText()).split('\n')[0]!;
   await firstParking.click();
 
-  await expect(page).toHaveURL(
-    (url) => url.pathname === '/' && url.searchParams.has('parkingLotId'),
-  );
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '');
   await expect(page.getByRole('heading', { level: 1, name: parkingName })).toBeVisible();
   await expect(page.getByRole('region', { name: '요금 정보' })).toBeVisible();
 
+  await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+  await page.goBack();
+  await page.goForward();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
   await page.goBack();
   await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
   await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');

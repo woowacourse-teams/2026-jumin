@@ -24,14 +24,11 @@ export const SearchPage = () => {
   };
 
   const handleParkingSelect = (parkingLot: ParkingLotSearchResult) => {
-    move(
-      'SELECT_PARKING',
-      buildQueryString({
-        parkingLotId: parkingLot.parkingLotId,
-        lat: parkingLot.latitude,
-        lng: parkingLot.longitude,
-      }),
-    );
+    move('SELECT_PARKING', undefined, {
+      id: parkingLot.parkingLotId,
+      latitude: parkingLot.latitude,
+      longitude: parkingLot.longitude,
+    });
   };
 
   if (!centerLocation) return <Navigate to={STEP_PATH.home} replace />;

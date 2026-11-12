@@ -1,6 +1,6 @@
 import { Row } from '../../shared/components/ui/Row';
 import { Notice } from '../../shared/components/ui/Notice';
-import { useOutletContext, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useOutletContext } from 'react-router';
 import { css } from '@emotion/css';
 
 import { useCallback, useLayoutEffect, useState } from 'react';
@@ -23,7 +23,6 @@ import { useBottomSheet } from '../../shared/hooks/useBottomSheet';
 import { useLingeringValue } from '../../shared/hooks/useLingeringValue';
 import { BOTTOM_SHEET_TRANSITION_MS } from '../../shared/components/ui/BottomSheet';
 import { buildQueryString } from '../../shared/hooks/useQueryParams';
-import { parseCoordinates } from '../../shared/utils/parseCoordinates';
 
 const currentLocationIcon = {
   url: currentLocationMarkerUrl,
@@ -49,18 +48,12 @@ interface MapLocation {
 export const HomePage = () => {
   const { move } = useStepNavigation('home');
   const { map } = useOutletContext<{ map: naver.maps.Map | null }>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const searchParkingLotId = Number(searchParams.get('parkingLotId'));
-  const searchParkingLotCoordinates = parseCoordinates(
-    searchParams.get('lat'),
-    searchParams.get('lng'),
-  );
-  const parkingLotFromSearch =
-    Number.isSafeInteger(searchParkingLotId) &&
-    searchParkingLotId > 0 &&
-    searchParkingLotCoordinates
-      ? { id: searchParkingLotId, ...searchParkingLotCoordinates }
-      : null;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const parkingLotFromSearch = location.state as Pick<
+    ParkingLotViewport,
+    'id' | 'latitude' | 'longitude'
+  > | null;
   const parkingLatitude = parkingLotFromSearch?.latitude;
   const parkingLongitude = parkingLotFromSearch?.longitude;
   const [selectedParkingLot, setSelectedParkingLot] = useState<Pick<
@@ -78,8 +71,13 @@ export const HomePage = () => {
   const clearParkingSelection = useCallback(() => {
     close();
     setSelectedParkingLot(null);
-    if (searchParams.has('parkingLotId')) setSearchParams({}, { replace: true });
-  }, [close, searchParams, setSearchParams]);
+    if (location.state) {
+      void navigate(
+        { pathname: location.pathname, search: location.search, hash: location.hash },
+        { replace: true, state: null },
+      );
+    }
+  }, [close, location, navigate]);
 
   useLayoutEffect(() => {
     if (!map || parkingLatitude === undefined || parkingLongitude === undefined) return;
