@@ -224,6 +224,15 @@ Grafana의 `Backend drain exceeded 10 minutes (prod)` 경고를 받으면 Loki�
 보존 중인 이전 슬롯은 재부팅 시 자동 기동을 해제하고, 다시 활성화할 때 재시작 정책을 복원합니다.
 
 Alloy는 최초 단일 백엔드 전환 전에 준비하고, 이후에는 백엔드 배포 후 갱신합니다.
+운영 애플리케이션 지표의 `backend_slot` 라벨은 `blue`, `green`, `legacy`로 슬롯을 구분합니다.
+Alloy는 Nginx를 통해 활성 슬롯을 수집하므로, 아래처럼 Grafana 쿼리를 `backend_slot`으로 집계하면 전환 전후 지표를 별도 선으로 볼 수 있습니다.
+
+```promql
+sum by (backend_slot) (rate(http_server_requests_seconds_count{environment="prod", job="backend", uri!~"/actuator/.*"}[5m]))
+sum by (backend_slot) (jvm_memory_used_bytes{environment="prod", job="backend", area="heap"})
+```
+
+Grafana 범례에 `{{backend_slot}}`을 지정하면 각 선에 슬롯 이름이 표시됩니다.
 지연 정리 중 두 슬롯의 여석 수집 시각이 겹치면 외부 API 호출이 중복될 수 있습니다.
 
 ### 운영 마이그레이션과 용량 확인

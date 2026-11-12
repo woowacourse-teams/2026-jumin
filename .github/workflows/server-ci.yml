@@ -152,9 +152,14 @@ jobs:
           config = json.load(sys.stdin)
           if sys.argv[1] == "prod":
               assert config["networks"]["default"]["external"]
-              services = ("backend", "backend-blue", "backend-green")
-              for name in services[1:]:
-                  assert not config["services"][name].get("ports"), name
+              backend_environment = config["services"]["backend"]["environment"]
+              slots = {"backend-blue": "blue", "backend-green": "green"}
+              services = ("backend", *slots)
+              for name, slot in slots.items():
+                  service = config["services"][name]
+                  assert not service.get("ports"), name
+                  assert service["environment"].get("BACKEND_SLOT") == slot, name
+                  assert backend_environment.items() <= service["environment"].items(), name
           else:
               assert set(config["services"]) == {"backend"}
               assert config["services"]["backend"]["ports"][0]["host_ip"] == "127.0.0.1"
