@@ -13,9 +13,17 @@ interface Props {
   // 부모가 검색 조건 바의 실제 위치를 측정할 수 있도록 header 요소를 전달한다.
   // 위치 측정이 필요 없는 홈·상세 화면에서도 사용하므로 선택적으로 받는다.
   elementRef?: RefObject<HTMLElement | null>;
+  titleRef?: RefObject<HTMLHeadingElement | null>;
 }
 
-export const ConditionBar = ({ title, description, onBack, action, elementRef }: Props) => {
+export const ConditionBar = ({
+  title,
+  description,
+  onBack,
+  action,
+  elementRef,
+  titleRef,
+}: Props) => {
   return (
     <header ref={elementRef} className={headerStyle} aria-label="검색 조건">
       <button
@@ -28,7 +36,9 @@ export const ConditionBar = ({ title, description, onBack, action, elementRef }:
       </button>
 
       <div className={conditionStyle}>
-        <h1 className={destinationStyle}>{title}</h1>
+        <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className={destinationStyle}>
+          {title}
+        </h1>
 
         {(description || action) && (
           <Row align="center" justify="between" gap={12} className={descriptionRowStyle}>
@@ -78,11 +88,6 @@ const backButtonStyle = css`
 
   &:hover {
     background: ${color.background.subtle};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
   }
 `;
 

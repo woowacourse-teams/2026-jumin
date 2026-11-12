@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
 
@@ -39,8 +39,24 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
 
   // 상세 대상의 유무로 모드를 구분해 별도의 mode와 대상이 어긋나지 않게 한다.
   const isDetail = detailParkingLot !== null;
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const detailTriggerRef = useRef<Element | null>(null);
   const sheet = isDetail ? detailSheet : recommendationSheet;
   const sheetSnap = sheet.snap;
+
+  useEffect(() => {
+    if (!isDetail) return;
+
+    // 목록을 숨기기 전에 사용하던 상세 버튼으로 돌아갈 수 있도록 기억한다.
+    const trigger = detailTriggerRef.current;
+    titleRef.current?.focus({ preventScroll: true });
+
+    return () => {
+      if (trigger instanceof HTMLElement && trigger.isConnected) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
+  }, [isDetail]);
 
   const parkingLots = useMemo(
     () => sortParkingLots(recommendationQuery.data?.parkingLots ?? [], recommendationType),
@@ -113,6 +129,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
   };
 
   const openDetail = (parkingLot: ParkingLotSummary) => {
+    detailTriggerRef.current = document.activeElement;
     setSelectedParkingLot({ ...parkingLot });
     detailSheet.open(sheetSnap === 'collapsed' ? 'medium' : sheetSnap);
     setDetailParkingLot(parkingLot);
@@ -121,6 +138,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
   const conditionBar = (
     <ConditionBar
       elementRef={conditionBarRef}
+      titleRef={titleRef}
       title={detailParkingLot?.name ?? searchCondition.destinationName}
       description={
         isDetail

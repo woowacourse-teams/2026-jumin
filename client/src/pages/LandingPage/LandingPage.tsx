@@ -166,11 +166,6 @@ const styles = {
     button {
       font-family: inherit;
     }
-    a:focus-visible,
-    button:focus-visible {
-      outline: 3px solid ${color.focus.ring};
-      outline-offset: 5px;
-    }
     section[id] {
       scroll-margin-top: 24px;
     }

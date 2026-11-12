@@ -294,7 +294,8 @@ it('state 없이 URL 조건으로 추천을 조회하고, 선택한 주차장의
 it('상세 왕복에서 목록 DOM·정렬·선택·추천 시트 상태를 유지한다', async () => {
   renderRecommendation();
   const region = await screen.findByRole('region', { name: '주차장 전체 목록' });
-  await userEvent.setup().click(within(region).getByRole('tab', { name: '가격순' }));
+  // 정렬은 탭 패널 전환이 아니라 동일 목록의 단일 기준 선택이다.
+  await userEvent.setup().click(within(region).getByRole('radio', { name: '가격순' }));
   const rows = within(region).getByRole('list');
   rows.scrollTop = 210;
   await openDetail(108);
@@ -311,10 +312,7 @@ it('상세 왕복에서 목록 DOM·정렬·선택·추천 시트 상태를 유�
       .forEach(({ callback }) => callback());
   });
   await closeDetail();
-  expect(within(region).getByRole('tab', { name: '가격순' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  expect(within(region).getByRole('radio', { name: '가격순' })).toBeChecked();
   expect(within(region).getByRole('button', { name: `${lot(108).name} 선택` })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -324,6 +322,29 @@ it('상세 왕복에서 목록 DOM·정렬·선택·추천 시트 상태를 유�
     [...listeners].filter(({ target, name }) => target === map && name === 'click'),
   ).toHaveLength(1);
   expect(createMap).toHaveBeenCalledTimes(1);
+});
+
+it('방향키로 정렬을 바꾸고 상세를 닫으면 열었던 목록 버튼으로 포커스가 복귀한다', async () => {
+  renderRecommendation();
+  const user = userEvent.setup();
+  const region = await screen.findByRole('region', { name: '주차장 전체 목록' });
+  const recommended = within(region).getByRole('radio', { name: '추천순' });
+
+  // 네이티브 라디오 그룹의 방향키 조작으로 선택과 포커스를 함께 바꾼다.
+  recommended.focus();
+  await user.keyboard('{ArrowRight}{ArrowRight}');
+  const price = within(region).getByRole('radio', { name: '가격순' });
+  expect(price).toBeChecked();
+  expect(price).toHaveFocus();
+
+  // 숨겨지는 추천 목록에 포커스가 남지 않게 하고, 복귀 후 키보드 탐색을 이어간다.
+  const detailButton = within(region).getByRole('button', { name: `${lot(101).name} 상세정보` });
+  detailButton.focus();
+  await user.keyboard('{Enter}');
+  expect(await screen.findByRole('heading', { level: 1, name: lot(101).name })).toHaveFocus();
+  await closeDetail();
+  expect(detailButton).toHaveFocus();
+  expect(price).toBeChecked();
 });
 
 it.each([101, 108])(

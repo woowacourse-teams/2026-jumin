@@ -100,7 +100,6 @@ const textareaStyle = css`
 
   &:focus-visible {
     border-color: ${color.border.focused};
-    outline: 3px solid ${color.focus.ring};
   }
 
   &:disabled {

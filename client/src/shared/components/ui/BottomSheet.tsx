@@ -286,7 +286,7 @@ export default function BottomSheet({ open = true, snap, onSnapChange, header, c
         aria-valuemin={Math.round(minHeight)}
         aria-valuemax={Math.round(maxHeight)}
         aria-valuenow={Math.round(height)}
-        aria-valuetext={snap}
+        aria-valuetext={{ collapsed: '접힘', medium: '중간 높이', full: '전체 높이' }[snap]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishDrag}
@@ -350,6 +350,8 @@ const sheetStyle = css`
 `;
 
 const handleAreaStyle = css`
+  /* 시트의 overflow에 잘리지 않도록 핸들 테두리만 안쪽에 표시한다. */
+  --focus-ring-offset: calc(-1 * var(--focus-ring-width));
   display: flex;
   flex-shrink: 0;
   justify-content: center;
@@ -360,11 +362,6 @@ const handleAreaStyle = css`
 
   &:active {
     cursor: grabbing;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: -2px;
   }
 `;
 

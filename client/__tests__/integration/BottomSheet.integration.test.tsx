@@ -47,7 +47,9 @@ const renderSheet = async (acceptSnapChange = true) => {
 
   const expectSnap = (snap: BottomSheetSnap, height: number) => {
     expect(screen.getByLabelText('사용처의 현재 단계')).toHaveTextContent(snap);
-    expect(handle).toHaveAttribute('aria-valuetext', snap);
+    // 내부 단계 값은 유지하고 스크린리더에는 한국어 높이 안내를 제공한다.
+    const announcement = { collapsed: '접힘', medium: '중간 높이', full: '전체 높이' }[snap];
+    expect(handle).toHaveAttribute('aria-valuetext', announcement);
     expect(handle).toHaveAttribute('aria-valuenow', String(height));
     // height는 드래그와 부모 snap의 정합성 계약에 포함되므로 DOM 값도 검증한다.
     expect(sheet.style.height).toBe(`${height}px`);

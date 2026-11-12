@@ -123,11 +123,6 @@ const selectButtonStyle = css`
   -webkit-user-drag: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: -3px;
-  }
 `;
 
 const informationStyle = css`
@@ -205,11 +200,6 @@ const actionButtonStyle = css`
     position: absolute;
     inset: -4px;
     content: '';
-  }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
-    outline-offset: 2px;
   }
 `;
 
