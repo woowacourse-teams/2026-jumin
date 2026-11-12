@@ -18,6 +18,7 @@ export const lineHeight = {
 // 폰트 두께
 export const fontWeight = {
   400: 400,
+  600: 600,
   700: 700,
   800: 800,
 } as const;

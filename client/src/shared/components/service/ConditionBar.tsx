@@ -3,6 +3,9 @@ import { css } from '@emotion/css';
 import { BackIcon } from '../ui/icons';
 import type { ReactNode, RefObject } from 'react';
 import { color } from '../../../theme/color';
+import { duration, easing } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 import { typography } from '../../../theme/typography';
 
 interface Props {
@@ -13,9 +16,17 @@ interface Props {
   // 부모가 검색 조건 바의 실제 위치를 측정할 수 있도록 header 요소를 전달한다.
   // 위치 측정이 필요 없는 홈·상세 화면에서도 사용하므로 선택적으로 받는다.
   elementRef?: RefObject<HTMLElement | null>;
+  titleRef?: RefObject<HTMLHeadingElement | null>;
 }
 
-export const ConditionBar = ({ title, description, onBack, action, elementRef }: Props) => {
+export const ConditionBar = ({
+  title,
+  description,
+  onBack,
+  action,
+  elementRef,
+  titleRef,
+}: Props) => {
   return (
     <header ref={elementRef} className={headerStyle} aria-label="검색 조건">
       <button
@@ -28,7 +39,9 @@ export const ConditionBar = ({ title, description, onBack, action, elementRef }:
       </button>
 
       <div className={conditionStyle}>
-        <h1 className={destinationStyle}>{title}</h1>
+        <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className={destinationStyle}>
+          {title}
+        </h1>
 
         {(description || action) && (
           <Row align="center" justify="between" gap={12} className={descriptionRowStyle}>
@@ -50,16 +63,16 @@ const headerStyle = css`
   pointer-events: auto;
 
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  column-gap: 8px;
+  column-gap: 4px;
 
-  min-height: 52px;
-  padding: 16px 22px;
+  min-height: 64px;
+  padding: 10px 20px 10px 8px;
 
   background: ${color.background.default};
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgb(16 27 55 / 10%);
+  border-radius: ${radius.lg};
+  box-shadow: ${shadow.floating};
 `;
 
 const backButtonStyle = css`
@@ -67,22 +80,25 @@ const backButtonStyle = css`
   align-items: center;
   justify-content: center;
 
-  width: 32px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
 
   background: transparent;
   border: 0;
-  border-radius: 10px;
+  border-radius: ${radius.sm};
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color ${duration.fast} ${easing.out};
 
-  &:hover {
-    background: ${color.background.subtle};
+  @media (hover: hover) {
+    &:hover {
+      background: ${color.background.subtle};
+    }
   }
 
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: 2px;
+  &:active {
+    background: ${color.background.pressed};
   }
 `;
 
@@ -114,8 +130,9 @@ const descriptionStyle = css`
   min-width: 0;
   margin: 0;
 
-  ${typography.body};
+  ${typography.bodySmall};
   color: ${color.text.secondary};
+  font-variant-numeric: tabular-nums;
 `;
 
 const descriptionRowStyle = css`

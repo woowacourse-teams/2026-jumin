@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { act, cleanup } from '@testing-library/react';
+import { act, cleanup, screen } from '@testing-library/react';
 import { Outlet, Route, Routes } from 'react-router';
 
 import { getMapCenterForMarkerY } from '../../src/shared/maps/getMapCenterForMarkerY';
@@ -25,6 +25,10 @@ class MockOverlay {
   setIcon() {}
   setOptions() {}
 }
+
+const MAP_TOP = 100;
+const CONDITION_BAR_BOTTOM = 220;
+const MARKER_OFFSET_Y = 350;
 
 let originalNaver: PropertyDescriptor | undefined;
 let clickListeners: Set<{ target: unknown; callback: () => void }>;
@@ -88,12 +92,16 @@ it.each([
 });
 
 const createMap = () => {
+  // 지도와 시트는 같은 부모 높이를 사용한다. jsdom에서는 창 높이를 부모 높이로 대신한다.
+  const mapHeight = window.innerHeight;
   const element = document.createElement('div');
-  jest.spyOn(element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 400, 800));
-  const fromCoordToOffset = jest.fn(() => new MockPoint(520, 350));
+  jest
+    .spyOn(element, 'getBoundingClientRect')
+    .mockReturnValue(new DOMRect(0, MAP_TOP, 400, mapHeight));
+  const fromCoordToOffset = jest.fn(() => new MockPoint(520, MARKER_OFFSET_Y));
   const panTo = jest.fn();
   const map = {
-    getSize: () => ({ height: 800 }),
+    getSize: () => ({ height: mapHeight }),
     getElement: () => element,
     getProjection: () => ({
       fromCoordToOffset,
@@ -105,8 +113,37 @@ const createMap = () => {
   return { map, panTo, fromCoordToOffset };
 };
 
-it('홈 시트를 펼칠 때만 선택한 주차장을 시트 위로 이동시킨다', () => {
-  const { map, panTo, fromCoordToOffset } = createMap();
+const mockConditionBarRect = () => {
+  const originalGetRect = HTMLElement.prototype.getBoundingClientRect;
+  // jsdom에는 레이아웃이 없으므로 검색 조건 바의 위치만 브라우저 좌표로 제공한다.
+  jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.getAttribute('aria-label') === '검색 조건'
+      ? new DOMRect(0, CONDITION_BAR_BOTTOM - 60, 400, 60)
+      : originalGetRect.call(this);
+  });
+};
+
+const expectMarkerCenteredInVisibleArea = ({ map, panTo }: ReturnType<typeof createMap>) => {
+  const sheetHeight = Number(
+    screen.getByRole('slider', { name: '패널 높이 조절' }).getAttribute('aria-valuenow'),
+  );
+  const visibleTop = CONDITION_BAR_BOTTOM - MAP_TOP;
+  const visibleBottom = map.getSize().height - sheetHeight;
+  // 좌표 변환을 항등으로 돌려주는 지도 대역에서 panTo의 중심을 화면상 마커 위치로 환산한다.
+  const targetMapCenter = panTo.mock.lastCall?.[0] as MockPoint | undefined;
+  expect(targetMapCenter).toBeDefined();
+  const markerYAfterPan = map.getSize().height / 2 + MARKER_OFFSET_Y - targetMapCenter!.y;
+
+  expect(markerYAfterPan - visibleTop).toBeCloseTo(visibleBottom - markerYAfterPan);
+};
+
+// 지도 상단과 조건 바 하단이 어긋나도 각 시트 단계에서 보이는 영역 중앙을 사용한다.
+it('홈 시트를 접거나 펼칠 때 선택한 주차장을 보이는 지도 영역 중앙으로 이동시킨다', () => {
+  const mapHarness = createMap();
+  const { map, panTo, fromCoordToOffset } = mapHarness;
+  mockConditionBarRect();
   const parkingLot = parkingViewportLots[0]!;
   const queryClient = createTestQueryClient();
   queryClient.setQueryData(
@@ -118,39 +155,32 @@ it('홈 시트를 펼칠 때만 선택한 주차장을 시트 위로 이동시�
     <ParkingInformationPanel {...props} snap="collapsed" />,
     { queryClient },
   );
-  expect(panTo).not.toHaveBeenCalled();
+  expectMarkerCenteredInVisibleArea(mapHarness);
 
-  rerender(<ParkingInformationPanel {...props} snap="expanded" />);
+  rerender(<ParkingInformationPanel {...props} snap="medium" />);
   expect(fromCoordToOffset).toHaveBeenCalledWith(
     new MockPoint(parkingLot.latitude, parkingLot.longitude),
   );
-  // 높이 800에서 시트 높이 600(75%)과 간격 64를 제외한 Y=136에 마커가 보여야 한다.
-  expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 614), expect.anything());
+  expectMarkerCenteredInVisibleArea(mapHarness);
   const moveCount = panTo.mock.calls.length;
 
   rerender(<ParkingInformationPanel {...props} snap="collapsed" />);
-  expect(panTo).toHaveBeenCalledTimes(moveCount);
+  expect(panTo).toHaveBeenCalledTimes(moveCount + 1);
+  expectMarkerCenteredInVisibleArea(mapHarness);
 });
 
-it.each(['collapsed', 'expanded'] as const)(
+it.each(['collapsed', 'medium'] as const)(
   '추천 시트가 %s일 때 선택한 주차장을 보이는 지도 영역으로 이동시킨다',
   (sheetSnap) => {
-    const { map, panTo } = createMap();
+    const mapHarness = createMap();
+    const { map, fromCoordToOffset } = mapHarness;
     const queryClient = createTestQueryClient();
     queryClient.setQueryData(
       parkingSearchQueryOptions(searchCondition).queryKey,
       parkingSearchSuccess,
     );
     const parkingLot = parkingSearchSuccess.parkingLots[0]!;
-    const originalGetRect = HTMLElement.prototype.getBoundingClientRect;
-    // jsdom에는 레이아웃이 없으므로 검색 조건 바의 위치만 브라우저 좌표로 제공한다.
-    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      return this.getAttribute('aria-label') === '검색 조건'
-        ? new DOMRect(0, 160, 400, 60)
-        : originalGetRect.call(this);
-    });
+    mockConditionBarRect();
 
     renderWithProviders(
       <Routes>
@@ -164,19 +194,18 @@ it.each(['collapsed', 'expanded'] as const)(
       },
     );
 
+    expectMarkerCenteredInVisibleArea(mapHarness);
+    expect(fromCoordToOffset).toHaveBeenCalledWith(
+      new MockPoint(parkingLot.location.latitude, parkingLot.location.longitude),
+    );
     if (sheetSnap === 'collapsed') {
-      // 추천 view 복원 대신 실제 지도 클릭으로 시트를 접는다.
+      // 실제 지도 클릭으로 시트를 접으면 바뀐 경계 사이의 중앙으로 다시 이동한다.
       act(() => {
         [...clickListeners]
           .filter(({ target }) => target === map)
           .forEach(({ callback }) => callback());
       });
-      expect(panTo).toHaveBeenLastCalledWith(
-        new MockPoint(parkingLot.location.latitude, parkingLot.location.longitude),
-      );
-    } else {
-      // 지도 상단 100을 뺀 검색 바 하단 120과 시트 상단 200 사이의 중앙(Y=160).
-      expect(panTo).toHaveBeenLastCalledWith(new MockPoint(520, 590), expect.anything());
+      expectMarkerCenteredInVisibleArea(mapHarness);
     }
   },
 );

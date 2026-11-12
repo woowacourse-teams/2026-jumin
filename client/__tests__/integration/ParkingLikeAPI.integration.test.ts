@@ -1,7 +1,11 @@
 import { jest } from '@jest/globals';
 import { http, HttpResponse } from 'msw';
 import { updateParkingLike } from '../../src/api/parkingLikes';
-import { getParkingLotDetail, getViewportParkingLotDetail } from '../../src/api/parkingLots';
+import {
+  getParkingLotDetail,
+  getParkingLotsInViewport,
+  getViewportParkingLotDetail,
+} from '../../src/api/parkingLots';
 import { parkingDetailFixtures } from '../../mocks/fixtures/parkingDetails';
 import { viewportParkingLotDetailFixtures } from '../../mocks/fixtures/viewportParkingLotDetails';
 import { server } from '../msw/server';
@@ -9,6 +13,24 @@ import { searchCondition } from '../testData';
 import { getGuestId, UUID_V4_PATTERN } from '../../src/shared/utils/guestId';
 
 describe('주차장 좋아요 API와 익명 ID', () => {
+  // 목록과 상세가 같은 익명 사용자의 좋아요 등록·취소 상태를 반환해야 한다.
+  it('좋아요를 등록하고 취소하면 뷰포트 목록에도 반영된다', async () => {
+    const bounds = {
+      southLatitude: 33,
+      westLongitude: 124,
+      northLatitude: 39,
+      eastLongitude: 132,
+    };
+
+    await updateParkingLike(101, true);
+    const liked = await getParkingLotsInViewport(bounds);
+    expect(liked.parkingLots.find(({ id }) => id === 101)?.likedByMe).toBe(true);
+
+    // 취소 후 재조회에서도 이전 좋아요 표시가 남지 않는다.
+    await updateParkingLike(101, false);
+    const unliked = await getParkingLotsInViewport(bounds);
+    expect(unliked.parkingLots.find(({ id }) => id === 101)?.likedByMe).toBe(false);
+  });
   it('UUID v4를 localStorage에 저장하고 이후 요청에서 재사용한다', () => {
     const guestId = getGuestId();
 

@@ -1,0 +1,15 @@
+services:
+  backend:
+    volumes: &redis-ca
+      - type: bind
+        source: ${VIEWPORT_REDIS_TLS_CA_PATH:?VIEWPORT_REDIS_TLS_CA_PATH is required}
+        target: /app/redis-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+
+  backend-blue:
+    volumes: *redis-ca
+
+  backend-green:
+    volumes: *redis-ca

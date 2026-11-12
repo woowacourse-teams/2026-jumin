@@ -10,18 +10,19 @@ import {
   type ReactNode,
 } from 'react';
 import { color } from '../../../theme/color';
+import { durationMs, easing } from '../../../theme/motion';
+import { shadow } from '../../../theme/shadow';
 
-export type BottomSheetSnap = 'collapsed' | 'medium' | 'expanded' | 'full';
+export type BottomSheetSnap = 'collapsed' | 'medium' | 'full';
 
-/** 클릭과 작은 손떨림을 제외하고 방향을 판단할 최소 이동 거리(px). */
-const DRAG_THRESHOLD = 8;
+/** 클릭과 작은 손떨림을 제외하고 단계 변경을 판단할 최소 이동 거리(px). */
+const DRAG_THRESHOLD = 10;
 
-/** 기본 네 단계의 전체 높이. 지도 배치도 같은 계산을 사용한다. */
+/** 기본 세 단계의 전체 높이. 지도 배치도 같은 계산을 사용한다. */
 export const getBottomSheetSnapHeight = (snap: BottomSheetSnap, containerHeight: number) => {
   const heights: Record<BottomSheetSnap, number> = {
     collapsed: 110,
-    medium: containerHeight * 0.45,
-    expanded: containerHeight * 0.75,
+    medium: Math.round(containerHeight * 0.55),
     full: containerHeight,
   };
   return Math.min(heights[snap], containerHeight);
@@ -36,10 +37,11 @@ interface DragGesture {
 
 const bottomSheetTokens = {
   background: color.background.default,
-  radiusTop: 16,
-  shadow: '0 -4px 20px rgb(0 0 0 / 10%)',
+  /** radius.lg와 같은 값. 전체 높이에서 0으로 바꾸는 계산에 숫자가 필요해 px 숫자로 둔다. */
+  radiusTop: 28,
+  shadow: shadow.sheet,
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
     radius: 999,
     color: color.background.muted,
@@ -47,13 +49,21 @@ const bottomSheetTokens = {
     paddingBottom: 18,
   },
   content: { paddingX: 24, paddingBottomMin: 28 },
-  motion: { duration: 250, easing: 'ease-out' },
+  motion: {
+    duration: durationMs.slow,
+    easing: easing.sheet,
+    /** 닫힐 때는 천천히 출발해 내려가는 모습이 끝까지 보이게 한다. */
+    exitEasing: easing.inOut,
+  },
 } as const;
+
+/** 닫는 전환이 끝나는 시간(ms). 사용처가 이 시간 동안 시트를 마운트해 두면 닫힘이 끝까지 보인다. */
+export const BOTTOM_SHEET_TRANSITION_MS = bottomSheetTokens.motion.duration;
 
 interface Props {
   /** 생략하면 열린 시트로 표시한다. 닫는 전환 동안에는 마운트를 유지한다. */
   open?: boolean;
-  /** collapsed(110px)·medium(45%)·expanded(75%)·full(100%) 중 현재 단계. */
+  /** collapsed(110px)·medium(55%)·full(100%) 중 현재 단계. */
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;
   /** 본문과 분리해서 표시할 상단 영역. */
@@ -106,7 +116,7 @@ const useBottomSheetInteraction = ({ open, snap, onSnapChange }: InteractionOpti
   }, []);
 
   const points = useMemo(() => {
-    const snaps: BottomSheetSnap[] = ['collapsed', 'medium', 'expanded', 'full'];
+    const snaps: BottomSheetSnap[] = ['collapsed', 'medium', 'full'];
     return snaps
       .map((id) => ({ id, height: getBottomSheetSnapHeight(id, containerHeight) }))
       .sort((a, b) => a.height - b.height);
@@ -170,7 +180,7 @@ const useBottomSheetInteraction = ({ open, snap, onSnapChange }: InteractionOpti
     let destination = activePoint;
 
     if (Math.abs(delta) >= DRAG_THRESHOLD) {
-      // 현재 단계를 제외하고 움직인 방향의 단계 중 가까운 곳으로 이동한다.
+      // 단계 간 간격이 커져도 짧은 드래그만으로 full까지 이동하지 않도록 놓은 높이와 비교한다.
       const candidates = points.filter((point) =>
         delta > 0 ? point.height > height : point.height < height,
       );
@@ -287,7 +297,7 @@ export default function BottomSheet({ open = true, snap, onSnapChange, header, c
         aria-valuemin={Math.round(minHeight)}
         aria-valuemax={Math.round(maxHeight)}
         aria-valuenow={Math.round(height)}
-        aria-valuetext={snap}
+        aria-valuetext={{ collapsed: '접힘', medium: '중간 높이', full: '전체 높이' }[snap]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishDrag}
@@ -319,16 +329,21 @@ const sheetStyle = css`
   background: ${bottomSheetTokens.background};
   border-radius: ${bottomSheetTokens.radiusTop}px ${bottomSheetTokens.radiusTop}px 0 0;
   box-shadow: ${bottomSheetTokens.shadow};
+  /* 닫힌 상태. 열릴 때는 화면 아래에서 올라오고, 닫힐 때는 화면 아래로 내려간다. */
+  --bottom-sheet-transform-easing: ${bottomSheetTokens.motion.exitEasing};
+
   transform: translate3d(0, calc(100% + 32px), 0);
   transition:
     height ${bottomSheetTokens.motion.duration}ms ${bottomSheetTokens.motion.easing},
-    transform ${bottomSheetTokens.motion.duration}ms ${bottomSheetTokens.motion.easing};
+    transform ${bottomSheetTokens.motion.duration}ms var(--bottom-sheet-transform-easing);
 
   &[data-open='true'] {
     pointer-events: auto;
   }
 
   &[data-open='true'][data-entered='true'] {
+    --bottom-sheet-transform-easing: ${bottomSheetTokens.motion.easing};
+
     transform: translate3d(0, 0, 0);
   }
 
@@ -351,6 +366,8 @@ const sheetStyle = css`
 `;
 
 const handleAreaStyle = css`
+  /* 시트의 overflow에 잘리지 않도록 핸들 테두리만 안쪽에 표시한다. */
+  --focus-ring-offset: calc(-1 * var(--focus-ring-width));
   display: flex;
   flex-shrink: 0;
   justify-content: center;
@@ -361,11 +378,6 @@ const handleAreaStyle = css`
 
   &:active {
     cursor: grabbing;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${color.focus.ring};
-    outline-offset: -2px;
   }
 `;
 

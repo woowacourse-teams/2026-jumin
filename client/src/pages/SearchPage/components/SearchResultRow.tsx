@@ -3,6 +3,8 @@ import { css } from '@emotion/css';
 import type { Destination } from '../../../api/contracts';
 import { color } from '../../../theme/color';
 import { LocationIcon } from '../../../shared/components/ui/icons';
+import { duration, easing } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
 import { typography } from '../../../theme/typography';
 
 interface Props {
@@ -26,16 +28,27 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           align-items: center;
           gap: 12px;
           width: 100%;
-          min-height: 66px;
+          min-height: 68px;
           padding: 10px 20px;
           border: 0;
           background: ${color.background.default};
           text-align: left;
           cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          transition: background-color ${duration.fast} ${easing.out};
 
-          &:hover,
           &:focus-visible {
             background: ${color.background.subtle};
+          }
+
+          @media (hover: hover) {
+            &:hover {
+              background: ${color.background.subtle};
+            }
+          }
+
+          &:active {
+            background: ${color.background.pressed};
           }
         `}
         type="button"
@@ -44,11 +57,11 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
         <span
           className={css`
             display: grid;
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             flex-shrink: 0;
             place-items: center;
-            border-radius: 10px;
+            border-radius: ${radius.sm};
             background: ${color.background.brandSubtle};
             color: ${color.text.brand};
           `}
@@ -66,7 +79,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           <strong
             className={css`
               overflow: hidden;
-              ${typography.bodySmallStrong};
+              ${typography.bodyStrong};
               color: ${color.text.primary};
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -90,7 +103,7 @@ export const SearchResultRow = ({ query, destination, onSelect }: Props) => {
           <span
             className={css`
               overflow: hidden;
-              ${typography.caption};
+              ${typography.bodySmall};
               color: ${color.text.secondary};
               text-overflow: ellipsis;
               white-space: nowrap;

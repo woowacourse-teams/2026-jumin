@@ -1,8 +1,11 @@
 import { delay, http, HttpResponse } from 'msw';
-import { parkingSearchEmpty, parkingSearchSuccess } from '../fixtures/parkingSearch';
+import { parkingSearchEmpty } from '../fixtures/parkingSearch';
 import { getMockScenario } from '../scenario';
 import type { FieldError, ValidationErrorResponse } from '../types/validationError';
-import { relocateParkingLocation } from '../utils/relocateParkingLocation';
+import {
+  SEARCH_RADIUS_METERS,
+  searchGangnamParkingLots,
+} from '../utils/createGangnamParkingSearch';
 
 const offsetDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:(\d{2}):00\+09:00$/;
 
@@ -67,10 +70,6 @@ const validateParkingSearchRequest = (url: URL): FieldError[] => {
   const entryTime = Date.parse(entryAt);
   const exitTime = Date.parse(exitAt);
 
-  if (entryTime <= Date.now()) {
-    errors.push({ field: 'entryAt', message: '입차 시각은 현재보다 이후여야 합니다.' });
-  }
-
   if (exitTime <= entryTime) {
     errors.push({ field: 'exitAt', message: '출차 시각은 입차 시각보다 이후여야 합니다.' });
   } else if (exitTime - entryTime > 24 * 60 * 60 * 1000) {
@@ -117,17 +116,20 @@ export const parkingSearchHandlers = [
       return HttpResponse.json(parkingSearchEmpty);
     }
 
-    const destination = {
-      latitude: Number(url.searchParams.get('destinationLatitude')),
-      longitude: Number(url.searchParams.get('destinationLongitude')),
-    };
+    // 홈 지도와 같은 실제 주차장 데이터에서 목적지 주변 주차장을 골라 추천한다.
+    const parkingLots = searchGangnamParkingLots({
+      destination: {
+        latitude: Number(url.searchParams.get('destinationLatitude')),
+        longitude: Number(url.searchParams.get('destinationLongitude')),
+      },
+      entryAt: url.searchParams.get('entryAt')!,
+      exitAt: url.searchParams.get('exitAt')!,
+    });
 
     return HttpResponse.json({
-      ...parkingSearchSuccess,
-      parkingLots: parkingSearchSuccess.parkingLots.map((parkingLot) => ({
-        ...parkingLot,
-        location: relocateParkingLocation(parkingLot.location, destination),
-      })),
+      searchRadiusMeters: SEARCH_RADIUS_METERS,
+      totalCount: parkingLots.length,
+      parkingLots,
     });
   }),
 ];

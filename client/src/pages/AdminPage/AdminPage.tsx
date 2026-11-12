@@ -1032,11 +1032,6 @@ const tabStyle = css`
     box-shadow: 0 2px 6px rgb(31 45 102 / 6%);
   }
 
-  &:focus-visible {
-    outline: 2px solid #4356d8;
-    outline-offset: 2px;
-  }
-
   &:disabled {
     opacity: 0.55;
     cursor: not-allowed;
@@ -1047,8 +1042,6 @@ const tabPanelStyle = css`
   min-width: 0;
 
   &:focus-visible {
-    outline: 2px solid #4356d8;
-    outline-offset: 4px;
     border-radius: 20px;
   }
 `;
@@ -1290,7 +1283,6 @@ const inputStyle = css`
 
   &:focus-visible {
     border-color: #4356d8;
-    outline: 3px solid #e1e5ff;
   }
 
   &:disabled {
@@ -1320,8 +1312,8 @@ const uploadZoneStyle = css`
   }
 
   &:focus-within {
-    outline: 3px solid #4356d8;
-    outline-offset: 3px;
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   &[data-disabled='true'] {
@@ -1383,11 +1375,6 @@ const buttonStyle = css`
   border: 0;
   border-radius: 12px;
   cursor: pointer;
-
-  &:focus-visible {
-    outline: 3px solid #4356d8;
-    outline-offset: 3px;
-  }
 
   &:disabled {
     cursor: not-allowed;

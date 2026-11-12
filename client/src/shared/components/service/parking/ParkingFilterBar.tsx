@@ -53,7 +53,8 @@ export const ParkingFilterBar = ({ filters, onChange, className }: Props) => {
             key={key}
             selected={isSelected}
             onSelectedChange={(selected) => onChange({ ...filters, [key]: selected })}
-            icon={<Icon color={iconColor} />}
+            // 선택한 칩은 브랜드색 면이므로 아이콘을 흰색으로 바꾼다. 고유색은 선택 전 상태에서만 쓴다.
+            icon={<Icon color={isSelected ? color.icon.inverse : iconColor} />}
           >
             {label}
           </Chip>

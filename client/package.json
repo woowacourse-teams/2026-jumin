@@ -15,7 +15,11 @@
     "test:parking-markers": "node --experimental-strip-types --test __tests__/unit/map/parkingMarker.test.mjs __tests__/unit/map/parkingMarkerPolicy.test.mjs",
     "test:webpack-config": "node --test __tests__/unit/config/webpackConfig.test.mjs",
     "test:dependency-security": "node --test __tests__/unit/config/dependencySecurity.test.mjs",
-    "check": "pnpm typecheck && pnpm test:integration && pnpm test:deep-link && pnpm test:parking-markers && pnpm test:webpack-config && pnpm test:dependency-security && eslint . && prettier --check ."
+    "test:affected-selection": "node --test __tests__/unit/config/selectAffectedTests.test.mjs",
+    "test:unit": "node scripts/run-unit-tests.mjs",
+    "check": "pnpm typecheck && pnpm test:integration && pnpm test:unit && eslint . && prettier --check .",
+    "storybook": "storybook dev --port 6006 --no-open",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@daypicker/react": "^10.0.1",
@@ -43,6 +47,10 @@
     "@jest/globals": "^30.5.2",
     "@playwright/test": "^1.63.0",
     "@sentry/webpack-plugin": "^5.4.1",
+    "@storybook/addon-designs": "12.0.0",
+    "@storybook/addon-docs": "10.6.6",
+    "@storybook/addon-webpack5-compiler-swc": "4.0.3",
+    "@storybook/react-webpack5": "10.6.6",
     "@swc/core": "^1.16.2",
     "@swc/jest": "^0.2.39",
     "@testing-library/jest-dom": "^7.0.1",
@@ -64,6 +72,7 @@
     "jest-environment-jsdom": "^30.5.2",
     "msw": "^2.15.0",
     "prettier": "^3.9.9",
+    "storybook": "10.6.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",
     "webpack": "^5.111.1",

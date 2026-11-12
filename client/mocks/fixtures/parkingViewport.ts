@@ -20,6 +20,7 @@ export const parkingViewportLots: ParkingLotViewport[] = viewportLocations.map(
       id,
       latitude,
       longitude,
+      likedByMe: false,
       // LOD 목 응답도 서버의 capacity 점수 규칙을 따른다.
       score: typeof capacity === 'number' && capacity > 0 ? capacity / (capacity + 50) : 0,
     };

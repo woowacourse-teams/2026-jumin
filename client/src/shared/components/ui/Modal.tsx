@@ -1,21 +1,39 @@
-import { css, cx } from '@emotion/css';
+import { css, cx, keyframes } from '@emotion/css';
 import ReactModal from 'react-modal';
+import { useId } from 'react';
 import { Stack } from './Stack';
 import { CloseIcon } from './icons';
 import { color } from '../../../theme/color';
+import { duration, easing } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 import { typography } from '../../../theme/typography';
 
 const MODAL = {
   maxWidth: '340px',
   padding: '26px 20px 18px',
-  radius: '24px',
-  shadow: '0 24px 64px rgb(16 27 55 / 24%)',
+  radius: radius.lg,
+  shadow: shadow.modal,
   zIndex: 2000,
-  closeOffset: '14px',
-  closeSize: '36px',
-  closeRadius: '10px',
+  /** 닫기 버튼은 터치 영역 44px을 확보하고, 아이콘 중심은 모서리에서 32px에 둔다. */
+  closeOffset: '10px',
+  closeSize: '44px',
+  closeRadius: radius.sm,
   closeIconSize: 24,
+  /** 아래에서 올라오며 나타나는 거리. */
+  enterOffset: '28px',
 } as const;
+
+const overlayEnter = keyframes`
+  from { opacity: 0; }
+`;
+
+const modalEnter = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(${MODAL.enterOffset});
+  }
+`;
 
 if (typeof document !== 'undefined') {
   const appElement = document.querySelector<HTMLElement>('#root, #storybook-root');
@@ -30,17 +48,31 @@ interface Props {
 }
 
 export const Modal = ({ onClose, label, description, children }: Props) => {
+  const titleId = useId();
+  const descriptionId = useId();
+
   return (
     <ReactModal
       isOpen
       onRequestClose={onClose}
       contentLabel={label}
+      aria={{
+        modal: true,
+        labelledby: titleId,
+        describedby: description ? descriptionId : undefined,
+      }}
       overlayClassName={overlayStyle}
       className={modalStyle}
       shouldCloseOnOverlayClick
     >
-      <h2 className={cx(labelStyle, description && labelWithDescriptionStyle)}>{label}</h2>
-      {description && <p className={descriptionStyle}>{description}</p>}
+      <h2 id={titleId} className={cx(labelStyle, description && labelWithDescriptionStyle)}>
+        {label}
+      </h2>
+      {description && (
+        <p id={descriptionId} className={descriptionStyle}>
+          {description}
+        </p>
+      )}
 
       <button
         type="button"
@@ -68,6 +100,7 @@ const overlayStyle = css`
   box-sizing: border-box;
 
   background: ${color.overlay.scrim};
+  animation: ${overlayEnter} ${duration.base} ${easing.out};
 `;
 
 const modalStyle = css`
@@ -85,6 +118,7 @@ const modalStyle = css`
   border-radius: ${MODAL.radius};
   box-shadow: ${MODAL.shadow};
   outline: none;
+  animation: ${modalEnter} ${duration.base} ${easing.out};
 `;
 
 const closeButtonStyle = css`
@@ -108,23 +142,25 @@ const closeButtonStyle = css`
 
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color ${duration.fast} ${easing.out},
+    color ${duration.fast} ${easing.out};
 
-  &:hover {
-    color: ${color.text.primary};
-    background: ${color.background.subtle};
+  @media (hover: hover) {
+    &:hover {
+      color: ${color.text.primary};
+      background: ${color.background.subtle};
+    }
   }
 
   &:active {
-    background: ${color.background.subtle};
-  }
-
-  &:focus-visible {
-    outline: 3px solid ${color.focus.ring};
+    color: ${color.text.primary};
+    background: ${color.background.pressed};
   }
 `;
 
 const labelStyle = css`
-  margin: 0 44px 18px 0;
+  margin: 0 48px 18px 0;
 
   ${typography.titleSection};
   color: ${color.text.primary};
@@ -133,7 +169,7 @@ const labelStyle = css`
 `;
 
 const labelWithDescriptionStyle = css`
-  margin: 0 40px 6px 0;
+  margin: 0 48px 6px 0;
   color: ${color.text.primary};
   letter-spacing: -0.5px;
 `;
@@ -144,6 +180,6 @@ const descriptionStyle = css`
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  ${typography.caption};
+  ${typography.bodySmall};
   color: ${color.text.secondary};
 `;

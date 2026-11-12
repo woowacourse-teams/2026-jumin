@@ -1,6 +1,9 @@
 import { css } from '@emotion/css';
 import { MyLocation } from '../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
+import { duration, easing, pressScale } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 
 interface Props {
   onClick: () => void;
@@ -12,16 +15,25 @@ export const CurrentLocationButton = ({ onClick }: Props) => (
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 46px;
-      height: 46px;
+      width: 48px;
+      height: 48px;
       padding: 0;
       border: 0;
-      border-radius: 14px;
+      border-radius: ${radius.pill};
       color: ${color.icon.brand};
       background: ${color.background.default};
       vertical-align: top;
       cursor: pointer;
-      box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+      box-shadow: ${shadow.floating};
+      -webkit-tap-highlight-color: transparent;
+      transition:
+        transform ${duration.fast} ${easing.out},
+        background-color ${duration.fast} ${easing.out};
+
+      &:active {
+        background: ${color.background.subtle};
+        transform: scale(${pressScale});
+      }
     `}
     type="button"
     aria-label="현재 위치로 이동"
