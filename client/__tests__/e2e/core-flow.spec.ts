@@ -150,12 +150,17 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await expect(region.getByRole('radio', { name })).toBeVisible();
   }
 
-  // 두 주차장 모두 거리로 고른 15곳 안에 있어, 조회 시각에 따라 추천·더보기 중 어디에 있든 확인할 수 있다.
-  for (const name of ['강남역 센트럴푸르지오시티 주차장', '통일빌딩 주차장']) {
-    const select = region.getByRole('button', { name: `${name} 선택` });
+  // 조회 시각에 따라 순위가 달라져도 두 섹션에서 각각 한 곳을 열어 확인한다.
+  for (const sectionName of [/^추천 주차장 \d+곳$/, /^더보기 주차장 \d+곳$/]) {
+    const item = region.getByRole('listitem').filter({
+      has: page.getByRole('heading', { name: sectionName }),
+    });
+    const select = item.getByRole('button', { name: / 선택$/ });
+    const detail = item.getByRole('button', { name: / 상세정보$/ });
+    const name = (await select.getAttribute('aria-label'))!.replace(/ 선택$/, '');
     await select.click();
     await expect(select).toHaveAttribute('aria-pressed', 'true');
-    await region.getByRole('button', { name: `${name} 상세정보` }).click();
+    await detail.click();
     await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
