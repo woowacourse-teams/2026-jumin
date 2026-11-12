@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 import { color } from '../../../theme/color';
+import { durationMs, easing } from '../../../theme/motion';
+import { shadow } from '../../../theme/shadow';
 
 export type BottomSheetSnap = 'collapsed' | 'medium' | 'full';
 
@@ -35,10 +37,11 @@ interface DragGesture {
 
 const bottomSheetTokens = {
   background: color.background.default,
-  radiusTop: 16,
-  shadow: '0 -4px 20px rgb(0 0 0 / 10%)',
+  /** radius.lg와 같은 값. 전체 높이에서 0으로 바꾸는 계산에 숫자가 필요해 px 숫자로 둔다. */
+  radiusTop: 28,
+  shadow: shadow.sheet,
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
     radius: 999,
     color: color.background.muted,
@@ -46,7 +49,7 @@ const bottomSheetTokens = {
     paddingBottom: 18,
   },
   content: { paddingX: 24, paddingBottomMin: 28 },
-  motion: { duration: 250, easing: 'ease-out' },
+  motion: { duration: durationMs.slow, easing: easing.sheet },
 } as const;
 
 interface Props {

@@ -91,6 +91,7 @@ export const ParkingMarkers = ({
             icon={isDetail ? detailMarkerIcon : markerIcons[markerType]}
             title={parkingLot.name}
             zIndex={markerType === 'selected' ? 30 : markerType === 'recommended' ? 20 : 10}
+            animated
             onClick={() => onSelect(parkingLot)}
           />
         );

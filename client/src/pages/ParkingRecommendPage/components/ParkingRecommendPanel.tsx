@@ -186,6 +186,7 @@ export const ParkingRecommendPanel = ({ map, searchCondition, onBack }: Props) =
             <ParkingRecommendContent
               parkingLots={parkingLots}
               recommendedCount={recommendedParkingLots.length}
+              searchRadiusMeters={recommendationQuery.data.searchRadiusMeters}
               recommendationType={recommendationType}
               selectedParkingLot={activeParkingLot}
               isActive={!isDetail}

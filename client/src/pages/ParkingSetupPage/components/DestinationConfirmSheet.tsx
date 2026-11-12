@@ -1,9 +1,17 @@
 import { Button } from '../../../shared/components/ui/Button';
 import { Notice } from '../../../shared/components/ui/Notice';
-import { css } from '@emotion/css';
+import { css, keyframes } from '@emotion/css';
 import { CloseIcon } from '../../../shared/components/ui/icons';
 import { color } from '../../../theme/color';
+import { duration, easing } from '../../../theme/motion';
+import { radius } from '../../../theme/radius';
+import { shadow } from '../../../theme/shadow';
 import { typography } from '../../../theme/typography';
+
+/** 목적지를 고른 직후 시트가 화면 아래에서 올라온다. */
+const sheetEnter = keyframes`
+  from { transform: translateY(100%); }
+`;
 
 interface Props {
   name: string;
@@ -22,9 +30,11 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
         left: 0;
         z-index: 1;
         padding: 24px 16px max(20px, env(safe-area-inset-bottom, 0px));
-        border-radius: 28px 28px 0 0;
+        border-radius: ${radius.lg} ${radius.lg} 0 0;
         background: ${color.background.default};
+        box-shadow: ${shadow.sheet};
         box-sizing: border-box;
+        animation: ${sheetEnter} ${duration.slow} ${easing.sheet};
       `}
       aria-label="선택한 목적지"
     >
@@ -32,17 +42,24 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
       <button
         className={css`
           position: absolute;
-          top: 16px;
-          right: 16px;
+          top: 10px;
+          right: 10px;
           display: grid;
           place-items: center;
-          width: 32px;
-          height: 32px;
+          width: 44px;
+          height: 44px;
           padding: 0;
           border: 0;
+          border-radius: ${radius.sm};
           background: transparent;
           color: ${color.icon.default};
           cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          transition: background-color ${duration.fast} ${easing.out};
+
+          &:active {
+            background: ${color.background.pressed};
+          }
         `}
         type="button"
         aria-label="목적지 선택 취소"
@@ -55,8 +72,8 @@ export const DestinationConfirmSheet = ({ name, nextDisabled, onCancel, onNext }
         aria-live="polite"
         aria-atomic="true"
         className={css`
-          margin: 0 40px 4px 0;
-          ${typography.titleCard};
+          margin: 0 44px 4px 0;
+          ${typography.titleSection};
           color: ${color.text.primary};
         `}
       >

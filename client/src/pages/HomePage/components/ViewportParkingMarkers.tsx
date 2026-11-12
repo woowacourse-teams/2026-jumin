@@ -60,6 +60,7 @@ const ViewportParkingMarker = memo(({ map, parkingLot, icon, zIndex, onSelect }:
       icon={icon}
       title="주차장"
       zIndex={zIndex}
+      animated
       onClick={() => onSelect(parkingLot)}
     />
   );
