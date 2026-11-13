@@ -12,9 +12,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +54,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Repository
 public class ViewportRepository {
+
+    private static final String SELECT_LIKED_PARKING_LOTS_SQL = """
+            SELECT parking_lot_id FROM parking_likes
+            WHERE anonymous_id = ?
+            """;
 
     private static final String VIEWPORT_FIELDS = """
             l.id, l.latitude, l.longitude, l.capacity, l.mechanical, l.is_public,
@@ -144,7 +152,7 @@ public class ViewportRepository {
         named = new NamedParameterJdbcTemplate(jdbc);
         transactions = new DataSourceTransactionManager(source);
         maximum = properties.getMaxConcurrentDb();
-        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("viewport"));
+        metrics.registerDatabase(active, queued, stageActive("source"), stageActive("viewport"), stageActive("likes"));
     }
 
     public Map<ViewportCellKey, ViewportCell> load(
@@ -166,6 +174,22 @@ public class ViewportRepository {
             metrics.count("sql", "cell_batch", 1);
             return named.query(SELECT_CELLS_SQL, parameters, rows -> {
                 return readCells(rows, keys, gridSizeMeters, deadline);
+            });
+        });
+    }
+
+    public Set<Long> findLikedParkingLotIds(UUID guestId, ViewportDeadline deadline) {
+        return read("likes", deadline, () -> {
+            metrics.count("sql", "likes", 1);
+            return jdbc.query(SELECT_LIKED_PARKING_LOTS_SQL, statement -> {
+                statement.setObject(1, guestId);
+                deadline.requireRemaining();
+            }, rows -> {
+                Set<Long> ids = new HashSet<>();
+                while (nextRow(rows, deadline)) {
+                    ids.add(rows.getLong("parking_lot_id"));
+                }
+                return ids;
             });
         });
     }

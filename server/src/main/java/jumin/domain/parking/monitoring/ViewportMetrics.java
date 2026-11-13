@@ -35,7 +35,7 @@ public class ViewportMetrics {
     }
 
     public void registerDatabase(AtomicInteger active, AtomicInteger queued,
-                                 AtomicInteger sourceActive, AtomicInteger viewportActive) {
+                                 AtomicInteger sourceActive, AtomicInteger viewportActive, AtomicInteger likesActive) {
         gauge("db.active", active::get);
         gauge("db.queued", queued::get);
         gauge("db.pending", () -> active.get() + queued.get());
@@ -43,6 +43,8 @@ public class ViewportMetrics {
                 .tag("stage", "source").register(registry);
         Gauge.builder("parking.viewport.db.stage.active", viewportActive, AtomicInteger::get)
                 .tag("stage", "viewport").register(registry);
+        Gauge.builder("parking.viewport.db.stage.active", likesActive, AtomicInteger::get)
+                .tag("stage", "likes").register(registry);
     }
 
     private void gauge(String metric, IntSupplier value) {

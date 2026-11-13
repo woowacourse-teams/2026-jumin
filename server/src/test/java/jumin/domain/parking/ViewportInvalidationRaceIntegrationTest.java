@@ -280,7 +280,7 @@ class ViewportInvalidationRaceIntegrationTest {
         }
 
         private ParkingLotViewportResponses search(ParkingLotViewportRequest request) {
-            return service.search(request);
+            return service.search(request, null);
         }
 
         private double sourceReads() {
