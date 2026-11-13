@@ -3,40 +3,43 @@ package jumin.domain.parking.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
 import java.util.UUID;
-import jumin.domain.parking.dto.ParkingSearchRequest;
-import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.dto.ParkingDailyOperationResponse;
 import jumin.domain.parking.dto.ParkingFeeRuleResponse;
 import jumin.domain.parking.dto.ParkingLotResponse;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
-import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportRequest;
+import jumin.domain.parking.dto.ParkingLotViewportResponse;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
+import jumin.domain.parking.dto.ParkingSearchRequest;
+import jumin.domain.parking.dto.ParkingSearchResponse;
 import jumin.domain.parking.service.ParkingSearchService;
 import jumin.domain.parking.service.ViewportSearchService;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.mockito.ArgumentCaptor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(ParkingSearchController.class)
@@ -53,6 +56,43 @@ class ParkingSearchControllerTest {
 
     @MockitoBean
     private ViewportSearchService viewportSearchService;
+
+    @Test
+    @DisplayName("지도 목록 조회에 게스트 ID를 전달하고 개인화된 응답을 반환한다")
+    void viewport_passes_guest_id_to_service() throws Exception {
+        // 개인화는 서비스에서 수행하며 컨트롤러는 요청자 전달과 HTTP 응답만 담당한다.
+        var result = ParkingLotViewportResponses.from(List.of(
+                new ParkingLotViewportResponse(1L, 37.5665, 126.9780, 0.5, true),
+                new ParkingLotViewportResponse(2L, 37.5670, 126.9790, 0.75, false)
+        ));
+        when(viewportSearchService.search(any(), eq(UUID.fromString(GUEST_ID))))
+                .thenReturn(result);
+
+        mockMvc.perform(viewportRequest().header("X-Guest-Id", GUEST_ID))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.totalCount").value(2))
+                .andExpect(jsonPath("$.parkingLots[0].likedByMe").value(true))
+                .andExpect(jsonPath("$.parkingLots[1].likedByMe").value(false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"invalid", "", "550e8400-e29b-11d4-a716-446655440000"})
+    @DisplayName("지도 목록 조회의 게스트 ID가 UUID v4가 아니면 400을 반환한다")
+    void viewport_rejects_invalid_guest_id_before_search(String guestId) throws Exception {
+        // 상세 조회와 동일하게 UUID v4가 아닌 요청자를 조회 전에 거절한다.
+        mockMvc.perform(viewportRequest().header("X-Guest-Id", guestId))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(viewportSearchService);
+    }
+
+    private MockHttpServletRequestBuilder viewportRequest() {
+        return get("/api/parking/viewport")
+                .queryParam("westLongitude", "126.9700")
+                .queryParam("southLatitude", "37.5600")
+                .queryParam("eastLongitude", "126.9900")
+                .queryParam("northLatitude", "37.5750");
+    }
 
     @Test
     @DisplayName("추천과 순위 필드가 없는 간결한 주차장 목록을 반환한다")
@@ -244,7 +284,7 @@ class ParkingSearchControllerTest {
                         score
                 ))
         );
-        when(viewportSearchService.search(any(ParkingLotViewportRequest.class))).thenReturn(result);
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class), isNull())).thenReturn(result);
 
         // when
         ResultActions response = mockMvc.perform(get("/api/parking/viewport")
@@ -261,7 +301,9 @@ class ParkingSearchControllerTest {
                 .andExpect(jsonPath("$.parkingLots[0].latitude").value(37.5665))
                 .andExpect(jsonPath("$.parkingLots[0].longitude").value(126.9780))
                 .andExpect(jsonPath("$.parkingLots[0].score").isNumber())
-                .andExpect(jsonPath("$.parkingLots[0].score").value(score));
+                .andExpect(jsonPath("$.parkingLots[0].score").value(score))
+                // 요청자를 생략한 기존 지도 조회도 불리언 필드를 항상 반환한다.
+                .andExpect(jsonPath("$.parkingLots[0].likedByMe").value(false));
 
         verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700,
@@ -271,7 +313,7 @@ class ParkingSearchControllerTest {
                 false,
                 false,
                 false
-        ));
+        ), null);
     }
 
     @ParameterizedTest
@@ -284,7 +326,7 @@ class ParkingSearchControllerTest {
             boolean freeOnly, boolean excludeMechanical, boolean isPublic
     ) throws Exception {
         // given
-        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class), isNull()))
                 .thenAnswer(invocation -> ParkingLotViewportResponses.from(List.of()));
 
         // when
@@ -301,7 +343,7 @@ class ParkingSearchControllerTest {
         response.andExpect(status().isOk());
         verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750, freeOnly, excludeMechanical, isPublic
-        ));
+        ), null);
     }
 
     @ParameterizedTest
@@ -309,7 +351,7 @@ class ParkingSearchControllerTest {
     @DisplayName("viewport 필터를 하나만 전달하면 나머지 필터는 false로 처리한다")
     void defaults_omitted_viewport_filter_to_false(String filter) throws Exception {
         // given
-        when(viewportSearchService.search(any(ParkingLotViewportRequest.class)))
+        when(viewportSearchService.search(any(ParkingLotViewportRequest.class), isNull()))
                 .thenAnswer(invocation -> ParkingLotViewportResponses.from(List.of()));
 
         // when
@@ -325,7 +367,7 @@ class ParkingSearchControllerTest {
         verify(viewportSearchService).search(new ParkingLotViewportRequest(
                 126.9700, 37.5600, 126.9900, 37.5750,
                 filter.equals("freeOnly"), filter.equals("excludeMechanical"), filter.equals("isPublic")
-        ));
+        ), null);
     }
 
     @ParameterizedTest
@@ -433,7 +475,6 @@ class ParkingSearchControllerTest {
     })
     @DisplayName("viewport 상세 조회의 게스트 ID가 UUID v4가 아니면 400을 반환한다")
     void rejects_invalid_viewport_detail_guest_id(String guestId) throws Exception {
-        // given & when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L)
                         .header("X-Guest-Id", guestId))
                 .andExpect(status().isBadRequest())
@@ -443,7 +484,6 @@ class ParkingSearchControllerTest {
     @Test
     @DisplayName("viewport 상세 조회의 게스트 ID가 없으면 400을 반환한다")
     void rejects_missing_viewport_detail_guest_id() throws Exception {
-        // given & when & then
         mockMvc.perform(get("/api/parking/viewport/{parkingLotId}", 1L))
                 .andExpect(status().isBadRequest());
     }

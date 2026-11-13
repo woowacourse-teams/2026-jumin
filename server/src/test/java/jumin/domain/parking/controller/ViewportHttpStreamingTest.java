@@ -2,6 +2,7 @@ package jumin.domain.parking.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,7 +65,7 @@ class ViewportHttpStreamingTest {
         long firstId = 9_007_199_254_740_993L;
         List<ParkingLotViewportResponse> rows = LongStream.range(0, 100)
                 .mapToObj(index -> new ParkingLotViewportResponse(firstId + index, 37.5, 127, 0.5)).toList();
-        when(service.search(any())).thenReturn(ParkingLotViewportResponses.from(rows));
+        when(service.search(any(), isNull())).thenReturn(ParkingLotViewportResponses.from(rows));
 
         // when
         try (HttpClient client = HttpClient.newHttpClient()) {
@@ -89,7 +90,7 @@ class ViewportHttpStreamingTest {
         ParkingLotViewportResponses broken = mock(ParkingLotViewportResponses.class);
         when(broken.totalCount()).thenThrow(new IllegalStateException("injected serialization failure"));
         when(broken.parkingLots()).thenThrow(new IllegalStateException("injected serialization failure"));
-        when(service.search(any())).thenReturn(broken);
+        when(service.search(any(), isNull())).thenReturn(broken);
 
         // when
         try (HttpClient client = HttpClient.newHttpClient()) {

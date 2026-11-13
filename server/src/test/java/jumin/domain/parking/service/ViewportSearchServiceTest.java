@@ -69,7 +69,7 @@ class ViewportSearchServiceTest {
         when(repository.findWithinBounds(any(), any(), anyInt(), any())).thenReturn(expected);
 
         // when
-        ParkingLotViewportResponses actual = service.search(request);
+        ParkingLotViewportResponses actual = service.search(request, null);
 
         // then
         assertThat(actual).isSameAs(expected);
@@ -95,7 +95,7 @@ class ViewportSearchServiceTest {
                 true, false, false);
 
         // when
-        service.search(request);
+        service.search(request, null);
 
         // then
         verify(repository).findWithinBounds(eq(ViewportBounds.from(request)), eq(request), eq(day), any());
@@ -110,7 +110,7 @@ class ViewportSearchServiceTest {
                 false, false, false);
 
         // when & then
-        assertThatThrownBy(() -> service.search(request)).isInstanceOfSatisfying(BusinessException.class,
+        assertThatThrownBy(() -> service.search(request, null)).isInstanceOfSatisfying(BusinessException.class,
                 failure -> assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
         verifyNoInteractions(repository, cover, store, loader);
     }
@@ -145,7 +145,7 @@ class ViewportSearchServiceTest {
                 .thenReturn(ParkingLotViewportResponses.from(List.of()));
 
         // when & then
-        assertThatThrownBy(() -> service.search(request())).isInstanceOfSatisfying(BusinessException.class,
+        assertThatThrownBy(() -> service.search(request(), null)).isInstanceOfSatisfying(BusinessException.class,
                 failure -> assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
     }
 

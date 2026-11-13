@@ -530,7 +530,7 @@ class ViewportStoreBypassTest {
 
     private ParkingLotViewportResponses search(ViewportSearchService service) {
         ParkingLotViewportResponses body = service.search(new ParkingLotViewportRequest(
-                126.99, 37.49, 127.01, 37.51, false, false, false));
+                126.99, 37.49, 127.01, 37.51, false, false, false), null);
         ParkingLotViewportResponses result = body;
 
         return result;

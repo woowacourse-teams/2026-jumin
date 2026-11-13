@@ -41,37 +41,44 @@ class ViewportMetricsTest {
         var queued = new AtomicInteger();
         var source = new AtomicInteger();
         var fallback = new AtomicInteger();
+        var likes = new AtomicInteger();
         Map<String, Object> loads = new HashMap<>();
         metrics.registerRedis(redis::get);
         metrics.registerLoader(loads);
-        metrics.registerDatabase(active, queued, source, fallback);
+        metrics.registerDatabase(active, queued, source, fallback, likes);
 
         // when
         redis.set(2);
-        active.set(4);
+        active.set(6);
         queued.set(5);
         source.set(1);
         fallback.set(3);
+        likes.set(2);
         loads.put("cell", new Object());
 
         // then
         assertThat(registry.get("parking.viewport.redis.active").gauge().value()).isEqualTo(2);
         assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isEqualTo(1);
-        assertThat(registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(4);
+        assertThat(registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(6);
         assertThat(registry.get("parking.viewport.db.queued").gauge().value()).isEqualTo(5);
-        assertThat(registry.get("parking.viewport.db.pending").gauge().value()).isEqualTo(9);
+        assertThat(registry.get("parking.viewport.db.pending").gauge().value()).isEqualTo(11);
         assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "source").gauge().value())
                 .isEqualTo(1);
         assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "viewport").gauge().value())
                 .isEqualTo(3);
+        // 좋아요 슬롯도 기존 단계와 동일한 이름·태그로 실시간 노출한다.
+        assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "likes").gauge().value())
+                .isEqualTo(2);
 
         // when
         active.set(0);
         queued.set(0);
+        likes.set(0);
         loads.clear();
 
         // then
         assertThat(registry.get("parking.viewport.db.pending").gauge().value()).isZero();
         assertThat(registry.get("parking.viewport.loader.flights").gauge().value()).isZero();
+        assertThat(registry.get("parking.viewport.db.stage.active").tag("stage", "likes").gauge().value()).isZero();
     }
 }
