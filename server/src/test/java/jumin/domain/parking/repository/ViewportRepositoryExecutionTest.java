@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,6 +30,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -46,10 +50,10 @@ import jumin.domain.parking.model.ViewportCellKey;
 import jumin.domain.parking.model.ViewportDeadline;
 import jumin.domain.parking.monitoring.ViewportMetrics;
 import jumin.domain.parking.service.ParkingLodScoreCalculator;
-import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.domain.parking.service.ViewportCellCover;
 import jumin.domain.parking.service.ViewportCellLoader;
 import jumin.domain.parking.service.ViewportSearchService;
+import jumin.domain.parking.service.ViewportSquareGrid;
 import jumin.global.exception.BusinessException;
 import jumin.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -60,6 +64,67 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class ViewportRepositoryExecutionTest {
+
+    @Test
+    @DisplayName("좋아요 조회는 공간 조회와 DB 슬롯을 공유하고 대기 중 기한이 끝나면 SQL을 실행하지 않는다")
+    void likes_share_source_db_limit_and_skip_expired_queued_sql() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (Harness harness = new Harness(); var threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            var repository = harness.db;
+            harness.beforeQuery.set(() -> { started.countDown(); await(release); });
+            var source = CompletableFuture.supplyAsync(() -> harness.findWithinBounds(deadline()), threads);
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+            clearInvocations(harness.connection);
+
+            // 유일한 DB 작업자가 공간 조회 중이므로 좋아요 SQL은 실행되지 않고 만료된다.
+            assertThatThrownBy(() -> repository.findLikedParkingLotIds(UUID.randomUUID(),
+                    ViewportDeadline.after(Duration.ofMillis(100))))
+                    .isInstanceOfSatisfying(BusinessException.class, failure ->
+                            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
+            verify(harness.connection, never()).prepareStatement(anyString());
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
+
+            // 원래 작업 종료 후 같은 슬롯에서 게스트 ID만으로 좋아요 조회가 성공한다.
+            release.countDown();
+            assertThat(source.get(5, TimeUnit.SECONDS)).isZero();
+            harness.beforeQuery.set(() -> { });
+            PreparedStatement statement = mock(PreparedStatement.class);
+            ResultSet rows = mock(ResultSet.class);
+            when(harness.connection.prepareStatement(anyString())).thenReturn(statement);
+            when(statement.getConnection()).thenReturn(harness.connection);
+            when(statement.executeQuery()).thenReturn(rows);
+            when(rows.next()).thenReturn(true, false);
+            when(rows.getLong("parking_lot_id")).thenReturn(1L);
+
+            assertThat(repository.findLikedParkingLotIds(UUID.randomUUID(),
+                    ViewportDeadline.after(Duration.ofSeconds(5)))).isEqualTo(Set.of(1L));
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
+    @DisplayName("파라미터 준비 중 요청 기한이 끝나면 좋아요 SQL을 실행하지 않고 슬롯을 반환한다")
+    void skips_likes_query_when_deadline_expires_during_binding() throws Exception {
+        // 배열 전송을 제거한 뒤에도 실제 SQL 실행 직전에 요청 기한을 검사한다.
+        try (Harness harness = new Harness()) {
+            ViewportDeadline deadline = spy(deadline());
+            PreparedStatement statement = mock(PreparedStatement.class);
+            when(harness.connection.prepareStatement(anyString())).thenReturn(statement);
+            doAnswer(call -> {
+                doReturn(0L).when(deadline).remainingNanos();
+                return null;
+            }).when(statement).setObject(anyInt(), any());
+
+            assertThatThrownBy(() -> harness.db.findLikedParkingLotIds(UUID.randomUUID(), deadline))
+                    .isInstanceOf(BusinessException.class);
+            verify(statement, never()).executeQuery();
+            assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isZero();
+        }
+    }
 
     @Test
     @DisplayName("동기 DB 조회는 실제 종료까지 대기하고 슬롯을 유지한다")
@@ -173,12 +238,12 @@ class ViewportRepositoryExecutionTest {
             var running = CompletableFuture.supplyAsync(() -> harness.load(deadline()), threads);
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
             List<CompletableFuture<Integer>> waiting = IntStream.range(0, DB_QUEUE)
-                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.search(request()).totalCount(), threads))
+                    .mapToObj(index -> CompletableFuture.supplyAsync(() -> service.search(request(), null).totalCount(), threads))
                     .toList();
             awaitQueued(harness, DB_QUEUE);
 
             // when & then
-            assertThatThrownBy(() -> service.search(request()))
+            assertThatThrownBy(() -> service.search(request(), null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DB_QUEUE_FULL.name()));
             assertThat(harness.registry.get("parking.viewport.db.active").gauge().value()).isEqualTo(1);
@@ -208,7 +273,7 @@ class ViewportRepositoryExecutionTest {
             assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 
             // when & then
-            assertThatThrownBy(() -> service.search(request()))
+            assertThatThrownBy(() -> service.search(request(), null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getReason()).isEqualTo(ViewportFailureReason.DEADLINE.name()));
             assertThat(queries).hasValue(1);
@@ -478,12 +543,12 @@ class ViewportRepositoryExecutionTest {
             ParkingLotViewportRequest request = new ParkingLotViewportRequest(
                     bounds.west(), bounds.south(), bounds.east(), bounds.north(), false, false, false);
             // when & then
-            ParkingLotViewportResponses response = service.search(request);
+            ParkingLotViewportResponses response = service.search(request, null);
             assertThat(response.totalCount()).isEqualTo(MAX_VIEWPORT_ROWS);
             assertThat(response.parkingLots().getLast().id()).isEqualTo(MAX_VIEWPORT_ROWS);
             cursor.set(0);
             rowCount.set(MAX_VIEWPORT_ROWS + 1);
-            assertThatThrownBy(() -> service.search(request))
+            assertThatThrownBy(() -> service.search(request, null))
                     .isInstanceOfSatisfying(BusinessException.class, failure ->
                             assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.VIEWPORT_UNAVAILABLE));
             verify(statement, times(2)).setObject(anyInt(), eq(MAX_VIEWPORT_ROWS + 1));

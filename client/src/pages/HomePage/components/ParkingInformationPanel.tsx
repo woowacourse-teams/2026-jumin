@@ -14,7 +14,7 @@ import { useVisibleMapCenter } from '../../../shared/hooks/useVisibleMapCenter';
 
 interface Props {
   map: naver.maps.Map | null;
-  parkingLot: ParkingLotViewport;
+  parkingLot: Pick<ParkingLotViewport, 'id' | 'latitude' | 'longitude'>;
   open?: boolean;
   snap: BottomSheetSnap;
   onSnapChange: (snap: BottomSheetSnap) => void;

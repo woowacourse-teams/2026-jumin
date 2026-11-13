@@ -23,13 +23,14 @@ const policyByStep: MovePolicy = MOVE_POLICY;
  * 이동 대상과 push·replace·뒤로가기 방식은 MOVE_POLICY에서 결정한다.
  * 같은 화면으로 이동할 때는 현재 URL의 쿼리와 해시를 보존한다.
  * query를 전달하면 전체 쿼리를 교체하며, 빈 문자열은 쿼리를 제거한다.
+ * state를 전달하면 이동할 화면의 초기 선택 정보로 사용한다.
  */
 export const useStepNavigation = <From extends Step>(from: From) => {
   const navigate = useNavigate();
   const { pathname, search: currentQuery, hash } = useLocation();
 
   const move = useCallback(
-    (action: ActionByStep[From], query?: string) => {
+    (action: ActionByStep[From], query?: string, state?: unknown) => {
       const rule: MoveRule = policyByStep[from][action];
 
       // 뒤로 가기 처리
@@ -49,6 +50,7 @@ export const useStepNavigation = <From extends Step>(from: From) => {
 
       void navigate(target, {
         replace: rule.method === 'replace', // 정책의 기록 방식을 라우터 옵션으로 변환한다.
+        state,
       });
     },
     [from, navigate, pathname, currentQuery, hash],

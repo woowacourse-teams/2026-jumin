@@ -1,6 +1,7 @@
 package jumin.domain.parking.controller;
 
 import jakarta.validation.Valid;
+import java.util.UUID;
 import jumin.domain.parking.service.ViewportSearchService;
 import jumin.domain.parking.dto.ParkingLotViewportDetailResponse;
 import jumin.domain.parking.dto.ParkingSearchRequest;
@@ -9,6 +10,7 @@ import jumin.domain.parking.dto.ParkingLotViewportRequest;
 import jumin.domain.parking.dto.ParkingLotViewportResponses;
 import jumin.domain.parking.service.ParkingSearchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,10 +35,16 @@ public class ParkingSearchController {
 
     @GetMapping("/viewport")
     public ResponseEntity<ParkingLotViewportResponses> searchViewport(
-            @Valid @ModelAttribute ParkingLotViewportRequest request
+            @Valid @ModelAttribute ParkingLotViewportRequest request,
+            @RequestHeader(value = "X-Guest-Id", required = false) String guestId
     ) {
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(viewportSearchService.search(request));
+        UUID parsedGuestId = null;
+        if (guestId != null) {
+            parsedGuestId = GuestIdParser.parse(guestId);
+        }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(viewportSearchService.search(request, parsedGuestId));
     }
 
     @GetMapping("/viewport/{parkingLotId}")

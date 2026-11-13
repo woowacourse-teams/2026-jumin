@@ -1,7 +1,7 @@
 import { Stack } from '../../../shared/components/ui/Stack';
 import { css } from '@emotion/css';
 import { useQuery } from '@tanstack/react-query';
-import type { Destination } from '../../../api/contracts';
+import type { Destination, ParkingLotSearchResult } from '../../../api/contracts';
 import { useEffect, useState } from 'react';
 import { destinationSearchQueryOptions } from '../../../api/queries/destinationSearchQueryOptions';
 import { SearchBar } from '../../../shared/components/service/destination/SearchBar';
@@ -17,6 +17,7 @@ interface Props {
   viewportLatitude: number;
   viewportLongitude: number;
   onDestinationSelect: (destination: Destination) => void;
+  onParkingSelect: (parkingLot: ParkingLotSearchResult) => void;
 }
 
 const loadRecentSearches = (): Destination[] => {
@@ -53,6 +54,7 @@ export const SearchContent = ({
   viewportLatitude,
   viewportLongitude,
   onDestinationSelect,
+  onParkingSelect,
 }: Props) => {
   const [query, setQuery] = useState('');
 
@@ -103,15 +105,17 @@ export const SearchContent = ({
   // 새 검색어를 입력하는 동안 이전 검색 결과가
   // 잠깐 표시되지 않도록 한다.
   const searchResults = isDebouncing ? [] : (data?.destinations ?? []);
+  const parkingResults = isDebouncing ? [] : (data?.parkingLots ?? []);
 
   const errorMessage = !isDebouncing && isError ? API_ERROR_MESSAGES.DESTINATION_SEARCH : '';
 
   const handleEnter = () => {
-    if (isSearching || !searchResults[0]) {
-      return;
+    if (normalizedQuery.length < 2 || isSearching) return;
+    if (searchResults[0]) {
+      handleSelect(searchResults[0]);
+    } else if (parkingResults[0]) {
+      onParkingSelect(parkingResults[0]);
     }
-
-    handleSelect(searchResults[0]);
   };
 
   const handleSelect = (destination: Destination) => {
@@ -146,9 +150,11 @@ export const SearchContent = ({
         <SearchResultList
           query={normalizedQuery}
           searchResults={searchResults}
+          parkingResults={parkingResults}
           isSearching={isSearching}
           errorMessage={errorMessage}
           onSelect={handleSelect}
+          onParkingSelect={onParkingSelect}
         />
       ) : (
         <RecentSearchList

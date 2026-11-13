@@ -1,4 +1,5 @@
-import type { Destination } from '../../src/api/contracts';
+import type { Destination, ParkingLotSearchResult } from '../../src/api/contracts';
+import { gangnamStationParkingLots } from './gangnamStationParkingLots';
 
 export const destinationFixtures: Destination[] = [
   {
@@ -34,3 +35,13 @@ export const destinationFixtures: Destination[] = [
     longitude: 127.0462,
   },
 ];
+
+export const parkingLotSearchFixtures: ParkingLotSearchResult[] = gangnamStationParkingLots.map(
+  ({ id, name, address, latitude, longitude }) => ({
+    parkingLotId: id,
+    name,
+    address,
+    latitude,
+    longitude,
+  }),
+);
