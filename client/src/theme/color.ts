@@ -3,7 +3,8 @@ import { palette } from './palette';
 export const color = {
   text: {
     primary: palette.gray900,
-    secondary: palette.gray600,
+    /** 연한 브랜드 면(blue50) 위에서도 4.5:1을 넘도록 gray650을 사용한다. */
+    secondary: palette.gray650,
     placeholder: palette.gray600,
     disabled: palette.gray500,
     inverse: palette.white,
@@ -37,13 +38,17 @@ export const color = {
   background: {
     default: palette.white,
     subtle: palette.gray50,
+    /** 중립색 면을 누르는 동안의 색. */
+    pressed: palette.gray75,
+    /** 지도 위에 떠 있는 안내의 반투명 면. */
+    floating: palette.whiteAlpha94,
     /** 스켈레톤·핸들·비선택 표시점 등 중립색 면. */
     muted: palette.gray200,
     inverse: palette.gray900,
     disabled: palette.gray200,
     brand: palette.blue500,
     brandHovered: palette.blue600,
-    brandPressed: palette.blue600,
+    brandPressed: palette.blue700,
     brandSubtle: palette.blue50,
     brandSubtleHovered: palette.blue100,
     brandSubtlePressed: palette.blue100,
@@ -72,5 +77,12 @@ export const color = {
 
   overlay: {
     scrim: palette.gray900Alpha48,
+  },
+
+  /** 그림자의 색. 크기와 번짐은 shadow.ts에서 정의한다. */
+  shadow: {
+    floating: palette.gray900Alpha12,
+    sheet: palette.gray900Alpha10,
+    modal: palette.gray900Alpha24,
   },
 } as const;

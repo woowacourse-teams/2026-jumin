@@ -51,9 +51,14 @@ const toggleButtonAppearance = {
     color: ${color.text.selected};
     box-shadow: inset 0 0 0 1px ${color.border.selected};
 
-    &:hover:not(:disabled),
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        background-color: ${color.background.brandSubtleHovered};
+      }
+    }
+
     &:active:not(:disabled) {
-      background-color: ${color.background.brandSubtleHovered};
+      background-color: ${color.background.brandSubtlePressed};
     }
   `,
 } satisfies Record<ToggleButtonVariant, string>;

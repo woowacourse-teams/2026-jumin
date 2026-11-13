@@ -4,17 +4,17 @@ export const typography = {
   titlePage: {
     fontSize: fontSize[30],
     lineHeight: lineHeight[130],
-    fontWeight: fontWeight[800],
+    fontWeight: fontWeight[700],
   },
   titleSection: {
     fontSize: fontSize[20],
     lineHeight: lineHeight[140],
-    fontWeight: fontWeight[800],
+    fontWeight: fontWeight[700],
   },
   titleCard: {
     fontSize: fontSize[18],
     lineHeight: lineHeight[140],
-    fontWeight: fontWeight[800],
+    fontWeight: fontWeight[700],
   },
   body: {
     fontSize: fontSize[16],
@@ -24,7 +24,7 @@ export const typography = {
   bodyStrong: {
     fontSize: fontSize[16],
     lineHeight: lineHeight[150],
-    fontWeight: fontWeight[800],
+    fontWeight: fontWeight[600],
   },
   bodySmall: {
     fontSize: fontSize[14],
@@ -34,7 +34,7 @@ export const typography = {
   bodySmallStrong: {
     fontSize: fontSize[14],
     lineHeight: lineHeight[150],
-    fontWeight: fontWeight[800],
+    fontWeight: fontWeight[600],
   },
   caption: {
     fontSize: fontSize[12],
@@ -44,6 +44,6 @@ export const typography = {
   label: {
     fontSize: fontSize[14],
     lineHeight: lineHeight[140],
-    fontWeight: fontWeight[700],
+    fontWeight: fontWeight[600],
   },
 } as const;

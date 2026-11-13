@@ -10,6 +10,7 @@ import jumin.domain.destination.controller.DestinationController;
 import jumin.domain.destination.dto.DestinationResponse;
 import jumin.domain.destination.dto.DestinationSearchRequest;
 import jumin.domain.destination.dto.DestinationsResponse;
+import jumin.domain.destination.dto.ParkingLotSearchResponse;
 import jumin.domain.destination.dto.ReverseGeocodeRequest;
 import jumin.domain.destination.dto.ReverseGeocodeResponse;
 import jumin.domain.destination.service.DestinationService;
@@ -53,7 +54,8 @@ class DestinationControllerTest {
                                 "서울 강남구 강남대로 396",
                                 37.4981,
                                 127.0279
-                        ))
+                        )),
+                        List.of(new ParkingLotSearchResponse(42L, "강남 공영주차장", null, 37.5, 127.0))
                 )
         );
 
@@ -67,7 +69,12 @@ class DestinationControllerTest {
                 .andExpect(jsonPath("$.destinations[0].roadAddress").value("서울 강남구 강남대로 396"))
                 .andExpect(jsonPath("$.destinations[0].latitude").value(37.4981))
                 .andExpect(jsonPath("$.destinations[0].longitude").value(127.0279))
-                .andExpect(jsonPath("$.destinations[0].provider").value("KAKAO"));
+                .andExpect(jsonPath("$.destinations[0].provider").value("KAKAO"))
+                .andExpect(jsonPath("$.parkingLots[0].parkingLotId").value(42))
+                .andExpect(jsonPath("$.parkingLots[0].name").value("강남 공영주차장"))
+                .andExpect(jsonPath("$.parkingLots[0].address").isEmpty())
+                .andExpect(jsonPath("$.parkingLots[0].latitude").value(37.5))
+                .andExpect(jsonPath("$.parkingLots[0].longitude").value(127.0));
     }
 
     @Test
@@ -90,7 +97,7 @@ class DestinationControllerTest {
     void passes_location_without_rewriting_query() throws Exception {
         DestinationSearchRequest searchRequest = new DestinationSearchRequest("에버랜드", 37.395, 127.111);
         given(destinationService.search(searchRequest)).willReturn(
-                DestinationsResponse.from("에버랜드", List.of()));
+                DestinationsResponse.from("에버랜드", List.of(), List.of()));
         mockMvc.perform(get("/api/destinations/search").param("query", "에버랜드")
                         .param("latitude", "37.395").param("longitude", "127.111"))
                 .andExpect(status().isOk())

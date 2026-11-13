@@ -29,6 +29,20 @@ export const applyGlobalStyles = () => injectGlobal`
     outline-offset: var(--focus-ring-offset);
   }
 
+  /* 움직임 줄이기를 켠 사용자에게는 모든 전환과 애니메이션을 끝 상태로 바로 보여 준다. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   #root {
     --bottom-nav-height: 86px;
 

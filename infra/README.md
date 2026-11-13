@@ -1,445 +1,132 @@
 # 인프라
 
-`infra/`는 로컬 데이터베이스, 개발·운영 서버 배포, Grafana 관측성 구성에 필요한 설정을 관리합니다.
-이 문서는 인프라 구성과 운영 흐름을 설명합니다. 애플리케이션 실행과 테스트 방법은 [서버 README](../server/README.md)를 참고하세요.
-
-## 구성
-
-| 파일 | 용도 |
-| --- | --- |
-| `docker-compose.local.yml` | 로컬 PostgreSQL + PostGIS + pgRouting 실행 |
-| `docker-compose.loadtest.yml` | 운영 자원·요청 경로를 근사한 격리 부하 테스트 환경 |
-| `db/loadtest-init/` | 부하 테스트 전용 PostgreSQL 확장 초기화 |
-| `docker-compose.dev.yml` | 개발 서버 백엔드 컨테이너 실행 |
-| `docker-compose.prod.yml` | 운영 서버 백엔드 컨테이너 실행 |
-| `docker-compose.proxy.yml` | 개발 서버 Nginx + Certbot 실행 |
-| `docker-compose.proxy.prod.yml` | 운영 서버 Nginx + Certbot 실행 |
-| `nginx/bootstrap.conf` | 최초 인증서 발급 전 HTTP 설정 |
-| `nginx/jumin.conf` | HTTPS, 정적 파일, API 프록시 설정 |
-| `nginx/bootstrap.prod.conf` | 운영 최초 인증서 발급 전 HTTP 설정 |
-| `nginx/jumin.prod.conf` | 운영 HTTPS, 정적 파일, API 프록시 설정 |
-| `nginx/jumin.loadtest.conf` | loopback 전용 부하 테스트 API 프록시 설정 |
-| `scripts/renew-certificates.sh` | Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
-| `scripts/renew-certificates-prod.sh` | 운영 Let's Encrypt 인증서 갱신 및 Nginx 재적용 |
-| `scripts/import-osm-walking-network.sh` | OSM 전국 보행 네트워크 적재 |
-| `scripts/build-osm-walking-poc.py` | OSM 전국 적재용 CSV 변환·검증 ([사용법](../server/README.md#osm-보행-네트워크-적재)) |
-| `observability/compose.yml` | 중앙 Grafana·Loki·Prometheus·Nginx 실행 |
-| `observability/alloy/` | dev/prod EC2에서 로그와 지표를 수집하는 Alloy 설정 |
-| `observability/grafana/`, `observability/loki/`, `observability/prometheus/`, `observability/nginx/` | 대시보드·데이터 소스·저장·접근 경계 설정 |
-| `observability/scripts/` | 인증 정보 설치, 배포, 인증서 갱신, 설정 검증 |
-| `.github/workflows/observability.yml` | 중앙 관측성 설정 검증과 배포 |
-| `.env.example` | 로컬·배포 환경변수 예시 |
+로컬 DB, 개발 서버의 단일 컨테이너 배포, 운영 서버의 블루·그린 배포와 HTTPS·관측성 설정을 관리합니다.
+아래 명령은 저장소 루트에서 실행합니다.
 
 ## 로컬 데이터베이스
 
-로컬 개발에서는 PostgreSQL, PostGIS, pgRouting을 Docker Compose로 실행합니다.
-새 데이터 볼륨을 만들 때 `db/init/01-enable-pgrouting.sql`이 pgRouting 확장을
-초기화합니다. 이미 생성된 볼륨에는 초기화 스크립트가 다시 실행되지 않습니다.
+Docker Engine 또는 Docker Desktop과 Docker Compose plugin이 필요합니다.
 
 ```bash
 docker compose -f infra/docker-compose.local.yml up -d --wait
 ```
 
-기본 접속 정보는 다음과 같습니다.
-
 | 항목 | 기본값 |
 | --- | --- |
-| Host | `127.0.0.1` |
-| Port | `5432` |
-| Database | `jumin` |
-| Username | `jumin` |
-| Password | `jumin` |
+| 접속 주소 | `127.0.0.1:5432` |
+| 데이터베이스 | `jumin` |
+| 사용자 / 비밀번호 | `jumin` / `jumin` |
 
-환경변수를 변경하려면 `infra/.env.example`을 참고해 `infra/.env`를 만들고
-Compose를 실행합니다. `postgres-data` 볼륨은 데이터베이스 컨테이너를 종료한 뒤에도
-데이터를 보존합니다.
+환경변수 예시는 [.env.example](.env.example)에서 확인합니다.
+Apple Silicon에서는 명령 앞에 `DOCKER_DEFAULT_PLATFORM=linux/amd64`를 붙입니다.
 
 ```bash
+# 종료
 docker compose -f infra/docker-compose.local.yml down
-```
 
-데이터까지 초기화할 때만 볼륨을 삭제합니다.
-
-```bash
+# 데이터까지 초기화
 docker compose -f infra/docker-compose.local.yml down --volumes
 ```
 
-> [!WARNING]
-> Apple Silicon에서는 현재 PostGIS + pgRouting 이미지가 amd64 기반이므로 실행 명령 앞에
-> `DOCKER_DEFAULT_PLATFORM=linux/amd64`를 붙여야 합니다. 자세한 실행·테스트 방법은
-> [서버 README의 아키텍처별 실행](../server/README.md#1-호스트-아키텍처-확인)을 참고하세요.
+애플리케이션 실행 방법은 [서버 README](../server/README.md)를 참고합니다.
 
-## 격리 부하 테스트
+## 로컬에서 배포 흐름 검증
 
-주차장 API 부하 테스트(viewport 조회·추천 검색)는 운영·개발 DB와 분리된
-`jumin-loadtest-postgres-data` 볼륨을 사용합니다.
-설치·실행·데이터 적재 절차는 [서버 부하 테스트 안내](../server/loadtest/README.md)를 참고하세요.
-
-## 개발 서버 배포
-
-개발 서버 배포는 [`server-dev-cd.yml`](../.github/workflows/server-dev-cd.yml)이
-담당합니다. `develop`에 변경사항이 반영되면 다음 순서로 배포합니다.
-
-1. 백엔드 테스트와 JAR 빌드
-2. 개발 서버용 Docker image 빌드
-3. `jumin-dev` ARM64 self-hosted runner에서 백엔드 컨테이너 실행
-4. `/actuator/health` 확인
-5. 백엔드가 정상 배포되면 Alloy를 개발 EC2에 배포
-
-개발 서버는 AWS RDS를 사용하므로 PostgreSQL 컨테이너와 `postgres-data` 볼륨을
-사용하지 않습니다. RDS와 외부 API 접속 정보는 GitHub `development` Environment의
-secret으로 전달합니다.
-
-배포 환경에는 다음이 필요합니다.
-
-- Docker Engine과 Docker Compose plugin
-- `jumin-dev` self-hosted runner
-- EC2에서 RDS로 연결할 수 있는 네트워크 권한
-- Docker의 `journald` logging driver와 systemd journal
-- journald의 persistent storage 및 크기·회전 상한 설정. Alloy 수집을 붙이기 전까지 journal에만 로그가 남습니다.
-- GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
-  data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
-  서버 workflow가 Alloy를 함께 배포합니다.
-- GitHub `development` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `LOCAL_SEARCH_REST_API_KEY`,
-  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
-  `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
-
-`ADMIN_ENV_LABEL`은 workflow가 `dev`로 전달합니다. 관리자 ID와 비밀번호는 운영과
-각각 다르게 설정하고, `ADMIN_TOKEN_SECRET`도 운영과 반드시 다른 값을 사용합니다.
-
-## 운영 서버 배포
-
-운영 서버 백엔드 배포는 [`server-prod-cd.yml`](../.github/workflows/server-prod-cd.yml)이
-담당합니다. `main`에 변경사항이 반영되면 다음 순서로 배포합니다.
-
-1. 백엔드 테스트와 JAR 빌드
-2. 운영 서버용 Docker image 빌드
-3. `jumin-prod` ARM64 self-hosted runner에서 백엔드 컨테이너 실행
-4. `/actuator/health` 확인
-5. health check 실패 시 이전 Docker image와 release symlink 복구
-6. 백엔드가 정상 배포되면 Alloy를 운영 EC2에 배포
-
-운영 배포 전에 다음 인프라가 준비되어 있어야 합니다.
-
-- `jumin-prod` 라벨을 가진 Linux ARM64 self-hosted runner
-- 운영 EC2의 `/opt/jumin-prod/backend` 쓰기 권한
-- EC2에서 운영 RDS로 연결할 수 있는 네트워크 권한
-- Docker Engine, Docker Compose plugin, `curl`, `rsync`
-- Docker의 `journald` logging driver와 systemd journal
-- journald의 persistent storage 및 크기·회전 상한 설정
-- GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`, `/opt/jumin-alloy` 쓰기 권한,
-  data 디렉터리 소유권을 설정할 비밀번호 없는 `sudo -n` 권한, `https://grafana.jucha.info:443`로 나가는 연결.
-  서버 workflow가 Alloy를 함께 배포합니다.
-- GitHub `production` Environment의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `LOCAL_SEARCH_REST_API_KEY`,
-  `REVERSE_GEOCODING_CLIENT_ID`, `REVERSE_GEOCODING_CLIENT_SECRET`,
-  `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD_HASH`, `ADMIN_TOKEN_SECRET` secret
-- 운영 RDS에 `postgis`와 `pgrouting` 확장이 설치되어 있고, 애플리케이션 DB 사용자가
-  해당 확장을 사용할 수 있는 권한
-- 운영 백엔드 Compose가 생성한 `jumin-prod_default` Docker network
-
-`ADMIN_ENV_LABEL`은 workflow가 `prod`로 전달합니다. 관리자 ID와 비밀번호는 개발과
-각각 다르게 설정하고, `ADMIN_TOKEN_SECRET`도 개발과 반드시 다른 값을 사용합니다.
-
-운영 백엔드 workflow는 Compose project `jumin-prod`로 실행되므로 기본 network
-`jumin-prod_default`를 생성합니다. 운영 proxy Compose는 이 network를 `external`로
-참조해 backend와 연결합니다. 따라서 최초 운영 proxy를 실행하기 전에 backend 배포를 먼저
-완료해야 합니다.
-따라서 Nginx는 호스트 loopback이 아니라 Docker DNS 이름 `backend:8080`으로 API를
-전달합니다. 백엔드의 `127.0.0.1:8080` host binding은 로컬 점검용으로 유지됩니다.
-
-`production` Environment와 `jumin-prod` runner가 없는 상태에서는 deploy job을 실행할 수
-없으므로 운영 배포가 완료되지 않습니다. 운영 배포는 `main` 병합 후 GitHub Actions에서
-실행하며, workflow의 health check가 성공한 뒤에만 완료로 판단합니다.
-
-## 운영 서버 HTTPS 프록시
-
-운영 프론트 서비스 도메인은 `jucha.info`, EC2 API 원본 도메인은
-`origin.jucha.info`로 분리합니다. CloudFront와 DNS 전환이 준비된 뒤의 요청 흐름은 다음과 같습니다.
-
-```text
-브라우저 -> jucha.info -> CloudFront
-                            |-- 정적 파일 -> S3
-                            `-- /api/* -> origin.jucha.info -> EC2:443 -> Docker Nginx -> backend:8080
-```
-
-운영 프록시 배포는 [`proxy-prod-cd.yml`](../.github/workflows/proxy-prod-cd.yml)이
-담당합니다. 프론트엔드 CD는 S3에 정적 파일을 배포하고, 프록시 CD는
-`/opt/jumin-prod/proxy/current/jumin.prod.conf`를 갱신합니다. 두 workflow 모두
-`main` push를 기준으로 실행합니다. 프록시 CD는 `production` Environment를 사용합니다.
-Nginx의 `/var/www/jumin-prod/current` 정적 파일 설정은 기존 구성을 유지합니다.
-
-운영 배포 전에 다음을 준비해야 합니다.
-
-- `origin.jucha.info`가 운영 EC2 Elastic IP를 가리키는 DNS A 레코드
-- EC2 보안 그룹의 인바운드 TCP `80`, `443`
-- `jumin-prod` 라벨의 Linux ARM64 self-hosted runner
-- EC2의 `/opt/jumin-prod/proxy`, `/opt/jumin-prod/certbot` 쓰기 권한
-- 운영 backend 배포가 완료되어 `jumin-prod_default` network가 생성된 상태
-
-Let's Encrypt 인증서는 저장소에 넣지 않고 EC2의
-`/opt/jumin-prod/certbot/conf`에 보존합니다. 최초 발급은 다음 순서로 한 번만 수동
-수행합니다. 아래 파일·Docker 명령은 SSH 기본 사용자 대신 실제 CD 실행 사용자
-`github-runner`로 실행합니다. 저장소 경로는 실제 EC2 checkout 경로에 맞게 변경합니다.
+Docker, Docker Compose plugin과 Python 3.9 이상이 필요합니다.
 
 ```bash
-sudo install -d -m 755 \
-  /opt/jumin-prod/certbot/www \
-  /opt/jumin-prod/proxy/releases/bootstrap
-sudo install -d -m 700 /opt/jumin-prod/certbot/conf
+# 실제 Docker Nginx에서 연속 요청을 보내며 전환·롤백 검증
+python3 infra/scripts/tests/test-blue-green-local.py
 
-sudo -u github-runner -H docker network inspect jumin-prod_default >/dev/null
-
-sudo -u github-runner install -m 644 infra/nginx/bootstrap.prod.conf \
-  /opt/jumin-prod/proxy/releases/bootstrap/jumin.prod.conf
-sudo -u github-runner install -m 644 infra/docker-compose.proxy.prod.yml \
-  /opt/jumin-prod/proxy/releases/bootstrap/docker-compose.proxy.prod.yml
-sudo -u github-runner ln -sfn /opt/jumin-prod/proxy/releases/bootstrap \
-  /opt/jumin-prod/proxy/current
-
-sudo -u github-runner -H env NGINX_CONF_FILE=/opt/jumin-prod/proxy/current/jumin.prod.conf \
-  docker compose \
-    --project-name jumin-proxy-prod \
-    --file /opt/jumin-prod/proxy/current/docker-compose.proxy.prod.yml \
-    up --detach nginx
-
-curl --fail --show-error --head http://origin.jucha.info
+# 종료 신호와 오류 경로를 포함한 배포 스크립트 회귀 테스트
+bash infra/scripts/tests/test-viewport-cache.sh
 ```
 
-HTTP challenge가 확인되면 팀 이메일을 넣어 인증서를 발급합니다.
+Docker 테스트는 운영 Compose와 Nginx 설정으로 긴 요청 유지, 블루·그린 전환, 수동 롤백과 health 실패 시 자동 복구를 확인합니다.
+실행마다 별도 이름과 임시 loopback 포트를 사용하고, 종료 시 생성한 리소스를 정리합니다.
+첫 실행에서는 테스트 이미지를 내려받습니다. 테스트용 HTTP 백엔드를 사용하며 Spring·DB 검증은 서버 테스트에서 수행합니다.
+
+## 백엔드 배포
+
+브랜치에 변경이 반영되면 GitHub Actions가 해당 환경에 배포합니다.
+
+| 환경 | 브랜치 | 배포 방식 | GitHub Environment / Runner | 배포 workflow |
+| --- | --- | --- | --- | --- |
+| 개발 | `develop` | 단일 컨테이너 교체 | `development` / `jumin-dev` | [백엔드](../.github/workflows/server-dev-cd.yml) · [프록시](../.github/workflows/proxy-dev-cd.yml) |
+| 운영 | `main` | 블루·그린 무중단 전환 | `production` / `jumin-prod` | [백엔드](../.github/workflows/server-prod-cd.yml) · [프록시](../.github/workflows/proxy-prod-cd.yml) |
+
+개발은 `backend` 컨테이너를 교체하므로 배포 중 잠시 중단됩니다.
+health 확인에 실패하면 이전 이미지를 다시 기동하고 배포를 실패로 기록합니다.
+운영은 다음 순서로 배포합니다.
+
+1. 비활성 슬롯에 새 이미지를 기동하고 Spring·DB readiness를 확인합니다.
+2. Nginx를 리로드해 요청을 새 슬롯으로 전환합니다.
+3. 이전 요청이 끝나면 기존 슬롯을 정지해 롤백용으로 보관합니다.
+
+운영의 기존 단일 백엔드에서 처음 전환할 때는 **프록시 CD → 백엔드 CD** 순서로 실행합니다.
+이 단계에서 프록시 컨테이너를 재생성하므로 짧게 연결이 끊길 수 있습니다.
+새 환경의 설치 순서와 필수 설정은 [배포 운영 가이드](deployment.md)를 참고합니다.
+
+## 상태 확인과 롤백
+
+해당 EC2의 저장소에서 runner 계정으로 실행합니다. 아래는 운영 환경 기준입니다.
 
 ```bash
-TEAM_EMAIL='팀 이메일 주소'
-
-sudo -u github-runner -H env NGINX_CONF_FILE=/opt/jumin-prod/proxy/current/jumin.prod.conf \
-  docker compose \
-    --project-name jumin-proxy-prod \
-    --file /opt/jumin-prod/proxy/current/docker-compose.proxy.prod.yml \
-    run --rm certbot certonly \
-      --webroot \
-      --webroot-path /var/www/certbot \
-      --domain origin.jucha.info \
-      --email "${TEAM_EMAIL}" \
-      --agree-tos \
-      --no-eff-email \
-      --non-interactive
+curl -fsSi http://127.0.0.1:18080/health
+docker ps -a --filter name=jumin-backend-prod \
+  --format '{{.Names}} {{.Image}} {{.Status}}'
 ```
 
-`/opt/jumin-prod/certbot/conf/live/origin.jucha.info/`에 인증서가 발급된 뒤
-`main`에 프록시 설정을 병합하면
-`proxy-prod-cd.yml`이 HTTPS 설정으로 Nginx를 교체합니다. 최초 발급 전에 HTTPS
-설정으로 workflow를 실행하면 인증서 파일이 없어 실패하므로, 위 bootstrap과 발급
-절차를 먼저 완료해야 합니다.
-
-갱신은 다음 스크립트를 `jumin-prod` EC2의 cron 또는 systemd timer에 등록합니다.
-스크립트와 Compose 파일은 현재 활성 release를 기준으로 동작하므로 별도 checkout 경로가
-필요하지 않습니다.
+이전 성공 슬롯을 선택해 롤백합니다.
 
 ```bash
-infra/scripts/renew-certificates-prod.sh
+BACKEND_RELEASE_ROOT=/opt/jumin-prod/backend \
+  bash infra/scripts/deploy-backend.sh prod rollback backend-blue
 ```
 
-운영 DNS, EC2, `jumin-prod` runner가 준비되지 않은 상태에서는 저장소 workflow만으로
-운영 배포를 완료할 수 없습니다. 이 항목들은 AWS·DNS·GitHub 관리 권한으로 별도
-준비해야 합니다. CloudFront의 운영 API 원본은 `origin.jucha.info`로 지정하고
-원본 HTTPS 인증서의 도메인과 일치하도록 요청 Host 설정을 확인합니다.
-프론트 서비스 도메인 `jucha.info`는 EC2 API 원본 도메인으로 대체하지 않습니다.
+롤백 대상은 `backend-blue`, `backend-green` 또는 최초 전환 전의 `backend`입니다.
+슬롯 선택 롤백은 운영 전용입니다. 개발 상태는 `curl -fsS http://127.0.0.1:8080/actuator/health`로 확인합니다.
+활성 슬롯과 관리자·DB·외부 API·Redis 설정이 다른 보관 슬롯은 롤백이 차단됩니다.
+Redis를 사용하면 읽기 전용 CA 마운트의 파일 내용도 일치해야 합니다. DB 마이그레이션은 롤백 후에도 유지됩니다.
+복구와 지연 정리 절차는 [배포 운영 가이드](deployment.md#배포와-복구)를 참고합니다.
 
-## 개발 서버 HTTPS 프록시
+## 관측성
 
-개발 서버의 요청 흐름은 다음과 같습니다.
+[Grafana](https://grafana.jucha.info)에서 `environment`로 개발·운영을 선택합니다.
 
-```text
-브라우저 -> dev.jucha.info -> EC2:80/443 -> Docker Nginx
-                                             |-- /api/* -> backend:8080
-                                             `-- 그 외  -> /var/www/jumin-dev/current
-```
-
-개발 Nginx 설정 배포는 [`proxy-dev-cd.yml`](../.github/workflows/proxy-dev-cd.yml)이
-담당합니다. 기존에 실행 중인 `jumin-nginx-dev`가 저장소 checkout 파일을 직접 mount하고
-있으면 첫 배포에서 현재 설정을 `/opt/jumin-dev/proxy/releases`로 자동 채택한 뒤
-release symlink 방식으로 전환합니다. 이후 `develop`에 proxy 설정이 반영될 때마다
-`nginx -t`와 HTTPS health check를 통과한 설정만 적용하고 실패 시 이전 설정으로
-복구합니다.
-
-가비아 DNS에는 다음 A 레코드가 등록되어 있어야 합니다.
-
-| 타입 | 호스트 | 값 | TTL |
-| --- | --- | --- | --- |
-| A | `dev` | EC2의 Elastic IP | `600` |
-
-아래 명령은 저장소 루트에서 실행합니다. 먼저 백엔드 컨테이너가 실행 중이고
-`jumin-dev_default` Docker 네트워크에 `backend`라는 별칭으로 연결되어 있어야 합니다.
-
-```bash
-docker inspect jumin-backend-dev \
-  --format '{{range $name, $network := .NetworkSettings.Networks}}network={{$name}} aliases={{json $network.Aliases}}{{println}}{{end}}'
-```
-
-### 1. 사전 준비
-
-EC2 보안 그룹에서 인바운드 TCP `80`, `443`을 허용하고 인증서 저장 경로를 만듭니다.
-인증서 파일은 Git 저장소가 아니라 EC2의 `/opt/jumin-dev/certbot/conf`에 보존됩니다.
-
-```bash
-sudo install -d -m 755 /opt/jumin-dev/certbot/www
-sudo install -d -m 755 /opt/jumin-dev/certbot/conf
-```
-
-### 2. Docker Nginx로 HTTP 전환
-
-호스트 Nginx가 이미 80번 포트를 사용하므로 먼저 중지한 뒤, 인증서 없이 실행할 수
-있는 bootstrap 설정으로 컨테이너를 시작합니다. 호스트 Nginx 설정은 롤백을 위해
-삭제하지 않습니다.
-
-```bash
-sudo systemctl stop nginx
-
-NGINX_CONF_FILE=./nginx/bootstrap.conf \
-  docker compose \
-    --project-name jumin-proxy \
-    --file infra/docker-compose.proxy.yml \
-    up --detach nginx
-
-curl --fail --show-error --head http://dev.jucha.info
-```
-
-전환에 실패하면 다음 명령으로 즉시 원래 구성으로 돌아갑니다.
-
-```bash
-docker compose \
-  --project-name jumin-proxy \
-  --file infra/docker-compose.proxy.yml \
-  down
-sudo systemctl start nginx
-```
-
-### 3. Let's Encrypt 인증서 발급
-
-`TEAM_EMAIL`에는 인증서 만료 알림을 받을 팀 이메일을 넣습니다. 이메일은 저장소에
-커밋하지 않습니다.
-
-```bash
-TEAM_EMAIL='팀 이메일 주소'
-
-docker compose \
-  --project-name jumin-proxy \
-  --file infra/docker-compose.proxy.yml \
-  run --rm certbot certonly \
-    --webroot \
-    --webroot-path /var/www/certbot \
-    --domain dev.jucha.info \
-    --email "${TEAM_EMAIL}" \
-    --agree-tos \
-    --no-eff-email \
-    --non-interactive
-```
-
-### 4. HTTPS 설정 적용
-
-인증서가 발급되면 기본 `jumin.conf`를 사용하도록 Nginx 컨테이너를 다시 만듭니다.
-정상 확인 후에만 호스트 Nginx의 자동 시작을 해제합니다.
-
-```bash
-docker compose \
-  --project-name jumin-proxy \
-  --file infra/docker-compose.proxy.yml \
-  up --detach --force-recreate nginx
-
-docker compose \
-  --project-name jumin-proxy \
-  --file infra/docker-compose.proxy.yml \
-  exec --no-TTY nginx nginx -t
-
-curl --fail --show-error --head https://dev.jucha.info
-curl --fail --show-error http://127.0.0.1:8080/actuator/health
-
-sudo systemctl disable nginx
-```
-
-HTTP 요청은 HTTPS로 리다이렉트됩니다. `/api/` 요청은 Docker 네트워크 안에서
-`backend:8080`으로 전달되고, 그 외 요청은 프론트엔드 정적 파일로 처리됩니다.
-
-### 5. 인증서 자동 갱신
-
-먼저 실제 인증서를 변경하지 않는 갱신 테스트를 실행합니다.
-
-```bash
-docker compose \
-  --project-name jumin-proxy \
-  --file infra/docker-compose.proxy.yml \
-  run --rm certbot renew --dry-run
-```
-
-테스트가 성공하면 root crontab에 갱신 스크립트를 등록합니다. 배포 workflow가
-`/opt/jumin-dev/proxy/current`에 활성 Compose 파일을 보관하므로 checkout 경로에
-의존하지 않습니다. 스크립트 자체는 저장소에서 EC2에 복사하거나, 운영 중인 checkout의
-절대 경로를 사용합니다.
-
-```bash
-sudo crontab -e
-```
-
-```cron
-17 3 * * * /absolute/path/to/repository/infra/scripts/renew-certificates.sh >> /var/log/jumin-certbot.log 2>&1
-```
-
-갱신 상태와 Nginx 로그는 다음 명령으로 확인합니다.
-
-```bash
-sudo tail -n 100 /var/log/jumin-certbot.log
-docker logs --tail 100 jumin-nginx-dev
-```
-
-## 로그와 Grafana 관측성
-
-dev/prod의 애플리케이션 로그와 EC2 지표를 관측성 EC2 한 대에 모읍니다. 통합 화면은 [`https://grafana.jucha.info`](https://grafana.jucha.info)이며, RDS 서비스 지표는 AWS RDS 콘솔에서 확인합니다.
-
-- **로그:** Docker journald → Alloy → Nginx → Loki
-- **지표:** Spring Actuator와 Alloy 호스트 수집기 → Nginx → Prometheus
-- **조회:** Grafana에서 로그와 지표를 확인하고 `environment`로 dev/prod를 전환합니다.
-
-Grafana 로그인과 수집용 HTTPS Basic Auth를 사용합니다. Loki·Prometheus 직접 접근은 공개하지 않으며, 고정된 `project-public` 보안 그룹은 변경하지 않습니다. 앱 Nginx는 `/health`를 backend 상태에 연결하고 공개 `/actuator/` 요청은 차단합니다.
-
-| 데이터 | 저장 위치와 보존 기간 |
+| 데이터 | 수집 경로 |
 | --- | --- |
-| Loki 로그 | 50 GiB EBS `/mnt/jumin-loki`; dev 7일, prod 30일 |
-| Prometheus 지표 | 관측성 EC2 root EBS; 15일·4 GB 중 먼저 도달할 때까지 |
-| Grafana 설정 | 관측성 EC2 root EBS |
+| 애플리케이션·프록시 로그 | Docker journald → Alloy → Loki |
+| 애플리케이션·EC2 지표 | Actuator·Alloy → Prometheus |
 
-50 GiB 용량은 시작 가정이며 실측이 필요합니다. 백업·복구는 구성하지 않았습니다. `environment`는 접근 권한 경계가 아니며 dev/prod가 같은 수집 비밀번호를 사용합니다.
+```bash
+bash infra/observability/scripts/validate-stack.sh
+```
 
-GitHub Repository secret `OBSERVABILITY_INGEST_PASSWORD`는 수집 인증에 사용하고, `observability` Environment secrets `GRAFANA_ADMIN_PASSWORD`와 `DISCORD_WEBHOOK_URL`은 관리자 로그인과 알림에 사용합니다. 관측성 workflow는 설정을 검증하고 `main`에서 중앙 스택을 배포합니다. 새 중앙 release의 HTTP 준비 검사가 실패하면 이전 release를 다시 실행하고 같은 검사를 수행합니다. 복구가 성공해도 새 배포는 실패로 기록합니다. 첫 배포에는 복구할 이전 release가 없으며, 실패 시 일부 컨테이너가 남아 있을 수 있어 운영자 확인이 필요합니다. dev/prod 배포 workflow는 backend 배포 후 Alloy를 배포합니다.
+인증 설정, 보존 기간과 경보는 [관측성 운영 안내](deployment.md#관측성)를 참고합니다.
 
-중앙 EC2에는 GitHub runner, Docker Compose, DNS, EBS mount와 최초 HTTPS 인증서 발급이 필요합니다. 구성 검증 명령은 `bash infra/observability/scripts/validate-stack.sh`입니다. 이 검증은 실제 배포나 데이터 수신까지 확인하지 않습니다.
+## 구성
 
-Grafana 경보 9개는 [rules.yml](observability/grafana/provisioning/alerting/rules.yml)에 정의합니다: dev/prod backend 수집 중단, dev/prod 호스트 지표 수집 중단, backend 5xx 비율 5% 초과, Nginx proxy 5xx, backend p95 지연 5초 초과, CPU·메모리 사용률 90% 초과입니다. 요청량이 적을 때의 오탐을 줄이도록 5xx 비율과 p95 경보는 최근 5분간 요청이 10건 이상일 때 평가합니다. 알림은 [notifications.yml](observability/grafana/provisioning/alerting/notifications.yml)의 Discord contact point로 전달하며, 실제 경보 발생과 Discord 수신은 아직 확인되지 않았습니다.
-
-## 관련 문서
-
-- [서버 README](../server/README.md): 애플리케이션 실행과 테스트
-- [팀 컨벤션](../docs/team-conventions.md): 브랜치와 커밋 규칙
-- [Server CI](../.github/workflows/server-ci.yml): 백엔드 검증 workflow
-- [Server CD](../.github/workflows/server-dev-cd.yml): 개발 서버 배포 workflow
-- [Development proxy CD](../.github/workflows/proxy-dev-cd.yml): 개발 Nginx 배포 workflow
-- [Server production CD](../.github/workflows/server-prod-cd.yml): 운영 서버 배포 workflow
-- [Production proxy CD](../.github/workflows/proxy-prod-cd.yml): 운영 Nginx 배포 workflow
-
+| 경로 | 용도 |
+| --- | --- |
+| `docker-compose.local.yml` | 로컬 PostgreSQL·PostGIS·pgRouting |
+| `docker-compose.dev.yml`, `docker-compose.prod.yml` | 개발 단일 백엔드·운영 블루·그린 슬롯 |
+| `docker-compose.proxy*.yml`, `nginx/` | Nginx·Certbot와 프록시 설정 |
+| `docker-compose.viewport*.yml`, `redis/` | 환경별 Viewport 캐시 CA 마운트와 Redis 배포 |
+| `scripts/` | 배포·드레인 정리·인증서 갱신·데이터 적재 |
+| `scripts/tests/` | 배포 회귀 테스트와 로컬 Docker 테스트 |
+| `observability/` | Grafana·Loki·Prometheus·Alloy |
+| `docker-compose.loadtest.yml` | 격리 부하 테스트 환경 |
 
 ## 보행망 수동 적재
 
-보행망은 컴퓨팅 자원이 충분한 로컬 또는 별도 작업 호스트에서 수동으로 변환·적재합니다.
-GitHub Actions에서는 OSM 다운로드·변환·적재를 실행하지 않습니다.
-실행 방법은 [서버 README의 OSM 적재 안내](../server/README.md#osm-보행-네트워크-적재)를 참고하세요.
+보행망은 로컬 또는 별도 작업 호스트에서 변환·적재합니다.
+실행 명령은 [서버 안내](../server/README.md#osm-보행-네트워크-적재), 환경별 준비 사항은
+[수동 적재 절차](deployment.md#보행망-수동-적재)를 참고합니다.
 
-- `OSM_PBF_DATE`로 다운로드할 스냅샷 날짜를 지정하거나 `OSM_PBF_FILE`로 준비한 원본을 사용합니다.
-- 미리 변환한 CSV는 `OSM_GRAPH_DIR`로 지정해 적재합니다.
-- RDS에 적재할 때는 `DB_TARGET=direct`와 DB 접속 정보·SSL 설정을 실행 환경에 지정합니다.
-- 원본·CSV·변환 캐시 공간을 확보하고, 필요하면 `OSM_TEMP_DIR`로 임시 파일 저장 위치를 지정합니다.
-- 대상 DB에는 적재 스크립트가 요구하는 마이그레이션과 pgRouting이 적용돼 있어야 합니다.
-  실행 계정에는 보행망 테이블의 SELECT, INSERT, UPDATE, TRUNCATE 및 임시 테이블 생성 권한이 필요합니다.
+## 관련 문서
 
-스크립트는 다운로드·검증 후 기존 보행망 전체를 트랜잭션으로 교체합니다.
-교체 트랜잭션이 실패하면 롤백되어 기존 데이터를 보존합니다.
-신규 환경은 마이그레이션과 최초 적재를 완료한 후 검색 서비스를 개방합니다.
-
-목적지 검색의 환경변수와 로컬 검증 방법은 [서버 환경변수 안내](../server/README.md#환경변수)를 참고합니다.
+- [서버 실행과 테스트](../server/README.md)
+- [서버 부하 테스트](../server/loadtest/README.md)
+- [배포 운영 가이드](deployment.md)
+- [Viewport 캐시·Redis 배포](viewport-cache-deployment.md)

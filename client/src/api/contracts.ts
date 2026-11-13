@@ -21,6 +21,7 @@ import {
   destinationNameSchema,
   destinationSchema,
   destinationSearchSchema,
+  parkingLotSearchResultSchema,
 } from './destinationSchema';
 
 // 공통 타입
@@ -32,6 +33,7 @@ export type ParkingFeeRule = z.infer<typeof parkingFeeRuleSchema>;
 
 // 목적지
 export type Destination = z.infer<typeof destinationSchema>;
+export type ParkingLotSearchResult = z.infer<typeof parkingLotSearchResultSchema>;
 
 // 1. 목적지 검색 후보 응답
 export type DestinationSearchResponse = z.infer<typeof destinationSearchSchema>;

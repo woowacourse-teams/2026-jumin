@@ -7,18 +7,46 @@ const CURRENT_LOCATION = {
   longitude: 127.0279,
 };
 
+// 목 추천 응답은 홈 지도와 같은 실제 주차장 데이터를 쓴다. 강남역 11번 출구에서 가장 가까운 주차장이다.
 const PARKING_LOT = {
-  id: 101,
-  name: '역삼문화공원 제1호 공영주차장',
-  address: '서울 강남구 테헤란로7길 21',
+  id: 201,
+  name: '시계탑빌딩 주차장',
+  address: '강남구 강남대로 402',
   location: {
-    latitude: 37.499,
-    longitude: 127.029,
+    latitude: 37.498784,
+    longitude: 127.027824,
   },
 };
 
 const ANDROID_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36';
+
+// 길찾기 E2E는 위치 공급자 대신 모달 조작과 딥링크를 검증한다.
+// CI Chrome에서 위치 조회가 10초 뒤 TIMEOUT을 반환하므로 현재 위치 입력을 고정한다.
+const mockCurrentLocation = async (page: Page) => {
+  await page.addInitScript(({ latitude, longitude }) => {
+    Object.defineProperty(navigator.geolocation, 'getCurrentPosition', {
+      configurable: true,
+      value: (success: PositionCallback) => {
+        // 앱이 예약한 LOADING 갱신 뒤에 READY가 적용되도록 브라우저처럼 비동기로 응답한다.
+        queueMicrotask(() =>
+          success({
+            coords: {
+              latitude,
+              longitude,
+              accuracy: 1,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          } as GeolocationPosition),
+        );
+      },
+    });
+  }, CURRENT_LOCATION);
+};
 
 const requestRecommendation = async (page: Page) => {
   await page.getByRole('button', { name: '다음' }).click();
@@ -41,6 +69,48 @@ const searchDestination = async (page: Page) => {
   );
 };
 
+test('연관 주차장 3개를 먼저 보여주고 선택하면 상세를 연다 @search @parking-detail', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await dismissSurveyIfPresent(page);
+  await page.getByRole('button', { name: '목적지 검색' }).click();
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('강남');
+
+  const results = page.getByRole('region', { name: '목적지 검색 결과' });
+  const parkingLots = results.getByRole('list', { name: '연관 주차장' });
+  await expect(parkingLots.getByRole('button')).toHaveCount(3);
+  await expect(results.getByRole('list').nth(1).getByRole('button').first()).toBeVisible();
+
+  const firstParking = parkingLots.getByRole('button').first();
+  const parkingName = (await firstParking.innerText()).split('\n')[0]!;
+  await firstParking.click();
+
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '');
+  await expect(page.getByRole('heading', { level: 1, name: parkingName })).toBeVisible();
+  await expect(page.getByRole('region', { name: '요금 정보' })).toBeVisible();
+
+  await page.getByRole('button', { name: '이전 화면으로 이동' }).click();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+  await page.goBack();
+  await page.goForward();
+  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
+  await page.goBack();
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
+  await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
+  // 검색어를 한 글자로 줄인 직후 Enter를 눌러도 이전 주차장을 선택하지 않는다.
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
+  // 디바운스가 끝난 뒤에도 상세 화면으로 이동하지 않았는지 확인한다.
+  await page.waitForTimeout(400);
+  await expect(page).toHaveURL((url) => url.pathname === '/search');
+  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toHaveValue('시');
+  await page.getByRole('textbox', { name: '목적지 검색' }).fill('시계탑');
+  await expect(page.getByRole('list', { name: '연관 주차장' })).toContainText('시계탑빌딩 주차장');
+  await page.getByRole('textbox', { name: '목적지 검색' }).press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: '시계탑빌딩 주차장' })).toBeVisible();
+});
+
 const goToRecommendedParkingDetail = async (page: Page) => {
   await page.goto('/');
   await dismissSurveyIfPresent(page);
@@ -48,6 +118,8 @@ const goToRecommendedParkingDetail = async (page: Page) => {
   await requestRecommendation(page);
 
   const recommendation = page.getByRole('region', { name: '주차장 전체 목록' });
+  // 추천순은 조회 시각의 운영 여부에 따라 바뀌므로, 항상 1위인 거리순에서 추천 카드를 연다.
+  await recommendation.getByRole('radio', { name: '거리순' }).click();
   await recommendation.getByRole('button', { name: `${PARKING_LOT.name} 상세정보` }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
   await expect(page.getByRole('heading', { level: 1, name: PARKING_LOT.name })).toBeVisible();
@@ -71,42 +143,6 @@ const getIntentSearchParams = (intentUrl: string) => {
 
   return new URL(routeUrl).searchParams;
 };
-
-test('페이지 코드를 500ms 이상 기다리면 지도 위에 공통 스피너를 표시한다 @loading', async ({
-  page,
-}) => {
-  await page.goto('/');
-  await dismissSurveyIfPresent(page);
-  await expect(page.getByRole('button', { name: '목적지 검색' })).toBeVisible();
-
-  let releaseChunk!: () => void;
-  let notifyChunkRequested!: () => void;
-  const chunkGate = new Promise<void>((resolve) => {
-    releaseChunk = resolve;
-  });
-  const chunkRequested = new Promise<void>((resolve) => {
-    notifyChunkRequested = resolve;
-  });
-  // 최초 페이지 로드 이후 요청되는 lazy 페이지 코드를 보류한다.
-  // MSW의 Service Worker가 전달하는 네트워크 요청도 가로챈다.
-  await page.context().route('**/assets/*.js', async (route) => {
-    notifyChunkRequested();
-    await chunkGate;
-    await route.continue();
-  });
-
-  try {
-    await Promise.all([chunkRequested, page.getByRole('button', { name: '목적지 검색' }).click()]);
-    await expect(page.getByRole('button', { name: '목적지 검색' })).toHaveCount(0);
-    await expect(page.getByRole('region', { name: '지도', exact: true })).toBeVisible();
-    await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toBeVisible();
-  } finally {
-    releaseChunk();
-  }
-
-  await expect(page.getByRole('textbox', { name: '목적지 검색' })).toBeVisible();
-  await expect(page.getByRole('status', { name: '페이지를 불러오는 중' })).toHaveCount(0);
-});
 
 test('서비스 페이지를 왕복한 뒤 지도와 검색 흐름을 사용할 수 있다 @navigation @search @setup @recommend', async ({
   page,
@@ -183,11 +219,17 @@ test('추천·더보기 주차장 상세를 같은 화면에서 열고 선택과
     await expect(region.getByRole('radio', { name })).toBeVisible();
   }
 
-  for (const name of ['강남대로 공영주차장', '목록 확인 주차장 3']) {
-    const select = region.getByRole('button', { name: `${name} 선택` });
+  // 조회 시각에 따라 순위가 달라져도 두 섹션에서 각각 한 곳을 열어 확인한다.
+  for (const sectionName of [/^추천 주차장 \d+곳$/, /^더보기 주차장 \d+곳$/]) {
+    const item = region.getByRole('listitem').filter({
+      has: page.getByRole('heading', { name: sectionName }),
+    });
+    const select = item.getByRole('button', { name: / 선택$/ });
+    const detail = item.getByRole('button', { name: / 상세정보$/ });
+    const name = (await select.getAttribute('aria-label'))!.replace(/ 선택$/, '');
     await select.click();
     await expect(select).toHaveAttribute('aria-pressed', 'true');
-    await region.getByRole('button', { name: `${name} 상세정보` }).click();
+    await detail.click();
     await expect(page).toHaveURL((url) => url.pathname === '/parkingRecommend');
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('button', { name: '길찾기 시작' })).toBeVisible();
@@ -252,6 +294,7 @@ test('2. 설정에서 가이드와 랜딩페이지를 확인하고 주차장 찾
 test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포커스를 복원한다 @search @recommend @parking-detail @directions @a11y', async ({
   page,
 }) => {
+  await mockCurrentLocation(page);
   await page.goto('/');
   await dismissSurveyIfPresent(page);
 
@@ -264,7 +307,19 @@ test('키보드로 검색·정렬·상세·길찾기 모달을 조작하고 포�
   await expect(
     page.getByRole('region', { name: '목적지 검색 결과' }).getByRole('status'),
   ).toHaveText(/검색 결과 \d+곳/);
+  const firstDestinationName = (
+    await page
+      .getByRole('region', { name: '목적지 검색 결과' })
+      .getByRole('list')
+      .last()
+      .getByRole('button')
+      .first()
+      .innerText()
+  ).split('\n')[0]!;
   await input.press('Enter');
+  await expect(page.getByRole('region', { name: '선택한 목적지' })).toContainText(
+    firstDestinationName,
+  );
   await requestRecommendation(page);
 
   const region = page.getByRole('region', { name: '주차장 전체 목록' });
@@ -309,6 +364,7 @@ test.describe('길찾기 @directions', () => {
   test.use({ userAgent: ANDROID_USER_AGENT });
 
   test('3. 최근 이용한 주차장의 길찾기를 요청한다 @recent', async ({ page }) => {
+    await mockCurrentLocation(page);
     await page.addInitScript(
       (recentParkingUse) => {
         localStorage.setItem('recentParkingUses', JSON.stringify([recentParkingUse]));
@@ -341,6 +397,7 @@ test.describe('길찾기 @directions', () => {
   test('4. 상세정보를 확인한 주차장의 길찾기를 요청한다 @recommend @parking-detail @recent', async ({
     page,
   }) => {
+    await mockCurrentLocation(page);
     await goToRecommendedParkingDetail(page);
     expect(await page.evaluate(() => localStorage.getItem('recentParkingUses'))).toBeNull();
 

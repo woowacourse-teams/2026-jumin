@@ -1,6 +1,7 @@
 import { Stack } from '../../../shared/components/ui/Stack';
 import { css, cx, keyframes } from '@emotion/css';
 import { color } from '../../../theme/color';
+import { radius } from '../../../theme/radius';
 
 const SKELETON_CARD_COUNT = 3;
 
@@ -70,10 +71,9 @@ const cardStyle = css`
   min-height: 158px;
   padding: 16px 18px;
 
-  background: ${color.background.default};
-  border: 2px solid ${color.border.default};
-  border-radius: 24px;
-  box-shadow: 0 6px 18px rgb(16 27 55 / 12%);
+  background: ${color.background.subtle};
+  border: 0;
+  border-radius: ${radius.md};
 `;
 
 const nameStyle = css`
