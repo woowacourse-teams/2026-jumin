@@ -8,7 +8,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/Modal',
   component: Modal,
-  parameters: figmaDesign('293:242'),
+  parameters: figmaDesign('177:73'),
   args: {
     label: '모달 제목',
     description: '설명 문구가 들어가는 영역입니다.',

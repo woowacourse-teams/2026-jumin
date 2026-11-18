@@ -5,7 +5,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/Notice',
   component: Notice,
-  parameters: figmaDesign('293:360'),
+  parameters: figmaDesign('393:232'),
   args: { children: '안내 문구를 확인해주세요.' },
   argTypes: { className: { control: false } },
 } satisfies Meta<typeof Notice>;

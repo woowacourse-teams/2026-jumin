@@ -6,7 +6,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/Spinner',
   component: Spinner,
-  parameters: figmaDesign('328:57'),
+  parameters: figmaDesign('328:56'),
   args: { size: 'lg', variant: 'brand' },
   argTypes: {
     size: { control: 'select', options: ['sm', 'lg'] },
@@ -17,10 +17,11 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const Default: Story = {};
-export const Small: Story = { args: { size: 'sm' } };
+export const Default: Story = { parameters: figmaDesign('327:62') };
+export const Small: Story = { args: { size: 'sm' }, parameters: figmaDesign('327:56') };
 export const Inverse: Story = {
   args: { variant: 'inverse' },
+  parameters: figmaDesign('327:65'),
   decorators: [
     (Story) => (
       <div style={{ padding: 24, background: color.background.brand }}>

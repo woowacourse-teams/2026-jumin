@@ -9,7 +9,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/BottomSheet',
   component: BottomSheet,
-  parameters: figmaDesign('293:243'),
+  parameters: figmaDesign('399:236'),
   args: {
     open: true,
     snap: 'medium',
@@ -47,9 +47,9 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const Collapsed: Story = { args: { snap: 'collapsed' } };
-export const Medium: Story = {};
-export const Full: Story = { args: { snap: 'full' } };
+export const Collapsed: Story = { args: { snap: 'collapsed' }, parameters: figmaDesign('399:226') };
+export const Medium: Story = { parameters: figmaDesign('177:81') };
+export const Full: Story = { args: { snap: 'full' }, parameters: figmaDesign('399:231') };
 export const Closed: Story = { args: { open: false } };
 export const Scrollable: Story = {
   args: {

@@ -8,7 +8,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/Chip',
   component: Chip,
-  parameters: figmaDesign('293:358'),
+  parameters: figmaDesign('393:223'),
   args: { children: '필터', selected: false, onSelectedChange: fn() },
   argTypes: { icon: { control: false }, className: { control: false } },
   render: function Render(args) {
@@ -27,9 +27,9 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const Default: Story = {};
+export const Default: Story = { parameters: figmaDesign('393:213') };
 export const Selected: Story = {
   args: { selected: true },
-  parameters: figmaDesign('293:359'),
+  parameters: figmaDesign('393:222'),
 };
 export const WithIcon: Story = { args: { icon: <HiOutlineAdjustmentsHorizontal /> } };
