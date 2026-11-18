@@ -1,0 +1,440 @@
+{
+  "syncedAt": "2026-11-18",
+  "collections": {
+    "Color": "zg5ebk",
+    "Component": "l1wrer",
+    "Font": "nwyzun",
+    "Motion": "1gsd4z7",
+    "Palette": "xskbis",
+    "Radius": "12ene06",
+    "Typography": "8uyrwz"
+  },
+  "styles": {
+    "effect": "enauqp",
+    "text": "1frfuv3"
+  },
+  "components": {
+    "177:57": {
+      "name": "ParkingLikeButton",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/parking/ParkingLikeButton.tsx",
+      "hash": "12f3kgr"
+    },
+    "177:66": {
+      "name": "ParkingFilterButton",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/parking/ParkingFilterBar.tsx (버튼)",
+      "hash": "snpysz"
+    },
+    "177:73": {
+      "name": "Modal",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/Modal.tsx",
+      "hash": "sjamo9"
+    },
+    "293:235": {
+      "name": "ToggleButton",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/ToggleButton.tsx",
+      "hash": "14x8ghl"
+    },
+    "328:56": {
+      "name": "Spinner",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/Spinner.tsx",
+      "hash": "zgoil4"
+    },
+    "380:101": {
+      "name": "Icon/retry",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "du9n6i"
+    },
+    "380:104": {
+      "name": "Icon/history",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "suvgif"
+    },
+    "380:107": {
+      "name": "Icon/settings",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "z02zr0"
+    },
+    "380:111": {
+      "name": "Icon/settingsFilled",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "mooooe"
+    },
+    "380:114": {
+      "name": "Icon/guide",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "q41kj0"
+    },
+    "380:117": {
+      "name": "Icon/install",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1hn02k0"
+    },
+    "380:120": {
+      "name": "Icon/feedback",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1r5nlth"
+    },
+    "380:123": {
+      "name": "Icon/freeParking",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1wdkon9"
+    },
+    "380:126": {
+      "name": "Icon/mechanicalParking",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "6d325l"
+    },
+    "380:129": {
+      "name": "Icon/publicParking",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "b2nayw"
+    },
+    "380:132": {
+      "name": "Icon/check",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "3kzmjc"
+    },
+    "380:135": {
+      "name": "Icon/home",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "visxj6"
+    },
+    "380:138": {
+      "name": "Icon/myLocation",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1ggxdt"
+    },
+    "380:141": {
+      "name": "Icon/parking",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1w1jnnh"
+    },
+    "380:144": {
+      "name": "Icon/walking",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1lz54kp"
+    },
+    "380:200": {
+      "name": "BottomNav",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/BottomNav.tsx",
+      "hash": "wh6q4b"
+    },
+    "380:201": {
+      "name": "SettingMenuItem",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/SettingPage/SettingPage.tsx (메뉴 항목)",
+      "hash": "66mawa"
+    },
+    "380:69": {
+      "name": "Icon/close",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1vggz77"
+    },
+    "380:72": {
+      "name": "Icon/back",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1t18q1y"
+    },
+    "380:75": {
+      "name": "Icon/chevronRight",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "ycsnz2"
+    },
+    "380:78": {
+      "name": "Icon/search",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "17oqvv1"
+    },
+    "380:81": {
+      "name": "Icon/directions",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1nj39iv"
+    },
+    "380:84": {
+      "name": "Icon/roadView",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "7nsh9e"
+    },
+    "380:88": {
+      "name": "Icon/heart",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1ovpttw"
+    },
+    "380:91": {
+      "name": "Icon/heartFilled",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1m68hvz"
+    },
+    "380:94": {
+      "name": "Icon/information",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1mqm11l"
+    },
+    "380:97": {
+      "name": "Icon/location",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/icons/index.ts",
+      "hash": "1o59e7p"
+    },
+    "385:174": {
+      "name": "GuideModal",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/guide/GuideModal.tsx",
+      "hash": "1k5wfdg"
+    },
+    "385:464": {
+      "name": "SearchBar",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/destination/SearchBar.tsx",
+      "hash": "v5fmba"
+    },
+    "385:465": {
+      "name": "CurrentLocationButton",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/HomePage/components/CurrentLocationButton.tsx",
+      "hash": "zu1mkh"
+    },
+    "385:501": {
+      "name": "HomeParkingMarker",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/HomePage/components/ViewportParkingMarkers.tsx",
+      "hash": "12o3mo5"
+    },
+    "385:506": {
+      "name": "CurrentLocationMarker",
+      "section": "도메인 컴포넌트",
+      "code": "assets/icons/markers/currentLocation.svg",
+      "hash": "13rj7xc"
+    },
+    "385:507": {
+      "name": "ParkingFilterBar",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/parking/ParkingFilterBar.tsx",
+      "hash": "1jof5a1"
+    },
+    "385:527": {
+      "name": "ConditionBar",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/ConditionBar.tsx",
+      "hash": "91ix1l"
+    },
+    "385:535": {
+      "name": "ParkingDetailActions",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/parking/ParkingDetailActions.tsx",
+      "hash": "8la2lu"
+    },
+    "385:562": {
+      "name": "ParkingInfoRow",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/HomePage/components/ParkingInformationContent.tsx (정보 행)",
+      "hash": "1qrtst3"
+    },
+    "385:563": {
+      "name": "ParkingFeeCard",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/HomePage/components/ParkingInformationContent.tsx (요금 카드)",
+      "hash": "1g7yfku"
+    },
+    "385:576": {
+      "name": "ParkingReportAction",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/parking/ParkingReportAction.tsx",
+      "hash": "dc85ce"
+    },
+    "385:600": {
+      "name": "SearchResultRow",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/SearchPage/components/SearchResultRow.tsx, ParkingLotSearchRow.tsx",
+      "hash": "b504z6"
+    },
+    "385:92": {
+      "name": "PageHeader",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/RecentUsePage/RecentUsePage.tsx (헤더)",
+      "hash": "1vln9ms"
+    },
+    "385:98": {
+      "name": "RecentHistoryRow",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/RecentHistoryRow.tsx (최근 검색 행도 이 컴포넌트를 쓴다)",
+      "hash": "2dmzlg"
+    },
+    "386:794": {
+      "name": "Marker/Destination",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/destination/DestinationMapOverlay.tsx",
+      "hash": "1lm9t8h"
+    },
+    "386:822": {
+      "name": "Marker/Parking",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/parkingMarker.ts",
+      "hash": "ue0gzv"
+    },
+    "386:823": {
+      "name": "DestinationConfirmSheet",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingSetupPage/components/DestinationConfirmSheet.tsx",
+      "hash": "1hytspu"
+    },
+    "386:861": {
+      "name": "RecommendSortTabs",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/ParkingRecommendContent.tsx (정렬 탭)",
+      "hash": "1f28ha0"
+    },
+    "387:209": {
+      "name": "InfoCard",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/InfoCard.tsx",
+      "hash": "f9vtxl"
+    },
+    "387:250": {
+      "name": "InfoRow",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/InfoRow.tsx",
+      "hash": "jvzdz3"
+    },
+    "387:251": {
+      "name": "RecommendSectionTitle",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/ParkingRecommendContent.tsx (섹션 제목)",
+      "hash": "jt1ajc"
+    },
+    "387:274": {
+      "name": "DirectionsProviderButton",
+      "section": "도메인 컴포넌트",
+      "code": "src/shared/components/service/directions/DeepLinkModal.tsx",
+      "hash": "14aoodl"
+    },
+    "387:275": {
+      "name": "DetailInfoRow",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/components/ParkingRecommendDetailContent.tsx",
+      "hash": "17ffq1x"
+    },
+    "387:303": {
+      "name": "RecommendSkeletonCard",
+      "section": "도메인 컴포넌트",
+      "code": "src/pages/ParkingRecommendPage/LoadingUI",
+      "hash": "1m4mr4z"
+    },
+    "393:223": {
+      "name": "Chip",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/Chip.tsx",
+      "hash": "1ttcp0d"
+    },
+    "393:232": {
+      "name": "Notice",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/Notice.tsx",
+      "hash": "shmu6g"
+    },
+    "398:319": {
+      "name": "Button",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/Button.tsx",
+      "hash": "17iqm7a"
+    },
+    "399:236": {
+      "name": "BottomSheet",
+      "section": "공용 컴포넌트",
+      "code": "src/shared/components/ui/BottomSheet.tsx",
+      "hash": "1eoxx3e"
+    }
+  },
+  "screens": {
+    "381:3": {
+      "name": "Setting · /setting",
+      "section": "설정 · /setting",
+      "hash": "bwqqgj"
+    },
+    "385:223": {
+      "name": "Recent · /recent · empty",
+      "section": "최근 이용 · /recent",
+      "hash": "j7rajd"
+    },
+    "385:249": {
+      "name": "Recent · /recent · with history",
+      "section": "최근 이용 · /recent",
+      "hash": "36bobf"
+    },
+    "385:339": {
+      "name": "Setting · /setting · guide modal",
+      "section": "설정 · /setting",
+      "hash": "4y145y"
+    },
+    "386:228": {
+      "name": "Home · / · default",
+      "section": "홈 · /",
+      "hash": "1m7oz03"
+    },
+    "386:359": {
+      "name": "Home · / · parking selected",
+      "section": "홈 · /",
+      "hash": "1r1fbsa"
+    },
+    "386:526": {
+      "name": "Search · /search · recent",
+      "section": "검색 · /search",
+      "hash": "1uh1nt"
+    },
+    "386:625": {
+      "name": "Search · /search · results",
+      "section": "검색 · /search",
+      "hash": "mwty2h"
+    },
+    "388:636": {
+      "name": "Setup · /parkingsetup · destination confirm",
+      "section": "출발 설정 · /parkingsetup",
+      "hash": "lapgf4"
+    },
+    "388:666": {
+      "name": "Recommend · /parkingRecommend · list",
+      "section": "추천 · /parkingRecommend",
+      "hash": "1tc58v0"
+    },
+    "388:891": {
+      "name": "Recommend · /parkingRecommend · detail",
+      "section": "추천 · /parkingRecommend",
+      "hash": "1ufuuf6"
+    },
+    "388:978": {
+      "name": "Recommend · /parkingRecommend · loading",
+      "section": "추천 · /parkingRecommend",
+      "hash": "1mnieo1"
+    }
+  }
+}
