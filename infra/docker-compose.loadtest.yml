@@ -77,7 +77,7 @@ services:
       start_period: 30s
 
   nginx:
-    image: nginx:1.30.4-alpine
+    image: nginx:1.30.7-alpine
     restart: unless-stopped
     ports:
       - '127.0.0.1:${LOADTEST_HTTP_PORT:-8081}:80'

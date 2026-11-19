@@ -2,7 +2,7 @@ name: jumin-proxy-prod
 
 services:
   nginx:
-    image: nginx:1.30.4-alpine
+    image: nginx:1.30.7-alpine
     container_name: jumin-nginx-prod
     restart: unless-stopped
     logging:
