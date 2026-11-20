@@ -40,7 +40,7 @@ docker run --detach --name "${network}-grafana" \
   -e GF_AUTH_ANONYMOUS_ENABLED=false \
   -e GF_USERS_ALLOW_SIGN_UP=false \
   -v "${provisioning_dir}:/etc/grafana/provisioning:ro" \
-  grafana/grafana:13.2.2 >/dev/null
+  grafana/grafana:13.2.6 >/dev/null
 grafana_port="$(docker port "${network}-grafana" 3000/tcp)"
 grafana_port="${grafana_port##*:}"
 alert_rules_json="${temporary}/alert-rules.json"
@@ -82,7 +82,7 @@ for config in bootstrap.conf grafana.conf; do
     -v "${temporary}/certbot/conf:/etc/letsencrypt:ro" \
     -v "${temporary}/certbot/www:/var/www/certbot:ro" \
     -v "${temporary}/htpasswd:/etc/nginx/htpasswd:ro" \
-    nginx:1.30.4-alpine nginx -t
+    nginx:1.30.7-alpine nginx -t
 done
 
 cat > "${temporary}/upstream.conf" <<'EOF'
@@ -97,14 +97,14 @@ docker network create "${network}" >/dev/null
 docker run --detach --name "${network}-upstream" --network "${network}" \
   --network-alias grafana --network-alias loki --network-alias prometheus \
   -v "${temporary}/upstream.conf:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:1.30.4-alpine >/dev/null
+  nginx:1.30.7-alpine >/dev/null
 docker run --detach --name "${network}-proxy" --network "${network}" \
   -p 127.0.0.1::443 \
   -v "${stack_dir}/nginx/grafana.conf:/etc/nginx/conf.d/default.conf:ro" \
   -v "${temporary}/certbot/conf:/etc/letsencrypt:ro" \
   -v "${temporary}/certbot/www:/var/www/certbot:ro" \
   -v "${temporary}/htpasswd:/etc/nginx/htpasswd:ro" \
-  nginx:1.30.4-alpine >/dev/null
+  nginx:1.30.7-alpine >/dev/null
 port="$(docker port "${network}-proxy" 443/tcp)"
 port="${port##*:}"
 base_url="https://grafana.jucha.info:${port}"

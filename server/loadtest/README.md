@@ -23,7 +23,7 @@ Stress는 viewport **1.4 → 2.8 → 5.6 → … → 324 RPS**로 높이고 추�
 | --- | --- |
 | Backend | 2 CPU · 903 MiB · JVM 최대 힙 226 MiB · `prod` 프로필 |
 | DB | 2 CPU · 1 GiB · PostgreSQL 18 / PostGIS 3.6 / pgRouting 3.8 |
-| Nginx / k6 | `nginx:1.30.4-alpine` / `grafana/k6:2.3.0` |
+| Nginx / k6 | `nginx:1.30.7-alpine` / `grafana/k6:2.3.0` |
 | 공개 주소 | API `127.0.0.1:8081` · DB `127.0.0.1:55432` |
 | DB 볼륨 | `jumin-loadtest-postgres-data` · 일반 개발 DB와 분리 |
 

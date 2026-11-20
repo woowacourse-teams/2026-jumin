@@ -14,7 +14,7 @@ from urllib.request import urlopen
 import uuid
 
 REPOSITORY = Path(__file__).resolve().parents[3]
-NGINX_IMAGE = 'nginx:1.30.4-alpine'
+NGINX_IMAGE = 'nginx:1.30.7-alpine'
 BACKEND_IMAGE = 'python:3.13-alpine'
 
 # 실제 배포 스크립트를 통과할 준비 상태와 지연 응답을 제공한다.

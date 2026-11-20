@@ -2,7 +2,7 @@ name: jumin-observability
 
 services:
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2.6
     restart: unless-stopped
     environment:
       GF_SERVER_ROOT_URL: https://grafana.jucha.info/
@@ -44,7 +44,7 @@ services:
     logging: *rotated_logs
 
   nginx:
-    image: nginx:1.30.4-alpine
+    image: nginx:1.30.7-alpine
     restart: unless-stopped
     ports:
       - "80:80"
