@@ -12,7 +12,7 @@
 
 컴포넌트의 고정된 variant·size·snap 목록은 스토리에 명시한다. 공개 prop이 변경되면 해당 예시와 Controls 목록도 검토해야 한다. 타입 검사가 모든 선택지의 누락까지 찾아주지는 않는다.
 
-`@storybook/addon-designs`의 Design 패널에 기존 Figma 링크를 연결했다. 링크는 `client/stories/figma.ts`에서 구성하고 각 스토리의 `parameters.design`에 지정한다. Chip·ToggleButton은 선택 상태별 시안을 연결한다. Spinner와 색상·타이포그래피도 해당 시안을 연결한다. Row·Stack은 대응하는 시안이 없어 링크를 추가하지 않았다.
+`@storybook/addon-designs`의 Design 패널에 기존 Figma 링크를 연결했다. 링크는 `client/stories/figma.ts`에서 구성하고 각 스토리의 `parameters.design`에 지정한다. Button·Chip·ToggleButton·BottomSheet·Spinner는 스토리별로 해당 variant 시안을 연결한다. Notice·Modal과 색상·타이포그래피도 해당 시안을 연결한다. Row·Stack은 대응하는 시안이 없어 링크를 추가하지 않았다.
 
 링크는 좌표가 아니라 노드 ID를 가리킨다. 같은 노드의 위치·이름·스타일을 수정하면 링크를 유지할 수 있고, Design 패널은 최신 Figma 디자인을 표시한다. 노드를 삭제하고 다시 만들거나 다른 파일로 교체하면 링크도 갱신해야 한다. 해당 Figma 파일을 볼 수 있는 계정으로 로그인해야 디자인을 확인할 수 있다.
 
@@ -52,19 +52,27 @@ Storybook은 서비스의 `applyGlobalStyles`를 재사용한다. 문서 스크�
 
 폰트 가족은 현재 typography 토큰에 없다. 일부 페이지는 Apple SD Gothic Neo → Noto Sans KR → sans-serif를 선언하고, 공용 UI는 상속한다. Figma의 Noto Sans KR과 픽셀 수준으로 비교하려면 폰트 가족·실제 제공 폰트·굵기를 먼저 합의해야 한다.
 
-Figma를 대조한 결과, 코드의 팔레트 22개·의미 색상 43개와 폰트·타이포그래피 39개 값은 단위 환산 후 일치했다. Figma에는 `whiteAlpha94`·`background/floating` 변수가 추가로 있고, 코드의 Notice는 같은 색을 내부 상수로 사용한다.
+2026-11-18에 Figma 변수와 `src/theme`를 다시 대조했다.
 
-확인한 불일치는 후속 디자인 정리 대상으로 남긴다. Figma의 BottomSheet는 아직 4단계(110px·45%·75%·100%)다. Modal은 설명 아래 간격이 Figma 6px·코드 14px이고, 설명이 있는 제목 자간은 Figma 0·코드 -0.5px이다. 비교 링크 연결이 규격 일치를 보장하지는 않는다.
+- 단위 환산 후 일치한 값: 팔레트 27개, 의미 색상 48개(별칭 포함), 폰트 13개, radius 4개, motion 7개, 그림자 3개.
+- 이전에 남긴 불일치는 Figma를 코드 기준으로 고쳤다.
+  - BottomSheet는 `Snap = collapsed | medium | full` 세트다.
+  - Modal의 설명 아래 간격은 14px, 닫기 버튼은 44px이다.
+- 남은 차이: Figma 텍스트 스타일은 스타일 연결을 유지하려고 자간(-0.4~-1px)을 적용하지 않는다.
+- 비교 링크 연결이 규격 일치를 보장하지는 않는다.
+
+Figma의 Component 페이지는 "공용 컴포넌트"(`src/shared/components/ui`)와 "도메인 컴포넌트"(`src/shared/components/service`, `src/pages`) 섹션으로 나뉜다. 각 컴포넌트 카드에 Figma 이름·코드 경로·variant를 적는다. 스토리의 Design 패널 링크는 섹션 안의 원본 컴포넌트와 스토리별 variant를 가리킨다.
 
 ## 동기화 수단 비교
 
-| 방법                                   | 해결하는 것                            | 해결하지 않는 것                               | 판단                                       |
-| -------------------------------------- | -------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
-| Storybook Design 패널                  | 스토리 옆에서 Figma 디자인 열기        | 토큰·도형·React 코드 변경                      | 이번에 적용                                |
-| Storybook Connect                      | Figma에서 배포된 스토리 확인           | Figma 도형을 React와 같은 모양으로 자동 수정   | Storybook 배포 후 검토                     |
-| Tokens Studio + Git + Style Dictionary | 토큰 원본 교환과 서비스용 코드 생성    | 컴포넌트의 구조·상태·동작 생성                 | 토큰 자동화의 다음 후보                    |
-| Figma Variables REST API               | CI에서 Figma 변수를 조회·수정          | 도형의 Auto Layout·variant와 React 동작 동기화 | 계정·좌석 조건 확인 후 판단                |
-| Figma Code Connect                     | Figma 컴포넌트와 실제 코드 사용법 연결 | 토큰 동기화, 컴포넌트 구현 자동 수정           | 공용 API와 Figma 컴포넌트가 안정된 뒤 검토 |
+| 방법                                   | 해결하는 것                                          | 해결하지 않는 것                               | 판단                                       |
+| -------------------------------------- | ---------------------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| Storybook Design 패널                  | 스토리 옆에서 Figma 디자인 열기                      | 토큰·도형·React 코드 변경                      | 이번에 적용                                |
+| Storybook Connect                      | Figma에서 배포된 스토리 확인                         | Figma 도형을 React와 같은 모양으로 자동 수정   | Storybook 배포 후 검토                     |
+| figma-sync 스킬 (스냅숏 비교)          | Figma에서 바뀐 토큰·컴포넌트·화면을 찾아 코드에 반영 | Figma에 없는 동작·로직, 코드에서 Figma로 반영  | 적용 (`.claude/skills/figma-sync`)         |
+| Tokens Studio + Git + Style Dictionary | 토큰 원본 교환과 서비스용 코드 생성                  | 컴포넌트의 구조·상태·동작 생성                 | 검토 후 쓰지 않음 (Figma 원천으로 결정)    |
+| Figma Variables REST API               | CI에서 Figma 변수를 조회·수정                        | 도형의 Auto Layout·variant와 React 동작 동기화 | 계정·좌석 조건 확인 후 판단                |
+| Figma Code Connect                     | Figma 컴포넌트와 실제 코드 사용법 연결               | 토큰 동기화, 컴포넌트 구현 자동 수정           | 공용 API와 Figma 컴포넌트가 안정된 뒤 검토 |
 
 [Storybook 공식 문서](https://storybook.js.org/docs/sharing/design-integrations)는 Design 애드온과 Storybook Connect를 구분한다. Connect에는 Chromatic에 배포한 Storybook이 필요하다. 두 방식 모두 비교·연결 기능이며 디자인 토큰의 공통 원본을 대신하지 않는다.
 
@@ -72,25 +80,37 @@ Figma를 대조한 결과, 코드의 팔레트 22개·의미 색상 43개와 폰
 
 [Variables REST API](https://developers.figma.com/docs/rest-api/variables/)는 Enterprise 조직·계정 조건과 토큰 scope 제한이 있다. 일반 파일 읽기 권한만으로 CI 변수 동기화가 가능하다고 가정하면 안 된다. [Code Connect](https://developers.figma.com/docs/code-connect/)도 플랜과 좌석 조건을 확인해야 한다. 현재 사용 계정의 도입 가능 여부는 이번 작업에서 확인하지 않았다.
 
-## 제안하는 다음 단계
+## 현재 동기화 방식
 
-지금은 코드의 토큰을 기준으로 서비스를 유지하고, Storybook을 검토 화면으로 사용한다. 토큰 값·컴포넌트 규격·Controls 선택지가 바뀌면 같은 PR에서 스토리와 연결된 Figma 디자인을 확인한다. 색·패딩·상태를 스토리용 CSS로 다시 그리지 않는다.
-
-실제 자동화를 도입할 때는 저장소의 토큰 JSON을 공통 원본으로 두는 방식을 제안한다. 디자이너도 토큰 JSON의 변경을 제안할 수 있지만, 서비스 반영은 PR 검토 뒤에 진행한다. Figma와 TypeScript를 각각 독립적으로 수정한 다음 양방향 자동 덮어쓰기를 하는 방식은 피한다.
+2026-11-18부터 Figma를 디자인 원천으로 둔다. Figma에서 디자인을 고친 뒤 Claude Code에서 `/figma-sync`를 부르면, 바뀐 디자인만 찾아 서비스 코드에 반영한다. 방향은 Figma → 코드 단방향이다. 반영할 항목은 사람이 고른다.
 
 ```mermaid
 flowchart LR
-  T[Git의 검토된 토큰 JSON] --> G[Style Dictionary 변환]
-  G --> C[서비스 토큰 코드]
-  C --> UI[공용 React 컴포넌트]
-  UI --> SB[Storybook]
-  T --> TS[Tokens Studio pull · export]
-  TS --> F[Figma 변수 · 스타일]
-  F -. 디자인 비교 .-> SB
+  F[Figma 수정] --> S["/figma-sync"]
+  S --> D[스냅숏과 비교해 바뀐 것만 찾기]
+  D --> R[코드와 대조해 표로 보고]
+  R --> P{사람이 선택}
+  P -->|반영| C[theme·컴포넌트 코드 수정]
+  C --> K[pnpm design:check]
+  K --> N[스냅숏 갱신]
+  P -->|무시| N
+  C --> SB[Storybook에서 확인]
 ```
 
-처음에는 팔레트와 의미 색상만 옮긴다. `color.background.brand → palette.blue500` 같은 별칭을 유지하고, 사용처의 `color` API를 유지하는 생성 형식을 검토한다. 생성 결과는 직접 편집하지 않으며 CI에서 재생성 후 차이가 남는지 확인한다. `paddingX` 등 rem 치수와 Figma의 px, 단위 없는 line-height와 퍼센트 변환도 이 단계에서 명시한다.
+- **토큰:** theme 파일(`src/theme/*.ts`)을 바로 기준으로 쓴다. 중간 토큰 JSON과 생성기는 두지 않는다.
+- **비교 기준:** 마지막 동기화 때의 Figma 상태를 `.claude/skills/figma-sync/snapshot.json`에 지문으로 저장한다. 커밋해서 팀이 같은 기준을 쓴다.
+- **비용:** 바뀐 것이 없거나 컴포넌트 하나가 바뀐 경우 Figma 호출은 3회 안팎이다.
+- **더 읽을 곳:** 설계 이유, 파일 형식, 한계는 `.claude/skills/figma-sync/DESIGN.md`에 정리했다.
 
-색상 흐름이 검증되면 타이포그래피와 컴포넌트 치수를 순서대로 옮긴다. 컴포넌트 상수에 있는 이벤트 처리나 snap 계산식까지 디자인 토큰으로 바꾸지는 않는다. 버튼 클릭·폼 제출·드래그 같은 동작은 코드와 기존 동작 테스트가 담당한다.
+Storybook은 반영 결과를 확인하는 화면으로 계속 쓴다. 컴포넌트 규격이나 Controls 선택지가 바뀌면 같은 PR에서 스토리와 연결된 Figma 디자인을 확인한다. 색·패딩·상태를 스토리용 CSS로 다시 그리지 않는다.
 
-Figma에서 도형을 새로 만들거나 variant 구조를 바꾸는 작업은 토큰 동기화와 별도로 검토한다. Storybook을 배포하면 Figma 컴포넌트에 스토리 링크를 연결하고, 이후 필요할 때 Code Connect 또는 시각 회귀 검증을 추가한다. 이번 변경에는 토큰 JSON 마이그레이션·원격 배포·계정 연결·Figma 수정은 포함하지 않았다.
+이전에 제안했던 "저장소의 토큰 JSON을 공통 원본으로 두고 Tokens Studio·Style Dictionary로 동기화하는 방식"은 쓰지 않기로 했다.
+
+- Figma를 원천으로 두면 중간 JSON이 필요 없다.
+- Tokens Studio에는 별도 플러그인과 형식 변환이 필요하다.
+
+다음 후보는 다음과 같다.
+
+- Figma Button에 비활성·로딩 상태를 추가하고 스토리에 연결한다.
+- Storybook을 배포한 뒤 Figma 컴포넌트에 스토리 링크를 연결한다.
+- 공용 API와 Figma 컴포넌트가 안정되면 Code Connect나 시각 회귀 검증을 검토한다.

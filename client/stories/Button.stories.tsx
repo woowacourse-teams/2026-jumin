@@ -8,7 +8,7 @@ import { figmaDesign } from './figma';
 const meta = {
   title: 'Components/Button',
   component: Button,
-  parameters: figmaDesign('293:244'),
+  parameters: figmaDesign('398:319'),
   args: {
     children: '버튼',
     variant: 'brand',
@@ -29,10 +29,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Brand: Story = {};
-export const Subtle: Story = { args: { variant: 'subtle' } };
-export const Outline: Story = { args: { variant: 'outline' } };
-export const Ghost: Story = { args: { variant: 'ghost' } };
+export const Brand: Story = { parameters: figmaDesign('293:286') };
+export const Subtle: Story = { args: { variant: 'subtle' }, parameters: figmaDesign('293:289') };
+export const Outline: Story = { args: { variant: 'outline' }, parameters: figmaDesign('293:292') };
+export const Ghost: Story = { args: { variant: 'ghost' }, parameters: figmaDesign('293:295') };
 export const Disabled: Story = { args: { disabled: true } };
 export const Loading: Story = { args: { isLoading: true } };
 export const FullWidth: Story = { args: { isFullWidth: true } };

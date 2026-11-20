@@ -1,0 +1,47 @@
+{
+  "fileKey": "gb2er689PABLoKutY6Bi9p",
+  "fileName": "주차의-민족-UI",
+  "pages": [
+    {
+      "name": "Primitive",
+      "nodeId": "120:2",
+      "variableFrames": [
+        { "name": "Jumin / Palette", "nodeId": "129:2" },
+        { "name": "Jumin / Semantic Color", "nodeId": "129:224" },
+        { "name": "Jumin / Typography", "nodeId": "129:454" }
+      ]
+    },
+    {
+      "name": "Component",
+      "nodeId": "166:2",
+      "sections": [
+        {
+          "name": "공용 컴포넌트",
+          "nodeId": "396:463",
+          "code": "client/src/shared/components/ui"
+        },
+        {
+          "name": "도메인 컴포넌트",
+          "nodeId": "396:464",
+          "code": "client/src/shared/components/service, client/src/pages"
+        }
+      ],
+      "ignore": [{ "name": "Archive · 이전 문서", "nodeId": "394:234" }]
+    },
+    {
+      "name": "Screens (코드 기준)",
+      "nodeId": "381:2",
+      "sections": [
+        { "name": "홈 · /", "nodeId": "390:1388" },
+        { "name": "검색 · /search", "nodeId": "390:1389" },
+        { "name": "출발 설정 · /parkingsetup", "nodeId": "390:1390" },
+        { "name": "추천 · /parkingRecommend", "nodeId": "390:1391" },
+        { "name": "최근 이용 · /recent", "nodeId": "390:1392" },
+        { "name": "설정 · /setting", "nodeId": "390:1393" }
+      ]
+    }
+  ],
+  "ignorePages": [
+    { "name": "Page Flow", "nodeId": "0:1", "reason": "10/16 기준 이전 디자인" }
+  ]
+}
